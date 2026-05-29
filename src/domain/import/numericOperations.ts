@@ -1,8 +1,8 @@
-import type { NumericOperation, NumericTransformationConfig } from '../../types/import';
+import type { NumericOperation, TransformStep } from '../../types/import';
 
 export function parseNumericValue(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
   }
 
   const raw = String(value ?? '').trim();
@@ -10,7 +10,10 @@ export function parseNumericValue(value: unknown): number | null {
     return null;
   }
 
-  const cleaned = raw.replace(/[^\d,.-]/g, '').replace(/\s+/g, '');
+  const cleaned = raw
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\s+/g, '');
+
   if (!cleaned || cleaned === '-' || cleaned === ',' || cleaned === '.') {
     return null;
   }
@@ -35,7 +38,7 @@ export function parseNumericValue(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function applyNumericOperation(value: number, operation: NumericOperation, amount: number): number {
+export function applyNumericOperation(value: number, operation: NumericOperation, amount: number) {
   if (operation === 'add') {
     return value + amount;
   }
@@ -63,21 +66,23 @@ export function applyNumericOperation(value: number, operation: NumericOperation
   return value / (1 + amount / 100);
 }
 
-export function formatNumericResult(value: number, rounding: NumericTransformationConfig['rounding'] = 2): string {
+export function formatNumericResult(value: number, rounding: TransformStep['rounding'] = 2) {
   if (rounding === 'none') {
     return String(value);
   }
 
-  return value.toFixed(rounding);
+  const decimals = rounding ?? 2;
+  const formatted = value.toFixed(decimals);
+  return formatted.includes('.') ? formatted.replace(/\.?0+$/, '') : formatted;
 }
 
-export function getSuggestedNumericColumnName(sourceColumn: string, operation: NumericOperation, amount: number): string {
+export function getSuggestedNumericColumnName(sourceColumn: string, operation: NumericOperation, amount: number) {
   if (operation === 'add') {
-    return `${sourceColumn} +$${amount}`;
+    return `${sourceColumn} +${amount}`;
   }
 
   if (operation === 'subtract') {
-    return `${sourceColumn} -$${amount}`;
+    return `${sourceColumn} -${amount}`;
   }
 
   if (operation === 'multiply') {

@@ -1,8 +1,9 @@
-import type { IgnoreRule, OutputCategory } from '../../types/import';
+import type { IgnoreRule, InputColumn, OutputColumn } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 
 type IgnoreRulesProps = {
-  categories: OutputCategory[];
+  inputColumns: InputColumn[];
+  outputColumns: OutputColumn[];
   rules: IgnoreRule[];
   onChange: (rules: IgnoreRule[]) => void;
 };
@@ -13,19 +14,22 @@ const operators: Array<{ value: IgnoreRule['operator']; label: string; needsValu
   { value: 'contains', label: 'contiene', needsValue: true },
   { value: 'notContains', label: 'no contiene', needsValue: true },
   { value: 'equals', label: 'es igual a', needsValue: true },
+  { value: 'notEquals', label: 'no es igual a', needsValue: true },
   { value: 'startsWith', label: 'empieza con', needsValue: true },
   { value: 'endsWith', label: 'termina con', needsValue: true },
 ];
 
-export function IgnoreRules({ categories, rules, onChange }: IgnoreRulesProps) {
-  const ordered = [...categories].sort((a, b) => a.order - b.order);
+export function IgnoreRules({ inputColumns, outputColumns, rules, onChange }: IgnoreRulesProps) {
+  const activeInputColumns = inputColumns.filter((column) => column.active);
+  const activeOutputColumns = [...outputColumns].filter((column) => column.enabled).sort((a, b) => a.order - b.order);
 
   const addRule = () => {
     onChange([
       ...rules,
       {
         id: crypto.randomUUID(),
-        categoryId: ordered[0]?.id ?? '',
+        target: 'output',
+        columnId: activeOutputColumns[0]?.id ?? '',
         operator: 'contains',
         value: 'PROXIMAMENTE',
         reason: 'Ignorada por regla: contiene "PROXIMAMENTE"',
@@ -48,14 +52,34 @@ export function IgnoreRules({ categories, rules, onChange }: IgnoreRulesProps) {
 
       {rules.map((rule) => {
         const selectedOperator = operators.find((operator) => operator.value === rule.operator);
+        const target = rule.target ?? 'output';
+        const columns = target === 'input' ? activeInputColumns : activeOutputColumns;
 
         return (
           <div className="transformRule" key={rule.id}>
             <label className="field compact">
-              <span>Categoria</span>
-              <select value={rule.categoryId} onChange={(event) => updateRule(rule.id, { categoryId: event.target.value })}>
-                {ordered.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
+              <span>Evaluar</span>
+              <select
+                value={target}
+                onChange={(event) => {
+                  const nextTarget = event.target.value as IgnoreRule['target'];
+                  const nextColumns = nextTarget === 'input' ? activeInputColumns : activeOutputColumns;
+                  updateRule(rule.id, { target: nextTarget, columnId: nextColumns[0]?.id ?? '' });
+                }}
+              >
+                <option value="output">Columna de salida</option>
+                <option value="input">Columna de entrada</option>
+              </select>
+            </label>
+
+            <label className="field compact">
+              <span>Columna</span>
+              <select value={rule.columnId} onChange={(event) => updateRule(rule.id, { columnId: event.target.value })}>
+                {columns.length === 0 ? <option value="">Sin columnas disponibles</option> : null}
+                {columns.map((column) => (
+                  <option key={column.id} value={column.id}>
+                    {target === 'input' && 'columnLetter' in column ? `${column.columnLetter} - ${column.label}` : column.label}
+                  </option>
                 ))}
               </select>
             </label>

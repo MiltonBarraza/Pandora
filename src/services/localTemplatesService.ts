@@ -1,4 +1,4 @@
-import type { IgnoreRule, TransformationRule, WizardPersistedSettings } from '../types/import';
+import type { IgnoreRule, WizardPersistedSettings } from '../types/import';
 
 const settingsKey = 'excel-sanitizer:generic-settings';
 
@@ -19,10 +19,6 @@ export function savePersistedSettings(settings: Partial<WizardPersistedSettings>
   localStorage.setItem(settingsKey, JSON.stringify(settings));
 }
 
-export function defaultTransformationRules(): TransformationRule[] {
-  return [];
-}
-
 export function defaultIgnoreRules(): IgnoreRule[] {
   return [];
 }
@@ -38,6 +34,8 @@ function normalizePersistedIgnoreRule(rule: IgnoreRule): IgnoreRule {
 
   return {
     ...rule,
+    target: rule.target ?? 'output',
+    columnId: rule.columnId ?? rule.categoryId ?? legacyRule.columnKey ?? '',
     categoryId: rule.categoryId ?? legacyRule.columnKey ?? '',
     operator: operatorMap[legacyRule.operator ?? ''] ?? rule.operator ?? 'contains',
   };

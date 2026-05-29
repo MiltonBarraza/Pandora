@@ -1,10 +1,36 @@
-import type { IgnoreRule, NormalizedRow, OutputCategory, RowOverrides } from '../../types/import';
+import type { IgnoreRule, InputColumn, OutputColumn, ProcessedRow, RowOverrides } from '../../types/import';
 
-export function applyIgnoreRules(
-  rows: NormalizedRow[],
-  ignoreRules: IgnoreRule[],
-  rowOverrides: RowOverrides,
-): NormalizedRow[] {
+export function normalizeIgnoreRule(rule: IgnoreRule): IgnoreRule {
+  const legacyRule = rule as IgnoreRule & { columnKey?: string; operator?: string };
+  const operatorMap: Record<string, IgnoreRule['operator']> = {
+    empty: 'isEmpty',
+    equals: 'equals',
+    contains: 'contains',
+    startsWith: 'startsWith',
+  };
+
+  return {
+    ...rule,
+    target: rule.target ?? 'output',
+    columnId: rule.columnId ?? rule.categoryId ?? legacyRule.columnKey ?? '',
+    categoryId: rule.categoryId ?? legacyRule.columnKey ?? '',
+    operator: operatorMap[legacyRule.operator ?? ''] ?? rule.operator ?? 'contains',
+  };
+}
+
+export function applyIgnoreRulesToProcessedRows({
+  rows,
+  ignoreRules,
+  rowOverrides,
+  inputColumns,
+  outputColumns,
+}: {
+  rows: ProcessedRow[];
+  ignoreRules: IgnoreRule[];
+  rowOverrides: RowOverrides;
+  inputColumns: InputColumn[];
+  outputColumns: OutputColumn[];
+}): ProcessedRow[] {
   return rows.map((row) => {
     const override = rowOverrides[row.rowNumber];
 
@@ -20,26 +46,27 @@ export function applyIgnoreRules(
       return row.error ? { ...row, status: 'error', ignoredReason: undefined } : { ...row, status: 'included', ignoredReason: undefined };
     }
 
-    const matchedRule = ignoreRules.find((rule) => matchesIgnoreRule(row, normalizeIgnoreRule(rule)));
+    if (row.error) {
+      return { ...row, status: 'error', ignoredReason: undefined };
+    }
+
+    const normalizedRules = ignoreRules.map((rule) => normalizeProcessedIgnoreRule(rule, outputColumns));
+    const matchedRule = normalizedRules.find((rule) => matchesProcessedIgnoreRule(row, rule));
     if (matchedRule) {
       return {
         ...row,
         status: 'ignored',
-        ignoredReason: matchedRule.reason || describeIgnoreRule(normalizeIgnoreRule(matchedRule)),
+        ignoredReason: matchedRule.reason || describeProcessedIgnoreRule(matchedRule, inputColumns, outputColumns),
       };
-    }
-
-    if (row.error) {
-      return { ...row, status: 'error', ignoredReason: undefined };
     }
 
     return { ...row, status: 'included', ignoredReason: undefined };
   });
 }
 
-export function matchesIgnoreRule(row: NormalizedRow, rule: IgnoreRule) {
-  const rawValue = row.values[rule.categoryId] ?? '';
-  const value = rawValue.trim();
+export function matchesProcessedIgnoreRule(row: ProcessedRow, rule: IgnoreRule) {
+  const sourceValues = rule.target === 'input' ? row.inputValues : row.outputValues;
+  const value = String(sourceValues[rule.columnId] ?? '').trim();
   const expected = rule.value ?? '';
   const normalizedValue = value.toLowerCase();
   const normalizedExpected = expected.trim().toLowerCase();
@@ -64,6 +91,10 @@ export function matchesIgnoreRule(row: NormalizedRow, rule: IgnoreRule) {
     return normalizedValue === normalizedExpected;
   }
 
+  if (rule.operator === 'notEquals') {
+    return normalizedValue !== normalizedExpected;
+  }
+
   if (rule.operator === 'startsWith') {
     return normalizedValue.startsWith(normalizedExpected);
   }
@@ -75,57 +106,60 @@ export function matchesIgnoreRule(row: NormalizedRow, rule: IgnoreRule) {
   return false;
 }
 
-export function describeIgnoreRule(rule: IgnoreRule, categories: OutputCategory[] = []) {
-  const categoryName = categories.find((category) => category.id === rule.categoryId)?.name ?? 'Columna';
+export function describeProcessedIgnoreRule(rule: IgnoreRule, inputColumns: InputColumn[], outputColumns: OutputColumn[]) {
+  const columnName = rule.target === 'input'
+    ? inputColumns.find((column) => column.id === rule.columnId)?.label ?? 'Columna de entrada'
+    : outputColumns.find((column) => column.id === rule.columnId)?.label ?? 'Columna de salida';
 
   if (rule.operator === 'isEmpty') {
-    return `Ignorada por regla: ${categoryName} esta vacio`;
+    return `Ignorada por regla: ${columnName} esta vacia`;
   }
 
   if (rule.operator === 'isNotEmpty') {
-    return `Ignorada por regla: ${categoryName} no esta vacio`;
+    return `Ignorada por regla: ${columnName} no esta vacia`;
   }
 
   if (rule.operator === 'contains') {
-    return `Ignorada por regla: ${categoryName} contiene "${rule.value ?? ''}"`;
+    return `Ignorada por regla: ${columnName} contiene "${rule.value ?? ''}"`;
   }
 
   if (rule.operator === 'notContains') {
-    return `Ignorada por regla: ${categoryName} no contiene "${rule.value ?? ''}"`;
+    return `Ignorada por regla: ${columnName} no contiene "${rule.value ?? ''}"`;
   }
 
   if (rule.operator === 'equals') {
-    return `Ignorada por regla: ${categoryName} es igual a "${rule.value ?? ''}"`;
+    return `Ignorada por regla: ${columnName} es igual a "${rule.value ?? ''}"`;
+  }
+
+  if (rule.operator === 'notEquals') {
+    return `Ignorada por regla: ${columnName} no es igual a "${rule.value ?? ''}"`;
   }
 
   if (rule.operator === 'startsWith') {
-    return `Ignorada por regla: ${categoryName} empieza con "${rule.value ?? ''}"`;
+    return `Ignorada por regla: ${columnName} empieza con "${rule.value ?? ''}"`;
   }
 
-  return `Ignorada por regla: ${categoryName} termina con "${rule.value ?? ''}"`;
+  return `Ignorada por regla: ${columnName} termina con "${rule.value ?? ''}"`;
 }
 
-export function normalizeIgnoreRule(rule: IgnoreRule): IgnoreRule {
-  const legacyRule = rule as IgnoreRule & { columnKey?: string; operator?: string };
-  const operatorMap: Record<string, IgnoreRule['operator']> = {
-    empty: 'isEmpty',
-    equals: 'equals',
-    contains: 'contains',
-    startsWith: 'startsWith',
-  };
+export function normalizeProcessedIgnoreRule(rule: IgnoreRule, outputColumns: OutputColumn[]): IgnoreRule {
+  const normalized = normalizeIgnoreRule(rule);
+  const outputColumn = outputColumns.find((column) => column.legacyCategoryId === normalized.columnId || column.legacyCategoryId === normalized.categoryId);
+
+  if (normalized.target === 'output' && outputColumn && normalized.columnId !== outputColumn.id) {
+    return {
+      ...normalized,
+      columnId: outputColumn.id,
+    };
+  }
+
+  if (normalized.columnId) {
+    return normalized;
+  }
 
   return {
-    ...rule,
-    categoryId: rule.categoryId ?? legacyRule.columnKey ?? '',
-    operator: operatorMap[legacyRule.operator ?? ''] ?? rule.operator ?? 'contains',
+    ...normalized,
+    target: normalized.target ?? 'output',
+    columnId: outputColumn?.id ?? normalized.categoryId ?? '',
   };
-}
-
-export function rowContainsText(row: NormalizedRow, text: string) {
-  const needle = text.trim().toLowerCase();
-  if (!needle) {
-    return false;
-  }
-
-  return Object.values(row.values).some((value) => value.toLowerCase().includes(needle));
 }

@@ -1,4 +1,4 @@
-import type { ConditionOperator, TransformationCondition } from '../../types/import';
+import type { ConditionOperator, TransformCondition } from '../../types/import';
 import { parseNumericValue } from './numericOperations';
 
 type ConditionResult = {
@@ -15,15 +15,27 @@ const numericOperators = new Set<ConditionOperator>([
   'numericNotEquals',
 ]);
 
-export function evaluateCondition(values: Record<string, string>, condition?: TransformationCondition): ConditionResult {
+export function evaluateTransformCondition({
+  inputValues,
+  outputValues,
+  condition,
+}: {
+  inputValues: Record<string, string>;
+  outputValues: Record<string, string>;
+  condition?: TransformCondition;
+}): ConditionResult {
   if (!condition) {
     return { matches: true };
   }
 
-  const value = values[condition.sourceColumn] ?? '';
+  const values = condition.target === 'input' ? inputValues : outputValues;
+  const value = values[condition.columnId] ?? '';
 
   if (numericOperators.has(condition.operator) || condition.valueType === 'number') {
-    return evaluateNumericCondition(value, condition.operator, condition.value);
+    const result = evaluateNumericCondition(value, condition.operator, condition.value);
+    return result.warning
+      ? { matches: false, warning: 'No se pudo evaluar la condicion de transformacion' }
+      : result;
   }
 
   return { matches: evaluateTextCondition(value, condition.operator, condition.value) };

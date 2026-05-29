@@ -9,18 +9,107 @@ export type OutputCategory = {
 
 export type ColumnMapping = Record<number, string>;
 
-export type TransformationType =
+export type InputColumn = {
+  id: string;
+  columnIndex: number;
+  columnLetter: string;
+  label: string;
+  header?: string;
+  active: boolean;
+  sampleValues: string[];
+  nonEmptyCount: number;
+  ignoredReason?: IgnoredReason;
+};
+
+export type InputRow = {
+  rowNumber: number;
+  values: Record<string, string>;
+};
+
+export type TransformStepType =
+  | 'trim'
+  | 'uppercase'
+  | 'lowercase'
   | 'addPrefix'
   | 'addSuffix'
   | 'removeText'
   | 'replaceText'
-  | 'trim'
-  | 'uppercase'
-  | 'lowercase'
-  | 'conditionalPrefix'
-  | 'copyColumn'
-  | 'combineColumns'
   | 'numericOperation';
+
+export type TransformStep = {
+  id: string;
+  type: TransformStepType;
+  value?: string;
+  searchValue?: string;
+  replaceValue?: string;
+  operation?: NumericOperation;
+  amount?: number;
+  rounding?: 'none' | 0 | 2 | 4;
+  condition?: TransformCondition;
+  applyToEmptyValues?: boolean;
+};
+
+export type ConditionTarget = 'input' | 'output';
+
+export type TransformCondition = {
+  target: ConditionTarget;
+  columnId: string;
+  operator: ConditionOperator;
+  value?: string;
+  valueType?: 'text' | 'number';
+};
+
+export type RecipePart =
+  | {
+      id: string;
+      type: 'input';
+      inputColumnId: string;
+    }
+  | {
+      id: string;
+      type: 'text';
+      value: string;
+    };
+
+export type OutputRecipe =
+  | {
+      type: 'direct';
+      inputColumnId: string;
+      steps?: TransformStep[];
+    }
+  | {
+      type: 'empty';
+    }
+  | {
+      type: 'fixedText';
+      value: string;
+      steps?: TransformStep[];
+    }
+  | {
+      type: 'combine';
+      parts: RecipePart[];
+      separator?: string;
+      steps?: TransformStep[];
+    };
+
+export type OutputColumn = {
+  id: string;
+  label: string;
+  order: number;
+  enabled: boolean;
+  legacyCategoryId?: string;
+  recipe: OutputRecipe;
+};
+
+export type ProcessedRow = {
+  rowNumber: number;
+  inputValues: Record<string, string>;
+  outputValues: Record<string, string>;
+  status: RowStatus;
+  ignoredReason?: string;
+  warnings?: string[];
+  error?: string;
+};
 
 export type NumericOperation =
   | 'add'
@@ -30,22 +119,6 @@ export type NumericOperation =
   | 'addPercentage'
   | 'subtractPercentage'
   | 'removeIncludedPercentage';
-
-export type NumericTransformationConfig = {
-  operation: NumericOperation;
-  amount: number;
-  outputMode: 'replace' | 'newColumn';
-  outputColumnName?: string;
-  outputCategoryId?: string;
-  rounding?: 'none' | 0 | 2 | 4;
-};
-
-export type TransformationCondition = {
-  sourceColumn: string;
-  operator: ConditionOperator;
-  value?: string;
-  valueType?: 'text' | 'number';
-};
 
 export type ConditionOperator =
   | 'contains'
@@ -63,29 +136,6 @@ export type ConditionOperator =
   | 'numericEquals'
   | 'numericNotEquals';
 
-export type TransformationRule = {
-  id: string;
-  sourceColumn: string;
-  targetCategoryId: string;
-  type: TransformationType;
-  applyToEmptyValues?: boolean;
-  value?: string;
-  searchValue?: string;
-  replaceValue?: string;
-  secondarySourceColumn?: string;
-  condition?: TransformationCondition;
-  numericConfig?: NumericTransformationConfig;
-};
-
-export type NormalizedRow = {
-  rowNumber: number;
-  values: Record<string, string>;
-  status: RowStatus;
-  ignoredReason?: string;
-  warnings?: string[];
-  error?: string;
-};
-
 export type RowStatus = 'included' | 'ignored' | 'error';
 
 export type RowOverride = {
@@ -97,23 +147,16 @@ export type RowOverrides = Record<number, RowOverride>;
 
 export type IgnoreRule = {
   id: string;
-  categoryId: string;
-  operator: 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'startsWith' | 'endsWith';
+  target: 'input' | 'output';
+  columnId: string;
+  operator: 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'startsWith' | 'endsWith';
   value?: string;
   reason?: string;
-};
-
-export type NormalizationSettings = {
-  startRowIndex: number;
-  columnMapping: ColumnMapping;
-  categories: OutputCategory[];
-  transformationRules: TransformationRule[];
-  activeColumnIndexes?: number[];
+  categoryId?: string;
 };
 
 export type WizardPersistedSettings = {
-  columnMapping: ColumnMapping;
-  transformationRules: TransformationRule[];
+  columnMapping?: ColumnMapping;
   ignoreRules: IgnoreRule[];
 };
 

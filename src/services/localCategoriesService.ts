@@ -9,7 +9,7 @@ const defaultCategories: OutputCategory[] = [
   { id: 'comments', name: 'Comentarios', order: 3, exportable: true },
 ];
 
-export function loadCategories(): OutputCategory[] {
+export function loadLegacyCategories(): OutputCategory[] {
   try {
     const raw = localStorage.getItem(categoriesKey);
     const parsed = raw ? (JSON.parse(raw) as OutputCategory[]) : null;
@@ -19,20 +19,7 @@ export function loadCategories(): OutputCategory[] {
   }
 }
 
-export function saveCategories(categories: OutputCategory[]) {
-  localStorage.setItem(categoriesKey, JSON.stringify(sortCategories(categories)));
-}
-
-export function createCategory(name: string, order: number): OutputCategory {
-  return {
-    id: crypto.randomUUID(),
-    name: name.trim() || 'Nueva columna',
-    order,
-    exportable: true,
-  };
-}
-
-export function sortCategories(categories: OutputCategory[]) {
+function sortCategories(categories: OutputCategory[]) {
   return [...categories].sort((a, b) => a.order - b.order);
 }
 

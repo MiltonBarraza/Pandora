@@ -1,25 +1,33 @@
 import * as XLSX from 'xlsx';
-import type { NormalizedRow, OutputCategory } from '../../types/import';
-import { getExportableCategories, rowsToAoA } from './buildOutputRows';
+import type { OutputColumn, ProcessedRow } from '../../types/import';
+import { getEnabledOutputColumns, rowsToAoAFromProcessedRows } from './outputModel';
 
-export function exportXlsx(rows: NormalizedRow[], categories: OutputCategory[], filename = 'Archivo sanitizado') {
+export function exportXlsxFromProcessedRows(
+  rows: ProcessedRow[],
+  outputColumns: OutputColumn[],
+  filename = 'Archivo sanitizado',
+) {
   const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, categories));
+  const sheet = XLSX.utils.aoa_to_sheet(rowsToAoAFromProcessedRows(rows, outputColumns));
   XLSX.utils.book_append_sheet(workbook, sheet, 'Salida');
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 
-export function exportAuditXlsx(rows: NormalizedRow[], categories: OutputCategory[], filename = 'auditoria') {
-  const ordered = getExportableCategories(categories);
+export function exportAuditXlsxFromProcessedRows(
+  rows: ProcessedRow[],
+  outputColumns: OutputColumn[],
+  filename = 'auditoria',
+) {
+  const ordered = getEnabledOutputColumns(outputColumns);
   const data = [
-    ['Fila', 'Estado', 'Motivo', 'Advertencias', 'Error', ...ordered.map((category) => category.name)],
+    ['Fila', 'Estado', 'Motivo', 'Advertencias', 'Error', ...ordered.map((column) => column.label)],
     ...rows.map((row) => [
       row.rowNumber,
-      statusLabel(row),
+      processedStatusLabel(row),
       row.ignoredReason ?? '',
       row.warnings?.join(' | ') ?? '',
       row.error ?? '',
-      ...ordered.map((category) => row.values[category.id] ?? ''),
+      ...ordered.map((column) => row.outputValues[column.id] ?? ''),
     ]),
   ];
   const workbook = XLSX.utils.book_new();
@@ -28,7 +36,7 @@ export function exportAuditXlsx(rows: NormalizedRow[], categories: OutputCategor
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 
-function statusLabel(row: NormalizedRow) {
+function processedStatusLabel(row: ProcessedRow) {
   if (row.status === 'ignored') {
     return row.ignoredReason?.includes('manual') ? 'Ignorada manualmente' : 'Ignorada por regla';
   }
