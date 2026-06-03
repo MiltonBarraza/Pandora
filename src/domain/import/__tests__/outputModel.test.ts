@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { InputRow, NumericOperation, OutputColumn } from '../../../types/import';
-import { buildProcessedRows } from '../outputModel';
+import type { ColumnAnalysis, InputRow, NumericOperation, OutputColumn } from '../../../types/import';
+import { buildProcessedRows, buildProcessedRowsPipeline } from '../outputModel';
 
 const inputRows: InputRow[] = [
   {
@@ -74,6 +74,116 @@ describe('outputModel recipes', () => {
     expect(row.outputValues.combined).toBe('Marca - Producto');
     expect(row.outputValues['text-combined']).toBe('PROD-ABC123');
     expect(row.outputValues.combined).not.toContain('undefined');
+  });
+
+  it('combines parts with custom separators and part transformations', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'presentation',
+        recipe: {
+          type: 'combine',
+          separator: ' / ',
+          parts: [
+            { id: 'product', type: 'input', inputColumnId: 'input-product', separatorAfter: ' - ' },
+            {
+              id: 'amount',
+              type: 'text',
+              value: '20',
+              separatorAfter: ' X ',
+              steps: [{ id: 'liters', type: 'addSuffix', value: 'lts' }],
+            },
+            {
+              id: 'units',
+              type: 'text',
+              value: '3',
+              steps: [{ id: 'units-suffix', type: 'addSuffix', value: 'Unidades' }],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.presentation).toBe('Producto - 20lts X 3Unidades');
+  });
+
+  it('applies part transformations before final transformations', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'combined',
+        recipe: {
+          type: 'combine',
+          parts: [
+            {
+              id: 'prefix',
+              type: 'text',
+              value: 'prod',
+              separatorAfter: '-',
+              steps: [{ id: 'upper', type: 'uppercase' }],
+            },
+            {
+              id: 'code',
+              type: 'input',
+              inputColumnId: 'input-code',
+              steps: [{ id: 'part-prefix', type: 'addPrefix', value: 'COD-' }],
+            },
+          ],
+          steps: [{ id: 'final-suffix', type: 'addSuffix', value: '-OK' }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.combined).toBe('PROD-COD-ABC123-OK');
+  });
+
+  it('does not add custom separator after the last part', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'combined',
+        recipe: {
+          type: 'combine',
+          parts: [
+            { id: 'a', type: 'text', value: 'A', separatorAfter: ' - ' },
+            { id: 'b', type: 'text', value: 'B', separatorAfter: ' SHOULD_NOT_APPEAR ' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.combined).toBe('A - B');
+  });
+});
+
+describe('outputModel input filters', () => {
+  it('filters input rows before building processed rows', () => {
+    const columns: ColumnAnalysis[] = [
+      columnAnalysis(0, 'A', 'Codigo'),
+      columnAnalysis(1, 'B', 'Estado'),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A1', 'ACTIVO'],
+        ['A2', 'BORRAR'],
+      ],
+      columnAnalysis: columns,
+      startRowIndex: 0,
+      inputIgnoreRules: [
+        { id: 'remove-deleted', target: 'input', columnId: 'input-1', operator: 'equals', value: 'BORRAR' },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      ],
+    });
+
+    expect(pipeline.includedInputRows).toHaveLength(1);
+    expect(pipeline.processedRows).toHaveLength(1);
+    expect(pipeline.processedRows[0].rowNumber).toBe(1);
+    expect(pipeline.ignoredInputRows).toEqual([
+      {
+        rowNumber: 2,
+        inputValues: { 'input-0': 'A2', 'input-1': 'BORRAR' },
+        ignoredReason: 'Ignorada por regla: B - Estado es igual a "BORRAR"',
+      },
+    ]);
   });
 });
 
@@ -153,13 +263,13 @@ describe('outputModel numeric transformations', () => {
       }),
     ]);
 
-    expect(row.outputValues.add).toBe('250');
-    expect(row.outputValues.subtract).toBe('190');
-    expect(row.outputValues.multiply).toBe('242');
-    expect(row.outputValues.divide).toBe('100');
-    expect(row.outputValues.addPercentage).toBe('220');
-    expect(row.outputValues.subtractPercentage).toBe('180');
-    expect(row.outputValues.removeIncludedPercentage).toBe('200');
+    expect(row.outputValues.add).toBe('250.00');
+    expect(row.outputValues.subtract).toBe('190.00');
+    expect(row.outputValues.multiply).toBe('242.00');
+    expect(row.outputValues.divide).toBe('100.00');
+    expect(row.outputValues.addPercentage).toBe('220.00');
+    expect(row.outputValues.subtractPercentage).toBe('180.00');
+    expect(row.outputValues.removeIncludedPercentage).toBe('200.00');
   });
 
   it('keeps original value and emits warnings for invalid numeric operations', () => {
@@ -186,6 +296,58 @@ describe('outputModel numeric transformations', () => {
     expect(row.outputValues.zero).toBe('$ 200');
     expect(row.warnings).toContain('No se pudo aplicar operacion numerica: valor invalido');
     expect(row.warnings).toContain('No se puede dividir por cero');
+  });
+
+  it('converts values explicitly between text and number steps', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'extract-and-add',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-code',
+          steps: [
+            { id: 'extract', type: 'extractNumber' },
+            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+          ],
+        },
+      }),
+      outputColumn({
+        id: 'number-to-text',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-price',
+          steps: [
+            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+            { id: 'text', type: 'toText' },
+            { id: 'prefix', type: 'addPrefix', value: 'hay ' },
+            { id: 'suffix', type: 'addSuffix', value: ' personas' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['extract-and-add']).toBe('133');
+    expect(row.outputValues['number-to-text']).toBe('hay 210 personas');
+  });
+
+  it('does not convert mixed text to number unless extraction is explicit', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'strict',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-code',
+          steps: [
+            { id: 'to-number', type: 'toNumber' },
+            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.strict).toBe('ABC123');
+    expect(row.warnings).toContain('No se pudo convertir a numero: valor invalido');
+    expect(row.warnings).toContain('No se pudo aplicar operacion numerica: valor invalido');
   });
 });
 
@@ -270,7 +432,7 @@ describe('outputModel conditional transformations', () => {
       }),
     ]);
 
-    expect(row.outputValues.price).toBe('1650');
+    expect(row.outputValues.price).toBe('1650.00');
     expect(row.outputValues['not-matching']).toBe('ABC123');
   });
 
@@ -307,4 +469,17 @@ function numericColumn(id: string, operation: NumericOperation, amount: number):
       steps: [{ id: `numeric-${id}`, type: 'numericOperation', operation, amount, rounding: 2 }],
     },
   });
+}
+
+function columnAnalysis(columnIndex: number, columnLetter: string, header: string): ColumnAnalysis {
+  return {
+    columnIndex,
+    columnLetter,
+    header,
+    sampleValues: [],
+    nonEmptyCount: 2,
+    isEmpty: false,
+    ignored: false,
+    autoIgnored: false,
+  };
 }

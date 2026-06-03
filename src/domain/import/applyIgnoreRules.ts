@@ -1,21 +1,8 @@
-import type { IgnoreRule, InputColumn, OutputColumn, ProcessedRow, RowOverrides } from '../../types/import';
+import type { IgnoreRule, IgnoredInputRow, InputColumn, InputRow, OutputColumn, ProcessedRow, RowOverrides } from '../../types/import';
+import { getInputColumnLabel } from './inputColumnLabels';
 
 export function normalizeIgnoreRule(rule: IgnoreRule): IgnoreRule {
-  const legacyRule = rule as IgnoreRule & { columnKey?: string; operator?: string };
-  const operatorMap: Record<string, IgnoreRule['operator']> = {
-    empty: 'isEmpty',
-    equals: 'equals',
-    contains: 'contains',
-    startsWith: 'startsWith',
-  };
-
-  return {
-    ...rule,
-    target: rule.target ?? 'output',
-    columnId: rule.columnId ?? rule.categoryId ?? legacyRule.columnKey ?? '',
-    categoryId: rule.categoryId ?? legacyRule.columnKey ?? '',
-    operator: operatorMap[legacyRule.operator ?? ''] ?? rule.operator ?? 'contains',
-  };
+  return rule;
 }
 
 export function applyIgnoreRulesToProcessedRows({
@@ -31,6 +18,97 @@ export function applyIgnoreRulesToProcessedRows({
   inputColumns: InputColumn[];
   outputColumns: OutputColumn[];
 }): ProcessedRow[] {
+  return applyRowOverridesToProcessedRows(
+    applyOutputIgnoreRulesToProcessedRows({
+      rows,
+      outputIgnoreRules: ignoreRules.filter((rule) => rule.target !== 'input'),
+      outputColumns,
+    }).map((row) => {
+      if (row.status === 'ignored' || row.status === 'error') {
+        return row;
+      }
+
+      const inputRules = ignoreRules.filter((rule) => rule.target === 'input');
+      const matchedRule = inputRules.find((rule) => evaluateIgnoreRule(row.inputValues, forceRuleTarget(rule, 'input')));
+      if (!matchedRule) {
+        return row;
+      }
+
+      return {
+        ...row,
+        status: 'ignored',
+        ignoredReason: describeProcessedIgnoreRule(forceRuleTarget(matchedRule, 'input'), inputColumns, outputColumns),
+      };
+    }),
+    rowOverrides,
+  );
+}
+
+export function applyInputIgnoreRulesToInputRows({
+  inputRows,
+  inputIgnoreRules,
+  inputColumns,
+}: {
+  inputRows: InputRow[];
+  inputIgnoreRules: IgnoreRule[];
+  inputColumns: InputColumn[];
+}) {
+  const includedInputRows: InputRow[] = [];
+  const ignoredInputRows: IgnoredInputRow[] = [];
+
+  inputRows.forEach((row) => {
+    const matchedRule = inputIgnoreRules
+      .map((rule) => forceRuleTarget(rule, 'input'))
+      .find((rule) => evaluateIgnoreRule(row.values, rule));
+
+    if (matchedRule) {
+      ignoredInputRows.push({
+        rowNumber: row.rowNumber,
+        inputValues: row.values,
+        ignoredReason: describeProcessedIgnoreRule(matchedRule, inputColumns, []),
+      });
+      return;
+    }
+
+    includedInputRows.push(row);
+  });
+
+  return { includedInputRows, ignoredInputRows };
+}
+
+export function applyOutputIgnoreRulesToProcessedRows({
+  rows,
+  outputIgnoreRules,
+  outputColumns,
+}: {
+  rows: ProcessedRow[];
+  outputIgnoreRules: IgnoreRule[];
+  outputColumns: OutputColumn[];
+}): ProcessedRow[] {
+  return rows.map((row) => {
+    if (row.error) {
+      return { ...row, status: 'error', ignoredReason: undefined };
+    }
+
+    if (row.status === 'ignored') {
+      return row;
+    }
+
+    const normalizedRules = outputIgnoreRules.map((rule) => normalizeProcessedIgnoreRule(forceRuleTarget(rule, 'output'), outputColumns));
+    const matchedRule = normalizedRules.find((rule) => evaluateIgnoreRule(row.outputValues, rule));
+    if (matchedRule) {
+      return {
+        ...row,
+        status: 'ignored',
+        ignoredReason: describeProcessedIgnoreRule(matchedRule, [], outputColumns),
+      };
+    }
+
+    return { ...row, status: 'included', ignoredReason: undefined };
+  });
+}
+
+export function applyRowOverridesToProcessedRows(rows: ProcessedRow[], rowOverrides: RowOverrides): ProcessedRow[] {
   return rows.map((row) => {
     const override = rowOverrides[row.rowNumber];
 
@@ -50,23 +128,17 @@ export function applyIgnoreRulesToProcessedRows({
       return { ...row, status: 'error', ignoredReason: undefined };
     }
 
-    const normalizedRules = ignoreRules.map((rule) => normalizeProcessedIgnoreRule(rule, outputColumns));
-    const matchedRule = normalizedRules.find((rule) => matchesProcessedIgnoreRule(row, rule));
-    if (matchedRule) {
-      return {
-        ...row,
-        status: 'ignored',
-        ignoredReason: matchedRule.reason || describeProcessedIgnoreRule(matchedRule, inputColumns, outputColumns),
-      };
-    }
-
-    return { ...row, status: 'included', ignoredReason: undefined };
+    return row;
   });
 }
 
 export function matchesProcessedIgnoreRule(row: ProcessedRow, rule: IgnoreRule) {
   const sourceValues = rule.target === 'input' ? row.inputValues : row.outputValues;
-  const value = String(sourceValues[rule.columnId] ?? '').trim();
+  return evaluateIgnoreRule(sourceValues, rule);
+}
+
+export function evaluateIgnoreRule(values: Record<string, string>, rule: IgnoreRule) {
+  const value = String(values[rule.columnId] ?? '').trim();
   const expected = rule.value ?? '';
   const normalizedValue = value.toLowerCase();
   const normalizedExpected = expected.trim().toLowerCase();
@@ -106,9 +178,13 @@ export function matchesProcessedIgnoreRule(row: ProcessedRow, rule: IgnoreRule) 
   return false;
 }
 
+function forceRuleTarget(rule: IgnoreRule, target: IgnoreRule['target']): IgnoreRule {
+  return { ...rule, target };
+}
+
 export function describeProcessedIgnoreRule(rule: IgnoreRule, inputColumns: InputColumn[], outputColumns: OutputColumn[]) {
   const columnName = rule.target === 'input'
-    ? inputColumns.find((column) => column.id === rule.columnId)?.label ?? 'Columna de entrada'
+    ? getMatchedInputColumnLabel(rule.columnId, inputColumns)
     : outputColumns.find((column) => column.id === rule.columnId)?.label ?? 'Columna de salida';
 
   if (rule.operator === 'isEmpty') {
@@ -142,24 +218,14 @@ export function describeProcessedIgnoreRule(rule: IgnoreRule, inputColumns: Inpu
   return `Ignorada por regla: ${columnName} termina con "${rule.value ?? ''}"`;
 }
 
+function getMatchedInputColumnLabel(columnId: string, inputColumns: InputColumn[]) {
+  const inputColumn = inputColumns.find((column) => column.id === columnId);
+  return inputColumn ? getInputColumnLabel(inputColumn) : 'Columna de entrada';
+}
+
 export function normalizeProcessedIgnoreRule(rule: IgnoreRule, outputColumns: OutputColumn[]): IgnoreRule {
   const normalized = normalizeIgnoreRule(rule);
-  const outputColumn = outputColumns.find((column) => column.legacyCategoryId === normalized.columnId || column.legacyCategoryId === normalized.categoryId);
-
-  if (normalized.target === 'output' && outputColumn && normalized.columnId !== outputColumn.id) {
-    return {
-      ...normalized,
-      columnId: outputColumn.id,
-    };
-  }
-
-  if (normalized.columnId) {
-    return normalized;
-  }
-
-  return {
-    ...normalized,
-    target: normalized.target ?? 'output',
-    columnId: outputColumn?.id ?? normalized.categoryId ?? '',
-  };
+  return outputColumns.some((column) => column.id === normalized.columnId) || normalized.target === 'input'
+    ? normalized
+    : { ...normalized, columnId: '' };
 }

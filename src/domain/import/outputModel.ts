@@ -1,17 +1,17 @@
 import type {
   ColumnAnalysis,
-  ColumnMapping,
+  IgnoreRule,
   InputColumn,
   InputRow,
-  OutputCategory,
   OutputColumn,
   ProcessedRow,
   RawRow,
   RecipePart,
   TransformStep,
 } from '../../types/import';
+import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
 import { evaluateTransformCondition } from './evaluateCondition';
-import { applyNumericOperation, formatNumericResult, parseNumericValue } from './numericOperations';
+import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
 
 export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]): InputColumn[] {
@@ -21,6 +21,7 @@ export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]):
     columnLetter: column.columnLetter,
     label: column.header || column.columnLetter,
     header: column.header,
+    alias: column.alias,
     active: !column.ignored,
     sampleValues: column.sampleValues,
     nonEmptyCount: column.nonEmptyCount,
@@ -65,63 +66,31 @@ export function buildProcessedRowsPipeline({
   columnAnalysis,
   startRowIndex,
   outputColumns,
+  inputIgnoreRules = [],
 }: {
   rawRows: RawRow[];
   columnAnalysis: ColumnAnalysis[];
   startRowIndex: number;
   outputColumns: OutputColumn[];
+  inputIgnoreRules?: IgnoreRule[];
 }) {
   const inputColumns = buildInputColumnsFromAnalysis(columnAnalysis);
   const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex);
-  const processedRows = buildProcessedRows(inputRows, outputColumns).filter(hasAnyOutputValue);
+  const { includedInputRows, ignoredInputRows } = applyInputIgnoreRulesToInputRows({
+    inputRows,
+    inputIgnoreRules,
+    inputColumns,
+  });
+  const processedRows = buildProcessedRows(includedInputRows, outputColumns).filter(hasAnyOutputValue);
 
   return {
     inputColumns,
     outputColumns,
     inputRows,
+    includedInputRows,
+    ignoredInputRows,
     processedRows,
   };
-}
-
-export function migrateLegacyConfigToOutputColumns({
-  categories,
-  columnMapping,
-  inputColumns,
-}: {
-  categories: OutputCategory[];
-  columnMapping: ColumnMapping;
-  inputColumns: InputColumn[];
-}): OutputColumn[] {
-  const inputByColumnIndex = new Map(inputColumns.map((column) => [column.columnIndex, column]));
-  const mappedInputByCategoryId = new Map<string, InputColumn>();
-
-  Object.entries(columnMapping).forEach(([columnIndex, categoryId]) => {
-    if (!categoryId || categoryId === 'ignore' || mappedInputByCategoryId.has(categoryId)) {
-      return;
-    }
-
-    const inputColumn = inputByColumnIndex.get(Number(columnIndex));
-    if (inputColumn?.active) {
-      mappedInputByCategoryId.set(categoryId, inputColumn);
-    }
-  });
-
-  return [...categories]
-    .sort((a, b) => a.order - b.order)
-    .map((category) => {
-      const mappedInputColumn = mappedInputByCategoryId.get(category.id);
-
-      return {
-        id: `output-${category.id}`,
-        label: category.name,
-        order: category.order,
-        enabled: category.exportable,
-        legacyCategoryId: category.id,
-        recipe: mappedInputColumn
-          ? { type: 'direct', inputColumnId: mappedInputColumn.id }
-          : { type: 'empty' },
-      };
-    });
 }
 
 export function rowsToAoAFromProcessedRows(processedRows: ProcessedRow[], outputColumns: OutputColumn[]) {
@@ -152,7 +121,13 @@ function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: R
   } else if (column.recipe.type === 'fixedText') {
     value = column.recipe.value;
   } else if (column.recipe.type === 'combine') {
-    value = resolveCombinedValue(row, column.recipe.parts, column.recipe.separator);
+    const result = resolveCombinedValue(row, column.recipe.parts, column.recipe.separator, outputValues, column.id);
+    value = result.value;
+    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+    return {
+      value: finalResult.value,
+      warnings: [...result.warnings, ...finalResult.warnings],
+    };
   }
 
   return applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
@@ -162,20 +137,47 @@ function getRecipeSteps(recipe: OutputColumn['recipe']) {
   return recipe.type === 'empty' ? [] : recipe.steps ?? [];
 }
 
-function resolveCombinedValue(row: InputRow, parts: RecipePart[], separator?: string) {
+function resolveCombinedValue(
+  row: InputRow,
+  parts: RecipePart[],
+  separator: string | undefined,
+  outputValues: Record<string, string>,
+  currentOutputColumnId: string,
+) {
+  const warnings: string[] = [];
   const values = parts.map((part) => {
-    if (part.type === 'input') {
-      return row.values[part.inputColumnId] ?? '';
-    }
-
-    return part.value;
+    const baseValue = part.type === 'input' ? row.values[part.inputColumnId] ?? '' : part.value;
+    const result = applyTransformSteps(baseValue, part.steps ?? [], row.values, outputValues, currentOutputColumnId);
+    warnings.push(...result.warnings);
+    return result.value;
   });
 
-  if (typeof separator === 'string' && separator !== '') {
-    return values.filter((value) => value.trim() !== '').join(separator);
+  const hasCustomSeparators = parts.some((part) => typeof part.separatorAfter === 'string');
+  if (!hasCustomSeparators && typeof separator === 'string' && separator !== '') {
+    return {
+      value: values.filter((value) => value.trim() !== '').join(separator),
+      warnings,
+    };
   }
 
-  return values.join('');
+  const value = values.reduce((combinedValue, value, index) => {
+    const nextValue = `${combinedValue}${value}`;
+    if (index === values.length - 1) {
+      return nextValue;
+    }
+
+    return `${nextValue}${getPartSeparator(parts[index], separator)}`;
+  }, '');
+
+  return { value, warnings };
+}
+
+function getPartSeparator(part: RecipePart, globalSeparator?: string) {
+  if (typeof part.separatorAfter === 'string') {
+    return part.separatorAfter;
+  }
+
+  return globalSeparator ?? '';
 }
 
 function applyTransformSteps(
@@ -225,6 +227,10 @@ function applyTransformStep(value: string, step: TransformStep) {
     return { value: normalizeWhitespace(value), warnings: [] };
   }
 
+  if (step.type === 'noop') {
+    return { value, warnings: [] };
+  }
+
   if (step.type === 'uppercase') {
     return { value: value.toUpperCase(), warnings: [] };
   }
@@ -244,6 +250,18 @@ function applyTransformStep(value: string, step: TransformStep) {
   if (step.type === 'removeText') {
     const textToRemove = step.value ?? '';
     return { value: textToRemove ? value.split(textToRemove).join('') : value, warnings: [] };
+  }
+
+  if (step.type === 'extractNumber') {
+    return applyExtractNumberStep(value);
+  }
+
+  if (step.type === 'toNumber') {
+    return applyToNumberStep(value);
+  }
+
+  if (step.type === 'toText') {
+    return { value: String(value), warnings: [] };
   }
 
   if (step.type === 'numericOperation') {
@@ -281,10 +299,34 @@ function applyNumericTransformStep(value: string, step: TransformStep) {
   };
 }
 
+function applyExtractNumberStep(value: string) {
+  const parsedValue = extractNumericValue(value);
+  if (parsedValue === null) {
+    return {
+      value,
+      warnings: ['No se pudo extraer numero del texto'],
+    };
+  }
+
+  return { value: formatNumericResult(parsedValue, 'none'), warnings: [] };
+}
+
+function applyToNumberStep(value: string) {
+  const parsedValue = parseNumericValue(value);
+  if (parsedValue === null) {
+    return {
+      value,
+      warnings: ['No se pudo convertir a numero: valor invalido'],
+    };
+  }
+
+  return { value: formatNumericResult(parsedValue, 'none'), warnings: [] };
+}
+
 function shouldSkipEmptyValue(value: string, step: TransformStep) {
   return (
     value.trim() === '' &&
     !step.applyToEmptyValues &&
-    ['addPrefix', 'addSuffix', 'removeText', 'replaceText', 'numericOperation'].includes(step.type)
+    ['addPrefix', 'addSuffix', 'removeText', 'replaceText', 'extractNumber', 'toNumber', 'numericOperation'].includes(step.type)
   );
 }

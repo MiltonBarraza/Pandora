@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
-import type { OutputColumn, ProcessedRow } from '../../types/import';
+import type { InputColumn, OutputColumn, ProcessedRow } from '../../types/import';
+import { getInputColumnLabel } from './inputColumnLabels';
 import { getEnabledOutputColumns, rowsToAoAFromProcessedRows } from './outputModel';
 
 export function exportXlsxFromProcessedRows(
@@ -17,16 +18,27 @@ export function exportAuditXlsxFromProcessedRows(
   rows: ProcessedRow[],
   outputColumns: OutputColumn[],
   filename = 'auditoria',
+  inputColumns: InputColumn[] = [],
 ) {
   const ordered = getEnabledOutputColumns(outputColumns);
+  const activeInputColumns = inputColumns.filter((column) => column.active);
   const data = [
-    ['Fila', 'Estado', 'Motivo', 'Advertencias', 'Error', ...ordered.map((column) => column.label)],
+    [
+      'Fila',
+      'Estado',
+      'Motivo',
+      'Advertencias',
+      'Error',
+      ...activeInputColumns.map((column) => `Entrada: ${getInputColumnLabel(column)}`),
+      ...ordered.map((column) => column.label),
+    ],
     ...rows.map((row) => [
       row.rowNumber,
       processedStatusLabel(row),
       row.ignoredReason ?? '',
       row.warnings?.join(' | ') ?? '',
       row.error ?? '',
+      ...activeInputColumns.map((column) => row.inputValues[column.id] ?? ''),
       ...ordered.map((column) => row.outputValues[column.id] ?? ''),
     ]),
   ];

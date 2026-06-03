@@ -1,17 +1,19 @@
 import { exportCsvFromProcessedRows } from '../../domain/import/exportCsv';
 import { exportAuditXlsxFromProcessedRows, exportXlsxFromProcessedRows } from '../../domain/import/exportXlsx';
 import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
-import type { FileNameSettings, OutputColumn, ProcessedRow } from '../../types/import';
+import type { FileNameSettings, InputColumn, OutputColumn, ProcessedRow } from '../../types/import';
 
 type ExportActionsProps = {
   rows: ProcessedRow[];
+  auditRows?: ProcessedRow[];
+  inputColumns: InputColumn[];
   outputColumns: OutputColumn[];
   fileNameSettings: FileNameSettings;
   sourceFileName: string;
   sheetName: string;
 };
 
-export function ExportActions({ rows, outputColumns, fileNameSettings, sourceFileName, sheetName }: ExportActionsProps) {
+export function ExportActions({ rows, auditRows = rows, inputColumns, outputColumns, fileNameSettings, sourceFileName, sheetName }: ExportActionsProps) {
   const includedRows = rows.filter((row) => row.status === 'included');
   const filename = buildOutputFileBaseName({ settings: fileNameSettings, sourceFileName, sheetName });
   const auditFilename = buildAuditFileBaseName(filename);
@@ -24,7 +26,7 @@ export function ExportActions({ rows, outputColumns, fileNameSettings, sourceFil
       <button type="button" className="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
         Descargar CSV
       </button>
-      <button type="button" className="secondary" disabled={rows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(rows, outputColumns, auditFilename)}>
+      <button type="button" className="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
         Descargar auditoria
       </button>
     </div>

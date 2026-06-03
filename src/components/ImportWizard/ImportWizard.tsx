@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
-import { applyIgnoreRulesToProcessedRows } from '../../domain/import/applyIgnoreRules';
+import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
 import { getSheetRows } from '../../domain/import/getSheetRows';
-import { buildInputColumnsFromAnalysis, buildProcessedRowsPipeline, migrateLegacyConfigToOutputColumns } from '../../domain/import/outputModel';
+import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
-import { loadLegacyCategories } from '../../services/localCategoriesService';
 import { loadFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
-import { hasSavedOutputColumnsConfig, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
+import { loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import type { ColumnAnalysis, FileNameSettings as FileNameSettingsType, IgnoreRule, OutputColumn, RawRow, RowOverrides } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
@@ -24,9 +23,6 @@ import { SheetSelector } from '../SheetSelector/SheetSelector';
 
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
-const hasInitialOutputColumnsConfig = hasSavedOutputColumnsConfig();
-const legacyCategories = hasInitialOutputColumnsConfig ? [] : loadLegacyCategories();
-const legacyColumnMapping = persisted.columnMapping ?? {};
 
 export function ImportWizard() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -37,102 +33,89 @@ export function ImportWizard() {
   const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
   const [startRowIndex, setStartRowIndex] = useState(0);
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>(initialOutputColumns);
-  const [didMigrateOutputColumns, setDidMigrateOutputColumns] = useState(hasInitialOutputColumnsConfig);
   const [fileNameSettings, setFileNameSettings] = useState<FileNameSettingsType>(() => loadFileNameSettings());
   const [columnAnalysis, setColumnAnalysis] = useState<ColumnAnalysis[]>([]);
-  const [ignoreRules, setIgnoreRules] = useState<IgnoreRule[]>(
-    persisted.ignoreRules?.length ? persisted.ignoreRules : defaultIgnoreRules(),
+  const [inputIgnoreRules, setInputIgnoreRules] = useState<IgnoreRule[]>(
+    persisted.inputIgnoreRules?.length ? persisted.inputIgnoreRules : defaultIgnoreRules(),
+  );
+  const [outputIgnoreRules, setOutputIgnoreRules] = useState<IgnoreRule[]>(
+    persisted.outputIgnoreRules?.length ? persisted.outputIgnoreRules : defaultIgnoreRules(),
+  );
+  const [inputColumnAliases, setInputColumnAliases] = useState<Record<string, string>>(
+    () => persisted.inputColumnAliases ?? {},
   );
   const [rowOverrides, setRowOverrides] = useState<RowOverrides>({});
   const [readError, setReadError] = useState('');
+  const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [showOutputModelDebug] = useState(() => localStorage.getItem('excel-sanitizer:debug-output-model') === '1');
 
   const sheetNames = workbook?.SheetNames ?? [];
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
   const maxColumns = useMemo(() => Math.max(1, ...rows.slice(0, 25).map((row) => row.length)), [rows]);
+  const rawPreviewRows = useMemo(
+    () => (showRawPreviewFromDataStart ? rows.slice(startRowIndex) : rows),
+    [rows, showRawPreviewFromDataStart, startRowIndex],
+  );
+  const rawPreviewRowNumberOffset = showRawPreviewFromDataStart ? startRowIndex : 0;
   const activeColumnIndexes = useMemo(
     () => columnAnalysis.filter((column) => !column.ignored).map((column) => column.columnIndex),
     [columnAnalysis],
   );
-  const inputColumns = useMemo(
-    () => buildInputColumnsFromAnalysis(columnAnalysis),
-    [columnAnalysis],
-  );
-  const migratedLegacyOutputColumns = useMemo(
-    () =>
-      migrateLegacyConfigToOutputColumns({
-        categories: legacyCategories,
-        columnMapping: legacyColumnMapping,
-        inputColumns,
-      }),
-    [inputColumns],
-  );
-  const activeOutputColumns =
-    didMigrateOutputColumns || outputColumns.length ? outputColumns : migratedLegacyOutputColumns;
   const processedPipeline = useMemo(
     () =>
       buildProcessedRowsPipeline({
         rawRows: rows,
         columnAnalysis,
         startRowIndex,
-        outputColumns: activeOutputColumns,
+        outputColumns,
+        inputIgnoreRules,
       }),
-    [rows, columnAnalysis, startRowIndex, activeOutputColumns],
+    [rows, columnAnalysis, startRowIndex, outputColumns, inputIgnoreRules],
   );
-  const processedRowsWithStatus = useMemo(
+  const outputFilteredRows = useMemo(
     () =>
-      applyIgnoreRulesToProcessedRows({
+      applyOutputIgnoreRulesToProcessedRows({
         rows: validateProcessedRows(processedPipeline.processedRows, processedPipeline.outputColumns),
-        ignoreRules,
-        rowOverrides,
-        inputColumns: processedPipeline.inputColumns,
+        outputIgnoreRules,
         outputColumns: processedPipeline.outputColumns,
       }),
-    [processedPipeline.processedRows, processedPipeline.inputColumns, processedPipeline.outputColumns, ignoreRules, rowOverrides],
+    [processedPipeline.processedRows, processedPipeline.outputColumns, outputIgnoreRules],
+  );
+  const processedRowsWithStatus = useMemo(
+    () => applyRowOverridesToProcessedRows(outputFilteredRows, rowOverrides),
+    [outputFilteredRows, rowOverrides],
+  );
+  const auditRows = useMemo(
+    () => [
+      ...processedPipeline.ignoredInputRows.map((row) => ({
+        rowNumber: row.rowNumber,
+        inputValues: row.inputValues,
+        outputValues: {},
+        status: 'ignored' as const,
+        ignoredReason: row.ignoredReason,
+      })),
+      ...processedRowsWithStatus,
+    ].sort((left, right) => left.rowNumber - right.rowNumber),
+    [processedPipeline.ignoredInputRows, processedRowsWithStatus],
   );
 
   useEffect(() => {
-    if (!didMigrateOutputColumns && outputColumns.length === 0) {
-      return;
-    }
-
     saveOutputColumns(outputColumns);
-  }, [didMigrateOutputColumns, outputColumns]);
+  }, [outputColumns]);
 
   useEffect(() => {
     saveFileNameSettings(fileNameSettings);
   }, [fileNameSettings]);
 
   useEffect(() => {
-    const nextSettings = {
-      ignoreRules,
-    };
-
-    savePersistedSettings(
-      !didMigrateOutputColumns && Object.keys(legacyColumnMapping).length > 0
-        ? { ...nextSettings, columnMapping: legacyColumnMapping }
-        : nextSettings,
-    );
-  }, [didMigrateOutputColumns, ignoreRules]);
+    savePersistedSettings({ inputIgnoreRules, outputIgnoreRules, inputColumnAliases });
+  }, [inputIgnoreRules, outputIgnoreRules, inputColumnAliases]);
 
   useEffect(() => {
     if (showOutputModelDebug) {
       console.debug('output-model pipeline', processedPipeline);
     }
   }, [processedPipeline, showOutputModelDebug]);
-
-  useEffect(() => {
-    setOutputColumns((currentColumns) => {
-      if (didMigrateOutputColumns || currentColumns.length > 0 || inputColumns.length === 0) {
-        return currentColumns;
-      }
-
-      return areOutputColumnsEqual(currentColumns, migratedLegacyOutputColumns) ? currentColumns : migratedLegacyOutputColumns;
-    });
-    if (!didMigrateOutputColumns && inputColumns.length > 0 && migratedLegacyOutputColumns.length > 0) {
-      setDidMigrateOutputColumns(true);
-    }
-  }, [didMigrateOutputColumns, inputColumns.length, migratedLegacyOutputColumns]);
 
   useEffect(() => {
     if (!workbook || !selectedSheet || fileType !== 'spreadsheet') {
@@ -143,7 +126,12 @@ export function ImportWizard() {
   }, [workbook, selectedSheet, fileType]);
 
   useEffect(() => {
-    setColumnAnalysis(analyzeSheetColumns(selectedSheetObject, rows, undefined, headerRowIndex, startRowIndex));
+    setColumnAnalysis(
+      analyzeSheetColumns(selectedSheetObject, rows, undefined, headerRowIndex, startRowIndex).map((column) => ({
+        ...column,
+        alias: inputColumnAliases[getInputColumnId(column.columnIndex)] ?? '',
+      })),
+    );
   }, [selectedSheetObject, rows, headerRowIndex, startRowIndex]);
 
   const loadFile = async (file: File | undefined) => {
@@ -156,6 +144,7 @@ export function ImportWizard() {
     setRowOverrides({});
     setHeaderRowIndex(null);
     setStartRowIndex(0);
+    setShowRawPreviewFromDataStart(true);
 
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv');
@@ -181,8 +170,18 @@ export function ImportWizard() {
   };
 
   const updateOutputColumns = (nextColumns: OutputColumn[]) => {
-    setDidMigrateOutputColumns(true);
     setOutputColumns(nextColumns);
+  };
+
+  const updateColumnAnalysis = (nextColumns: ColumnAnalysis[]) => {
+    setColumnAnalysis(nextColumns);
+    setInputColumnAliases(
+      Object.fromEntries(
+        nextColumns
+          .map((column) => [getInputColumnId(column.columnIndex), column.alias?.trim() ?? ''] as const)
+          .filter(([, alias]) => alias !== ''),
+      ),
+    );
   };
 
   return (
@@ -240,31 +239,57 @@ export function ImportWizard() {
               />
             </label>
           </div>
-          <RawPreview rows={rows} maxColumns={maxColumns} activeColumns={activeColumnIndexes} />
+          <label className="checkboxField previewToggle">
+            <input
+              type="checkbox"
+              checked={showRawPreviewFromDataStart}
+              onChange={(event) => setShowRawPreviewFromDataStart(event.target.checked)}
+            />
+            Mostrar desde la primera fila de datos
+          </label>
+          {!showRawPreviewFromDataStart ? <p className="muted">Mostrando todas las filas del archivo.</p> : null}
+          <RawPreview
+            rows={rawPreviewRows}
+            maxColumns={maxColumns}
+            activeColumns={activeColumnIndexes}
+            rowNumberOffset={rawPreviewRowNumberOffset}
+          />
         </Step>
 
         <Step title="4. Columnas detectadas">
-          <ColumnVisibilityManager columns={columnAnalysis} onChange={setColumnAnalysis} />
+          <ColumnVisibilityManager columns={columnAnalysis} onChange={updateColumnAnalysis} />
         </Step>
 
-        <Step title="5. Columnas de salida">
+        <Step title="5. Filtrar filas de entrada">
+          <IgnoreRules
+            mode="input"
+            inputColumns={processedPipeline.inputColumns}
+            outputColumns={processedPipeline.outputColumns}
+            rules={inputIgnoreRules}
+            onChange={setInputIgnoreRules}
+          />
+        </Step>
+
+        <Step title="6. Columnas de salida">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
-            outputColumns={activeOutputColumns}
+            sampleInputValues={processedPipeline.includedInputRows[0]?.values ?? processedPipeline.inputRows[0]?.values}
+            outputColumns={outputColumns}
             onChange={updateOutputColumns}
           />
         </Step>
 
-        <Step title="6. Reglas para ignorar filas">
+        <Step title="7. Filtrar filas de salida">
           <IgnoreRules
+            mode="output"
             inputColumns={processedPipeline.inputColumns}
             outputColumns={processedPipeline.outputColumns}
-            rules={ignoreRules}
-            onChange={setIgnoreRules}
+            rules={outputIgnoreRules}
+            onChange={setOutputIgnoreRules}
           />
         </Step>
 
-        <Step title="7. Vista normalizada">
+        <Step title="8. Vista normalizada">
           <ProcessedRowsPreview
             rows={processedRowsWithStatus}
             outputColumns={processedPipeline.outputColumns}
@@ -276,7 +301,7 @@ export function ImportWizard() {
           ) : null}
         </Step>
 
-        <Step title="8. Nombre del archivo de salida">
+        <Step title="9. Nombre del archivo de salida">
           <FileNameSettings
             settings={fileNameSettings}
             sourceFileName={fileName}
@@ -285,9 +310,11 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="9. Descargar archivo">
+        <Step title="10. Descargar archivo">
           <ExportActions
             rows={processedRowsWithStatus}
+            auditRows={auditRows}
+            inputColumns={processedPipeline.inputColumns}
             outputColumns={processedPipeline.outputColumns}
             fileNameSettings={fileNameSettings}
             sourceFileName={fileName}
@@ -297,10 +324,6 @@ export function ImportWizard() {
       </div>
     </main>
   );
-}
-
-function areOutputColumnsEqual(left: OutputColumn[], right: OutputColumn[]) {
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function Step({ title, children }: { title: string; children: ReactNode }) {

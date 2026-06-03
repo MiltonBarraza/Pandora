@@ -6,9 +6,13 @@ export function loadPersistedSettings(): Partial<WizardPersistedSettings> {
   try {
     const raw = localStorage.getItem(settingsKey);
     const parsed = raw ? (JSON.parse(raw) as Partial<WizardPersistedSettings>) : {};
+    const legacyIgnoreRules = normalizeIgnoreRules(parsed.ignoreRules);
     return {
       ...parsed,
-      ignoreRules: parsed.ignoreRules?.map(normalizePersistedIgnoreRule),
+      ignoreRules: legacyIgnoreRules,
+      inputIgnoreRules: normalizeIgnoreRules(parsed.inputIgnoreRules) ?? legacyIgnoreRules?.filter((rule) => rule.target === 'input'),
+      outputIgnoreRules: normalizeIgnoreRules(parsed.outputIgnoreRules) ?? legacyIgnoreRules?.filter((rule) => rule.target !== 'input'),
+      inputColumnAliases: parsed.inputColumnAliases,
     };
   } catch {
     return {};
@@ -23,20 +27,9 @@ export function defaultIgnoreRules(): IgnoreRule[] {
   return [];
 }
 
-function normalizePersistedIgnoreRule(rule: IgnoreRule): IgnoreRule {
-  const legacyRule = rule as IgnoreRule & { columnKey?: string; operator?: string };
-  const operatorMap: Record<string, IgnoreRule['operator']> = {
-    empty: 'isEmpty',
-    equals: 'equals',
-    contains: 'contains',
-    startsWith: 'startsWith',
-  };
-
-  return {
-    ...rule,
-    target: rule.target ?? 'output',
-    columnId: rule.columnId ?? rule.categoryId ?? legacyRule.columnKey ?? '',
-    categoryId: rule.categoryId ?? legacyRule.columnKey ?? '',
-    operator: operatorMap[legacyRule.operator ?? ''] ?? rule.operator ?? 'contains',
-  };
+function normalizeIgnoreRules(rules?: IgnoreRule[]) {
+  return rules?.map((rule) => {
+    const { id, target, columnId, operator, value } = rule;
+    return { id, target, columnId, operator, ...(value !== undefined ? { value } : {}) };
+  });
 }

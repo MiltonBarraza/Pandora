@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { duplicateOutputColumn } from '../../domain/import/duplicateOutputColumn';
 import type { InputColumn, OutputColumn } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
@@ -6,17 +7,32 @@ import { SortableList } from '../SortableList/SortableList';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
+  sampleInputValues?: Record<string, string>;
   outputColumns: OutputColumn[];
   onChange: (columns: OutputColumn[]) => void;
 };
 
 export function OutputColumnsManager({
   inputColumns = [],
+  sampleInputValues,
   outputColumns,
   onChange,
 }: OutputColumnsManagerProps) {
   const [newColumnName, setNewColumnName] = useState('');
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const ordered = [...outputColumns].sort((a, b) => a.order - b.order);
+  const selectedColumn = ordered.find((column) => column.id === selectedColumnId) ?? ordered[0];
+
+  useEffect(() => {
+    if (ordered.length === 0) {
+      setSelectedColumnId(null);
+      return;
+    }
+
+    if (!selectedColumnId || !ordered.some((column) => column.id === selectedColumnId)) {
+      setSelectedColumnId(ordered[0].id);
+    }
+  }, [ordered, selectedColumnId]);
 
   const addColumn = () => {
     const nextColumn: OutputColumn = {
@@ -27,20 +43,8 @@ export function OutputColumnsManager({
       recipe: { type: 'empty' },
     };
     onChange([...ordered, nextColumn]);
+    setSelectedColumnId(nextColumn.id);
     setNewColumnName('');
-  };
-
-  const move = (id: string, direction: -1 | 1) => {
-    const index = ordered.findIndex((column) => column.id === id);
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= ordered.length) {
-      return;
-    }
-
-    const nextColumns = [...ordered];
-    const [item] = nextColumns.splice(index, 1);
-    nextColumns.splice(nextIndex, 0, item);
-    onChange(reorder(nextColumns));
   };
 
   const reorderColumns = (items: OutputColumn[]) => {
@@ -52,7 +56,29 @@ export function OutputColumnsManager({
   };
 
   const removeColumn = (id: string) => {
-    onChange(reorder(ordered.filter((column) => column.id !== id)));
+    const index = ordered.findIndex((column) => column.id === id);
+    const nextColumns = reorder(ordered.filter((column) => column.id !== id));
+    onChange(nextColumns);
+
+    if (selectedColumnId === id) {
+      setSelectedColumnId(nextColumns[index]?.id ?? nextColumns[index - 1]?.id ?? null);
+    }
+  };
+
+  const duplicateColumn = (id: string) => {
+    const index = ordered.findIndex((column) => column.id === id);
+    if (index === -1) {
+      return;
+    }
+
+    const nextColumn = duplicateOutputColumn(ordered[index]);
+    const nextColumns = reorder([
+      ...ordered.slice(0, index + 1),
+      nextColumn,
+      ...ordered.slice(index + 1),
+    ]);
+    onChange(nextColumns);
+    setSelectedColumnId(nextColumn.id);
   };
 
   return (
@@ -67,46 +93,70 @@ export function OutputColumnsManager({
 
       {ordered.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
 
-      <div className="listRows">
-        <SortableList
-          items={ordered}
-          onChange={reorderColumns}
-          renderItem={(outputColumn, handle) => {
-            const index = ordered.findIndex((item) => item.id === outputColumn.id);
+      {ordered.length > 0 ? (
+        <div className="outputColumnsWorkspace">
+          <div className="outputColumnsList">
+            <SortableList
+              items={ordered}
+              onChange={reorderColumns}
+              renderItem={(outputColumn, handle) => {
+                const index = ordered.findIndex((item) => item.id === outputColumn.id);
+                const isSelected = outputColumn.id === selectedColumn?.id;
 
-            return (
-              <div className="listRow outputColumnRow">
-                {handle}
-                <strong>{index + 1}.</strong>
-                <label className="field compact">
-                  <span>Nombre de salida</span>
-                  <input
-                    value={outputColumn.label}
-                    onChange={(event) => updateOutputColumn(outputColumn.id, { ...outputColumn, label: event.target.value })}
-                  />
-                </label>
-                <label className="checkboxField">
-                  <input
-                    type="checkbox"
-                    checked={outputColumn.enabled}
-                    onChange={(event) => updateOutputColumn(outputColumn.id, { ...outputColumn, enabled: event.target.checked })}
-                  />
-                  Exportar
-                </label>
-                <OutputColumnRecipeEditor
-                  column={outputColumn}
-                  inputColumns={inputColumns}
-                  outputColumns={ordered}
-                  onChange={(nextColumn) => updateOutputColumn(outputColumn.id, nextColumn)}
-                />
-                <div className="rowActions">
-                  <DeleteButton onClick={() => removeColumn(outputColumn.id)} />
+                return (
+                  <div className={`outputColumnListItem${isSelected ? ' selected' : ''}`}>
+                    {handle}
+                    <button
+                      type="button"
+                      className="outputColumnSelectButton"
+                      onClick={() => setSelectedColumnId(outputColumn.id)}
+                      title={outputColumn.label || 'Sin nombre'}
+                    >
+                      <span className="columnItemText">{index + 1}. {outputColumn.label || 'Sin nombre'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="iconButton outputColumnDuplicateButton"
+                      title="Duplicar columna"
+                      aria-label="Duplicar columna"
+                      onClick={() => duplicateColumn(outputColumn.id)}
+                    >
+                      Duplicar
+                    </button>
+                    <DeleteButton onClick={() => removeColumn(outputColumn.id)} />
+                  </div>
+                );
+              }}
+            />
+          </div>
+
+          <div className="outputColumnDetailPanel">
+            {selectedColumn ? (
+              <>
+                <div className="outputColumnHeader">
+                  <label className="field compact outputNameField">
+                    <span>Nombre de salida</span>
+                    <input
+                      value={selectedColumn.label}
+                      onChange={(event) => updateOutputColumn(selectedColumn.id, { ...selectedColumn, label: event.target.value })}
+                    />
+                  </label>
                 </div>
-              </div>
-            );
-          }}
-        />
-      </div>
+                <div className="outputColumnBody">
+                  <OutputColumnRecipeEditor
+                    column={selectedColumn}
+                    inputColumns={inputColumns}
+                    sampleInputValues={sampleInputValues}
+                    onChange={(nextColumn) => updateOutputColumn(selectedColumn.id, nextColumn)}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="muted">Agrega una columna de salida para configurarla.</p>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

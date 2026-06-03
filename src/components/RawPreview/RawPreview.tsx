@@ -6,9 +6,10 @@ type RawPreviewProps = {
   rows: RawRow[];
   maxColumns: number;
   activeColumns?: number[];
+  rowNumberOffset?: number;
 };
 
-export function RawPreview({ rows, maxColumns, activeColumns }: RawPreviewProps) {
+export function RawPreview({ rows, maxColumns, activeColumns, rowNumberOffset = 0 }: RawPreviewProps) {
   const [showAllColumns, setShowAllColumns] = useState(false);
   const columns = showAllColumns || !activeColumns?.length ? Array.from({ length: maxColumns }, (_, index) => index) : activeColumns;
 
@@ -37,7 +38,7 @@ export function RawPreview({ rows, maxColumns, activeColumns }: RawPreviewProps)
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                <td>{rowIndex + 1}</td>
+                <td>{rowNumberOffset + rowIndex + 1}</td>
                 {columns.map((column) => (
                   <td key={column}>{String(row[column] ?? '')}</td>
                 ))}

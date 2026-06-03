@@ -31,6 +31,19 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
     );
   };
 
+  const updateAlias = (columnIndex: number, alias: string) => {
+    onChange(
+      columns.map((column) =>
+        column.columnIndex === columnIndex
+          ? {
+              ...column,
+              alias,
+            }
+          : column,
+      ),
+    );
+  };
+
   const showAll = () => {
     onChange(columns.map((column) => ({ ...column, ignored: false, ignoredReason: undefined })));
   };
@@ -84,6 +97,7 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
               <th>Activa</th>
               <th>Columna</th>
               <th>Encabezado</th>
+              <th>Alias</th>
               <th>Ejemplos</th>
               <th>Datos</th>
               <th>Motivo</th>
@@ -104,6 +118,14 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
                   <strong>{column.columnLetter}</strong>
                 </td>
                 <td>{column.header || '-'}</td>
+                <td>
+                  <input
+                    aria-label={`Alias para columna ${column.columnLetter}`}
+                    value={column.alias ?? ''}
+                    onChange={(event) => updateAlias(column.columnIndex, event.target.value)}
+                    placeholder={column.header || 'Alias visual'}
+                  />
+                </td>
                 <td>{column.sampleValues.join(' | ') || '-'}</td>
                 <td>{column.nonEmptyCount}</td>
                 <td>{column.ignoredReason ? reasonLabels[column.ignoredReason] : 'Activa'}</td>

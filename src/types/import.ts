@@ -1,20 +1,12 @@
 export type RawRow = unknown[];
 
-export type OutputCategory = {
-  id: string;
-  name: string;
-  order: number;
-  exportable: boolean;
-};
-
-export type ColumnMapping = Record<number, string>;
-
 export type InputColumn = {
   id: string;
   columnIndex: number;
   columnLetter: string;
   label: string;
   header?: string;
+  alias?: string;
   active: boolean;
   sampleValues: string[];
   nonEmptyCount: number;
@@ -26,7 +18,14 @@ export type InputRow = {
   values: Record<string, string>;
 };
 
+export type IgnoredInputRow = {
+  rowNumber: number;
+  inputValues: Record<string, string>;
+  ignoredReason: string;
+};
+
 export type TransformStepType =
+  | 'noop'
   | 'trim'
   | 'uppercase'
   | 'lowercase'
@@ -34,10 +33,16 @@ export type TransformStepType =
   | 'addSuffix'
   | 'removeText'
   | 'replaceText'
+  | 'extractNumber'
+  | 'toNumber'
+  | 'toText'
   | 'numericOperation';
+
+export type TransformStepMode = 'text' | 'number' | 'conversion';
 
 export type TransformStep = {
   id: string;
+  mode?: TransformStepMode;
   type: TransformStepType;
   value?: string;
   searchValue?: string;
@@ -64,12 +69,18 @@ export type RecipePart =
       id: string;
       type: 'input';
       inputColumnId: string;
+      steps?: TransformStep[];
+      separatorAfter?: string;
     }
   | {
       id: string;
       type: 'text';
       value: string;
+      steps?: TransformStep[];
+      separatorAfter?: string;
     };
+
+export type CustomValueMode = 'number' | 'text' | 'concat';
 
 export type OutputRecipe =
   | {
@@ -90,6 +101,7 @@ export type OutputRecipe =
       parts: RecipePart[];
       separator?: string;
       steps?: TransformStep[];
+      customMode?: CustomValueMode;
     };
 
 export type OutputColumn = {
@@ -97,7 +109,6 @@ export type OutputColumn = {
   label: string;
   order: number;
   enabled: boolean;
-  legacyCategoryId?: string;
   recipe: OutputRecipe;
 };
 
@@ -151,13 +162,13 @@ export type IgnoreRule = {
   columnId: string;
   operator: 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'startsWith' | 'endsWith';
   value?: string;
-  reason?: string;
-  categoryId?: string;
 };
 
 export type WizardPersistedSettings = {
-  columnMapping?: ColumnMapping;
-  ignoreRules: IgnoreRule[];
+  ignoreRules?: IgnoreRule[];
+  inputIgnoreRules?: IgnoreRule[];
+  outputIgnoreRules?: IgnoreRule[];
+  inputColumnAliases: Record<string, string>;
 };
 
 export type FileNameMode = 'default' | 'custom';
@@ -178,6 +189,7 @@ export type ColumnAnalysis = {
   columnIndex: number;
   columnLetter: string;
   header?: string;
+  alias?: string;
   sampleValues: string[];
   nonEmptyCount: number;
   isHidden?: boolean;

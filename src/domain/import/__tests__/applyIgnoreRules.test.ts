@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { IgnoreRule, InputColumn, OutputColumn, ProcessedRow } from '../../../types/import';
-import { applyIgnoreRulesToProcessedRows } from '../applyIgnoreRules';
+import { applyIgnoreRulesToProcessedRows, applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../applyIgnoreRules';
 
 const inputColumns: InputColumn[] = [
   {
@@ -8,6 +8,7 @@ const inputColumns: InputColumn[] = [
     columnIndex: 0,
     columnLetter: 'A',
     label: 'Codigo original',
+    header: 'Codigo original',
     active: true,
     sampleValues: [],
     nonEmptyCount: 2,
@@ -17,6 +18,7 @@ const inputColumns: InputColumn[] = [
     columnIndex: 1,
     columnLetter: 'B',
     label: 'Observacion',
+    header: 'Observacion',
     active: true,
     sampleValues: [],
     nonEmptyCount: 2,
@@ -59,16 +61,56 @@ describe('applyIgnoreRulesToProcessedRows', () => {
     });
 
     expect(result[0].status).toBe('ignored');
-    expect(result[0].ignoredReason).toBe('Ignorada por regla: Codigo original esta vacia');
+    expect(result[0].ignoredReason).toBe('Ignorada por regla: A - Codigo original esta vacia');
     expect(result[1].status).toBe('ignored');
     expect(result[1].ignoredReason).toBe('Ignorada por regla: Codigo esta vacia');
   });
 
-  it('ignores rows by contains and startsWith and preserves custom reason', () => {
+  it('applies output rules over transformed output values', () => {
+    const result = applyOutputIgnoreRulesToProcessedRows({
+      rows: [
+        {
+          rowNumber: 3,
+          inputValues: { 'input-code': 'abc' },
+          outputValues: { code: 'ABC' },
+          status: 'included',
+        },
+      ],
+      outputIgnoreRules: [{ id: 'uppercase-code', target: 'output', columnId: 'code', operator: 'equals', value: 'ABC' }],
+      outputColumns,
+    });
+
+    expect(result[0].status).toBe('ignored');
+    expect(result[0].ignoredReason).toBe('Ignorada por regla: Codigo es igual a "ABC"');
+  });
+
+  it('keeps manual overrides after output rules', () => {
+    const filtered = applyOutputIgnoreRulesToProcessedRows({
+      rows: [
+        {
+          rowNumber: 4,
+          inputValues: { 'input-code': 'abc' },
+          outputValues: { code: '' },
+          status: 'included',
+        },
+      ],
+      outputIgnoreRules: [{ id: 'empty-code', target: 'output', columnId: 'code', operator: 'isEmpty' }],
+      outputColumns,
+    });
+
+    const result = applyRowOverridesToProcessedRows(filtered, {
+      4: { status: 'included', reason: 'Incluida manualmente' },
+    });
+
+    expect(result[0].status).toBe('included');
+    expect(result[0].ignoredReason).toBeUndefined();
+  });
+
+  it('ignores rows by contains and startsWith and describes the matched rule', () => {
     const result = applyIgnoreRulesToProcessedRows({
       rows,
       ignoreRules: [
-        { id: 'contains', target: 'output', columnId: 'status', operator: 'contains', value: 'DISCONTINUADO', reason: 'No exportar discontinuados' },
+        { id: 'contains', target: 'output', columnId: 'status', operator: 'contains', value: 'DISCONTINUADO' },
         { id: 'starts', target: 'input', columnId: 'input-code', operator: 'startsWith', value: 'KG' },
       ],
       rowOverrides: {},
@@ -78,7 +120,7 @@ describe('applyIgnoreRulesToProcessedRows', () => {
 
     expect(result[0].status).toBe('included');
     expect(result[1].status).toBe('ignored');
-    expect(result[1].ignoredReason).toBe('No exportar discontinuados');
+    expect(result[1].ignoredReason).toBe('Ignorada por regla: Estado contiene "DISCONTINUADO"');
   });
 
   it('manual overrides can include or ignore rows', () => {

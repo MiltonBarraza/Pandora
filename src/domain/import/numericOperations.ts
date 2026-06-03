@@ -10,6 +10,10 @@ export function parseNumericValue(value: unknown): number | null {
     return null;
   }
 
+  if (/[a-zA-Z]/.test(raw)) {
+    return null;
+  }
+
   const cleaned = raw
     .replace(/[^\d,.-]/g, '')
     .replace(/\s+/g, '');
@@ -36,6 +40,12 @@ export function parseNumericValue(value: unknown): number | null {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function extractNumericValue(value: unknown): number | null {
+  const raw = String(value ?? '');
+  const match = raw.match(/[-+]?\d[\d.,]*/);
+  return match ? parseNumericValue(match[0]) : null;
 }
 
 export function applyNumericOperation(value: number, operation: NumericOperation, amount: number) {
@@ -67,13 +77,7 @@ export function applyNumericOperation(value: number, operation: NumericOperation
 }
 
 export function formatNumericResult(value: number, rounding: TransformStep['rounding'] = 2) {
-  if (rounding === 'none') {
-    return String(value);
-  }
-
-  const decimals = rounding ?? 2;
-  const formatted = value.toFixed(decimals);
-  return formatted.includes('.') ? formatted.replace(/\.?0+$/, '') : formatted;
+  return rounding === 'none' ? String(value) : value.toFixed(rounding ?? 2);
 }
 
 export function getSuggestedNumericColumnName(sourceColumn: string, operation: NumericOperation, amount: number) {
