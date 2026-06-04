@@ -224,6 +224,7 @@ h3 {
 .field {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .field.compact {
@@ -242,6 +243,7 @@ select {
   border-radius: 6px;
   color: #18202a;
   min-height: 40px;
+  min-width: 0;
   padding: 0 10px;
   width: 100%;
 }
@@ -639,6 +641,158 @@ th {
   padding: 10px;
 }
 
+.concatStepFields {
+  --concat-parts-columns: minmax(180px, 260px) minmax(0, 1fr);
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+.concatPartsWorkspace {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: var(--concat-parts-columns);
+  min-width: 0;
+  width: 100%;
+}
+
+.concatPartsSidebar {
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.concatPartListItem {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-width: 0;
+  padding: 6px;
+}
+
+.concatPartListItem.selected {
+  border-color: #1f6f6d;
+  box-shadow: 0 0 0 1px #1f6f6d;
+}
+
+.concatPartSelectButton {
+  background: transparent;
+  color: inherit;
+  display: grid;
+  gap: 4px;
+  min-height: auto;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.concatPartSelectButton:hover:not(:disabled) {
+  background: transparent;
+}
+
+.concatPartSelectButton strong,
+.concatPartSelectButton span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concatPartSelectButton span {
+  color: #5f6f7b;
+  font-size: 0.88rem;
+}
+
+.concatPartDetailPanel {
+  background: #ffffff;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  width: 100%;
+}
+
+.concatPartHeader {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.concatPartFields {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  min-width: 0;
+}
+
+.concatPartFields .field {
+  min-width: 180px;
+}
+
+.concatPartPrimaryTransform {
+  border-top: 1px solid #edf2f5;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 10px;
+}
+
+.concatPartPrimaryGrid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.concatPartPrimaryGrid .concatPartFields {
+  grid-column: 1 / -1;
+}
+
+.concatPartAdditionalTransforms {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.concatPartAdditionalHeader {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.concatPartAdditionalHeader .secondary {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.concatPartTransformList {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.concatPartTransformCard {
+  background: #ffffff;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+}
+
 .constructorWorkspace {
   align-items: start;
   display: grid;
@@ -753,12 +907,64 @@ th {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   min-width: 0;
 }
 
 .simpleCustomValueGrid .transformConditionBlock {
   grid-column: 1 / -1;
+}
+
+.concatStepTopRow {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.concatStepTopControls {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(190px, 260px));
+  justify-content: start;
+  min-width: 0;
+}
+
+.concatStepTopRow .secondary {
+  justify-self: end;
+  min-height: 36px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.concatStepCondition {
+  background: #f8fafb;
+  border: 1px solid #edf2f5;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px;
+  width: 100%;
+}
+
+.stepTypeFieldGroup {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.stepTypeFieldGroup .secondary {
+  min-height: 36px;
+  padding: 6px 10px;
+  white-space: nowrap;
 }
 
 .simpleStepsEditor {
@@ -916,6 +1122,11 @@ th {
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+
+.conditionFieldsRow {
+  align-items: end;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
 }
 
 .transformTypeField {
@@ -1144,8 +1355,13 @@ th {
   .listRow,
   .constructorSummary,
   .constructorPartRow,
+  .conditionFieldsRow,
+  .concatStepTopControls,
+  .concatPartFields,
+  .concatPartsWorkspace,
   .constructorWorkspace,
   .stepsWorkspace,
+  .stepTypeFieldGroup,
   .constructorPartMainGrid,
   .transformStepRow,
   .outputColumnsWorkspace,
@@ -1166,6 +1382,19 @@ th {
   .sectionHeader {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .concatStepTopRow {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .concatStepTopControls {
+    grid-column: auto;
+  }
+
+  .concatStepTopRow .secondary {
+    justify-self: start;
   }
 
 }

@@ -33,6 +33,7 @@ export type TransformStepType =
   | 'addSuffix'
   | 'removeText'
   | 'replaceText'
+  | 'concat'
   | 'extractNumber'
   | 'toNumber'
   | 'toText'
@@ -40,15 +41,43 @@ export type TransformStepType =
 
 export type TransformStepMode = 'text' | 'number' | 'conversion';
 
+export type StepSource =
+  | {
+      type: 'previousResult';
+    }
+  | {
+      type: 'input';
+      inputColumnId: string;
+    }
+  | {
+      type: 'fixedText';
+      value: string;
+    };
+
+export type StepOperand = StepSource & {
+  numericFallback?: number;
+};
+
+export type ConcatPart = {
+  id: string;
+  source: StepSource;
+  separatorBefore?: string;
+  steps?: TransformStep[];
+};
+
 export type TransformStep = {
   id: string;
   mode?: TransformStepMode;
   type: TransformStepType;
+  source?: StepSource;
   value?: string;
   searchValue?: string;
   replaceValue?: string;
   operation?: NumericOperation;
   amount?: number;
+  leftOperand?: StepOperand;
+  rightOperand?: StepOperand;
+  parts?: ConcatPart[];
   rounding?: 'none' | 0 | 2 | 4;
   condition?: TransformCondition;
   applyToEmptyValues?: boolean;

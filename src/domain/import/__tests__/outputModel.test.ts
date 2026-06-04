@@ -351,6 +351,376 @@ describe('outputModel numeric transformations', () => {
   });
 });
 
+describe('outputModel step sources', () => {
+  it('uses a configured input column as the first step source', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'source-input',
+        recipe: {
+          type: 'fixedText',
+          value: '',
+          steps: [{ id: 'suffix', type: 'addSuffix', source: { type: 'input', inputColumnId: 'input-code' }, value: '-OK' }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['source-input']).toBe('ABC123-OK');
+  });
+
+  it('uses fixed text as the first step source', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'source-fixed',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-code',
+          steps: [{ id: 'upper', type: 'uppercase', source: { type: 'fixedText', value: 'manual' } }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['source-fixed']).toBe('MANUAL');
+  });
+
+  it('uses previous result by default in later steps', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'previous',
+        recipe: {
+          type: 'fixedText',
+          value: 'A',
+          steps: [
+            { id: 'b', type: 'addSuffix', value: 'B' },
+            { id: 'c', type: 'addSuffix', value: 'C' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.previous).toBe('ABC');
+  });
+
+  it('can use another input column in a later step', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'other-column',
+        recipe: {
+          type: 'fixedText',
+          value: 'A',
+          steps: [
+            { id: 'b', type: 'addSuffix', value: 'B' },
+            { id: 'code', type: 'addSuffix', source: { type: 'input', inputColumnId: 'input-code' }, value: '-OK' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['other-column']).toBe('ABC123-OK');
+  });
+});
+
+describe('outputModel numeric operands', () => {
+  it('adds previous result and a fixed operand', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'previous-plus-fixed',
+        recipe: {
+          type: 'fixedText',
+          value: '100',
+          steps: [{
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '10' },
+            rounding: 0,
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['previous-plus-fixed']).toBe('110');
+  });
+
+  it('adds two input operands', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'input-plus-input',
+        recipe: {
+          type: 'fixedText',
+          value: '',
+          steps: [{
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'input', inputColumnId: 'input-price' },
+            rightOperand: { type: 'input', inputColumnId: 'input-large-price' },
+            rounding: 0,
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['input-plus-input']).toBe('1700');
+  });
+
+  it('subtracts input operand from previous result', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'previous-minus-input',
+        recipe: {
+          type: 'fixedText',
+          value: '1500',
+          steps: [{
+            id: 'subtract',
+            type: 'numericOperation',
+            operation: 'subtract',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'input', inputColumnId: 'input-price' },
+            rounding: 0,
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['previous-minus-input']).toBe('1300');
+  });
+
+  it('subtracts previous result from an input operand', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'input-minus-previous',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'subtract',
+            type: 'numericOperation',
+            operation: 'subtract',
+            leftOperand: { type: 'input', inputColumnId: 'input-large-price' },
+            rightOperand: { type: 'previousResult' },
+            rounding: 0,
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['input-minus-previous']).toBe('1300');
+  });
+
+  it('divides previous result by an input operand', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'previous-divide-input',
+        recipe: {
+          type: 'fixedText',
+          value: '1500',
+          steps: [{
+            id: 'divide',
+            type: 'numericOperation',
+            operation: 'divide',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'input', inputColumnId: 'input-price' },
+            rounding: 2,
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['previous-divide-input']).toBe('7.50');
+  });
+
+  it('divides an input operand by previous result', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'input-divide-previous',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'divide',
+            type: 'numericOperation',
+            operation: 'divide',
+            leftOperand: { type: 'input', inputColumnId: 'input-large-price' },
+            rightOperand: { type: 'previousResult' },
+            rounding: 2,
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['input-divide-previous']).toBe('7.50');
+  });
+
+  it('keeps current value and warns for zero division and invalid operands', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'zero',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'divide',
+            type: 'numericOperation',
+            operation: 'divide',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '0' },
+          }],
+        },
+      }),
+      outputColumn({
+        id: 'invalid',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'input', inputColumnId: 'input-invalid' },
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.zero).toBe('200');
+    expect(row.outputValues.invalid).toBe('200');
+    expect(row.warnings).toContain('No se puede dividir por cero');
+    expect(row.warnings).toContain('No se pudo aplicar operacion numerica: operando invalido');
+  });
+
+  it('keeps old amount-based numeric operations working', () => {
+    const row = buildRow([numericColumn('amount-compat', 'add', 50)]);
+
+    expect(row.outputValues['amount-compat']).toBe('250.00');
+  });
+});
+
+describe('outputModel concat step', () => {
+  it('concatenates input and fixed text parts', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'concat-step',
+        recipe: {
+          type: 'fixedText',
+          value: '',
+          steps: [{
+            id: 'concat',
+            type: 'concat',
+            parts: [
+              { id: 'product', source: { type: 'input', inputColumnId: 'input-product' } },
+              { id: 'suffix', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' ' },
+            ],
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['concat-step']).toBe('Producto OK');
+  });
+
+  it('uses previous result inside concat from the second step onward', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'concat-previous',
+        recipe: {
+          type: 'fixedText',
+          value: '',
+          steps: [
+            { id: 'trim', type: 'trim', source: { type: 'input', inputColumnId: 'input-name' } },
+            {
+              id: 'concat',
+              type: 'concat',
+              parts: [
+                { id: 'previous', source: { type: 'previousResult' } },
+                { id: 'suffix', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' ' },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['concat-previous']).toBe('Pintura Latex OK');
+  });
+
+  it('preserves separators and applies part steps before joining', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'concat-part-steps',
+        recipe: {
+          type: 'fixedText',
+          value: '',
+          steps: [{
+            id: 'concat',
+            type: 'concat',
+            parts: [
+              {
+                id: 'name',
+                source: { type: 'input', inputColumnId: 'input-name' },
+                steps: [
+                  { id: 'trim', type: 'trim' },
+                  { id: 'upper', type: 'uppercase' },
+                ],
+              },
+              { id: 'suffix', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+            ],
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['concat-part-steps']).toBe('PINTURA LATEX - OK');
+  });
+});
+
+describe('outputModel custom value compatibility', () => {
+  it('keeps old customMode text, number and concat recipes working', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'text',
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'name', type: 'input', inputColumnId: 'input-name' }],
+          steps: [{ id: 'trim', type: 'trim' }],
+        },
+      }),
+      outputColumn({
+        id: 'number',
+        recipe: {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
+          steps: [{ id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 }],
+        },
+      }),
+      outputColumn({
+        id: 'concat',
+        recipe: {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [
+            {
+              id: 'name',
+              type: 'input',
+              inputColumnId: 'input-name',
+              separatorAfter: ' / ',
+              steps: [{ id: 'trim', type: 'trim' }],
+            },
+            { id: 'product', type: 'input', inputColumnId: 'input-product' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.text).toBe('Pintura Latex');
+    expect(row.outputValues.number).toBe('210');
+    expect(row.outputValues.concat).toBe('Pintura Latex / Producto');
+  });
+});
+
 describe('outputModel conditional transformations', () => {
   it('applies a text condition over input values', () => {
     const row = buildRow([

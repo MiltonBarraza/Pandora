@@ -1,4 +1,4 @@
-import type { OutputColumn, OutputRecipe, RecipePart, TransformStep } from '../../types/import';
+import type { ConcatPart, OutputColumn, OutputRecipe, RecipePart, TransformStep } from '../../types/import';
 
 export function duplicateOutputColumn(column: OutputColumn): OutputColumn {
   return {
@@ -45,10 +45,23 @@ function clonePartWithNewIds(part: RecipePart): RecipePart {
   };
 }
 
-function cloneStepsWithNewIds(steps?: TransformStep[]) {
+function cloneStepsWithNewIds(steps?: TransformStep[]): TransformStep[] | undefined {
   return steps?.map((step) => ({
     ...step,
     id: crypto.randomUUID(),
+    source: step.source ? { ...step.source } : undefined,
+    leftOperand: step.leftOperand ? { ...step.leftOperand } : undefined,
+    rightOperand: step.rightOperand ? { ...step.rightOperand } : undefined,
+    parts: cloneConcatPartsWithNewIds(step.parts),
     condition: step.condition ? { ...step.condition } : undefined,
+  }));
+}
+
+function cloneConcatPartsWithNewIds(parts?: ConcatPart[]): ConcatPart[] | undefined {
+  return parts?.map((part) => ({
+    ...part,
+    id: crypto.randomUUID(),
+    source: { ...part.source },
+    steps: cloneStepsWithNewIds(part.steps),
   }));
 }

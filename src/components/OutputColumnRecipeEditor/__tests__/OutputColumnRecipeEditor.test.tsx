@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn } from '../../../types/import';
-import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createRecipeForConstructionMode, describeCombineParts, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getSimpleStepValue, getStepMode, getStepTypesForMode, inferStepModeFromType, normalizeStepsForMode, setSimpleStep, stepModeOptions, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getNextSelectedConcatPartIdAfterRemove, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, setSimpleStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -128,7 +128,7 @@ describe('constructor helpers', () => {
 
   it('does not show invented preview before custom value is configured', () => {
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' })).toBe('Sin valores configurados');
-    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' }, true)).toBe('Selecciona un tipo de operacion para ver la vista previa.');
+    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' }, true)).toBe('Configura el Paso 1 para ver la vista previa.');
   });
 
   it('keeps concat mode selected with an empty combine recipe', () => {
@@ -213,10 +213,52 @@ describe('constructor helpers', () => {
 
   it('filters step options by step mode', () => {
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('addSuffix');
+    expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('concat');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).not.toContain('numericOperation');
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).toContain('numericOperation');
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).not.toContain('addSuffix');
     expect(getStepTypesForMode('conversion').map((stepType) => stepType.value)).toEqual(['noop', 'extractNumber', 'toNumber', 'toText']);
+  });
+
+  it('does not offer concat inside concat part transformations', () => {
+    expect(getStepTypesForMode('text', { allowConcat: false }).map((stepType) => stepType.value)).toContain('uppercase');
+    expect(getStepTypesForMode('text', { allowConcat: false }).map((stepType) => stepType.value)).not.toContain('concat');
+  });
+
+  it('shows a neutral integrated primary transform for concat parts without steps', () => {
+    expect(getVisibleConcatPartPrimaryStep([])).toMatchObject({
+      type: 'noop',
+      mode: 'text',
+    });
+  });
+
+  it('creates the first concat part step when editing the integrated transform', () => {
+    expect(updateConcatPartPrimaryStep([], { type: 'uppercase', mode: 'text' })).toMatchObject([
+      { type: 'uppercase', mode: 'text' },
+    ]);
+  });
+
+  it('keeps additional concat part steps when updating the integrated transform', () => {
+    expect(updateConcatPartPrimaryStep([
+      { id: 'primary', type: 'trim' },
+      { id: 'suffix', type: 'addSuffix', value: '!' },
+    ], { type: 'uppercase', mode: 'text' })).toMatchObject([
+      { id: 'primary', type: 'uppercase', mode: 'text' },
+      { id: 'suffix', type: 'addSuffix', value: '!' },
+    ]);
+  });
+
+  it('exposes real numeric operations without the numericOperation label for the number UI', () => {
+    expect(numericOperationOptions.map((option) => option.label)).toEqual([
+      'Sumar valor',
+      'Restar valor',
+      'Multiplicar por',
+      'Dividir por',
+      'Sumar %',
+      'Restar %',
+      'Quitar % incluido',
+    ]);
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operacion numerica');
   });
 
   it('infers step mode from existing step type', () => {
@@ -264,6 +306,109 @@ describe('constructor helpers', () => {
       { id: 'numeric', type: 'numericOperation', mode: 'number' },
       { id: 'convert', type: 'toText', mode: 'conversion' },
     ]);
+  });
+
+  it('shows a neutral first step directly for an empty custom value recipe', () => {
+    expect(getVisibleRecipeSteps({ type: 'combine', parts: [], separator: '' })).toMatchObject([
+      { type: 'noop', mode: 'text' },
+    ]);
+  });
+
+  it('adapts old concat recipes to a visible concat step without losing parts', () => {
+    const steps = getVisibleRecipeSteps({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [
+        {
+          id: 'name',
+          type: 'input',
+          inputColumnId: 'input-name',
+          separatorAfter: ' - ',
+          steps: [{ id: 'trim', type: 'trim' }],
+        },
+        { id: 'fixed', type: 'text', value: 'OK' },
+      ],
+      separator: '',
+      steps: [{ id: 'suffix', type: 'addSuffix', value: '!' }],
+    });
+
+    expect(steps).toMatchObject([
+      {
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          {
+            id: 'name',
+            source: { type: 'input', inputColumnId: 'input-name' },
+            steps: [{ id: 'trim', type: 'trim' }],
+          },
+          {
+            id: 'fixed',
+            source: { type: 'fixedText', value: 'OK' },
+            separatorBefore: ' - ',
+          },
+        ],
+      },
+      { id: 'suffix', type: 'addSuffix', value: '!' },
+    ]);
+  });
+
+  it('creates safe default concat parts without separators on the first part', () => {
+    const firstPart = createDefaultConcatPart(0);
+    const secondPart = createDefaultConcatPart(1);
+    const laterStepPart = createDefaultConcatPart(0, true);
+
+    expect(firstPart).toMatchObject({
+      source: { type: 'input', inputColumnId: '' },
+    });
+    expect(firstPart).not.toHaveProperty('separatorBefore');
+    expect(secondPart).toMatchObject({
+      source: { type: 'input', inputColumnId: '' },
+      separatorBefore: '',
+    });
+    expect(laterStepPart).toMatchObject({
+      source: { type: 'previousResult' },
+    });
+    expect(laterStepPart).not.toHaveProperty('separatorBefore');
+  });
+
+  it('keeps a valid selected concat part after add/remove flows', () => {
+    const parts = [
+      { id: 'first', source: { type: 'input' as const, inputColumnId: 'input-name' } },
+      { id: 'second', source: { type: 'fixedText' as const, value: ' - ' }, separatorBefore: '' },
+      { id: 'third', source: { type: 'input' as const, inputColumnId: 'input-pack' }, separatorBefore: '' },
+    ];
+
+    expect(getSafeSelectedConcatPartId(parts, 'second')).toBe('second');
+    expect(getSafeSelectedConcatPartId(parts, 'missing')).toBe('first');
+    expect(getNextSelectedConcatPartIdAfterRemove(parts, 'second', 'second')).toBe('third');
+    expect(getNextSelectedConcatPartIdAfterRemove(parts, 'third', 'third')).toBe('second');
+    expect(getNextSelectedConcatPartIdAfterRemove(parts, 'first', 'third')).toBe('third');
+    expect(getNextSelectedConcatPartIdAfterRemove([{ id: 'only', source: { type: 'previousResult' as const } }], 'only', 'only')).toBeNull();
+  });
+
+  it('summarizes concat parts for the lateral list', () => {
+    expect(describeConcatPartSource({ id: 'name', source: { type: 'input', inputColumnId: 'input-name' } }, inputColumns)).toBe('Columna D (Nombre)');
+    expect(describeConcatPartSource({ id: 'fixed', source: { type: 'fixedText', value: ' - ' } }, inputColumns)).toBe('Texto fijo " - "');
+    expect(describeConcatPartSource({ id: 'previous', source: { type: 'previousResult' } }, inputColumns)).toBe('Resultado anterior');
+  });
+
+  it('preserves concat part steps when editing source-like fields', () => {
+    const part = {
+      id: 'name',
+      source: { type: 'input' as const, inputColumnId: 'input-name' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' as const }],
+    };
+
+    expect({ ...part, source: { type: 'fixedText' as const, value: 'Nombre' } }).toMatchObject({
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+    expect({ ...part, separatorBefore: ' / ' }).toMatchObject({
+      source: { type: 'input', inputColumnId: 'input-name' },
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
   });
 
   it('does not invent a transformation for a neutral first step', () => {
@@ -337,6 +482,75 @@ describe('constructor helpers', () => {
     ).toBe('LATEX IBERIA MATE');
   });
 
+  it('labels text source fields by operation', () => {
+    expect(shouldShowTextSourceFields('uppercase')).toBe(true);
+    expect(shouldShowTextSourceFields('addSuffix')).toBe(true);
+    expect(shouldShowTextSourceFields('replaceText')).toBe(true);
+    expect(shouldShowTextSourceFields('numericOperation')).toBe(false);
+    expect(shouldShowTextSourceFields('concat')).toBe(false);
+    expect(getTextStepSourceLabel('uppercase')).toBe('Valor a convertir');
+    expect(getTextStepSourceLabel('addSuffix')).toBe('Valor base');
+    expect(getTextStepSourceLabel('replaceText')).toBe('Valor base');
+  });
+
+  it('previews uppercase with an explicit input source', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [
+            { id: 'upper', type: 'uppercase', source: { type: 'input', inputColumnId: 'input-name' } },
+          ],
+        },
+        { 'input-code': 'abc', 'input-name': 'latex iberia' },
+      ),
+    ).toBe('LATEX IBERIA');
+  });
+
+  it('previews addSuffix with previous result source', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-name' }],
+          separator: '',
+          steps: [
+            { id: 'trim', type: 'trim' },
+            { id: 'suffix', type: 'addSuffix', source: { type: 'previousResult' }, value: ' MATE' },
+          ],
+        },
+        { 'input-name': ' latex iberia ' },
+      ),
+    ).toBe('latex iberia MATE');
+  });
+
+  it('previews replaceText with an explicit input source', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [
+            {
+              id: 'replace',
+              type: 'replaceText',
+              source: { type: 'input', inputColumnId: 'input-name' },
+              searchValue: 'LATEX',
+              replaceValue: 'LÁTEX',
+            },
+          ],
+        },
+        { 'input-code': 'abc', 'input-name': 'PINTURA LATEX' },
+      ),
+    ).toBe('PINTURA LÁTEX');
+  });
+
   it('previews numeric steps sequentially', () => {
     expect(
       buildCustomValuePreview(
@@ -353,6 +567,230 @@ describe('constructor helpers', () => {
         { 'input-price': '100' },
       ),
     ).toBe('132.00');
+  });
+
+  it('maps old amount-based numeric steps to visible fixed right operands', () => {
+    const step = {
+      id: 'add',
+      type: 'numericOperation' as const,
+      operation: 'add' as const,
+      amount: 10,
+    };
+
+    expect(getVisibleLeftOperand(step, { type: 'input', inputColumnId: 'input-price' })).toEqual({
+      type: 'input',
+      inputColumnId: 'input-price',
+    });
+    expect(getVisibleRightOperand(step)).toEqual({
+      type: 'fixedText',
+      value: '10',
+      numericFallback: 10,
+    });
+  });
+
+  it('keeps configured numeric operands visible', () => {
+    const step = {
+      id: 'subtract',
+      type: 'numericOperation' as const,
+      leftOperand: { type: 'input' as const, inputColumnId: 'input-price' },
+      rightOperand: { type: 'previousResult' as const },
+      amount: 10,
+    };
+
+    expect(getVisibleLeftOperand(step, { type: 'previousResult' })).toEqual({ type: 'input', inputColumnId: 'input-price' });
+    expect(getVisibleRightOperand(step)).toEqual({ type: 'previousResult' });
+  });
+
+  it('previews numeric operands preserving subtraction order', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
+          separator: '',
+          steps: [
+            {
+              id: 'previous-minus-input',
+              type: 'numericOperation',
+              operation: 'subtract',
+              leftOperand: { type: 'previousResult' },
+              rightOperand: { type: 'input', inputColumnId: 'input-code' },
+              rounding: 0,
+            },
+          ],
+        },
+        { 'input-price': '100', 'input-code': '25' },
+      ),
+    ).toBe('75');
+
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
+          separator: '',
+          steps: [
+            {
+              id: 'input-minus-previous',
+              type: 'numericOperation',
+              operation: 'subtract',
+              leftOperand: { type: 'input', inputColumnId: 'input-code' },
+              rightOperand: { type: 'previousResult' },
+              rounding: 0,
+            },
+          ],
+        },
+        { 'input-price': '100', 'input-code': '25' },
+      ),
+    ).toBe('-75');
+  });
+
+  it('previews numeric operands with input plus input and division order', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
+          separator: '',
+          steps: [
+            {
+              id: 'add',
+              type: 'numericOperation',
+              operation: 'add',
+              leftOperand: { type: 'input', inputColumnId: 'input-price' },
+              rightOperand: { type: 'input', inputColumnId: 'input-code' },
+              rounding: 0,
+            },
+          ],
+        },
+        { 'input-price': '100', 'input-code': '25' },
+      ),
+    ).toBe('125');
+
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
+          separator: '',
+          steps: [
+            {
+              id: 'divide',
+              type: 'numericOperation',
+              operation: 'divide',
+              leftOperand: { type: 'input', inputColumnId: 'input-price' },
+              rightOperand: { type: 'input', inputColumnId: 'input-code' },
+              rounding: 0,
+            },
+          ],
+        },
+        { 'input-price': '100', 'input-code': '25' },
+      ),
+    ).toBe('4');
+  });
+
+  it('previews numeric operands without requiring a legacy base column', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'empty-base', type: 'input', inputColumnId: '' }],
+          separator: '',
+          steps: [
+            {
+              id: 'add',
+              type: 'numericOperation',
+              operation: 'add',
+              leftOperand: { type: 'input', inputColumnId: 'input-price' },
+              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+              rounding: 2,
+            },
+          ],
+        },
+        { 'input-price': '100' },
+      ),
+    ).toBe('110.00');
+  });
+
+  it('previews numeric operands even when a stale customMode says text', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'empty-base', type: 'input', inputColumnId: '' }],
+          separator: '',
+          steps: [
+            {
+              id: 'add',
+              mode: 'number',
+              type: 'numericOperation',
+              operation: 'add',
+              leftOperand: { type: 'input', inputColumnId: 'input-price' },
+              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+              rounding: 2,
+            },
+          ],
+        },
+        { 'input-price': '100' },
+        true,
+        'text',
+      ),
+    ).toBe('110.00');
+  });
+
+  it('previews numeric input minus fixed value', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'empty-base', type: 'input', inputColumnId: '' }],
+          separator: '',
+          steps: [
+            {
+              id: 'subtract',
+              type: 'numericOperation',
+              operation: 'subtract',
+              leftOperand: { type: 'input', inputColumnId: 'input-price' },
+              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+              rounding: 0,
+            },
+          ],
+        },
+        { 'input-price': '100' },
+      ),
+    ).toBe('90');
+  });
+
+  it('previews numeric previous result plus fixed value from a later step', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'number',
+          parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
+          separator: '',
+          steps: [
+            { id: 'noop', type: 'noop' },
+            {
+              id: 'add',
+              type: 'numericOperation',
+              operation: 'add',
+              leftOperand: { type: 'previousResult' },
+              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+              rounding: 0,
+            },
+          ],
+        },
+        { 'input-price': '100' },
+      ),
+    ).toBe('110');
   });
 
   it('skips a conditioned step and applies the next step to the previous value', () => {
@@ -439,6 +877,129 @@ describe('constructor helpers', () => {
     ).toBe('PC3074');
   });
 
+  it('previews concat step with input and fixed text parts', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              mode: 'text',
+              type: 'concat',
+              parts: [
+                { id: 'name', source: { type: 'input', inputColumnId: 'input-name' } },
+                { id: 'separator', source: { type: 'fixedText', value: ' - ' } },
+                { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' } },
+              ],
+            },
+          ],
+        },
+        { 'input-name': 'Nombre', 'input-pack': 'Envase' },
+      ),
+    ).toBe('Nombre - Envase');
+  });
+
+  it('previews concat step using the reordered parts order and preserving part fields', () => {
+    const namePart = {
+      id: 'name',
+      source: { type: 'input' as const, inputColumnId: 'input-name' },
+      steps: [{ id: 'upper', type: 'uppercase' as const }],
+    };
+    const packPart = {
+      id: 'pack',
+      source: { type: 'input' as const, inputColumnId: 'input-pack' },
+      separatorBefore: ' - ',
+    };
+    const reorderedParts = normalizeConcatPartsAfterReorder([packPart, namePart]);
+
+    expect(reorderedParts[0]).toMatchObject({
+      id: 'pack',
+      source: { type: 'input', inputColumnId: 'input-pack' },
+    });
+    expect(reorderedParts[0]).not.toHaveProperty('separatorBefore');
+    expect(reorderedParts[1]).toMatchObject({
+      id: 'name',
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              mode: 'text',
+              type: 'concat',
+              parts: reorderedParts,
+            },
+          ],
+        },
+        { 'input-name': 'Nombre', 'input-pack': 'Envase' },
+      ),
+    ).toBe('Envase - NOMBRE');
+  });
+
+  it('passes concat step result to the next step', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              mode: 'text',
+              type: 'concat',
+              parts: [
+                { id: 'name', source: { type: 'input', inputColumnId: 'input-name' } },
+                { id: 'fixed', source: { type: 'fixedText', value: ' mate' } },
+              ],
+            },
+            { id: 'upper', type: 'uppercase', source: { type: 'previousResult' } },
+          ],
+        },
+        { 'input-name': 'latex' },
+      ),
+    ).toBe('LATEX MATE');
+  });
+
+  it('previews concat step with previous result in later steps', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            { id: 'upper', type: 'uppercase', source: { type: 'input', inputColumnId: 'input-name' } },
+            {
+              id: 'concat',
+              mode: 'text',
+              type: 'concat',
+              parts: [
+                { id: 'previous', source: { type: 'previousResult' } },
+                { id: 'separator', source: { type: 'fixedText', value: ' - ' } },
+                { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' } },
+              ],
+            },
+          ],
+        },
+        { 'input-name': 'nombre', 'input-pack': 'Envase' },
+      ),
+    ).toBe('NOMBRE - Envase');
+  });
+
   it('keeps concat input and fixed text parts working without steps', () => {
     expect(
       buildCombinePreview(
@@ -480,6 +1041,105 @@ describe('constructor helpers', () => {
         { 'input-name': ' latex ', 'input-pack': '20L' },
       ),
     ).toBe('LATEX 20L');
+  });
+
+  it('previews concat part text transformations', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                {
+                  id: 'name',
+                  source: { type: 'input', inputColumnId: 'input-name' },
+                  steps: [{ id: 'upper', type: 'uppercase' }],
+                },
+                {
+                  id: 'pack',
+                  source: { type: 'input', inputColumnId: 'input-pack' },
+                  separatorBefore: ' - ',
+                  steps: [{ id: 'lower', type: 'lowercase' }],
+                },
+              ],
+            },
+          ],
+        },
+        { 'input-name': 'Nombre', 'input-pack': 'ENVASE' },
+      ),
+    ).toBe('NOMBRE - envase');
+  });
+
+  it('previews concat part conversion transformations', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                {
+                  id: 'code',
+                  source: { type: 'input', inputColumnId: 'input-code' },
+                  steps: [
+                    { id: 'extract', type: 'extractNumber' },
+                    { id: 'text', type: 'toText' },
+                    { id: 'prefix', type: 'addPrefix', value: 'N-' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { 'input-code': 'ABC123' },
+      ),
+    ).toBe('N-123');
+  });
+
+  it('previews concat part numeric transformations', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                { id: 'prefix', source: { type: 'fixedText', value: '$ ' } },
+                {
+                  id: 'price',
+                  source: { type: 'input', inputColumnId: 'input-price' },
+                  steps: [
+                    { id: 'number', type: 'toNumber' },
+                    { id: 'add', type: 'numericOperation', operation: 'addPercentage', amount: 10, rounding: 2 },
+                    { id: 'text', type: 'toText' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { 'input-price': '100' },
+      ),
+    ).toBe('$ 110.00');
   });
 
   it('keeps noop concat part steps neutral', () => {

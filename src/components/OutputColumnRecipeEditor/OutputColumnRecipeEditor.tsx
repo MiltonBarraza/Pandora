@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConditionOperator, InputColumn, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, ConditionOperator, InputColumn, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -102,7 +102,6 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
                 recipe={column.recipe}
                 inputColumns={activeInputColumns}
                 mode={effectiveCustomValueMode}
-                onModeChange={setCustomValueMode}
                 onChange={(recipe) => updateRecipe(recipe)}
               />
             </div>
@@ -280,6 +279,10 @@ function describeSimpleStep(step: TransformStep) {
     return ['convertir a texto'];
   }
 
+  if (step.type === 'concat') {
+    return ['concatenar'];
+  }
+
   return [`reemplazar "${step.searchValue ?? ''}" por "${step.replaceValue ?? ''}"`];
 }
 
@@ -339,26 +342,29 @@ export function buildCustomValuePreview(
   const mode = modeOverride ?? getCustomValueMode(recipe);
 
   if (mode === '') {
-    return modal ? 'Selecciona un tipo de operacion para ver la vista previa.' : 'Sin valores configurados';
+    return modal ? 'Configura el Paso 1 para ver la vista previa.' : 'Sin valores configurados';
   }
 
-  if (mode === 'number' && !getSimpleInputPart(recipe).inputColumnId) {
+  const hasNumericOperands = hasConfiguredNumericStepOperands(recipe);
+  const effectiveMode = hasNumericOperands ? 'number' : mode;
+
+  if (effectiveMode === 'number' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasNumericOperands) {
     return 'Selecciona una columna numerica.';
   }
 
-  if (mode === 'text' && !getSimpleInputPart(recipe).inputColumnId) {
+  if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe)) {
     return 'Selecciona una columna de texto.';
   }
 
-  if (mode === 'concat' && recipe.parts.length === 0) {
+  if (effectiveMode === 'concat' && recipe.parts.length === 0 && !hasConfiguredConcatStep(recipe)) {
     return 'Agrega una parte para ver la vista previa.';
   }
 
-  if (!isCustomValueConfigured(recipe, mode)) {
+  if (!isCustomValueConfigured(recipe, effectiveMode)) {
     return 'No se han elegido valores suficientes.';
   }
 
-  if (mode === 'number' && !canPreviewNumericValue(recipe, sampleInputValues)) {
+  if (effectiveMode === 'number' && !canPreviewNumericValue(recipe, sampleInputValues)) {
     return 'No se pudo calcular: valor no numerico.';
   }
 
@@ -400,47 +406,35 @@ function CustomValueEditor({
   recipe,
   inputColumns,
   mode,
-  onModeChange,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'combine' }>;
   inputColumns: InputColumn[];
   mode: CustomValueMode;
-  onModeChange: (mode: CustomValueMode) => void;
   onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
 }) {
-  const baseInputPart = recipe.type === 'combine' ? getSimpleInputPart(recipe) : null;
-  const constructionMode = getValueConstructionMode(mode);
-  const updateConstructionMode = (nextMode: ValueConstructionMode) => {
-    const nextRecipe = createRecipeForConstructionMode(nextMode, recipe);
-    const nextCustomMode = nextRecipe.customMode ?? '';
-    onModeChange(nextCustomMode);
-    onChange(nextRecipe);
-  };
+  const baseInputPart = getSimpleInputPart(recipe);
+  const visibleSteps = getVisibleRecipeSteps(recipe, mode);
+  const defaultStepMode = getDefaultStepModeForRecipe(recipe, mode);
   const updateBaseInputColumn = (inputColumnId: string) => {
-    if (mode !== 'number' && mode !== 'text') {
-      return;
-    }
-
-    onChange(buildSimpleCustomValueRecipeWithSteps(mode, inputColumnId, recipe.steps ?? [], recipe));
+    const nextMode = defaultStepMode === 'number' ? 'number' : 'text';
+    onChange(buildSimpleCustomValueRecipeWithSteps(nextMode, inputColumnId, visibleSteps, recipe));
+  };
+  const updateSteps = (steps: TransformStep[]) => {
+    onChange(buildStepBasedCustomValueRecipe(recipe, steps, defaultStepMode));
   };
 
   return (
     <div className="recipeSubBlock customValueEditor">
-      <p className="muted">Elegi primero como construir el valor. Despues configura pasos o partes.</p>
-      <div className="customValueBaseRow">
-        <ValueConstructionModeSelect mode={constructionMode} onChange={updateConstructionMode} />
-      </div>
-
-      {mode === 'number' ? (
-        <SimpleNumberValueEditor recipe={recipe} inputColumns={inputColumns} mode={mode} onBaseInputColumnChange={updateBaseInputColumn} onChange={onChange} />
-      ) : null}
-      {mode === 'text' ? (
-        <SimpleTextValueEditor recipe={recipe} inputColumns={inputColumns} mode={mode} onBaseInputColumnChange={updateBaseInputColumn} onChange={onChange} />
-      ) : null}
-      {mode === 'concat' ? (
-        <CombineRecipeFields recipe={recipe} inputColumns={inputColumns} onChange={onChange} />
-      ) : null}
+      <StepBlocksEditor
+        inputColumns={inputColumns}
+        defaultStepMode={defaultStepMode}
+        baseInputColumnId={baseInputPart.inputColumnId}
+        steps={visibleSteps}
+        requireAtLeastOne
+        onBaseInputColumnChange={updateBaseInputColumn}
+        onStepsChange={updateSteps}
+      />
     </div>
   );
 }
@@ -586,6 +580,27 @@ function SimpleStepBlock({
 }) {
   const summary = getStepSummary(step);
   const stepMode = getStepMode(step, defaultStepMode);
+  const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
+  const updateStepSource = (source: StepSource) => {
+    if (index === 0 && source.type === 'input') {
+      onBaseInputColumnChange(source.inputColumnId);
+    }
+
+    onChange({ source });
+  };
+
+  const addConcatPart = () => {
+    if (step.type !== 'concat') {
+      return;
+    }
+
+    onChange({
+      parts: [
+        ...(step.parts ?? []),
+        createDefaultConcatPart(step.parts?.length ?? 0, index > 0),
+      ],
+    });
+  };
 
   return (
     <div className="stepDetailPanel">
@@ -596,18 +611,46 @@ function SimpleStepBlock({
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
       </div>
       <div className="simpleCustomValueGrid">
-        <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-        {index === 0 ? (
-          <InputColumnSelect value={baseInputColumnId} inputColumns={inputColumns} onChange={onBaseInputColumnChange} />
+        {step.type === 'concat' ? (
+          <div className="concatStepTopRow">
+            <div className="concatStepTopControls">
+              <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+              <StepTypeSelect
+                step={step}
+                mode={stepMode}
+                onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+              />
+            </div>
+            <button type="button" className="secondary" onClick={addConcatPart}>
+              Agregar parte
+            </button>
+          </div>
         ) : (
-          <label className="field compact">
-            <span>Desde que columna</span>
-            <input value="Resultado anterior" disabled />
-          </label>
+          <>
+            <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+            <StepTypeSelect
+              step={step}
+              mode={stepMode}
+              onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+            />
+          </>
         )}
-        <StepTypeSelect step={step} mode={stepMode} onChange={(type) => onChange(replaceStepType(step, type, stepMode))} />
-        <StepFields step={step} labels="workflow" onChange={onChange} />
-        <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+        <StepFields
+          step={step}
+          stepIndex={index}
+          stepSource={stepSource}
+          inputColumns={inputColumns}
+          labels="workflow"
+          onSourceChange={updateStepSource}
+          onChange={onChange}
+        />
+        {step.type === 'concat' ? (
+          <div className="concatStepCondition">
+            <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+          </div>
+        ) : (
+          <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+        )}
       </div>
     </div>
   );
@@ -707,6 +750,18 @@ function StepDetailPanel({
 }) {
   const summary = getStepSummary(step);
   const stepMode = getStepMode(step);
+  const addConcatPart = () => {
+    if (step.type !== 'concat') {
+      return;
+    }
+
+    onChange({
+      parts: [
+        ...(step.parts ?? []),
+        createDefaultConcatPart(step.parts?.length ?? 0, index > 0),
+      ],
+    });
+  };
 
   return (
     <div className="stepDetailPanel">
@@ -717,41 +772,101 @@ function StepDetailPanel({
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
       </div>
       <div className="simpleCustomValueGrid">
-        <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-        <StepTypeSelect step={step} mode={stepMode} onChange={(type) => onChange(replaceStepType(step, type, stepMode))} />
-        <StepFields step={step} labels="workflow" onChange={onChange} />
-        <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+        {step.type === 'concat' ? (
+          <div className="concatStepTopRow">
+            <div className="concatStepTopControls">
+              <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+              <StepTypeSelect
+                step={step}
+                mode={stepMode}
+                onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+              />
+            </div>
+            <button type="button" className="secondary" onClick={addConcatPart}>
+              Agregar parte
+            </button>
+          </div>
+        ) : (
+          <>
+            <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+            <StepTypeSelect
+              step={step}
+              mode={stepMode}
+              onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+            />
+          </>
+        )}
+        <StepFields
+          step={step}
+          stepIndex={index}
+          stepSource={step.source ?? { type: 'previousResult' }}
+          inputColumns={inputColumns}
+          labels="workflow"
+          onSourceChange={(source) => onChange({ source })}
+          onChange={onChange}
+        />
+        {step.type === 'concat' ? (
+          <div className="concatStepCondition">
+            <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+          </div>
+        ) : (
+          <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+        )}
       </div>
     </div>
   );
 }
 
-function StepTypeSelect({ step, mode, onChange }: { step: TransformStep; mode?: TransformStepMode; onChange: (type: TransformStepType) => void }) {
-  const options = mode ? getStepTypesForMode(mode) : stepTypes;
+function StepTypeSelect({
+  step,
+  mode,
+  allowConcat = true,
+  action,
+  onChange,
+}: {
+  step: TransformStep;
+  mode?: TransformStepMode;
+  allowConcat?: boolean;
+  action?: ReactNode;
+  onChange: (type: TransformStepType, operation?: NonNullable<TransformStep['operation']>) => void;
+}) {
+  if (mode === 'number') {
+    return (
+      <label className="field compact">
+        <span>Que quiero hacer</span>
+        <select
+          value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
+          onChange={(event) => {
+            if (event.target.value === '') {
+              return;
+            }
+
+            onChange('numericOperation', event.target.value as NonNullable<TransformStep['operation']>);
+          }}
+        >
+          <option value="">Seleccionar operacion</option>
+          {numericOperationOptions.map((operation) => (
+            <option key={operation.value} value={operation.value}>{operation.label}</option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  const options = mode ? getStepTypesForMode(mode, { allowConcat }) : getStepTypeOptions({ allowConcat });
 
   return (
-    <label className="field compact">
-      <span>Que quiero hacer</span>
-      <select value={step.type} onChange={(event) => onChange(event.target.value as TransformStepType)}>
-        {options.map((stepType) => (
-          <option key={stepType.value} value={stepType.value}>{stepType.label}</option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ValueConstructionModeSelect({ mode, onChange }: { mode: ValueConstructionMode; onChange: (mode: ValueConstructionMode) => void }) {
-  return (
-    <label className="field compact">
-      <span>Forma de construir el valor</span>
-      <select value={mode} onChange={(event) => onChange(event.target.value as ValueConstructionMode)}>
-        <option value="">Seleccionar forma</option>
-        {valueConstructionOptions.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </label>
+    <div className="stepTypeFieldGroup">
+      <label className="field compact">
+        <span>Que quiero hacer</span>
+        <select value={step.type} onChange={(event) => onChange(event.target.value as TransformStepType)}>
+          {options.map((stepType) => (
+            <option key={stepType.value} value={stepType.value}>{stepType.label}</option>
+          ))}
+        </select>
+      </label>
+      {action}
+    </div>
   );
 }
 
@@ -765,6 +880,139 @@ function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange:
         ))}
       </select>
     </label>
+  );
+}
+
+function StepSourceFields({
+  label = 'Desde donde toma el valor',
+  source,
+  inputColumns,
+  allowPreviousResult,
+  onChange,
+}: {
+  label?: string;
+  source: StepSource;
+  inputColumns: InputColumn[];
+  allowPreviousResult: boolean;
+  onChange: (source: StepSource) => void;
+}) {
+  const safeSource = !allowPreviousResult && source.type === 'previousResult'
+    ? { type: 'input' as const, inputColumnId: '' }
+    : source;
+
+  return (
+    <>
+      <label className="field compact">
+        <span>{label}</span>
+        <select
+          value={safeSource.type}
+          onChange={(event) => {
+            const type = event.target.value as StepSource['type'];
+            if (type === 'previousResult') {
+              onChange({ type: 'previousResult' });
+              return;
+            }
+
+            if (type === 'fixedText') {
+              onChange({ type: 'fixedText', value: '' });
+              return;
+            }
+
+            onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
+          }}
+        >
+          {allowPreviousResult ? <option value="previousResult">Resultado anterior</option> : null}
+          <option value="input">Columna de entrada</option>
+          <option value="fixedText">Texto fijo</option>
+        </select>
+      </label>
+
+      {safeSource.type === 'input' ? (
+        <InputColumnSelect value={safeSource.inputColumnId} inputColumns={inputColumns} onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })} />
+      ) : null}
+
+      {safeSource.type === 'fixedText' ? (
+        <label className="field compact">
+          <span>Texto fijo</span>
+          <input value={safeSource.value} onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })} />
+        </label>
+      ) : null}
+    </>
+  );
+}
+
+function StepOperandFields({
+  label,
+  operand,
+  inputColumns,
+  allowPreviousResult,
+  onChange,
+}: {
+  label: string;
+  operand: StepOperand;
+  inputColumns: InputColumn[];
+  allowPreviousResult: boolean;
+  onChange: (operand: StepOperand) => void;
+}) {
+  const safeOperand = !allowPreviousResult && operand.type === 'previousResult'
+    ? { type: 'fixedText' as const, value: '0', numericFallback: 0 }
+    : operand;
+
+  return (
+    <>
+      <label className="field compact">
+        <span>{label}</span>
+        <select
+          value={safeOperand.type}
+          onChange={(event) => {
+            const type = event.target.value as StepOperand['type'];
+            if (type === 'previousResult') {
+              onChange({ type: 'previousResult' });
+              return;
+            }
+
+            if (type === 'input') {
+              onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
+              return;
+            }
+
+            onChange({ type: 'fixedText', value: '0', numericFallback: 0 });
+          }}
+        >
+          {allowPreviousResult ? <option value="previousResult">Resultado anterior</option> : null}
+          <option value="input">Columna de entrada</option>
+          <option value="fixedText">Valor fijo</option>
+        </select>
+      </label>
+
+      {safeOperand.type === 'input' ? (
+        <InputColumnSelect
+          label={`${label}: columna`}
+          value={safeOperand.inputColumnId}
+          inputColumns={inputColumns}
+          onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })}
+        />
+      ) : null}
+
+      {safeOperand.type === 'fixedText' ? (
+        <label className="field compact">
+          <span>{label}: valor fijo</span>
+          <input
+            type="number"
+            step="any"
+            value={safeOperand.value}
+            onChange={(event) => {
+              const value = event.target.value;
+              onChange({
+                type: 'fixedText',
+                value,
+                numericFallback: Number(value),
+              });
+            }}
+          />
+        </label>
+      ) : null}
+    </>
   );
 }
 
@@ -988,6 +1236,207 @@ function ConcatPartFields({
   );
 }
 
+function ConcatStepFields({
+  parts,
+  inputColumns,
+  allowPreviousResult,
+  onChange,
+}: {
+  parts: ConcatPart[];
+  inputColumns: InputColumn[];
+  allowPreviousResult: boolean;
+  onChange: (parts: ConcatPart[]) => void;
+}) {
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null);
+  const previousPartCountRef = useRef(parts.length);
+  const safeSelectedPartId = getSafeSelectedConcatPartId(parts, selectedPartId);
+  const selectedPart = parts.find((part) => part.id === safeSelectedPartId);
+  const selectedPartIndex = selectedPart ? parts.findIndex((part) => part.id === selectedPart.id) : -1;
+
+  useEffect(() => {
+    if (parts.length > previousPartCountRef.current) {
+      setSelectedPartId(parts[parts.length - 1]?.id ?? null);
+    }
+
+    previousPartCountRef.current = parts.length;
+  }, [parts]);
+
+  const updatePart = (partId: string, nextPart: ConcatPart) => {
+    onChange(parts.map((part) => (part.id === partId ? nextPart : part)));
+  };
+  const removePart = (partId: string) => {
+    setSelectedPartId(getNextSelectedConcatPartIdAfterRemove(parts, partId, safeSelectedPartId));
+    onChange(parts.filter((part) => part.id !== partId));
+  };
+
+  return (
+    <div className="concatStepFields">
+      {parts.length === 0 ? <p className="muted">Agrega una parte para construir el valor.</p> : null}
+      {parts.length > 0 ? (
+        <div className="concatPartsWorkspace">
+          <div className="concatPartsSidebar">
+            <SortableList
+              items={parts}
+              onChange={(nextParts) => onChange(normalizeConcatPartsAfterReorder(nextParts))}
+              renderItem={(part, handle) => {
+                const index = parts.findIndex((item) => item.id === part.id);
+
+                return (
+                  <div className={`concatPartListItem${part.id === safeSelectedPartId ? ' selected' : ''}`}>
+                    {handle}
+                    <button
+                      type="button"
+                      className="concatPartSelectButton"
+                      onClick={() => setSelectedPartId(part.id)}
+                    >
+                      <strong>Parte {index + 1}</strong>
+                      <span>{describeConcatPartSource(part, inputColumns)}</span>
+                    </button>
+                  </div>
+                );
+              }}
+            />
+          </div>
+          {selectedPart ? (
+            <div className="concatPartDetailPanel">
+              <div className="concatPartHeader">
+                <strong>Parte {selectedPartIndex + 1}</strong>
+                <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
+              </div>
+              <ConcatPartStepsEditor
+                inputColumns={inputColumns}
+                steps={selectedPart.steps ?? []}
+                baseFields={(
+                  <div className="concatPartFields">
+                    {selectedPartIndex > 0 ? (
+                      <label className="field compact">
+                        <span>Separador antes de esta parte</span>
+                        <input
+                          value={selectedPart.separatorBefore ?? ''}
+                          onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
+                        />
+                      </label>
+                    ) : null}
+                    <StepSourceFields
+                      label="Origen de la parte"
+                      source={selectedPart.source}
+                      inputColumns={inputColumns}
+                      allowPreviousResult={allowPreviousResult}
+                      onChange={(source) => updatePart(selectedPart.id, { ...selectedPart, source })}
+                    />
+                  </div>
+                )}
+                onChange={(steps) => updatePart(selectedPart.id, { ...selectedPart, steps })}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ConcatPartStepsEditor({
+  inputColumns,
+  steps,
+  baseFields,
+  onChange,
+}: {
+  inputColumns: InputColumn[];
+  steps: TransformStep[];
+  baseFields?: ReactNode;
+  onChange: (steps: TransformStep[]) => void;
+}) {
+  const primaryStep = getVisibleConcatPartPrimaryStep(steps);
+  const additionalSteps = steps.slice(1);
+  const updatePrimaryStep = (patch: Partial<TransformStep>) => {
+    onChange(updateConcatPartPrimaryStep(steps, patch));
+  };
+  const addAdditionalStep = () => {
+    onChange([...steps, createNoopStep('text')]);
+  };
+  const updateAdditionalStep = (stepId: string, patch: Partial<TransformStep>) => {
+    onChange([
+      primaryStep,
+      ...additionalSteps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
+    ]);
+  };
+  const deleteAdditionalStep = (stepId: string) => {
+    onChange([primaryStep, ...additionalSteps.filter((step) => step.id !== stepId)]);
+  };
+  const primaryStepMode = getStepMode(primaryStep);
+
+  return (
+    <div className="concatPartPrimaryTransform">
+      <div className="simpleCustomValueGrid concatPartPrimaryGrid">
+        <StepModeSelect mode={primaryStepMode} onChange={(mode) => updatePrimaryStep(changeStepMode(primaryStep, mode))} />
+        <StepTypeSelect
+          step={primaryStep}
+          mode={primaryStepMode}
+          allowConcat={false}
+          onChange={(type, operation) => updatePrimaryStep(replaceStepType(primaryStep, type, primaryStepMode, operation, 0))}
+        />
+        <StepFields
+          step={primaryStep}
+          stepIndex={0}
+          stepSource={{ type: 'previousResult' }}
+          inputColumns={inputColumns}
+          labels="workflow"
+          showSourceFields={false}
+          onSourceChange={(source) => updatePrimaryStep({ source })}
+          onChange={updatePrimaryStep}
+        />
+        {baseFields}
+        <StepConditionFields step={primaryStep} inputColumns={inputColumns} onChange={updatePrimaryStep} />
+      </div>
+
+      <div className="concatPartAdditionalTransforms">
+        <div className="concatPartAdditionalHeader">
+          <strong>Transformaciones adicionales</strong>
+          <button type="button" className="secondary" onClick={addAdditionalStep}>Agregar otra transformacion</button>
+        </div>
+      {additionalSteps.length > 0 ? (
+        <div className="concatPartTransformList">
+          {additionalSteps.map((step, index) => {
+            const stepMode = getStepMode(step);
+            const transformIndex = index + 1;
+
+            return (
+              <div key={step.id} className="concatPartTransformCard">
+                <div className="stepCardHeader">
+                  <strong>Transformacion adicional {index + 1}</strong>
+                  <DeleteButton title="Eliminar transformacion" onClick={() => deleteAdditionalStep(step.id)} />
+                </div>
+                <div className="simpleCustomValueGrid">
+                  <StepModeSelect mode={stepMode} onChange={(mode) => updateAdditionalStep(step.id, changeStepMode(step, mode))} />
+                  <StepTypeSelect
+                    step={step}
+                    mode={stepMode}
+                    allowConcat={false}
+                    onChange={(type, operation) => updateAdditionalStep(step.id, replaceStepType(step, type, stepMode, operation, transformIndex))}
+                  />
+                  <StepFields
+                    step={step}
+                    stepIndex={transformIndex}
+                    stepSource={{ type: 'previousResult' }}
+                    inputColumns={inputColumns}
+                    labels="workflow"
+                    showSourceFields={false}
+                    onSourceChange={(source) => updateAdditionalStep(step.id, { source })}
+                    onChange={(patch) => updateAdditionalStep(step.id, patch)}
+                  />
+                  <StepConditionFields step={step} inputColumns={inputColumns} onChange={(patch) => updateAdditionalStep(step.id, patch)} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      </div>
+    </div>
+  );
+}
+
 const stepTypes: Array<{ value: TransformStepType; label: string }> = [
   { value: 'noop', label: 'Seleccionar operacion' },
   { value: 'trim', label: 'Limpiar espacios' },
@@ -997,6 +1446,7 @@ const stepTypes: Array<{ value: TransformStepType; label: string }> = [
   { value: 'addSuffix', label: 'Agregar sufijo' },
   { value: 'removeText', label: 'Quitar texto' },
   { value: 'replaceText', label: 'Reemplazar texto' },
+  { value: 'concat', label: 'Concatenar' },
   { value: 'extractNumber', label: 'Extraer numero del texto' },
   { value: 'toNumber', label: 'Convertir a numero' },
   { value: 'toText', label: 'Convertir a texto' },
@@ -1012,6 +1462,7 @@ const textStepTypes = stepTypes.filter((stepType) => [
   'addSuffix',
   'removeText',
   'replaceText',
+  'concat',
 ].includes(stepType.value));
 
 const numberStepTypes = stepTypes.filter((stepType) => [
@@ -1026,7 +1477,11 @@ const conversionStepTypes = stepTypes.filter((stepType) => [
   'toText',
 ].includes(stepType.value));
 
-export function getStepTypesForMode(mode: TransformStepMode) {
+function getStepTypeOptions({ allowConcat = true }: { allowConcat?: boolean } = {}) {
+  return allowConcat ? stepTypes : stepTypes.filter((stepType) => stepType.value !== 'concat');
+}
+
+export function getStepTypesForMode(mode: TransformStepMode, { allowConcat = true }: { allowConcat?: boolean } = {}) {
   if (mode === 'number') {
     return numberStepTypes;
   }
@@ -1035,46 +1490,84 @@ export function getStepTypesForMode(mode: TransformStepMode) {
     return conversionStepTypes;
   }
 
-  return textStepTypes;
+  return allowConcat ? textStepTypes : textStepTypes.filter((stepType) => stepType.value !== 'concat');
 }
 
 type StepFieldLabels = 'default' | 'workflow';
 
-function StepFields({ step, labels = 'default', onChange }: { step: TransformStep; labels?: StepFieldLabels; onChange: (patch: Partial<TransformStep>) => void }) {
+function StepFields({
+  step,
+  stepIndex = 0,
+  stepSource,
+  inputColumns,
+  labels = 'default',
+  showSourceFields = true,
+  onSourceChange,
+  onChange,
+}: {
+  step: TransformStep;
+  stepIndex?: number;
+  stepSource: StepSource;
+  inputColumns: InputColumn[];
+  labels?: StepFieldLabels;
+  showSourceFields?: boolean;
+  onSourceChange: (source: StepSource) => void;
+  onChange: (patch: Partial<TransformStep>) => void;
+}) {
+  const sourceFields = showSourceFields && shouldShowTextSourceFields(step.type) ? (
+    <StepSourceFields
+      label={getTextStepSourceLabel(step.type)}
+      source={stepSource}
+      inputColumns={inputColumns}
+      allowPreviousResult={stepIndex > 0}
+      onChange={onSourceChange}
+    />
+  ) : null;
+
   if (step.type === 'noop') {
-    return <div className="ruleHint">Selecciona una operacion para transformar el valor.</div>;
+    return sourceFields;
   }
 
   if (step.type === 'addPrefix') {
     return (
-      <label className="field compact">
-        <span>{labels === 'workflow' ? 'Con que texto' : 'Texto al inicio'}</span>
-        <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-      </label>
+      <>
+        {sourceFields}
+        <label className="field compact">
+          <span>{labels === 'workflow' ? 'Prefijo' : 'Texto al inicio'}</span>
+          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
+        </label>
+      </>
     );
   }
 
   if (step.type === 'addSuffix') {
     return (
-      <label className="field compact">
-        <span>{labels === 'workflow' ? 'Con que texto' : 'Texto al final'}</span>
-        <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-      </label>
+      <>
+        {sourceFields}
+        <label className="field compact">
+          <span>{labels === 'workflow' ? 'Sufijo' : 'Texto al final'}</span>
+          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
+        </label>
+      </>
     );
   }
 
   if (step.type === 'removeText') {
     return (
-      <label className="field compact">
-        <span>{labels === 'workflow' ? 'Con que texto' : 'Texto a quitar'}</span>
-        <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-      </label>
+      <>
+        {sourceFields}
+        <label className="field compact">
+          <span>{labels === 'workflow' ? 'Texto a quitar' : 'Texto a quitar'}</span>
+          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
+        </label>
+      </>
     );
   }
 
   if (step.type === 'replaceText') {
     return (
       <>
+        {sourceFields}
         <label className="field compact">
           <span>Buscar</span>
           <input value={step.searchValue ?? ''} onChange={(event) => onChange({ searchValue: event.target.value })} />
@@ -1088,24 +1581,28 @@ function StepFields({ step, labels = 'default', onChange }: { step: TransformSte
   }
 
   if (step.type === 'numericOperation') {
+    const leftOperand = getVisibleLeftOperand(step, stepSource);
+    const rightOperand = getVisibleRightOperand(step);
+
     return (
       <div className="numericOperationFields">
-        <label className="field compact">
-          <span>{labels === 'workflow' ? 'Que quiero hacer' : 'Operacion'}</span>
-          <select title={numericOperationLabels[step.operation ?? 'add']} value={step.operation ?? 'add'} onChange={(event) => onChange({ operation: event.target.value as TransformStep['operation'] })}>
-            <option value="add">Sumar valor</option>
-            <option value="subtract">Restar valor</option>
-            <option value="multiply">Multiplicar por</option>
-            <option value="divide">Dividir por</option>
-            <option value="addPercentage">Sumar %</option>
-            <option value="subtractPercentage">Restar %</option>
-            <option value="removeIncludedPercentage">Quitar % incluido</option>
-          </select>
-        </label>
-        <label className="field compact">
-          <span>{labels === 'workflow' ? 'Cuanto' : 'Valor'}</span>
-          <input type="number" step="any" value={step.amount ?? 0} onChange={(event) => onChange({ amount: Number(event.target.value) })} />
-        </label>
+        <StepOperandFields
+          label="Primer valor"
+          operand={leftOperand}
+          inputColumns={inputColumns}
+          allowPreviousResult={stepIndex > 0}
+          onChange={(leftOperand) => onChange({ leftOperand })}
+        />
+        <StepOperandFields
+          label="Segundo valor"
+          operand={rightOperand}
+          inputColumns={inputColumns}
+          allowPreviousResult={stepIndex > 0}
+          onChange={(rightOperand) => onChange({
+            rightOperand,
+            ...(rightOperand.type === 'fixedText' ? { amount: Number(rightOperand.value) } : {}),
+          })}
+        />
         <label className="field compact">
           <span>{labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}</span>
           <select value={String(step.rounding ?? 2)} onChange={(event) => onChange({ rounding: parseRounding(event.target.value) })}>
@@ -1119,19 +1616,30 @@ function StepFields({ step, labels = 'default', onChange }: { step: TransformSte
     );
   }
 
+  if (step.type === 'concat') {
+    return (
+      <ConcatStepFields
+        parts={step.parts ?? []}
+        inputColumns={inputColumns}
+        allowPreviousResult={stepIndex > 0}
+        onChange={(parts) => onChange({ parts })}
+      />
+    );
+  }
+
   if (step.type === 'extractNumber') {
-    return <div className="ruleHint">Extrae el primer numero encontrado en el texto.</div>;
+    return sourceFields;
   }
 
   if (step.type === 'toNumber') {
-    return <div className="ruleHint">Convierte el valor completo a numero. No extrae numeros mezclados con texto.</div>;
+    return sourceFields;
   }
 
   if (step.type === 'toText') {
-    return <div className="ruleHint">Convierte el valor actual a texto para aplicar pasos de texto.</div>;
+    return sourceFields;
   }
 
-  return <div className="ruleHint">No requiere valor adicional</div>;
+  return sourceFields;
 }
 
 function StepConditionFields({
@@ -1148,7 +1656,7 @@ function StepConditionFields({
   const inputCondition = condition ? normalizeConditionToInput(condition, inputColumns) : undefined;
 
   return (
-    <div className="transformConditionBlock">
+    <div className="transformConditionBlock conditionFieldsRow">
       <label className="field compact">
         <span>Condicion</span>
         <select
@@ -1169,52 +1677,52 @@ function StepConditionFields({
       </label>
 
       {condition ? (
-        <div className="conditionFieldsGrid">
-          <label className="field compact">
-            <span>Columna</span>
-            <select
-              title={conditionColumns.find((item) => item.id === inputCondition?.columnId)?.label ?? ''}
-              value={inputCondition?.columnId ?? ''}
-              onChange={(event) => onChange({ condition: { ...(inputCondition ?? createDefaultCondition(inputColumns)), columnId: event.target.value } })}
-            >
-              {conditionColumns.length === 0 ? <option value="">Sin columnas</option> : null}
-              {conditionColumns.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {getInputColumnLabel(item)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field compact">
-            <span>Operador</span>
-            <select
-              title={conditionOperators.find((operator) => operator.value === inputCondition?.operator)?.label ?? ''}
-              value={inputCondition?.operator ?? 'isNotEmpty'}
-              onChange={(event) => {
-                const operator = event.target.value as ConditionOperator;
-                onChange({
-                  condition: {
-                    ...(inputCondition ?? createDefaultCondition(inputColumns)),
-                    operator,
-                    valueType: isNumericConditionOperator(operator) ? 'number' : 'text',
-                  },
-                });
-              }}
-            >
-              {conditionOperators.map((operator) => (
-                <option key={operator.value} value={operator.value}>
-                  {operator.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {inputCondition && conditionNeedsValue(inputCondition.operator) ? (
-            <label className="field compact">
-              <span>Valor condicion</span>
-              <input value={inputCondition.value ?? ''} onChange={(event) => onChange({ condition: { ...inputCondition, value: event.target.value } })} />
-            </label>
-          ) : null}
-        </div>
+        <label className="field compact">
+          <span>Columna</span>
+          <select
+            title={conditionColumns.find((item) => item.id === inputCondition?.columnId)?.label ?? ''}
+            value={inputCondition?.columnId ?? ''}
+            onChange={(event) => onChange({ condition: { ...(inputCondition ?? createDefaultCondition(inputColumns)), columnId: event.target.value } })}
+          >
+            {conditionColumns.length === 0 ? <option value="">Sin columnas</option> : null}
+            {conditionColumns.map((item) => (
+              <option key={item.id} value={item.id}>
+                {getInputColumnLabel(item)}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {condition ? (
+        <label className="field compact">
+          <span>Operador</span>
+          <select
+            title={conditionOperators.find((operator) => operator.value === inputCondition?.operator)?.label ?? ''}
+            value={inputCondition?.operator ?? 'isNotEmpty'}
+            onChange={(event) => {
+              const operator = event.target.value as ConditionOperator;
+              onChange({
+                condition: {
+                  ...(inputCondition ?? createDefaultCondition(inputColumns)),
+                  operator,
+                  valueType: isNumericConditionOperator(operator) ? 'number' : 'text',
+                },
+              });
+            }}
+          >
+            {conditionOperators.map((operator) => (
+              <option key={operator.value} value={operator.value}>
+                {operator.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {inputCondition && conditionNeedsValue(inputCondition.operator) ? (
+        <label className="field compact">
+          <span>Valor condicion</span>
+          <input value={inputCondition.value ?? ''} onChange={(event) => onChange({ condition: { ...inputCondition, value: event.target.value } })} />
+        </label>
       ) : null}
     </div>
   );
@@ -1246,6 +1754,11 @@ const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, st
   subtractPercentage: 'Restar %',
   removeIncludedPercentage: 'Quitar % incluido',
 };
+
+export const numericOperationOptions = Object.entries(numericOperationLabels).map(([value, label]) => ({
+  value: value as NonNullable<TransformStep['operation']>,
+  label,
+}));
 
 function createDefaultCondition(inputColumns: InputColumn[]): TransformCondition {
   return {
@@ -1352,15 +1865,36 @@ function isCustomValueConfigured(recipe: Extract<OutputRecipe, { type: 'combine'
   }
 
   if (mode === 'number' || mode === 'text') {
-    return Boolean(getSimpleInputPart(recipe).inputColumnId && recipe.steps?.[0]);
+    const hasBaseSource = Boolean(getSimpleInputPart(recipe).inputColumnId || getFirstStepSource(recipe));
+    return Boolean(recipe.steps?.[0] && (hasBaseSource || (mode === 'number' && hasConfiguredNumericStepOperands(recipe))));
   }
 
-  return recipe.parts.length > 0 && recipe.parts.every((part) => part.type === 'text' || Boolean(part.inputColumnId));
+  return (
+    recipe.parts.length > 0 &&
+    recipe.parts.every((part) => part.type === 'text' || Boolean(part.inputColumnId))
+  ) || hasConfiguredConcatStep(recipe);
+}
+
+function getFirstStepSource(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return recipe.steps?.[0]?.source;
+}
+
+function hasConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return (recipe.steps ?? []).some((step) => step.type === 'concat' && (step.parts ?? []).length > 0);
+}
+
+function hasConfiguredNumericStepOperands(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return (recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand));
 }
 
 function canPreviewNumericValue(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
   const part = getSimpleInputPart(recipe);
-  if (!sampleInputValues || !part.inputColumnId) {
+  const firstStepSource = getFirstStepSource(recipe);
+  if ((recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand))) {
+    return true;
+  }
+
+  if (!sampleInputValues || (!part.inputColumnId && !firstStepSource)) {
     return true;
   }
 
@@ -1369,7 +1903,12 @@ function canPreviewNumericValue(recipe: Extract<OutputRecipe, { type: 'combine' 
     return true;
   }
 
-  return parseNumericValue(sampleInputValues[part.inputColumnId]) !== null;
+  if (firstStepSource?.type === 'fixedText') {
+    return parseNumericValue(firstStepSource.value) !== null;
+  }
+
+  const inputColumnId = firstStepSource?.type === 'input' ? firstStepSource.inputColumnId : part.inputColumnId;
+  return parseNumericValue(sampleInputValues[inputColumnId]) !== null;
 }
 
 export function createCustomValueRecipeForMode(mode: CustomValueMode, current: Extract<OutputRecipe, { type: 'combine' }>): Extract<OutputRecipe, { type: 'combine' }> {
@@ -1403,6 +1942,181 @@ function getValueConstructionMode(mode: CustomValueMode): ValueConstructionMode 
   }
 
   return '';
+}
+
+export function getVisibleRecipeSteps(recipe: Extract<OutputRecipe, { type: 'combine' }>, modeOverride?: CustomValueMode): TransformStep[] {
+  const mode = modeOverride ?? getCustomValueMode(recipe);
+
+  if (isStepBasedConcatRecipe(recipe)) {
+    return ensureAtLeastOneStep(recipe.steps ?? [], 'text');
+  }
+
+  if (mode === 'concat') {
+    return ensureAtLeastOneStep([
+      createConcatStepFromLegacyRecipe(recipe),
+      ...(recipe.steps ?? []),
+    ], 'text');
+  }
+
+  return ensureAtLeastOneStep(recipe.steps ?? [], getDefaultStepModeForRecipe(recipe, mode));
+}
+
+function ensureAtLeastOneStep(steps: TransformStep[], fallbackMode: TransformStepMode) {
+  return steps.length > 0 ? steps : [createNoopStep(fallbackMode)];
+}
+
+function getDefaultStepModeForRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>, modeOverride?: CustomValueMode): TransformStepMode {
+  const mode = modeOverride ?? getCustomValueMode(recipe);
+  if (mode === 'number') {
+    return 'number';
+  }
+
+  return 'text';
+}
+
+function isStepBasedConcatRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return recipe.parts.length === 0 && (recipe.steps ?? []).some((step) => step.type === 'concat');
+}
+
+function createConcatStepFromLegacyRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>): TransformStep {
+  return {
+    id: recipe.parts[0]?.id ? `concat-${recipe.parts[0].id}` : crypto.randomUUID(),
+    mode: 'text',
+    type: 'concat',
+    parts: recipePartsToConcatParts(recipe.parts, recipe.separator),
+    applyToEmptyValues: false,
+  };
+}
+
+function recipePartsToConcatParts(parts: RecipePart[], globalSeparator?: string): ConcatPart[] {
+  return parts.map((part, index) => {
+    const previousPart = parts[index - 1];
+    return {
+      id: part.id,
+      source: recipePartToStepSource(part),
+      ...(index > 0 ? { separatorBefore: previousPart?.separatorAfter ?? globalSeparator ?? '' } : {}),
+      ...(part.steps ? { steps: part.steps } : {}),
+    };
+  });
+}
+
+function recipePartToStepSource(part: RecipePart): StepSource {
+  if (part.type === 'input') {
+    return { type: 'input', inputColumnId: part.inputColumnId };
+  }
+
+  return { type: 'fixedText', value: part.value };
+}
+
+export function getSafeSelectedConcatPartId(parts: ConcatPart[], selectedPartId: string | null) {
+  if (parts.some((part) => part.id === selectedPartId)) {
+    return selectedPartId;
+  }
+
+  return parts[0]?.id ?? null;
+}
+
+export function getNextSelectedConcatPartIdAfterRemove(
+  parts: ConcatPart[],
+  removedPartId: string,
+  selectedPartId: string | null,
+) {
+  if (selectedPartId !== removedPartId) {
+    return getSafeSelectedConcatPartId(parts.filter((part) => part.id !== removedPartId), selectedPartId);
+  }
+
+  const removedIndex = parts.findIndex((part) => part.id === removedPartId);
+  const nextParts = parts.filter((part) => part.id !== removedPartId);
+  return nextParts[removedIndex]?.id ?? nextParts[removedIndex - 1]?.id ?? nextParts[0]?.id ?? null;
+}
+
+export function normalizeConcatPartsAfterReorder(parts: ConcatPart[]) {
+  const [firstPart, secondPart, ...restParts] = parts;
+  if (!firstPart?.separatorBefore || !secondPart || secondPart.separatorBefore) {
+    return parts;
+  }
+
+  return [
+    omitSeparatorBefore(firstPart),
+    { ...secondPart, separatorBefore: firstPart.separatorBefore },
+    ...restParts,
+  ];
+}
+
+function omitSeparatorBefore(part: ConcatPart): ConcatPart {
+  const { separatorBefore: _separatorBefore, ...nextPart } = part;
+  return nextPart;
+}
+
+export function describeConcatPartSource(part: ConcatPart, inputColumns: InputColumn[]) {
+  const { source } = part;
+
+  if (source.type === 'previousResult') {
+    return 'Resultado anterior';
+  }
+
+  if (source.type === 'fixedText') {
+    return `Texto fijo "${source.value || ''}"`;
+  }
+
+  if (source.type === 'input') {
+    const inputColumnId = source.inputColumnId;
+    const inputColumn = inputColumns.find((column) => column.id === inputColumnId);
+    return inputColumn ? getInputColumnSummary(inputColumn) : 'Columna de entrada';
+  }
+
+  return 'Columna de entrada';
+}
+
+export function getVisibleConcatPartPrimaryStep(steps: TransformStep[]) {
+  return steps[0] ?? createNoopStep('text');
+}
+
+export function updateConcatPartPrimaryStep(steps: TransformStep[], patch: Partial<TransformStep>) {
+  const primaryStep = getVisibleConcatPartPrimaryStep(steps);
+  return [{ ...primaryStep, ...patch }, ...steps.slice(1)];
+}
+
+export function createDefaultConcatPart(index: number, preferPreviousResult = false): ConcatPart {
+  return {
+    id: crypto.randomUUID(),
+    source: preferPreviousResult ? { type: 'previousResult' } : { type: 'input', inputColumnId: '' },
+    ...(index > 0 ? { separatorBefore: '' } : {}),
+  };
+}
+
+function buildStepBasedCustomValueRecipe(
+  current: Extract<OutputRecipe, { type: 'combine' }>,
+  steps: TransformStep[],
+  fallbackMode: TransformStepMode,
+): Extract<OutputRecipe, { type: 'combine' }> {
+  const firstStep = steps[0];
+
+  if (firstStep?.type === 'concat') {
+    return {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps,
+    };
+  }
+
+  const inferredMode = inferCustomModeFromSteps(steps, fallbackMode);
+  return buildSimpleCustomValueRecipeWithSteps(
+    inferredMode,
+    getSimpleInputPart(current).inputColumnId,
+    steps,
+    current,
+  );
+}
+
+function inferCustomModeFromSteps(steps: TransformStep[], fallbackMode: TransformStepMode): 'number' | 'text' {
+  if (steps.some((step) => getStepMode(step, fallbackMode) === 'number' || step.type === 'numericOperation')) {
+    return 'number';
+  }
+
+  return 'text';
 }
 
 export function createRecipeForConstructionMode(mode: ValueConstructionMode, current: Extract<OutputRecipe, { type: 'combine' }>): Extract<OutputRecipe, { type: 'combine' }> {
@@ -1465,12 +2179,12 @@ function getSimpleInputPart(recipe: Extract<OutputRecipe, { type: 'combine' }>) 
   return part?.type === 'input' ? part : { id: crypto.randomUUID(), type: 'input' as const, inputColumnId: '' };
 }
 
-function createNumericOperationStep(): TransformStep {
+function createNumericOperationStep(operation: NonNullable<TransformStep['operation']> = 'add'): TransformStep {
   return {
     id: crypto.randomUUID(),
     mode: 'number',
     type: 'numericOperation',
-    operation: 'addPercentage',
+    operation,
     amount: 10,
     rounding: 2,
     applyToEmptyValues: false,
@@ -1486,7 +2200,18 @@ function createNoopStep(modeHint: TransformStepMode = 'text'): TransformStep {
   };
 }
 
-function createTextOperationStep(type: TransformStepType, condition?: TransformCondition): TransformStep {
+function createTextOperationStep(type: TransformStepType, condition?: TransformCondition, stepIndex = 0): TransformStep {
+  if (type === 'concat') {
+    return {
+      id: crypto.randomUUID(),
+      mode: 'text',
+      type: 'concat',
+      parts: [createDefaultConcatPart(0, stepIndex > 0)],
+      condition,
+      applyToEmptyValues: false,
+    };
+  }
+
   return {
     id: crypto.randomUUID(),
     mode: inferStepModeFromType(type),
@@ -1499,10 +2224,23 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
   };
 }
 
-function replaceStepType(step: TransformStep, type: TransformStepType, mode: TransformStepMode): Partial<TransformStep> {
+function replaceStepType(
+  step: TransformStep,
+  type: TransformStepType,
+  mode: TransformStepMode,
+  operation?: NonNullable<TransformStep['operation']>,
+  stepIndex = 0,
+): Partial<TransformStep> {
   if (type === 'numericOperation') {
+    if (step.type === 'numericOperation') {
+      return {
+        operation: operation ?? step.operation ?? 'add',
+        mode,
+      };
+    }
+
     return {
-      ...createNumericOperationStep(),
+      ...createNumericOperationStep(operation),
       id: step.id,
       mode,
       condition: step.condition,
@@ -1511,7 +2249,7 @@ function replaceStepType(step: TransformStep, type: TransformStepType, mode: Tra
   }
 
   return {
-    ...createTextOperationStep(type, step.condition),
+    ...createTextOperationStep(type, step.condition, stepIndex),
     id: step.id,
     mode,
     applyToEmptyValues: step.applyToEmptyValues,
@@ -1527,6 +2265,99 @@ export function normalizeStepsForMode(steps: TransformStep[], fallbackMode: Tran
 
 function isStepAllowedForMode(type: TransformStepType, mode: TransformStepMode) {
   return getStepTypesForMode(mode).some((stepType) => stepType.value === type);
+}
+
+function getVisibleStepSource(step: TransformStep, index: number, baseInputColumnId: string): StepSource {
+  if (step.source) {
+    if (index === 0 && step.source.type === 'previousResult') {
+      return { type: 'input', inputColumnId: baseInputColumnId };
+    }
+
+    return step.source;
+  }
+
+  if (index === 0) {
+    return { type: 'input', inputColumnId: baseInputColumnId };
+  }
+
+  return { type: 'previousResult' };
+}
+
+export function getVisibleLeftOperand(step: TransformStep, stepSource: StepSource): StepOperand {
+  if (step.leftOperand) {
+    return step.leftOperand;
+  }
+
+  return stepSourceToOperand(stepSource);
+}
+
+export function getVisibleRightOperand(step: TransformStep): StepOperand {
+  if (step.rightOperand) {
+    return step.rightOperand;
+  }
+
+  const amount = Number(step.amount ?? 0);
+  return {
+    type: 'fixedText',
+    value: String(step.amount ?? 0),
+    ...(Number.isFinite(amount) ? { numericFallback: amount } : {}),
+  };
+}
+
+function stepSourceToOperand(source: StepSource): StepOperand {
+  if (source.type === 'previousResult') {
+    return { type: 'previousResult' };
+  }
+
+  if (source.type === 'input') {
+    return { type: 'input', inputColumnId: source.inputColumnId };
+  }
+
+  return {
+    type: 'fixedText',
+    value: source.value,
+    numericFallback: Number(source.value),
+  };
+}
+
+export function shouldShowTextSourceFields(type: TransformStepType) {
+  return [
+    'noop',
+    'trim',
+    'uppercase',
+    'lowercase',
+    'addPrefix',
+    'addSuffix',
+    'removeText',
+    'replaceText',
+    'extractNumber',
+    'toNumber',
+    'toText',
+  ].includes(type);
+}
+
+export function getTextStepSourceLabel(type: TransformStepType) {
+  if (type === 'trim') {
+    return 'Valor a limpiar';
+  }
+
+  if (type === 'uppercase' || type === 'lowercase') {
+    return 'Valor a convertir';
+  }
+
+  if (type === 'addPrefix' || type === 'addSuffix' || type === 'removeText' || type === 'replaceText') {
+    return 'Valor base';
+  }
+
+  if (type === 'extractNumber') {
+    return 'Valor del que extraer numero';
+  }
+
+  if (type === 'toNumber' || type === 'toText') {
+    return 'Valor a convertir';
+  }
+
+  return 'Desde donde toma el valor';
 }
 
 export function changeStepMode(step: TransformStep, mode: TransformStepMode): Partial<TransformStep> {

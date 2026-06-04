@@ -243,4 +243,105 @@ describe('localOutputColumnsService', () => {
     });
     expect(column.recipe).not.toMatchObject({ customMode: 'conversion' });
   });
+
+  it('preserves step sources, operands and concat step parts when loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'combined',
+          label: 'Combinada',
+          recipe: {
+            type: 'combine',
+            customMode: 'text',
+            parts: [
+              {
+                id: 'legacy-part',
+                type: 'input',
+                inputColumnId: 'input-name',
+                separatorAfter: ' - ',
+                steps: [{ id: 'legacy-trim', type: 'trim' }],
+              },
+            ],
+            steps: [
+              {
+                id: 'source',
+                type: 'uppercase',
+                source: { type: 'input', inputColumnId: 'input-code' },
+              },
+              {
+                id: 'operands',
+                type: 'numericOperation',
+                operation: 'subtract',
+                leftOperand: { type: 'input', inputColumnId: 'input-a' },
+                rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+              },
+              {
+                id: 'concat',
+                type: 'concat',
+                parts: [
+                  {
+                    id: 'previous',
+                    source: { type: 'previousResult' },
+                    steps: [{ id: 'part-upper', type: 'uppercase' }],
+                  },
+                  {
+                    id: 'fixed',
+                    source: { type: 'fixedText', value: 'OK' },
+                    separatorBefore: ' / ',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+
+    expect(column.recipe).toMatchObject({
+      type: 'combine',
+      parts: [
+        {
+          id: 'legacy-part',
+          type: 'input',
+          inputColumnId: 'input-name',
+          separatorAfter: ' - ',
+          steps: [{ id: 'legacy-trim', type: 'trim' }],
+        },
+      ],
+      steps: [
+        {
+          id: 'source',
+          type: 'uppercase',
+          source: { type: 'input', inputColumnId: 'input-code' },
+        },
+        {
+          id: 'operands',
+          type: 'numericOperation',
+          leftOperand: { type: 'input', inputColumnId: 'input-a' },
+          rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+        },
+        {
+          id: 'concat',
+          type: 'concat',
+          parts: [
+            {
+              id: 'previous',
+              source: { type: 'previousResult' },
+              steps: [{ id: 'part-upper', type: 'uppercase' }],
+            },
+            {
+              id: 'fixed',
+              source: { type: 'fixedText', value: 'OK' },
+              separatorBefore: ' / ',
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

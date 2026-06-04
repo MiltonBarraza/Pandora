@@ -7,6 +7,8 @@ import type {
   ProcessedRow,
   RawRow,
   RecipePart,
+  StepOperand,
+  StepSource,
   TransformStep,
 } from '../../types/import';
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
@@ -186,9 +188,9 @@ function applyTransformSteps(
   inputValues: Record<string, string>,
   outputValues: Record<string, string>,
   currentOutputColumnId: string,
-) {
+): TransformResult {
   return steps.reduce(
-    (currentResult, step) => {
+    (currentResult, step, stepIndex) => {
       const nextOutputValues = {
         ...outputValues,
         [currentOutputColumnId]: currentResult.value,
@@ -208,7 +210,12 @@ function applyTransformSteps(
         };
       }
 
-      const nextResult = applyTransformStep(currentResult.value, step);
+      const nextResult = applyTransformStep(currentResult.value, step, {
+        inputValues,
+        outputValues: nextOutputValues,
+        currentOutputColumnId,
+        stepIndex,
+      });
       return {
         value: nextResult.value,
         warnings: [...currentResult.warnings, ...nextResult.warnings],
@@ -218,9 +225,30 @@ function applyTransformSteps(
   );
 }
 
-function applyTransformStep(value: string, step: TransformStep) {
+type TransformStepContext = {
+  inputValues: Record<string, string>;
+  outputValues: Record<string, string>;
+  currentOutputColumnId: string;
+  stepIndex: number;
+};
+
+type StepValueContext = TransformStepContext & {
+  currentValue: string;
+};
+
+type TransformResult = {
+  value: string;
+  warnings: string[];
+};
+
+function applyTransformStep(currentValue: string, step: TransformStep, context: TransformStepContext): TransformResult {
+  const value = resolveStepSource(step.source, {
+    ...context,
+    currentValue,
+  });
+
   if (shouldSkipEmptyValue(value, step)) {
-    return { value, warnings: [] };
+    return { value: currentValue, warnings: [] };
   }
 
   if (step.type === 'trim') {
@@ -264,16 +292,80 @@ function applyTransformStep(value: string, step: TransformStep) {
     return { value: String(value), warnings: [] };
   }
 
+  if (step.type === 'concat') {
+    return applyConcatTransformStep(step, {
+      ...context,
+      currentValue,
+    });
+  }
+
   if (step.type === 'numericOperation') {
-    return applyNumericTransformStep(value, step);
+    return applyNumericTransformStep(value, step, {
+      ...context,
+      currentValue,
+    });
   }
 
   const searchValue = step.searchValue ?? '';
   return { value: searchValue ? value.split(searchValue).join(step.replaceValue ?? '') : value, warnings: [] };
 }
 
-function applyNumericTransformStep(value: string, step: TransformStep) {
+function resolveStepSource(source: StepSource | undefined, context: StepValueContext) {
+  if (!source || source.type === 'previousResult') {
+    return context.currentValue;
+  }
+
+  if (source.type === 'input') {
+    return context.inputValues[source.inputColumnId] ?? '';
+  }
+
+  return source.value;
+}
+
+function resolveStepOperand(operand: StepOperand | undefined, context: StepValueContext) {
+  const rawValue = resolveStepSource(operand, context);
+  const parsedValue = parseNumericValue(rawValue);
+
+  if (parsedValue !== null) {
+    return { value: parsedValue, warnings: [] as string[] };
+  }
+
+  if (typeof operand?.numericFallback === 'number' && Number.isFinite(operand.numericFallback)) {
+    return { value: operand.numericFallback, warnings: [] as string[] };
+  }
+
+  return {
+    value: null,
+    warnings: ['No se pudo aplicar operacion numerica: operando invalido'],
+  };
+}
+
+function applyConcatTransformStep(step: TransformStep, context: StepValueContext): TransformResult {
+  const warnings: string[] = [];
+  const parts = step.parts ?? [];
+
+  const value = parts.reduce((combinedValue, part) => {
+    const baseValue = resolveStepSource(part.source, context);
+    const result = applyTransformSteps(
+      baseValue,
+      part.steps ?? [],
+      context.inputValues,
+      context.outputValues,
+      context.currentOutputColumnId,
+    );
+    warnings.push(...result.warnings);
+    return `${combinedValue}${part.separatorBefore ?? ''}${result.value}`;
+  }, '');
+
+  return { value, warnings };
+}
+
+function applyNumericTransformStep(value: string, step: TransformStep, context: StepValueContext): TransformResult {
   const operation = step.operation ?? 'add';
+  if (step.leftOperand || step.rightOperand) {
+    return applyNumericOperandTransformStep(step, context);
+  }
+
   const amount = Number(step.amount ?? 0);
   const valueToParse = value.trim() === '' && step.applyToEmptyValues ? '0' : value;
   const parsedValue = parseNumericValue(valueToParse);
@@ -293,6 +385,32 @@ function applyNumericTransformStep(value: string, step: TransformStep) {
   }
 
   const result = applyNumericOperation(parsedValue, operation, amount);
+  return {
+    value: formatNumericResult(result, step.rounding ?? 2),
+    warnings: [],
+  };
+}
+
+function applyNumericOperandTransformStep(step: TransformStep, context: StepValueContext): TransformResult {
+  const operation = step.operation ?? 'add';
+  const left = resolveStepOperand(step.leftOperand ?? { type: 'previousResult' }, context);
+  const right = resolveStepOperand(step.rightOperand ?? { type: 'fixedText', value: String(step.amount ?? 0) }, context);
+
+  if (left.value === null || right.value === null) {
+    return {
+      value: context.currentValue,
+      warnings: [...left.warnings, ...right.warnings],
+    };
+  }
+
+  if (operation === 'divide' && right.value === 0) {
+    return {
+      value: context.currentValue,
+      warnings: ['No se puede dividir por cero'],
+    };
+  }
+
+  const result = applyNumericOperation(left.value, operation, right.value);
   return {
     value: formatNumericResult(result, step.rounding ?? 2),
     warnings: [],
@@ -324,6 +442,10 @@ function applyToNumberStep(value: string) {
 }
 
 function shouldSkipEmptyValue(value: string, step: TransformStep) {
+  if (step.type === 'numericOperation' && (step.leftOperand || step.rightOperand)) {
+    return false;
+  }
+
   return (
     value.trim() === '' &&
     !step.applyToEmptyValues &&

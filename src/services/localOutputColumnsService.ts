@@ -1,4 +1,16 @@
-import type { ConditionOperator, OutputColumn, OutputRecipe, RecipePart, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../types/import';
+import type {
+  ConcatPart,
+  ConditionOperator,
+  OutputColumn,
+  OutputRecipe,
+  RecipePart,
+  StepOperand,
+  StepSource,
+  TransformCondition,
+  TransformStep,
+  TransformStepMode,
+  TransformStepType,
+} from '../types/import';
 
 const outputColumnsKey = 'excel-sanitizer:v2-output-columns';
 
@@ -124,11 +136,15 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     id: step.id ?? crypto.randomUUID(),
     mode: normalizeStepMode(step.mode) ?? inferStepModeFromType(type),
     type,
+    source: normalizeStepSource(step.source),
     value: step.value ?? '',
     searchValue: step.searchValue ?? '',
     replaceValue: step.replaceValue ?? '',
     operation: step.operation ?? 'add',
     amount: Number(step.amount ?? 0),
+    leftOperand: normalizeStepOperand(step.leftOperand),
+    rightOperand: normalizeStepOperand(step.rightOperand),
+    parts: normalizeConcatParts(step.parts),
     rounding: normalizeRounding(step.rounding),
     condition: normalizeCondition(step.condition),
     applyToEmptyValues: step.applyToEmptyValues ?? false,
@@ -145,6 +161,7 @@ function normalizeStepType(type?: string): TransformStepType | null {
     'addSuffix',
     'removeText',
     'replaceText',
+    'concat',
     'extractNumber',
     'toNumber',
     'toText',
@@ -168,6 +185,66 @@ function inferStepModeFromType(type: TransformStepType): TransformStepMode {
   }
 
   return 'text';
+}
+
+function normalizeStepSource(source?: Partial<StepSource>): StepSource | undefined {
+  if (source?.type === 'previousResult') {
+    return { type: 'previousResult' };
+  }
+
+  if (source?.type === 'input') {
+    return {
+      type: 'input',
+      inputColumnId: source.inputColumnId ?? '',
+    };
+  }
+
+  if (source?.type === 'fixedText') {
+    return {
+      type: 'fixedText',
+      value: source.value ?? '',
+    };
+  }
+
+  return undefined;
+}
+
+function normalizeStepOperand(operand?: Partial<StepOperand>): StepOperand | undefined {
+  const source = normalizeStepSource(operand);
+  if (!source) {
+    return undefined;
+  }
+
+  return {
+    ...source,
+    ...(typeof operand?.numericFallback === 'number' && Number.isFinite(operand.numericFallback)
+      ? { numericFallback: operand.numericFallback }
+      : {}),
+  };
+}
+
+function normalizeConcatParts(parts?: Partial<ConcatPart>[]): ConcatPart[] | undefined {
+  if (!Array.isArray(parts)) {
+    return undefined;
+  }
+
+  return parts
+    .map(normalizeConcatPart)
+    .filter((part): part is ConcatPart => Boolean(part));
+}
+
+function normalizeConcatPart(part: Partial<ConcatPart>): ConcatPart | null {
+  const source = normalizeStepSource(part.source);
+  if (!source) {
+    return null;
+  }
+
+  return {
+    id: part.id ?? crypto.randomUUID(),
+    source,
+    ...(typeof part.separatorBefore === 'string' ? { separatorBefore: part.separatorBefore } : {}),
+    ...(Array.isArray(part.steps) ? { steps: normalizeSteps(part.steps) } : {}),
+  };
 }
 
 function normalizeRounding(rounding: Partial<TransformStep>['rounding']) {
