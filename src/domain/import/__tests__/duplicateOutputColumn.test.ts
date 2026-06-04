@@ -1,0 +1,101 @@
+import { describe, expect, it } from 'vitest';
+import type { OutputColumn } from '../../../types/import';
+import { duplicateOutputColumn } from '../duplicateOutputColumn';
+
+describe('duplicateOutputColumn', () => {
+  it('clones an output column with new ids and preserves functional config', () => {
+    const original: OutputColumn = {
+      id: 'output-price',
+      label: 'Precio +10%',
+      order: 3,
+      enabled: false,
+      recipe: {
+        type: 'combine',
+        separator: '',
+        parts: [
+          {
+            id: 'part-prefix',
+            type: 'text',
+            value: '$ ',
+            separatorAfter: '',
+            steps: [{ id: 'trim-part', type: 'trim' }],
+          },
+          {
+            id: 'part-price',
+            type: 'input',
+            inputColumnId: 'input-price',
+            separatorAfter: ' ',
+            steps: [
+              {
+                id: 'numeric-part',
+                type: 'numericOperation',
+                operation: 'addPercentage',
+                amount: 10,
+                rounding: 2,
+                condition: {
+                  target: 'input',
+                  columnId: 'input-price',
+                  operator: 'isNotEmpty',
+                  value: '',
+                  valueType: 'text',
+                },
+              },
+            ],
+          },
+        ],
+        steps: [{ id: 'trim-final', type: 'trim' }],
+      },
+    };
+
+    const copy = duplicateOutputColumn(original);
+
+    expect(copy.id).not.toBe(original.id);
+    expect(copy.label).toBe('Precio +10% copia');
+    expect(copy.order).toBe(original.order);
+    expect(copy.enabled).toBe(true);
+    expect(copy.recipe).toMatchObject({
+      type: 'combine',
+      separator: '',
+      parts: [
+        {
+          type: 'text',
+          value: '$ ',
+          separatorAfter: '',
+          steps: [{ type: 'trim' }],
+        },
+        {
+          type: 'input',
+          inputColumnId: 'input-price',
+          separatorAfter: ' ',
+          steps: [
+            {
+              type: 'numericOperation',
+              operation: 'addPercentage',
+              amount: 10,
+              rounding: 2,
+              condition: {
+                target: 'input',
+                columnId: 'input-price',
+                operator: 'isNotEmpty',
+                value: '',
+                valueType: 'text',
+              },
+            },
+          ],
+        },
+      ],
+      steps: [{ type: 'trim' }],
+    });
+
+    if (copy.recipe.type !== 'combine' || original.recipe.type !== 'combine') {
+      throw new Error('Expected combine recipes');
+    }
+
+    expect(copy.recipe.parts[0].id).not.toBe(original.recipe.parts[0].id);
+    expect(copy.recipe.parts[1].id).not.toBe(original.recipe.parts[1].id);
+    expect(copy.recipe.parts[0].steps?.[0].id).not.toBe(original.recipe.parts[0].steps?.[0].id);
+    expect(copy.recipe.parts[1].steps?.[0].id).not.toBe(original.recipe.parts[1].steps?.[0].id);
+    expect(copy.recipe.steps?.[0].id).not.toBe(original.recipe.steps?.[0].id);
+    expect(original.label).toBe('Precio +10%');
+  });
+});
