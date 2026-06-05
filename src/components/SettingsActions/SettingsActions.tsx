@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { compareSettingsToCurrentSnapshot } from '../../domain/import/settingsCompatibility';
 import { createSourceSnapshot, exportSettingsFromWizardState } from '../../domain/import/settingsSnapshot';
 import { downloadImportSettingsFile, parseImportSettingsJson } from '../../services/settingsFileService';
+import { showErrorToast, showInfoToast, showSuccessToast } from '../../services/toastService';
 import type {
   ColumnAnalysis,
   ExportedImportSettings,
@@ -81,27 +82,36 @@ export function SettingsActions({
     setSuccessMessage('');
 
     if (!currentSnapshot || fileType === '') {
-      setError('Primero carga un Excel y selecciona una hoja para exportar settings.');
+      const message = 'Primero carga un Excel y selecciona una hoja para exportar settings.';
+      setError(message);
+      showErrorToast(message);
       return;
     }
 
-    downloadImportSettingsFile(exportSettingsFromWizardState({
-      name: selectedSheet || undefined,
-      fileType,
-      selectedSheet,
-      sheetNames,
-      rows,
-      headerRowIndex,
-      startRowIndex,
-      showRawPreviewFromDataStart,
-      showAllRawPreviewColumns,
-      columnAnalysis,
-      inputColumnAliases,
-      inputIgnoreRules,
-      outputColumns,
-      outputIgnoreRules,
-      fileNameSettings,
-    }));
+    try {
+      downloadImportSettingsFile(exportSettingsFromWizardState({
+        name: selectedSheet || undefined,
+        fileType,
+        selectedSheet,
+        sheetNames,
+        rows,
+        headerRowIndex,
+        startRowIndex,
+        showRawPreviewFromDataStart,
+        showAllRawPreviewColumns,
+        columnAnalysis,
+        inputColumnAliases,
+        inputIgnoreRules,
+        outputColumns,
+        outputIgnoreRules,
+        fileNameSettings,
+      }));
+      showSuccessToast('Settings exportados correctamente.');
+    } catch {
+      const message = 'No se pudieron exportar los settings.';
+      setError(message);
+      showErrorToast(message);
+    }
   };
 
   const importSettingsFile = async (file: File | undefined) => {
@@ -118,20 +128,27 @@ export function SettingsActions({
       const parsed = parseImportSettingsJson(text);
       if (!parsed.ok) {
         setError(parsed.error);
+        showErrorToast('No se pudo importar el archivo de settings.');
         return;
       }
 
       if (!currentSnapshot) {
-        setError('Primero carga un Excel y selecciona una hoja para validar estos settings.');
+        const message = 'Primero carga un Excel y selecciona una hoja para validar estos settings.';
+        setError(message);
+        showErrorToast(message);
         return;
       }
 
+      const compatibility = compareSettingsToCurrentSnapshot(parsed.settings, currentSnapshot);
       setImportResult({
         settings: parsed.settings,
-        compatibility: compareSettingsToCurrentSnapshot(parsed.settings, currentSnapshot),
+        compatibility,
       });
+      showImportedSettingsToast(compatibility.status);
     } catch {
-      setError('No se pudo leer el archivo de settings.');
+      const message = 'No se pudo leer el archivo de settings.';
+      setError(message);
+      showErrorToast(message);
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -146,12 +163,16 @@ export function SettingsActions({
 
     const { compatibility, settings } = importResult;
     if (compatibility.status === 'needsRemap') {
-      setError('Estos settings necesitan remapeo de columnas antes de aplicarse.');
+      const message = 'Estos settings necesitan remapeo de columnas antes de aplicarse.';
+      setError(message);
+      showInfoToast(message);
       return;
     }
 
     if (compatibility.status === 'blocked') {
-      setError('Estos settings no se pueden aplicar a este archivo.');
+      const message = 'La configuracion no es compatible con este archivo.';
+      setError(message);
+      showErrorToast(message);
       return;
     }
 
@@ -162,11 +183,13 @@ export function SettingsActions({
     const result = onApplySettings(settings, compatibility);
     if (!result.ok) {
       setError(result.error);
+      showErrorToast(result.error);
       return;
     }
 
     setError('');
     setSuccessMessage('Settings aplicados correctamente.');
+    showSuccessToast(compatibility.status === 'warning' ? 'Configuracion aplicada con advertencias.' : 'Configuracion aplicada.');
   };
 
   return (
@@ -213,6 +236,25 @@ export function SettingsActions({
       ) : null}
     </div>
   );
+}
+
+function showImportedSettingsToast(status: SettingsCompatibilityResult['status']) {
+  if (status === 'compatible') {
+    showSuccessToast('Settings importados correctamente.');
+    return;
+  }
+
+  if (status === 'warning') {
+    showInfoToast('Settings importados con advertencias.');
+    return;
+  }
+
+  if (status === 'needsRemap') {
+    showInfoToast('Settings importados. Se requiere revisar el mapeo de columnas.');
+    return;
+  }
+
+  showErrorToast('La configuracion no es compatible con este archivo.');
 }
 
 function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilityResult }) {
