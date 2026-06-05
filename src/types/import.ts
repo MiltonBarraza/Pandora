@@ -240,3 +240,176 @@ export type ColumnDetectionOptions = {
   narrowWchThreshold: number;
   lowDataMinValues: number;
 };
+
+export type ExportedImportSettings = {
+  schemaVersion: 1;
+  app: 'excel-sanitizer';
+  exportedAt: string;
+  name?: string;
+  sourceSnapshot: SourceSnapshot;
+  config: {
+    selectedSheet?: string;
+    headerRowIndex: number | null;
+    startRowIndex: number;
+    showRawPreviewFromDataStart?: boolean;
+    showAllRawPreviewColumns?: boolean;
+    columnVisibility: SavedInputColumnConfig[];
+    inputColumnAliases: Record<string, string>;
+    inputIgnoreRules: IgnoreRule[];
+    outputColumns: OutputColumn[];
+    outputIgnoreRules: IgnoreRule[];
+    fileNameSettings: FileNameSettings;
+  };
+};
+
+export type SourceSnapshot = {
+  fileType: 'spreadsheet' | 'csv';
+  sheetName?: string;
+  sheetNames?: string[];
+  rowCount: number;
+  headerRowIndex: number | null;
+  startRowIndex: number;
+  columns: SourceColumnSnapshot[];
+};
+
+export type SourceColumnSnapshot = {
+  inputColumnId: string;
+  columnIndex: number;
+  columnLetter: string;
+  header?: string;
+  alias?: string;
+  active: boolean;
+  ignoredReason?: IgnoredReason;
+  sampleValues: string[];
+  nonEmptyCount: number;
+  fingerprint: string;
+};
+
+export type SavedInputColumnConfig = {
+  inputColumnId: string;
+  columnIndex: number;
+  columnLetter: string;
+  header?: string;
+  alias?: string;
+  active: boolean;
+  ignoredReason?: IgnoredReason;
+};
+
+export type SettingsCompatibilityStatus = 'compatible' | 'warning' | 'needsRemap' | 'blocked';
+
+export type ColumnMatchConfidence = 'exact' | 'strong' | 'medium' | 'weak' | 'none';
+
+export type ColumnCompatibilityMatch = {
+  savedColumn: SourceColumnSnapshot;
+  currentColumn?: SourceColumnSnapshot;
+  confidence: ColumnMatchConfidence;
+  reason: string;
+  isUsed?: boolean;
+  references?: SettingsColumnReference[];
+};
+
+export type SettingsCompatibilityResult = {
+  status: SettingsCompatibilityStatus;
+  sheet: {
+    expectedSheet?: string;
+    currentSheet?: string;
+    exists: boolean;
+    suggestedSheet?: string;
+  };
+  columns: {
+    matches: ColumnCompatibilityMatch[];
+    missing: SourceColumnSnapshot[];
+    added: SourceColumnSnapshot[];
+    ambiguous: ColumnCompatibilityMatch[];
+    usedMissing: SourceColumnSnapshot[];
+    unusedMissing: SourceColumnSnapshot[];
+    weakUsedMatches: ColumnCompatibilityMatch[];
+  };
+  summary: {
+    totalSavedColumns: number;
+    totalCurrentColumns: number;
+    exactMatches: number;
+    strongMatches: number;
+    mediumMatches: number;
+    weakMatches: number;
+    missingColumns: number;
+    addedColumns: number;
+    ambiguousMatches: number;
+    usedMissingColumns: number;
+    unusedMissingColumns: number;
+    weakUsedMatches: number;
+  };
+  messages: string[];
+};
+
+export type SettingsReferenceKind =
+  | 'outputColumn'
+  | 'directRecipe'
+  | 'recipePart'
+  | 'transformStepSource'
+  | 'transformStepOperand'
+  | 'concatPartSource'
+  | 'concatPartTransform'
+  | 'condition'
+  | 'inputIgnoreRule'
+  | 'outputIgnoreRule';
+
+export type SettingsColumnReference = {
+  columnId: string;
+  target: 'input' | 'output';
+  kind: SettingsReferenceKind;
+  path: string;
+  outputColumnId?: string;
+  stepId?: string;
+  partId?: string;
+  ruleId?: string;
+};
+
+export type SettingsReferencesSummary = {
+  inputColumnIds: string[];
+  outputColumnIds: string[];
+  references: SettingsColumnReference[];
+  referencesByColumnId: Record<string, SettingsColumnReference[]>;
+};
+
+export type InputColumnRemap = Record<string, string>;
+
+export type SettingsRemapResult = {
+  settings: ExportedImportSettings;
+  changedReferences: SettingsColumnReference[];
+  unresolvedReferences: SettingsColumnReference[];
+};
+
+export type ParseImportSettingsResult =
+  | {
+      ok: true;
+      settings: ExportedImportSettings;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type ImportedSettingsApplyPayload = {
+  selectedSheet?: string;
+  headerRowIndex: number | null;
+  startRowIndex: number;
+  showRawPreviewFromDataStart?: boolean;
+  showAllRawPreviewColumns?: boolean;
+  inputColumnAliases: Record<string, string>;
+  columnVisibility: SavedInputColumnConfig[];
+  inputIgnoreRules: IgnoreRule[];
+  outputColumns: OutputColumn[];
+  outputIgnoreRules: IgnoreRule[];
+  fileNameSettings: FileNameSettings;
+};
+
+export type ImportedSettingsApplyResult =
+  | {
+      ok: true;
+      payload: ImportedSettingsApplyPayload;
+    }
+  | {
+      ok: false;
+      error: string;
+    };

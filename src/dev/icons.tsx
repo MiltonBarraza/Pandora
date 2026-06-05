@@ -588,3 +588,80 @@ export function SettingsSlidersIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function LightningCircleIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 6 8.5 13h4l-1 5 5-8h-4z" />
+    </svg>
+  );
+}
+
+export function LightningIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M13 2 5 14h6l-1 8 9-13h-6z" />
+    </svg>
+  );
+}
+
+export function LightningIcon2(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M13.5 2.5 8.5 11H12l-1 10.5L18 12h-4l4-9.5z" />
+    </svg>
+  );
+}
+
+export function LightningIcon3(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="miter"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M10.6 2.5h5.8L12.8 9H17l-8.1 12.5 1.9-8.3H5.3L10.6 2.5Z" />
+    </svg>
+  );
+}

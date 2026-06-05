@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
@@ -6,11 +6,12 @@ import { getSheetRows } from '../../domain/import/getSheetRows';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
+import { applyColumnVisibilitySettings, createApplyPayloadFromSettings, resolveImportedPreviewSettings, type PreviewSettingsState } from '../../domain/import/settingsApply';
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
 import { loadFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
 import { loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
-import type { ColumnAnalysis, FileNameSettings as FileNameSettingsType, IgnoreRule, OutputColumn, RawRow, RowOverrides } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -20,6 +21,7 @@ import { OutputColumnsManager } from '../OutputColumnsManager/OutputColumnsManag
 import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRowsDebugPreview';
 import { RawPreview } from '../RawPreview/RawPreview';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
+import { SettingsActions } from '../SettingsActions/SettingsActions';
 
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
@@ -47,7 +49,10 @@ export function ImportWizard() {
   const [rowOverrides, setRowOverrides] = useState<RowOverrides>({});
   const [readError, setReadError] = useState('');
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
+  const [showAllRawPreviewColumns, setShowAllRawPreviewColumns] = useState(false);
   const [showOutputModelDebug] = useState(() => localStorage.getItem('excel-sanitizer:debug-output-model') === '1');
+  const importedColumnVisibilityRef = useRef<ImportedSettingsApplyPayload | null>(null);
+  const importedPreviewSettingsRef = useRef<PreviewSettingsState | null>(null);
 
   const sheetNames = workbook?.SheetNames ?? [];
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
@@ -126,13 +131,26 @@ export function ImportWizard() {
   }, [workbook, selectedSheet, fileType]);
 
   useEffect(() => {
-    setColumnAnalysis(
-      analyzeSheetColumns(selectedSheetObject, rows, undefined, headerRowIndex, startRowIndex).map((column) => ({
+    const nextColumnAnalysis = analyzeSheetColumns(selectedSheetObject, rows, undefined, headerRowIndex, startRowIndex).map((column) => ({
         ...column,
         alias: inputColumnAliases[getInputColumnId(column.columnIndex)] ?? '',
-      })),
+      }));
+    setColumnAnalysis(
+      importedColumnVisibilityRef.current
+        ? applyColumnVisibilitySettings(nextColumnAnalysis, importedColumnVisibilityRef.current)
+        : nextColumnAnalysis,
     );
   }, [selectedSheetObject, rows, headerRowIndex, startRowIndex]);
+
+  useEffect(() => {
+    const importedPreviewSettings = importedPreviewSettingsRef.current;
+    if (!importedPreviewSettings) {
+      return;
+    }
+
+    setShowRawPreviewFromDataStart(importedPreviewSettings.showRawPreviewFromDataStart);
+    setShowAllRawPreviewColumns(importedPreviewSettings.showAllRawPreviewColumns);
+  }, [selectedSheetObject, rows, columnAnalysis, headerRowIndex, startRowIndex]);
 
   const loadFile = async (file: File | undefined) => {
     if (!file) {
@@ -145,6 +163,9 @@ export function ImportWizard() {
     setHeaderRowIndex(null);
     setStartRowIndex(0);
     setShowRawPreviewFromDataStart(true);
+    setShowAllRawPreviewColumns(false);
+    importedColumnVisibilityRef.current = null;
+    importedPreviewSettingsRef.current = null;
 
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv');
@@ -174,6 +195,7 @@ export function ImportWizard() {
   };
 
   const updateColumnAnalysis = (nextColumns: ColumnAnalysis[]) => {
+    importedColumnVisibilityRef.current = null;
     setColumnAnalysis(nextColumns);
     setInputColumnAliases(
       Object.fromEntries(
@@ -182,6 +204,53 @@ export function ImportWizard() {
           .filter(([, alias]) => alias !== ''),
       ),
     );
+  };
+
+  const applyImportedSettings = (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => {
+    if (!workbook && fileType !== 'csv') {
+      return { ok: false as const, error: 'Primero carga un Excel para aplicar settings.' };
+    }
+
+    if (compatibility.status === 'blocked') {
+      return { ok: false as const, error: 'Estos settings no se pueden aplicar a este archivo.' };
+    }
+
+    if (compatibility.status === 'needsRemap') {
+      return { ok: false as const, error: 'Estos settings necesitan remapeo de columnas antes de aplicarse.' };
+    }
+
+    const result = createApplyPayloadFromSettings(settings);
+    if (!result.ok) {
+      return result;
+    }
+
+    applySettingsPayload(result.payload, compatibility);
+    return { ok: true as const };
+  };
+
+  const applySettingsPayload = (payload: ImportedSettingsApplyPayload, compatibility: SettingsCompatibilityResult) => {
+    const nextSheet = getApplicableSheet(payload, compatibility, selectedSheet, sheetNames);
+    if (nextSheet !== selectedSheet) {
+      setSelectedSheet(nextSheet);
+    }
+
+    setHeaderRowIndex(payload.headerRowIndex);
+    setStartRowIndex(payload.startRowIndex);
+    const previewSettings = resolveImportedPreviewSettings(
+      { showRawPreviewFromDataStart, showAllRawPreviewColumns },
+      payload,
+    );
+    importedPreviewSettingsRef.current = previewSettings;
+    setShowRawPreviewFromDataStart(previewSettings.showRawPreviewFromDataStart);
+    setShowAllRawPreviewColumns(previewSettings.showAllRawPreviewColumns);
+
+    setInputColumnAliases(payload.inputColumnAliases);
+    importedColumnVisibilityRef.current = payload;
+    setColumnAnalysis(applyColumnVisibilitySettings(columnAnalysis, payload));
+    setInputIgnoreRules(payload.inputIgnoreRules);
+    setOutputColumns(payload.outputColumns);
+    setOutputIgnoreRules(payload.outputIgnoreRules);
+    setFileNameSettings(payload.fileNameSettings);
   };
 
   return (
@@ -206,8 +275,35 @@ export function ImportWizard() {
           {fileType === 'csv' ? (
             <p className="muted">El archivo CSV se procesa como una unica hoja.</p>
           ) : (
-            <SheetSelector sheetNames={sheetNames} selectedSheet={selectedSheet} onSelectSheet={setSelectedSheet} />
+            <SheetSelector
+              sheetNames={sheetNames}
+              selectedSheet={selectedSheet}
+              onSelectSheet={(sheetName) => {
+                importedColumnVisibilityRef.current = null;
+                setSelectedSheet(sheetName);
+              }}
+            />
           )}
+        </Step>
+
+        <Step title="Settings reutilizables">
+          <SettingsActions
+            fileType={fileType}
+            selectedSheet={selectedSheet}
+            sheetNames={sheetNames}
+            rows={rows}
+            headerRowIndex={headerRowIndex}
+            startRowIndex={startRowIndex}
+            showRawPreviewFromDataStart={showRawPreviewFromDataStart}
+            showAllRawPreviewColumns={showAllRawPreviewColumns}
+            columnAnalysis={columnAnalysis}
+            inputColumnAliases={inputColumnAliases}
+            inputIgnoreRules={inputIgnoreRules}
+            outputColumns={outputColumns}
+            outputIgnoreRules={outputIgnoreRules}
+            fileNameSettings={fileNameSettings}
+            onApplySettings={applyImportedSettings}
+          />
         </Step>
 
         <Step title="3. Configurar filas">
@@ -243,7 +339,10 @@ export function ImportWizard() {
             <input
               type="checkbox"
               checked={showRawPreviewFromDataStart}
-              onChange={(event) => setShowRawPreviewFromDataStart(event.target.checked)}
+              onChange={(event) => {
+                importedPreviewSettingsRef.current = null;
+                setShowRawPreviewFromDataStart(event.target.checked);
+              }}
             />
             Mostrar desde la primera fila de datos
           </label>
@@ -253,6 +352,11 @@ export function ImportWizard() {
             maxColumns={maxColumns}
             activeColumns={activeColumnIndexes}
             rowNumberOffset={rawPreviewRowNumberOffset}
+            showAllColumns={showAllRawPreviewColumns}
+            onShowAllColumnsChange={(showAllColumns) => {
+              importedPreviewSettingsRef.current = null;
+              setShowAllRawPreviewColumns(showAllColumns);
+            }}
           />
         </Step>
 
@@ -324,6 +428,27 @@ export function ImportWizard() {
       </div>
     </main>
   );
+}
+
+function getApplicableSheet(
+  payload: ImportedSettingsApplyPayload,
+  compatibility: SettingsCompatibilityResult,
+  currentSheet: string,
+  sheetNames: string[],
+) {
+  const candidate = compatibility.sheet.exists
+    ? compatibility.sheet.currentSheet ?? payload.selectedSheet
+    : compatibility.sheet.suggestedSheet;
+
+  if (candidate && sheetNames.includes(candidate)) {
+    return candidate;
+  }
+
+  if (payload.selectedSheet && sheetNames.includes(payload.selectedSheet)) {
+    return payload.selectedSheet;
+  }
+
+  return currentSheet;
 }
 
 function Step({ title, children }: { title: string; children: ReactNode }) {
