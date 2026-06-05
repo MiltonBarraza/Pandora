@@ -51,7 +51,10 @@ export function FileUploader({ fileName, onFileSelected }: FileUploaderProps) {
       <input
         type="file"
         accept=".xlsx,.xls,.xlsm,.csv"
-        onChange={(event) => processFiles(event.target.files)}
+        onChange={(event) => {
+          processFiles(event.target.files);
+          event.target.value = '';
+        }}
       />
       <strong>{fileName || 'Elegir archivo'}</strong>
       <span>Arrastra un archivo aca o hace click. .xlsx, .xls, .xlsm o .csv</span>

@@ -30,6 +30,7 @@ type SettingsActionsProps = {
   outputIgnoreRules: IgnoreRule[];
   fileNameSettings: FileNameSettings;
   onApplySettings: (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => { ok: true } | { ok: false; error: string };
+  onSettingsImported?: () => void;
 };
 
 type ImportResult = {
@@ -60,6 +61,7 @@ export function SettingsActions({
   outputIgnoreRules,
   fileNameSettings,
   onApplySettings,
+  onSettingsImported,
 }: SettingsActionsProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState('');
@@ -144,6 +146,7 @@ export function SettingsActions({
         settings: parsed.settings,
         compatibility,
       });
+      onSettingsImported?.();
       showImportedSettingsToast(compatibility.status);
     } catch {
       const message = 'No se pudo leer el archivo de settings.';

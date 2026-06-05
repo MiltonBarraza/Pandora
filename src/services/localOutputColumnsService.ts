@@ -21,17 +21,21 @@ const defaultOutputColumns: OutputColumn[] = [
   { id: 'output-comments', label: 'Comentarios', order: 3, enabled: true, recipe: { type: 'empty' } },
 ];
 
+export function createDefaultOutputColumns(): OutputColumn[] {
+  return defaultOutputColumns.map((column) => ({ ...column, recipe: { ...column.recipe } }));
+}
+
 export function loadOutputColumns(): OutputColumn[] {
   try {
     const raw = localStorage.getItem(outputColumnsKey);
     if (raw === null) {
-      return defaultOutputColumns;
+      return createDefaultOutputColumns();
     }
 
     const parsed = JSON.parse(raw) as Partial<OutputColumn>[];
     return parsed.map(normalizeOutputColumn).filter((column): column is OutputColumn => Boolean(column));
   } catch {
-    return defaultOutputColumns;
+    return createDefaultOutputColumns();
   }
 }
 

@@ -14,6 +14,18 @@ afterEach(() => {
 });
 
 describe('localOutputColumnsService', () => {
+  it('creates independent default output column copies', async () => {
+    const { createDefaultOutputColumns } = await import('../localOutputColumnsService');
+    const first = createDefaultOutputColumns();
+    const second = createDefaultOutputColumns();
+
+    first[0].label = 'Changed';
+
+    expect(second[0].label).toBe('Codigo');
+    expect(first).not.toBe(second);
+    expect(first[0].recipe).not.toBe(second[0].recipe);
+  });
+
   it('returns current default output columns when storage is empty', async () => {
     const { loadOutputColumns } = await import('../localOutputColumnsService');
 
