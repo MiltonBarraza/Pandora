@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { RawRow } from '../../types/import';
 import { columnLetter } from '../../domain/import/columnAnalysis';
 
@@ -7,10 +6,18 @@ type RawPreviewProps = {
   maxColumns: number;
   activeColumns?: number[];
   rowNumberOffset?: number;
+  showAllColumns?: boolean;
+  onShowAllColumnsChange?: (showAllColumns: boolean) => void;
 };
 
-export function RawPreview({ rows, maxColumns, activeColumns, rowNumberOffset = 0 }: RawPreviewProps) {
-  const [showAllColumns, setShowAllColumns] = useState(false);
+export function RawPreview({
+  rows,
+  maxColumns,
+  activeColumns,
+  rowNumberOffset = 0,
+  showAllColumns = false,
+  onShowAllColumnsChange,
+}: RawPreviewProps) {
   const columns = showAllColumns || !activeColumns?.length ? Array.from({ length: maxColumns }, (_, index) => index) : activeColumns;
 
   return (
@@ -20,7 +27,7 @@ export function RawPreview({ rows, maxColumns, activeColumns, rowNumberOffset = 
           <input
             type="checkbox"
             checked={showAllColumns}
-            onChange={(event) => setShowAllColumns(event.target.checked)}
+            onChange={(event) => onShowAllColumnsChange?.(event.target.checked)}
           />
           Ver todas las columnas
         </label>

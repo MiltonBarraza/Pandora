@@ -1308,6 +1308,77 @@ th {
   justify-content: flex-end;
 }
 
+.settingsActions {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.settingsCompatibilitySummary {
+  border: 1px solid #dce4ea;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.settingsCompatibilitySummary.compatible {
+  background: #f3f8f6;
+  border-color: #d4e6df;
+}
+
+.settingsCompatibilitySummary.warning,
+.settingsCompatibilitySummary.needsRemap {
+  background: #fff7e6;
+  border-color: #f2d49b;
+}
+
+.settingsCompatibilitySummary.blocked {
+  background: #fff1f3;
+  border-color: #ffd5db;
+}
+
+.settingsCompatibilityHeader {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.settingsCompatibilityHeader span {
+  color: #5f6f7b;
+}
+
+.settingsCompatibilityGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.settingsCompatibilityGrid div {
+  background: #ffffff;
+  border: 1px solid #edf2f5;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.settingsCompatibilityGrid span {
+  color: #5f6f7b;
+  font-size: 0.9rem;
+}
+
+.settingsCompatibilityMessages {
+  margin: 0;
+  padding-left: 20px;
+}
+
 .columnDetection {
   display: grid;
   gap: 14px;
@@ -1335,6 +1406,12 @@ th {
 .errorText {
   color: #b4232f;
   font-weight: 700;
+}
+
+.successText {
+  color: #216869;
+  font-weight: 700;
+  margin: 0;
 }
 
 @media (max-width: 760px) {

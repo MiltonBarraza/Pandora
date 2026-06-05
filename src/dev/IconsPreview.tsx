@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode, SVGProps } from 'react';
 
-import { AddCircleIcon, AddIcon, DeleteFileIcon, DeleteTrashIcon, DownloadFileIcon, DownloadIcon, DuplicateIcon, DuplicatePlusIcon, ErrorCircleIcon, ErrorOctagonIcon, ExportIcon, ExportTableIcon, ImportExcelIcon, ImportTableIcon, InfoCircleIcon, InfoMessageIcon, ReadyBadgeIcon, ReadyCheckIcon, RemoveCircleIcon, SaveCheckIcon, SaveIcon, SettingsGearIcon, SettingsSlidersIcon, UploadFileIcon, UploadIcon, WarningCircleIcon, WarningTriangleIcon } from './icons';
+import { AddCircleIcon, AddIcon, DeleteFileIcon, DeleteTrashIcon, DownloadFileIcon, DownloadIcon, DuplicateIcon, DuplicatePlusIcon, ErrorCircleIcon, ErrorOctagonIcon, ExportIcon, ExportTableIcon, ImportExcelIcon, ImportTableIcon, InfoCircleIcon, InfoMessageIcon, LightningCircleIcon, LightningIcon, LightningIcon2, LightningIcon3, ReadyBadgeIcon, ReadyCheckIcon, RemoveCircleIcon, SaveCheckIcon, SaveIcon, SettingsGearIcon, SettingsSlidersIcon, UploadFileIcon, UploadIcon, WarningCircleIcon, WarningTriangleIcon } from './icons';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -36,6 +36,11 @@ const iconItems: Array<{ title: string; Icon: IconComponent }> = [
   { title: 'InfoMessageIcon', Icon: InfoMessageIcon },
   { title: 'SettingsGearIcon', Icon: SettingsGearIcon },
   { title: 'SettingsSlidersIcon', Icon: SettingsSlidersIcon },
+
+  { title: 'LightningIcon', Icon: LightningIcon },
+  { title: 'LightningIcon', Icon: LightningIcon2 },
+  { title: 'LightningIcon', Icon: LightningIcon3 },
+  { title: 'LightningCircleIcon', Icon: LightningCircleIcon },
 ];
 
 const sizeVariants = [16, 24, 32, 48];
