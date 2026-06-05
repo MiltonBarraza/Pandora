@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
+import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, ConditionOperator, InputColumn, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
@@ -1002,11 +1003,12 @@ function StepOperandFields({
             step="any"
             value={safeOperand.value}
             onChange={(event) => {
-              const value = event.target.value;
+              const value = normalizeNumberInputWhileTyping(safeOperand.value, event.target.value);
+              const numericFallback = parseOptionalNumberInput(value);
               onChange({
                 type: 'fixedText',
                 value,
-                numericFallback: Number(value),
+                ...(numericFallback === undefined ? {} : { numericFallback }),
               });
             }}
           />
@@ -1600,7 +1602,7 @@ function StepFields({
           allowPreviousResult={stepIndex > 0}
           onChange={(rightOperand) => onChange({
             rightOperand,
-            ...(rightOperand.type === 'fixedText' ? { amount: Number(rightOperand.value) } : {}),
+            ...(rightOperand.type === 'fixedText' ? { amount: parseOptionalNumberInput(rightOperand.value) } : {}),
           })}
         />
         <label className="field compact">

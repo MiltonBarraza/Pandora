@@ -3,6 +3,7 @@ import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
 import { getSheetRows } from '../../domain/import/getSheetRows';
+import { normalizeNumberInputOnBlur } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
@@ -34,6 +35,7 @@ export function ImportWizard() {
   const [rows, setRows] = useState<RawRow[]>([]);
   const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
   const [startRowIndex, setStartRowIndex] = useState(0);
+  const [startRowInputValue, setStartRowInputValue] = useState('1');
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>(initialOutputColumns);
   const [fileNameSettings, setFileNameSettings] = useState<FileNameSettingsType>(() => loadFileNameSettings());
   const [columnAnalysis, setColumnAnalysis] = useState<ColumnAnalysis[]>([]);
@@ -115,6 +117,10 @@ export function ImportWizard() {
   useEffect(() => {
     savePersistedSettings({ inputIgnoreRules, outputIgnoreRules, inputColumnAliases });
   }, [inputIgnoreRules, outputIgnoreRules, inputColumnAliases]);
+
+  useEffect(() => {
+    setStartRowInputValue(String(startRowIndex + 1));
+  }, [startRowIndex]);
 
   useEffect(() => {
     if (showOutputModelDebug) {
@@ -330,8 +336,17 @@ export function ImportWizard() {
               <input
                 type="number"
                 min="1"
-                value={startRowIndex + 1}
-                onChange={(event) => setStartRowIndex(Math.max(0, Number(event.target.value) - 1))}
+                value={startRowInputValue}
+                onChange={(event) => setStartRowInputValue(event.target.value)}
+                onBlur={(event) => {
+                  const rowNumber = normalizeNumberInputOnBlur(event.target.value, {
+                    fallback: startRowIndex + 1,
+                    min: 1,
+                    integer: true,
+                  });
+                  setStartRowInputValue(String(rowNumber));
+                  setStartRowIndex(rowNumber - 1);
+                }}
               />
             </label>
           </div>
