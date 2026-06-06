@@ -2,6 +2,7 @@ import { exportCsvFromProcessedRows } from '../../domain/import/exportCsv';
 import { exportAuditXlsxFromProcessedRows, exportXlsxFromProcessedRows } from '../../domain/import/exportXlsx';
 import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import type { FileNameSettings, InputColumn, OutputColumn, ProcessedRow } from '../../types/import';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type ExportActionsProps = {
   rows: ProcessedRow[];
@@ -20,15 +21,15 @@ export function ExportActions({ rows, auditRows = rows, inputColumns, outputColu
 
   return (
     <div className="actions">
-      <button type="button" disabled={includedRows.length === 0} onClick={() => exportXlsxFromProcessedRows(includedRows, outputColumns, filename)}>
+      <ActionButton action="download" disabled={includedRows.length === 0} onClick={() => exportXlsxFromProcessedRows(includedRows, outputColumns, filename)}>
         Descargar Excel
-      </button>
-      <button type="button" className="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
+      </ActionButton>
+      <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
         Descargar CSV
-      </button>
-      <button type="button" className="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
+      </ActionButton>
+      <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
         Descargar auditoria
-      </button>
+      </ActionButton>
     </div>
   );
 }

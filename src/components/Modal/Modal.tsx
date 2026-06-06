@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useDocumentScrollLock } from '../../hooks/useDocumentScrollLock';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type ModalProps = {
   open: boolean;
@@ -43,9 +44,7 @@ export function Modal({ open, title, size = 'default', onClose, children }: Moda
     >
       <div className="modalHeader">
         <h3 id={titleId}>{title}</h3>
-        <button type="button" className="iconButton" title="Cerrar" aria-label="Cerrar" onClick={onClose}>
-          X
-        </button>
+        <ActionButton action="close" variant="icon" size="sm" title="Cerrar" aria-label="Cerrar" onClick={onClose} />
       </div>
       <div className="modalBody">{children}</div>
     </dialog>

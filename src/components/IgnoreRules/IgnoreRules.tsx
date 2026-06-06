@@ -1,6 +1,7 @@
 import type { IgnoreRule, InputColumn, OutputColumn } from '../../types/import';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 type IgnoreRulesProps = {
@@ -51,7 +52,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
     <div className="rules">
       <div className="sectionHeader">
         <p>{sectionCopy}</p>
-        <button type="button" onClick={addRule}>Agregar regla</button>
+        <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
       </div>
 
       {rules.length === 0 ? <p className="muted">No hay reglas de ignorado configuradas.</p> : null}
