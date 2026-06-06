@@ -192,6 +192,10 @@ h3 {
   margin: 0 0 16px;
 }
 
+.fileUploader {
+  display: grid;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed #9db2bf;
@@ -200,10 +204,18 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: 164px;
   justify-content: center;
-  min-height: 132px;
-  padding: 24px;
+  padding: 28px 24px;
+  position: relative;
   text-align: center;
+}
+
+.dropZone.hasFile {
+  background: #eef8f4;
+  border-color: #216869;
+  border-style: solid;
+  box-shadow: inset 0 0 0 1px rgba(33, 104, 105, 0.12);
 }
 
 .dropZone.isDragging {
@@ -215,10 +227,67 @@ h3 {
   display: none;
 }
 
+.dropZoneRemoveButton {
+  background: #e9eef2;
+  color: #aa1e2c;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.dropZoneRemoveButton:hover:not(:disabled),
+.dropZoneRemoveButton:focus-visible {
+  background: #d9e2e9;
+  color: #aa1e2c;
+}
+
+.dropZone.hasFile:hover .dropZoneRemoveButton,
+.dropZone.hasFile:focus-visible .dropZoneRemoveButton,
+.dropZoneRemoveButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .dropZone span,
 .field span,
 .stats span {
   color: #5f6f7b;
+}
+
+.dropZone strong {
+  color: #18202a;
+  font-size: 1.08rem;
+  overflow-wrap: anywhere;
+}
+
+.dropZone.hasFile strong {
+  color: #164f50;
+  font-size: 1.16rem;
+}
+
+.dropZoneReadyIcon {
+  color: #216869;
+  font-size: 1.85rem;
+}
+
+.dropZone .dropZoneStatus {
+  color: #216869;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dropZone .dropZoneHelp {
+  line-height: 1.35;
+}
+
+.dropZone .dropZoneHelpSecondary {
+  font-size: 0.92rem;
 }
 
 .field {
@@ -282,6 +351,18 @@ select {
 
 .tableWrap.small {
   max-height: 300px;
+}
+
+.rawPreviewTableWrap {
+  max-height: 360px;
+}
+
+.previewSummary {
+  margin: 2px 0 0;
+}
+
+.previewSummaryRow {
+  margin-top: 6px;
 }
 
 table {
@@ -1257,6 +1338,31 @@ th {
   width: auto;
 }
 
+.startRowControls {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.startRowPreviewToggle {
+  margin: 0;
+}
+
+.rowConfigurationError {
+  margin: 12px 0 0;
+}
+
+.rawPreviewOptions {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.rawPreviewOptions p {
+  margin: 0;
+}
+
 .ruleHint {
   align-items: center;
   color: #5f6f7b;
@@ -1385,6 +1491,65 @@ th {
   min-width: 0;
 }
 
+.columnDetectionHeader {
+  display: grid;
+  gap: 14px;
+}
+
+.columnDetectionSummary {
+  display: grid;
+  gap: 4px;
+}
+
+.columnDetectionSummary p,
+.columnQuickActions p {
+  margin: 0;
+}
+
+.columnQuickActions {
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.columnQuickActionsButtons {
+  gap: 8px;
+}
+
+.suggestionToggleButton.isActive {
+  background: #eef8f4;
+  color: #216869;
+  box-shadow: inset 0 0 0 1px #8cc7b6;
+}
+
+.suggestionToggleButton.isActive:hover:not(:disabled) {
+  background: #dff2ec;
+}
+
+.appliedSuggestions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appliedSuggestions > span:first-child {
+  font-weight: 700;
+}
+
+.suggestionChip {
+  background: #eef8f4;
+  border: 1px solid #bddbd2;
+  border-radius: 999px;
+  color: #216869;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
 .columnTable input[type='checkbox'] {
   min-height: auto;
   width: auto;
@@ -1454,6 +1619,19 @@ th {
 
   .inlineForm {
     grid-template-columns: 1fr;
+  }
+
+  .startRowControls {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .previewSummaryRow {
+    margin-top: 8px;
+  }
+
+  .previewSummaryRow > span {
+    display: none;
   }
 
   .sectionHeader {

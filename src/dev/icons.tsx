@@ -844,7 +844,7 @@ export function EditBoxIcon(props: IconProps) {
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="1"
+      strokeWidth="2"
       {...props}
     >
       <path d="M9.5 4.5h-3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4" />
