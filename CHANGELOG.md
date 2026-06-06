@@ -5,6 +5,24 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-06-06
+
+### Added
+
+- Dropdown reusable con portal, navegacion por teclado y estrategia configurable de scroll.
+- Bloqueo reutilizable de scroll para modales y dropdowns.
+- Base reusable `ActionButton` con mapa centralizado de iconos SVG existentes.
+
+### Changed
+
+- Migrados los selects nativos del wizard, editor de recetas e IgnoreRules al Dropdown reusable.
+- Los botones de settings, descarga, duplicado, eliminado, cierre y agregar regla usan iconos centralizados.
+
+### Fixed
+
+- Corregido el scroll de fondo al abrir modales.
+- Corregido el portal de dropdowns dentro de dialog para que las opciones sigan siendo seleccionables.
+
 ## [0.2.1] - 2026-06-05
 
 ### Added

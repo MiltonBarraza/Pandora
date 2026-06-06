@@ -44,7 +44,7 @@ describe('toastService', () => {
       },
       toastOptions: {
         duration: 3500,
-        success: { duration: 3500 },
+        success: { duration: 4500 },
         error: { duration: 5000 },
       },
     });

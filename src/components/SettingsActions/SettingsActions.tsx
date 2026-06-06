@@ -13,6 +13,7 @@ import type {
   SettingsCompatibilityResult,
   SourceSnapshot,
 } from '../../types/import';
+import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
 
 type SettingsActionsProps = {
   fileType: 'spreadsheet' | 'csv' | '';
@@ -30,6 +31,7 @@ type SettingsActionsProps = {
   outputIgnoreRules: IgnoreRule[];
   fileNameSettings: FileNameSettings;
   onApplySettings: (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => { ok: true } | { ok: false; error: string };
+  onSettingsImported?: () => void;
 };
 
 type ImportResult = {
@@ -60,6 +62,7 @@ export function SettingsActions({
   outputIgnoreRules,
   fileNameSettings,
   onApplySettings,
+  onSettingsImported,
 }: SettingsActionsProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState('');
@@ -144,6 +147,7 @@ export function SettingsActions({
         settings: parsed.settings,
         compatibility,
       });
+      onSettingsImported?.();
       showImportedSettingsToast(compatibility.status);
     } catch {
       const message = 'No se pudo leer el archivo de settings.';
@@ -196,13 +200,13 @@ export function SettingsActions({
     <div className="settingsActions">
       <div className="sectionHeader">
         <p>Guarda o valida una configuracion reutilizable para archivos similares.</p>
-        <div className="actions compactActions">
-          <button type="button" className="secondary" onClick={exportSettings}>Exportar settings</button>
-          <button type="button" onClick={() => fileInputRef.current?.click()}>Importar settings</button>
+        <ButtonGroup className="actions compactActions">
+          <ActionButton action="export" variant="secondary" onClick={exportSettings}>Exportar settings</ActionButton>
+          <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Importar settings</ActionButton>
           {importResult || error ? (
-            <button
-              type="button"
-              className="secondary"
+            <ActionButton
+              action="clear"
+              variant="secondary"
               onClick={() => {
                 setImportResult(null);
                 setError('');
@@ -210,9 +214,9 @@ export function SettingsActions({
               }}
             >
               Limpiar
-            </button>
+            </ActionButton>
           ) : null}
-        </div>
+        </ButtonGroup>
       </div>
 
       <input
@@ -293,7 +297,7 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
   if (status === 'compatible') {
     return (
       <div className="actions">
-        <button type="button" onClick={onApply}>Aplicar settings</button>
+        <ActionButton action="done" onClick={onApply}>Aplicar settings</ActionButton>
       </div>
     );
   }
@@ -301,7 +305,7 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
   if (status === 'warning') {
     return (
       <div className="actions">
-        <button type="button" onClick={onApply}>Aplicar settings con advertencias</button>
+        <ActionButton action="warning" onClick={onApply}>Aplicar settings con advertencias</ActionButton>
       </div>
     );
   }

@@ -665,3 +665,280 @@ export function LightningIcon3(props: IconProps) {
     </svg>
   );
 }
+
+export function EditSquareIcon1(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M7 10v7a2 2 0 0 0 2 2h7" />
+      <path d="M7 10V7a2 2 0 0 1 2-2h3" />
+      <path d="M16 19h1a2 2 0 0 0 2-2v-3" />
+
+      <path d="M13.6 5.1a1.5 1.5 0 0 1 2.1 0l3.2 3.2a1.5 1.5 0 0 1 0 2.1l-6.9 6.9-4 1 1-4Z" />
+      <path d="m13 5.7 5.3 5.3" />
+    </svg>
+  );
+}
+
+export function EditBoxIcon2(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M7 11v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2" />
+      <path d="M7 11V7a2 2 0 0 1 2-2h4" />
+
+      <path d="M14.2 4.8a1.5 1.5 0 0 1 2.1 0l2.9 2.9a1.5 1.5 0 0 1 0 2.1l-6.7 6.7-3.7.9.9-3.7Z" />
+      <path d="m13.6 5.4 5 5" />
+    </svg>
+  );
+}
+
+export function EditSquareIcon3(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M8 4.5H6.5a2 2 0 0 0-2 2V9" />
+      <path d="M4.5 15v2.5a2 2 0 0 0 2 2H9" />
+      <path d="M15 19.5h2.5a2 2 0 0 0 2-2V15" />
+
+      <path d="m9 15 1.1 3.9L14 17.8l6.1-6.1a1.6 1.6 0 0 0 0-2.3l-1.5-1.5a1.6 1.6 0 0 0-2.3 0L10.2 14Z" />
+      <path d="m14.8 8.4 3.3 3.3" />
+      <path d="m9.6 16.9 2.5-2.5" />
+    </svg>
+  );
+}
+
+export function EditBoxIcon3(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M7.5 4.5h-1A2 2 0 0 0 4.5 6.5v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-1" />
+
+      <path d="m9.2 15.1 1 3.7 3.7-1 6-6a1.6 1.6 0 0 0 0-2.3L18.5 8a1.6 1.6 0 0 0-2.3 0l-6 6Z" />
+      <path d="m15 8.5 3.4 3.4" />
+      <path d="m9.9 16.6 2.2-2.2" />
+    </svg>
+  );
+}
+
+export function EditSquareIcon4(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="2em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+      <path d="M4 12V5a1 1 0 0 1 1-1h7" />
+
+      <path d="M8 15.5 7 19l3.5-1 8.2-8.2a1.6 1.6 0 0 0 0-2.3l-2.2-2.2a1.6 1.6 0 0 0-2.3 0z" />
+      <path d="m13.5 6 4.5 4.5" />
+    </svg>
+  );
+}
+
+export function EditBoxIcon4(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M5 15v4h4" />
+      <path d="M5 11V6a1 1 0 0 1 1-1h6" />
+      <path d="M13 19h5a1 1 0 0 0 1-1v-5" />
+
+      <path d="M8 16 16.5 7.5" />
+      <path d="M14.5 5.5 18.5 9.5" />
+      <path d="M16.5 7.5 18 6a1.4 1.4 0 0 1 2 0 1.4 1.4 0 0 1 0 2l-1.5 1.5" />
+      <path d="M8 16l-1 4 4-1" />
+    </svg>
+  );
+}
+
+export function EditSquareIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M10 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V14" />
+
+      <path d="m9.2 14.8-.9 3.7 3.7-.9 7.1-7.1a1.5 1.5 0 0 0 0-2.1l-1.5-1.5a1.5 1.5 0 0 0-2.1 0z" />
+      <path d="m15.6 7.8 3.6 3.6" />
+      <path d="m9.2 14.8 2.4 2.4" />
+    </svg>
+  );
+}
+
+export function EditBoxIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1"
+      {...props}
+    >
+      <path d="M9.5 4.5h-3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4" />
+
+      <path d="m9.5 15 3.5-.8 6.5-6.5a1.5 1.5 0 0 0 0-2.1l-1.1-1.1a1.5 1.5 0 0 0-2.1 0l-6.5 6.5Z" />
+      <path d="m15.4 5.7 2.9 2.9" />
+      <path d="m9.5 15 2.7 2.7" />
+    </svg>
+  );
+}
+
+export function DuplicateFileIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M10 3h6l3 3v11a1 1 0 0 1-1 1h-3" />
+      <path d="M16 3v4h4" />
+
+      <path d="M6 7h7l3 3v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" />
+      <path d="M12 7v4h4" />
+    </svg>
+  );
+}
+
+export function CopyFilesIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M9 4h6l3 3v10a1 1 0 0 1-1 1h-2" />
+      <path d="M15 4v4h4" />
+
+      <path d="M5 8h7l3 3v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+      <path d="M11 8v4h4" />
+    </svg>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2.5"
+      {...props}
+    >
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </svg>
+  );
+}
+
+export function CloseCircleIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2.2"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 8.5l7 7" />
+      <path d="M15.5 8.5l-7 7" />
+    </svg>
+  );
+}

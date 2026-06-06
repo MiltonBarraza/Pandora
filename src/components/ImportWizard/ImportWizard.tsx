@@ -9,9 +9,12 @@ import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
 import { applyColumnVisibilitySettings, createApplyPayloadFromSettings, resolveImportedPreviewSettings, type PreviewSettingsState } from '../../domain/import/settingsApply';
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
-import { loadFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
-import { loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
+import { canDiscardWizardConfiguration } from '../../domain/import/wizardConfiguration';
+import { useBeforeUnloadWarning } from '../../hooks/useBeforeUnloadWarning';
+import { defaultFileNameSettings, loadFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
+import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
+import { showInfoToast } from '../../services/toastService';
 import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
@@ -23,6 +26,7 @@ import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRows
 import { RawPreview } from '../RawPreview/RawPreview';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
@@ -52,9 +56,13 @@ export function ImportWizard() {
   const [readError, setReadError] = useState('');
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [showAllRawPreviewColumns, setShowAllRawPreviewColumns] = useState(false);
+  const [isConfigurationDirty, setIsConfigurationDirty] = useState(false);
+  const [configurationRevision, setConfigurationRevision] = useState(0);
   const [showOutputModelDebug] = useState(() => localStorage.getItem('excel-sanitizer:debug-output-model') === '1');
   const importedColumnVisibilityRef = useRef<ImportedSettingsApplyPayload | null>(null);
   const importedPreviewSettingsRef = useRef<PreviewSettingsState | null>(null);
+
+  useBeforeUnloadWarning(isConfigurationDirty);
 
   const sheetNames = workbook?.SheetNames ?? [];
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
@@ -158,26 +166,53 @@ export function ImportWizard() {
     setShowAllRawPreviewColumns(importedPreviewSettings.showAllRawPreviewColumns);
   }, [selectedSheetObject, rows, columnAnalysis, headerRowIndex, startRowIndex]);
 
+  const resetWizardConfiguration = () => {
+    setHeaderRowIndex(null);
+    setStartRowIndex(0);
+    setShowRawPreviewFromDataStart(true);
+    setShowAllRawPreviewColumns(false);
+    setInputColumnAliases({});
+    setColumnAnalysis([]);
+    setInputIgnoreRules(defaultIgnoreRules());
+    setOutputColumns(createDefaultOutputColumns());
+    setOutputIgnoreRules(defaultIgnoreRules());
+    setFileNameSettings(defaultFileNameSettings());
+    setRowOverrides({});
+    importedColumnVisibilityRef.current = null;
+    importedPreviewSettingsRef.current = null;
+    setIsConfigurationDirty(false);
+    setConfigurationRevision((revision) => revision + 1);
+  };
+
+  const confirmConfigurationDiscard = (message: string) => {
+    return canDiscardWizardConfiguration(isConfigurationDirty, () => window.confirm(message));
+  };
+
+  const notifyConfigurationDiscarded = () => {
+    if (isConfigurationDirty) {
+      showInfoToast('Configuracion descartada.');
+    }
+  };
+
   const loadFile = async (file: File | undefined) => {
     if (!file) {
       return;
     }
 
+    if (!confirmConfigurationDiscard('Cambiar de archivo descartara la configuracion actual. Queres continuar?')) {
+      return;
+    }
+
     setReadError('');
-    setFileName(file.name);
-    setRowOverrides({});
-    setHeaderRowIndex(null);
-    setStartRowIndex(0);
-    setShowRawPreviewFromDataStart(true);
-    setShowAllRawPreviewColumns(false);
-    importedColumnVisibilityRef.current = null;
-    importedPreviewSettingsRef.current = null;
 
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv');
 
       if (isCsv) {
         const csvRows = await readCsv(file);
+        notifyConfigurationDiscarded();
+        resetWizardConfiguration();
+        setFileName(file.name);
         setWorkbook(null);
         setSelectedSheet('');
         setRows(csvRows);
@@ -187,6 +222,9 @@ export function ImportWizard() {
 
       const data = await file.arrayBuffer();
       const nextWorkbook = await readWorkbook(data);
+      notifyConfigurationDiscarded();
+      resetWizardConfiguration();
+      setFileName(file.name);
       setWorkbook(nextWorkbook);
       setSelectedSheet(nextWorkbook.SheetNames[0] ?? '');
       setRows(nextWorkbook.SheetNames[0] ? getSheetRows(nextWorkbook, nextWorkbook.SheetNames[0]) : []);
@@ -197,10 +235,12 @@ export function ImportWizard() {
   };
 
   const updateOutputColumns = (nextColumns: OutputColumn[]) => {
+    setIsConfigurationDirty(true);
     setOutputColumns(nextColumns);
   };
 
   const updateColumnAnalysis = (nextColumns: ColumnAnalysis[]) => {
+    setIsConfigurationDirty(true);
     importedColumnVisibilityRef.current = null;
     setColumnAnalysis(nextColumns);
     setInputColumnAliases(
@@ -257,6 +297,22 @@ export function ImportWizard() {
     setOutputColumns(payload.outputColumns);
     setOutputIgnoreRules(payload.outputIgnoreRules);
     setFileNameSettings(payload.fileNameSettings);
+    setIsConfigurationDirty(true);
+  };
+
+  const changeSelectedSheet = (sheetName: string) => {
+    if (sheetName === selectedSheet) {
+      return;
+    }
+
+    if (!confirmConfigurationDiscard('Cambiar de hoja descartara la configuracion actual. Queres continuar?')) {
+      return;
+    }
+
+    notifyConfigurationDiscarded();
+    resetWizardConfiguration();
+    setSelectedSheet(sheetName);
+    setRows(workbook ? getSheetRows(workbook, sheetName) : []);
   };
 
   return (
@@ -284,16 +340,14 @@ export function ImportWizard() {
             <SheetSelector
               sheetNames={sheetNames}
               selectedSheet={selectedSheet}
-              onSelectSheet={(sheetName) => {
-                importedColumnVisibilityRef.current = null;
-                setSelectedSheet(sheetName);
-              }}
+              onSelectSheet={changeSelectedSheet}
             />
           )}
         </Step>
 
         <Step title="Settings reutilizables">
           <SettingsActions
+            key={configurationRevision}
             fileType={fileType}
             selectedSheet={selectedSheet}
             sheetNames={sheetNames}
@@ -309,28 +363,28 @@ export function ImportWizard() {
             outputIgnoreRules={outputIgnoreRules}
             fileNameSettings={fileNameSettings}
             onApplySettings={applyImportedSettings}
+            onSettingsImported={() => setIsConfigurationDirty(true)}
           />
         </Step>
 
         <Step title="3. Configurar filas">
           <div className="twoColumns">
-            <label className="field">
-              <span>Fila de encabezados</span>
-              <select
-                value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setHeaderRowIndex(value === 'none' || value === '' ? null : Math.max(0, Number(value) - 1));
-                }}
-              >
-                <option value="none">Sin encabezados</option>
-                {rows.map((_, index) => (
-                  <option key={index} value={index + 1}>
-                    Fila {index + 1}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Dropdown
+              label="Fila de encabezados"
+              value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
+              options={[
+                { value: 'none', label: 'Sin encabezados' },
+                ...rows.map((_, index) => ({ value: String(index + 1), label: `Fila ${index + 1}` })),
+              ]}
+              scrollStrategy="lock"
+              onChange={(value) => {
+                const nextHeaderRowIndex = value === 'none' ? null : Math.max(0, Number(value) - 1);
+                if (nextHeaderRowIndex !== headerRowIndex) {
+                  setIsConfigurationDirty(true);
+                  setHeaderRowIndex(nextHeaderRowIndex);
+                }
+              }}
+            />
             <label className="field">
               <span>Primera fila de datos</span>
               <input
@@ -345,7 +399,10 @@ export function ImportWizard() {
                     integer: true,
                   });
                   setStartRowInputValue(String(rowNumber));
-                  setStartRowIndex(rowNumber - 1);
+                  if (rowNumber - 1 !== startRowIndex) {
+                    setIsConfigurationDirty(true);
+                    setStartRowIndex(rowNumber - 1);
+                  }
                 }}
               />
             </label>
@@ -355,6 +412,7 @@ export function ImportWizard() {
               type="checkbox"
               checked={showRawPreviewFromDataStart}
               onChange={(event) => {
+                setIsConfigurationDirty(true);
                 importedPreviewSettingsRef.current = null;
                 setShowRawPreviewFromDataStart(event.target.checked);
               }}
@@ -369,6 +427,7 @@ export function ImportWizard() {
             rowNumberOffset={rawPreviewRowNumberOffset}
             showAllColumns={showAllRawPreviewColumns}
             onShowAllColumnsChange={(showAllColumns) => {
+              setIsConfigurationDirty(true);
               importedPreviewSettingsRef.current = null;
               setShowAllRawPreviewColumns(showAllColumns);
             }}
@@ -385,7 +444,10 @@ export function ImportWizard() {
             inputColumns={processedPipeline.inputColumns}
             outputColumns={processedPipeline.outputColumns}
             rules={inputIgnoreRules}
-            onChange={setInputIgnoreRules}
+            onChange={(rules) => {
+              setIsConfigurationDirty(true);
+              setInputIgnoreRules(rules);
+            }}
           />
         </Step>
 
@@ -404,7 +466,10 @@ export function ImportWizard() {
             inputColumns={processedPipeline.inputColumns}
             outputColumns={processedPipeline.outputColumns}
             rules={outputIgnoreRules}
-            onChange={setOutputIgnoreRules}
+            onChange={(rules) => {
+              setIsConfigurationDirty(true);
+              setOutputIgnoreRules(rules);
+            }}
           />
         </Step>
 
@@ -413,7 +478,10 @@ export function ImportWizard() {
             rows={processedRowsWithStatus}
             outputColumns={processedPipeline.outputColumns}
             rowOverrides={rowOverrides}
-            onRowOverridesChange={setRowOverrides}
+            onRowOverridesChange={(overrides) => {
+              setIsConfigurationDirty(true);
+              setRowOverrides(overrides);
+            }}
           />
           {showOutputModelDebug ? (
             <p className="muted">Debug del modelo nuevo activo en consola.</p>
@@ -425,7 +493,10 @@ export function ImportWizard() {
             settings={fileNameSettings}
             sourceFileName={fileName}
             sheetName={selectedSheet}
-            onChange={setFileNameSettings}
+            onChange={(settings) => {
+              setIsConfigurationDirty(true);
+              setFileNameSettings(settings);
+            }}
           />
         </Step>
 

@@ -4,6 +4,7 @@ import type { InputColumn, OutputColumn } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
@@ -114,15 +115,15 @@ export function OutputColumnsManager({
                     >
                       <span className="columnItemText">{index + 1}. {outputColumn.label || 'Sin nombre'}</span>
                     </button>
-                    <button
-                      type="button"
-                      className="iconButton outputColumnDuplicateButton"
+                    <ActionButton
+                      action="duplicate"
+                      variant="icon"
+                      size="sm"
+                      className="outputColumnDuplicateButton"
                       title="Duplicar columna"
                       aria-label="Duplicar columna"
                       onClick={() => duplicateColumn(outputColumn.id)}
-                    >
-                      Duplicar
-                    </button>
+                    />
                     <DeleteButton onClick={() => removeColumn(outputColumn.id)} />
                   </div>
                 );

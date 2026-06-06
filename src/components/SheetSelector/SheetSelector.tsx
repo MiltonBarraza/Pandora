@@ -1,3 +1,5 @@
+import { Dropdown } from '../ui/Dropdown/Dropdown';
+
 type SheetSelectorProps = {
   sheetNames: string[];
   selectedSheet: string;
@@ -6,15 +8,14 @@ type SheetSelectorProps = {
 
 export function SheetSelector({ sheetNames, selectedSheet, onSelectSheet }: SheetSelectorProps) {
   return (
-    <label className="field">
-      <span>Hoja</span>
-      <select value={selectedSheet} onChange={(event) => onSelectSheet(event.target.value)}>
-        {sheetNames.map((sheetName) => (
-          <option key={sheetName} value={sheetName}>
-            {sheetName}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown
+      label="Hoja"
+      value={selectedSheet}
+      options={sheetNames.map((sheetName) => ({ value: sheetName, label: sheetName }))}
+      placeholder="Seleccionar hoja"
+      disabled={sheetNames.length === 0}
+      scrollStrategy="lock"
+      onChange={onSelectSheet}
+    />
   );
 }

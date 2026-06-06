@@ -1,6 +1,8 @@
 import type { IgnoreRule, InputColumn, OutputColumn } from '../../types/import';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 type IgnoreRulesProps = {
   mode: 'input' | 'output';
@@ -50,7 +52,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
     <div className="rules">
       <div className="sectionHeader">
         <p>{sectionCopy}</p>
-        <button type="button" onClick={addRule}>Agregar regla</button>
+        <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
       </div>
 
       {rules.length === 0 ? <p className="muted">No hay reglas de ignorado configuradas.</p> : null}
@@ -63,29 +65,28 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
         return (
           <div className="ignoreRuleCard" key={rule.id}>
             <div className="ignoreRuleFields">
-              <label className="field compact">
-                <span>Columna</span>
-                <select value={rule.columnId} onChange={(event) => updateRule(rule.id, { columnId: event.target.value })}>
-                  {columns.length === 0 ? <option value="">Sin columnas disponibles</option> : null}
-                  {columns.map((column) => (
-                    <option key={column.id} value={column.id}>
-                      {target === 'input' && 'columnLetter' in column ? getInputColumnLabel(column) : column.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Dropdown
+                className="compact"
+                label="Columna"
+                value={rule.columnId}
+                options={columns.length === 0
+                  ? [{ value: '', label: 'Sin columnas disponibles' }]
+                  : columns.map((column) => ({
+                    value: column.id,
+                    label: target === 'input' && 'columnLetter' in column ? getInputColumnLabel(column) : column.label,
+                  }))}
+                scrollStrategy="close"
+                onChange={(columnId) => updateRule(rule.id, { columnId })}
+              />
 
-              <label className="field compact">
-                <span>Condicion</span>
-                <select
-                  value={rule.operator}
-                  onChange={(event) => updateRule(rule.id, { operator: event.target.value as IgnoreRule['operator'], value: '' })}
-                >
-                  {operators.map((operator) => (
-                    <option key={operator.value} value={operator.value}>{operator.label}</option>
-                  ))}
-                </select>
-              </label>
+              <Dropdown<IgnoreRule['operator']>
+                className="compact"
+                label="Condicion"
+                value={rule.operator}
+                options={operators}
+                scrollStrategy="close"
+                onChange={(operator) => updateRule(rule.id, { operator, value: '' })}
+              />
 
               {selectedOperator?.needsValue ? (
                 <label className="field compact">

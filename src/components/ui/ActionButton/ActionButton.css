@@ -1,0 +1,71 @@
+.actionButton {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.actionButton-primary {
+  background: #216869;
+  color: white;
+}
+
+.actionButton-primary:hover:not(:disabled) {
+  background: #1a5556;
+}
+
+.actionButton-secondary,
+.actionButton-ghost {
+  background: #e9eef2;
+  color: #1f2933;
+}
+
+.actionButton-secondary:hover:not(:disabled),
+.actionButton-ghost:hover:not(:disabled) {
+  background: #d9e2e9;
+}
+
+.actionButton-danger {
+  background: #ffe8eb;
+  color: #aa1e2c;
+}
+
+.actionButton-danger:hover:not(:disabled) {
+  background: #ffd5db;
+}
+
+.actionButton-icon {
+  background: #eef3f6;
+  color: #4d5f6d;
+}
+
+.actionButton-icon:hover:not(:disabled) {
+  background: #dce7ee;
+}
+
+.actionButton-sm {
+  min-height: 34px;
+}
+
+.actionButton-iconOnly {
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  width: 34px;
+}
+
+.actionButtonIcon {
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+}
+
+.actionButtonText {
+  min-width: 0;
+}
+
+.actionButtonGroup {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
