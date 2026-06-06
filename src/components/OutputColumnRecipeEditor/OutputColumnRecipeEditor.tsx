@@ -7,6 +7,7 @@ import type { ConcatPart, ConditionOperator, InputColumn, OutputColumn, OutputRe
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 type OutputColumnRecipeEditorProps = {
   column: OutputColumn;
@@ -30,37 +31,36 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
   return (
     <div className="recipeEditor">
       <div className="recipeMainFields">
-        <label className="field compact">
-          <span>Origen del valor</span>
-          <select
-            value={column.recipe.type}
-            onChange={(event) => {
-              const nextType = event.target.value as OutputRecipe['type'];
-              if (nextType === 'combine') {
-                setCustomValueMode('');
-              }
-              updateRecipe(buildRecipeForSelectedType(nextType, column, activeInputColumns));
-            }}
-          >
-            <option value="direct">Directa desde entrada</option>
-            <option value="empty">Columna vacia</option>
-            <option value="fixedText">Texto fijo</option>
-            <option value="combine">Crear valor personalizado</option>
-          </select>
-        </label>
+        <Dropdown<OutputRecipe['type']>
+          className="compact"
+          label="Origen del valor"
+          scrollStrategy="close"
+          value={column.recipe.type}
+          options={[
+            { value: 'direct', label: 'Directa desde entrada' },
+            { value: 'empty', label: 'Columna vacia' },
+            { value: 'fixedText', label: 'Texto fijo' },
+            { value: 'combine', label: 'Crear valor personalizado' },
+          ]}
+          onChange={(nextType) => {
+            if (nextType === 'combine') {
+              setCustomValueMode('');
+            }
+            updateRecipe(buildRecipeForSelectedType(nextType, column, activeInputColumns));
+          }}
+        />
 
         {column.recipe.type === 'direct' ? (
-          <label className="field compact">
-            <span>Columna de entrada</span>
-            <select value={column.recipe.inputColumnId} onChange={(event) => updateRecipe({ type: 'direct', inputColumnId: event.target.value })}>
-              {activeInputColumns.length === 0 ? <option value="">Sin columnas activas</option> : null}
-              {activeInputColumns.map((inputColumn) => (
-                <option key={inputColumn.id} value={inputColumn.id}>
-                  {getInputColumnLabel(inputColumn)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Dropdown
+            className="compact"
+            label="Columna de entrada"
+            value={column.recipe.inputColumnId}
+            options={activeInputColumns.length === 0
+              ? [{ value: '', label: 'Sin columnas activas' }]
+              : activeInputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+            scrollStrategy="close"
+            onChange={(inputColumnId) => updateRecipe({ type: 'direct', inputColumnId })}
+          />
         ) : null}
 
         {column.recipe.type === 'fixedText' ? (
@@ -833,24 +833,23 @@ function StepTypeSelect({
 }) {
   if (mode === 'number') {
     return (
-      <label className="field compact">
-        <span>Que quiero hacer</span>
-        <select
-          value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
-          onChange={(event) => {
-            if (event.target.value === '') {
-              return;
-            }
+      <Dropdown<NonNullable<TransformStep['operation']> | ''>
+        className="compact"
+        label="Que quiero hacer"
+        value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
+        options={[
+          { value: '', label: 'Seleccionar operacion' },
+          ...numericOperationOptions,
+        ]}
+        scrollStrategy="close"
+        onChange={(value) => {
+          if (value === '') {
+            return;
+          }
 
-            onChange('numericOperation', event.target.value as NonNullable<TransformStep['operation']>);
-          }}
-        >
-          <option value="">Seleccionar operacion</option>
-          {numericOperationOptions.map((operation) => (
-            <option key={operation.value} value={operation.value}>{operation.label}</option>
-          ))}
-        </select>
-      </label>
+          onChange('numericOperation', value);
+        }}
+      />
     );
   }
 
@@ -858,14 +857,14 @@ function StepTypeSelect({
 
   return (
     <div className="stepTypeFieldGroup">
-      <label className="field compact">
-        <span>Que quiero hacer</span>
-        <select value={step.type} onChange={(event) => onChange(event.target.value as TransformStepType)}>
-          {options.map((stepType) => (
-            <option key={stepType.value} value={stepType.value}>{stepType.label}</option>
-          ))}
-        </select>
-      </label>
+      <Dropdown<TransformStepType>
+        className="compact"
+        label="Que quiero hacer"
+        value={step.type}
+        options={options}
+        scrollStrategy="close"
+        onChange={(type) => onChange(type)}
+      />
       {action}
     </div>
   );
@@ -873,14 +872,14 @@ function StepTypeSelect({
 
 function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange: (mode: TransformStepMode) => void }) {
   return (
-    <label className="field compact">
-      <span>Tipo de operacion</span>
-      <select value={mode} onChange={(event) => onChange(event.target.value as TransformStepMode)}>
-        {stepModeOptions.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </label>
+    <Dropdown<TransformStepMode>
+      className="compact"
+      label="Tipo de operacion"
+      value={mode}
+      options={stepModeOptions}
+      scrollStrategy="close"
+      onChange={onChange}
+    />
   );
 }
 
@@ -903,30 +902,30 @@ function StepSourceFields({
 
   return (
     <>
-      <label className="field compact">
-        <span>{label}</span>
-        <select
-          value={safeSource.type}
-          onChange={(event) => {
-            const type = event.target.value as StepSource['type'];
-            if (type === 'previousResult') {
-              onChange({ type: 'previousResult' });
-              return;
-            }
+      <Dropdown<StepSource['type']>
+        className="compact"
+        label={label}
+        value={safeSource.type}
+        options={[
+          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado anterior' }] : []),
+          { value: 'input', label: 'Columna de entrada' },
+          { value: 'fixedText', label: 'Texto fijo' },
+        ]}
+        scrollStrategy="close"
+        onChange={(type) => {
+          if (type === 'previousResult') {
+            onChange({ type: 'previousResult' });
+            return;
+          }
 
-            if (type === 'fixedText') {
-              onChange({ type: 'fixedText', value: '' });
-              return;
-            }
+          if (type === 'fixedText') {
+            onChange({ type: 'fixedText', value: '' });
+            return;
+          }
 
-            onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
-          }}
-        >
-          {allowPreviousResult ? <option value="previousResult">Resultado anterior</option> : null}
-          <option value="input">Columna de entrada</option>
-          <option value="fixedText">Texto fijo</option>
-        </select>
-      </label>
+          onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
+        }}
+      />
 
       {safeSource.type === 'input' ? (
         <InputColumnSelect value={safeSource.inputColumnId} inputColumns={inputColumns} onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })} />
@@ -961,30 +960,30 @@ function StepOperandFields({
 
   return (
     <>
-      <label className="field compact">
-        <span>{label}</span>
-        <select
-          value={safeOperand.type}
-          onChange={(event) => {
-            const type = event.target.value as StepOperand['type'];
-            if (type === 'previousResult') {
-              onChange({ type: 'previousResult' });
-              return;
-            }
+      <Dropdown<StepOperand['type']>
+        className="compact"
+        label={label}
+        value={safeOperand.type}
+        options={[
+          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado anterior' }] : []),
+          { value: 'input', label: 'Columna de entrada' },
+          { value: 'fixedText', label: 'Valor fijo' },
+        ]}
+        scrollStrategy="close"
+        onChange={(type) => {
+          if (type === 'previousResult') {
+            onChange({ type: 'previousResult' });
+            return;
+          }
 
-            if (type === 'input') {
-              onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
-              return;
-            }
+          if (type === 'input') {
+            onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
+            return;
+          }
 
-            onChange({ type: 'fixedText', value: '0', numericFallback: 0 });
-          }}
-        >
-          {allowPreviousResult ? <option value="previousResult">Resultado anterior</option> : null}
-          <option value="input">Columna de entrada</option>
-          <option value="fixedText">Valor fijo</option>
-        </select>
-      </label>
+          onChange({ type: 'fixedText', value: '0', numericFallback: 0 });
+        }}
+      />
 
       {safeOperand.type === 'input' ? (
         <InputColumnSelect
@@ -1030,17 +1029,17 @@ function InputColumnSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="field compact">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        <option value="">Seleccionar columna</option>
-        {inputColumns.map((inputColumn) => (
-          <option key={inputColumn.id} value={inputColumn.id}>
-            {getInputColumnLabel(inputColumn)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown
+      className="compact"
+      label={label}
+      value={value}
+      options={[
+        { value: '', label: 'Seleccionar columna' },
+        ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
+      ]}
+      scrollStrategy="close"
+      onChange={onChange}
+    />
   );
 }
 
@@ -1218,13 +1217,17 @@ function ConcatPartFields({
         </label>
       ) : null}
 
-      <label className="field compact">
-        <span>Origen de la parte</span>
-        <select value={part.type} onChange={(event) => updateOrigin(event.target.value as RecipePart['type'])}>
-          <option value="input">Columna de entrada</option>
-          <option value="text">Texto fijo</option>
-        </select>
-      </label>
+      <Dropdown<RecipePart['type']>
+        className="compact"
+        label="Origen de la parte"
+        value={part.type}
+        options={[
+          { value: 'input', label: 'Columna de entrada' },
+          { value: 'text', label: 'Texto fijo' },
+        ]}
+        scrollStrategy="close"
+        onChange={updateOrigin}
+      />
 
       {part.type === 'text' ? (
         <label className="field compact">
@@ -1605,15 +1608,19 @@ function StepFields({
             ...(rightOperand.type === 'fixedText' ? { amount: parseOptionalNumberInput(rightOperand.value) } : {}),
           })}
         />
-        <label className="field compact">
-          <span>{labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}</span>
-          <select value={String(step.rounding ?? 2)} onChange={(event) => onChange({ rounding: parseRounding(event.target.value) })}>
-            <option value="none">Sin redondeo</option>
-            <option value="0">0 decimales</option>
-            <option value="2">2 decimales</option>
-            <option value="4">4 decimales</option>
-          </select>
-        </label>
+        <Dropdown
+          className="compact"
+          label={labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}
+          value={String(step.rounding ?? 2)}
+          options={[
+            { value: 'none', label: 'Sin redondeo' },
+            { value: '0', label: '0 decimales' },
+            { value: '2', label: '2 decimales' },
+            { value: '4', label: '4 decimales' },
+          ]}
+          scrollStrategy="close"
+          onChange={(value) => onChange({ rounding: parseRounding(value) })}
+        />
       </div>
     );
   }
@@ -1659,66 +1666,54 @@ function StepConditionFields({
 
   return (
     <div className="transformConditionBlock conditionFieldsRow">
-      <label className="field compact">
-        <span>Condicion</span>
-        <select
-          title={condition ? 'Aplicar solo si...' : 'Aplicar siempre'}
-          value={condition ? 'conditional' : 'always'}
-          onChange={(event) => {
-            if (event.target.value === 'always') {
-              onChange({ condition: undefined });
-              return;
-            }
+      <Dropdown<'always' | 'conditional'>
+        className="compact"
+        label="Condicion"
+        value={condition ? 'conditional' : 'always'}
+        options={[
+          { value: 'always', label: 'Aplicar siempre' },
+          { value: 'conditional', label: 'Aplicar solo si...' },
+        ]}
+        scrollStrategy="close"
+        onChange={(value) => {
+          if (value === 'always') {
+            onChange({ condition: undefined });
+            return;
+          }
 
-            onChange({ condition: createDefaultCondition(inputColumns) });
-          }}
-        >
-          <option value="always">Aplicar siempre</option>
-          <option value="conditional">Aplicar solo si...</option>
-        </select>
-      </label>
+          onChange({ condition: createDefaultCondition(inputColumns) });
+        }}
+      />
 
       {condition ? (
-        <label className="field compact">
-          <span>Columna</span>
-          <select
-            title={conditionColumns.find((item) => item.id === inputCondition?.columnId)?.label ?? ''}
-            value={inputCondition?.columnId ?? ''}
-            onChange={(event) => onChange({ condition: { ...(inputCondition ?? createDefaultCondition(inputColumns)), columnId: event.target.value } })}
-          >
-            {conditionColumns.length === 0 ? <option value="">Sin columnas</option> : null}
-            {conditionColumns.map((item) => (
-              <option key={item.id} value={item.id}>
-                {getInputColumnLabel(item)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Dropdown
+          className="compact"
+          label="Columna"
+          value={inputCondition?.columnId ?? ''}
+          options={conditionColumns.length === 0
+            ? [{ value: '', label: 'Sin columnas' }]
+            : conditionColumns.map((item) => ({ value: item.id, label: getInputColumnLabel(item) }))}
+          scrollStrategy="close"
+          onChange={(columnId) => onChange({ condition: { ...(inputCondition ?? createDefaultCondition(inputColumns)), columnId } })}
+        />
       ) : null}
       {condition ? (
-        <label className="field compact">
-          <span>Operador</span>
-          <select
-            title={conditionOperators.find((operator) => operator.value === inputCondition?.operator)?.label ?? ''}
-            value={inputCondition?.operator ?? 'isNotEmpty'}
-            onChange={(event) => {
-              const operator = event.target.value as ConditionOperator;
-              onChange({
-                condition: {
-                  ...(inputCondition ?? createDefaultCondition(inputColumns)),
-                  operator,
-                  valueType: isNumericConditionOperator(operator) ? 'number' : 'text',
-                },
-              });
-            }}
-          >
-            {conditionOperators.map((operator) => (
-              <option key={operator.value} value={operator.value}>
-                {operator.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Dropdown<ConditionOperator>
+          className="compact"
+          label="Operador"
+          value={inputCondition?.operator ?? 'isNotEmpty'}
+          options={conditionOperators}
+          scrollStrategy="close"
+          onChange={(operator) => {
+            onChange({
+              condition: {
+                ...(inputCondition ?? createDefaultCondition(inputColumns)),
+                operator,
+                valueType: isNumericConditionOperator(operator) ? 'number' : 'text',
+              },
+            });
+          }}
+        />
       ) : null}
       {inputCondition && conditionNeedsValue(inputCondition.operator) ? (
         <label className="field compact">

@@ -26,6 +26,7 @@ import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRows
 import { RawPreview } from '../RawPreview/RawPreview';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
@@ -368,27 +369,22 @@ export function ImportWizard() {
 
         <Step title="3. Configurar filas">
           <div className="twoColumns">
-            <label className="field">
-              <span>Fila de encabezados</span>
-              <select
-                value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  const nextHeaderRowIndex = value === 'none' || value === '' ? null : Math.max(0, Number(value) - 1);
-                  if (nextHeaderRowIndex !== headerRowIndex) {
-                    setIsConfigurationDirty(true);
-                    setHeaderRowIndex(nextHeaderRowIndex);
-                  }
-                }}
-              >
-                <option value="none">Sin encabezados</option>
-                {rows.map((_, index) => (
-                  <option key={index} value={index + 1}>
-                    Fila {index + 1}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Dropdown
+              label="Fila de encabezados"
+              value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
+              options={[
+                { value: 'none', label: 'Sin encabezados' },
+                ...rows.map((_, index) => ({ value: String(index + 1), label: `Fila ${index + 1}` })),
+              ]}
+              scrollStrategy="lock"
+              onChange={(value) => {
+                const nextHeaderRowIndex = value === 'none' ? null : Math.max(0, Number(value) - 1);
+                if (nextHeaderRowIndex !== headerRowIndex) {
+                  setIsConfigurationDirty(true);
+                  setHeaderRowIndex(nextHeaderRowIndex);
+                }
+              }}
+            />
             <label className="field">
               <span>Primera fila de datos</span>
               <input

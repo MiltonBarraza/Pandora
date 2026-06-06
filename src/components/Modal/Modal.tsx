@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useDocumentScrollLock } from '../../hooks/useDocumentScrollLock';
 
 type ModalProps = {
   open: boolean;
@@ -11,6 +12,8 @@ type ModalProps = {
 export function Modal({ open, title, size = 'default', onClose, children }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
+
+  useDocumentScrollLock(open);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -25,18 +28,6 @@ export function Modal({ open, title, size = 'default', onClose, children }: Moda
     if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
   }, [open]);
 
   return (

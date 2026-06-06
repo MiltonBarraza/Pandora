@@ -1,0 +1,272 @@
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { useDocumentScrollLock } from '../../../hooks/useDocumentScrollLock';
+import './Dropdown.css';
+
+export type DropdownOption<T extends string = string> = {
+  value: T;
+  label: string;
+  disabled?: boolean;
+};
+
+type DropdownProps<T extends string = string> = {
+  value: T | '';
+  options: DropdownOption<T>[];
+  onChange: (value: T) => void;
+  placeholder?: string;
+  label?: string;
+  disabled?: boolean;
+  className?: string;
+  scrollStrategy?: 'close' | 'lock';
+};
+
+type MenuPosition = {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
+};
+
+export function Dropdown<T extends string = string>({
+  value,
+  options,
+  onChange,
+  placeholder = 'Seleccionar',
+  label,
+  disabled = false,
+  className = '',
+  scrollStrategy = 'close',
+}: DropdownProps<T>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const listboxId = useId();
+  const labelId = useId();
+  const selectedIndex = options.findIndex((option) => option.value === value);
+  const selectedOption = options[selectedIndex];
+  const portalTarget = getDropdownPortalTarget(rootRef.current, document.body);
+
+  useDocumentScrollLock(isOpen && scrollStrategy === 'lock');
+
+  const close = () => {
+    setIsOpen(false);
+    setMenuPosition(null);
+  };
+
+  const open = () => {
+    if (disabled) {
+      return;
+    }
+
+    const button = buttonRef.current;
+    if (!button) {
+      return;
+    }
+
+    setActiveIndex(getInitialDropdownIndex(options, selectedIndex));
+    setMenuPosition(getDropdownMenuPosition(
+      button.getBoundingClientRect(),
+      window.innerWidth,
+      window.innerHeight,
+      getDropdownPreferredMenuHeight(options.length),
+    ));
+    setIsOpen(true);
+  };
+
+  const selectOption = (option: DropdownOption<T>) => {
+    if (option.disabled) {
+      return;
+    }
+
+    onChange(option.value);
+    close();
+    buttonRef.current?.focus();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'Escape') {
+      close();
+      return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!isOpen) {
+        open();
+        return;
+      }
+
+      setActiveIndex((current) => getNextDropdownIndex(options, current, event.key === 'ArrowDown' ? 1 : -1));
+      return;
+    }
+
+    if ((event.key === 'Enter' || event.key === ' ') && isOpen) {
+      event.preventDefault();
+      const option = options[activeIndex];
+      if (option) {
+        selectOption(option);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const updatePosition = () => {
+      const button = buttonRef.current;
+      if (button) {
+        setMenuPosition(getDropdownMenuPosition(
+          button.getBoundingClientRect(),
+          window.innerWidth,
+          window.innerHeight,
+          getDropdownPreferredMenuHeight(options.length),
+        ));
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        close();
+      }
+    };
+    const handleDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close();
+        buttonRef.current?.focus();
+      }
+    };
+    const handleScroll = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && menuRef.current?.contains(target)) {
+        return;
+      }
+
+      close();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    window.addEventListener('resize', updatePosition);
+    if (scrollStrategy === 'close') {
+      window.addEventListener('scroll', handleScroll, true);
+    }
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleDocumentKeyDown);
+      window.removeEventListener('resize', updatePosition);
+      if (scrollStrategy === 'close') {
+        window.removeEventListener('scroll', handleScroll, true);
+      }
+    };
+  }, [isOpen, options.length, scrollStrategy]);
+
+  return (
+    <div ref={rootRef} className={`dropdownField${className ? ` ${className}` : ''}`}>
+      {label ? <span id={labelId} className="dropdownLabel">{label}</span> : null}
+      <button
+        ref={buttonRef}
+        type="button"
+        className="dropdownTrigger"
+        title={selectedOption?.label ?? placeholder}
+        disabled={disabled}
+        aria-labelledby={label ? labelId : undefined}
+        aria-haspopup="listbox"
+        aria-controls={isOpen ? listboxId : undefined}
+        aria-expanded={isOpen}
+        onClick={() => (isOpen ? close() : open())}
+        onKeyDown={handleKeyDown}
+      >
+        <span className={selectedOption ? 'dropdownValue' : 'dropdownValue dropdownPlaceholder'}>
+          {selectedOption?.label ?? placeholder}
+        </span>
+        <span className="dropdownChevron" aria-hidden="true">▾</span>
+      </button>
+      {isOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              id={listboxId}
+              role="listbox"
+              className="dropdownMenu"
+              style={menuPosition as CSSProperties}
+              aria-labelledby={label ? labelId : undefined}
+            >
+              {options.length === 0 ? <div className="dropdownEmpty">Sin opciones</div> : null}
+              {options.map((option, index) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  className={`dropdownOption${index === activeIndex ? ' isActive' : ''}${option.value === value ? ' isSelected' : ''}`}
+                  title={option.label}
+                  disabled={option.disabled}
+                  aria-selected={option.value === value}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => selectOption(option)}
+                >
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>,
+            portalTarget,
+          )
+        : null}
+    </div>
+  );
+}
+
+export function getDropdownPortalTarget(root: HTMLElement | null, fallback: HTMLElement) {
+  return root?.closest('dialog') ?? fallback;
+}
+
+export function getInitialDropdownIndex(options: DropdownOption[], selectedIndex: number) {
+  if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) {
+    return selectedIndex;
+  }
+
+  return options.findIndex((option) => !option.disabled);
+}
+
+export function getNextDropdownIndex(options: DropdownOption[], currentIndex: number, direction: 1 | -1) {
+  if (options.length === 0) {
+    return -1;
+  }
+
+  for (let offset = 1; offset <= options.length; offset += 1) {
+    const index = (currentIndex + direction * offset + options.length) % options.length;
+    if (!options[index]?.disabled) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+export function getDropdownPreferredMenuHeight(optionCount: number) {
+  return Math.min(320, Math.max(48, optionCount * 36 + 12));
+}
+
+export function getDropdownMenuPosition(
+  rect: Pick<DOMRect, 'left' | 'top' | 'bottom' | 'width'>,
+  viewportWidth: number,
+  viewportHeight: number,
+  preferredHeight = 320,
+): MenuPosition {
+  const margin = 8;
+  const gap = 6;
+  const width = Math.min(Math.max(rect.width, 240), viewportWidth - margin * 2);
+  const left = Math.min(Math.max(rect.left, margin), viewportWidth - width - margin);
+  const spaceBelow = Math.max(0, viewportHeight - rect.bottom - margin - gap);
+  const spaceAbove = Math.max(0, rect.top - margin - gap);
+  const opensAbove = spaceBelow < Math.min(preferredHeight, 180) && spaceAbove > spaceBelow;
+  const availableSpace = opensAbove ? spaceAbove : spaceBelow;
+  const maxHeight = Math.min(preferredHeight, Math.max(46, availableSpace));
+  const top = opensAbove ? Math.max(margin, rect.top - maxHeight - gap) : rect.bottom + gap;
+
+  return { left, top, width, maxHeight };
+}
