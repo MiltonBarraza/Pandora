@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn } from '../../../types/import';
-import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getNextSelectedConcatPartIdAfterRemove, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, setSimpleStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, setSimpleStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -1231,6 +1231,24 @@ describe('constructor helpers', () => {
     ).toBe('Partes: Columna D (Nombre) | Columna F (Presentacion)');
   });
 
+  it('builds display labels for custom value parts', () => {
+    expect(getCustomValuePartsDisplayLabel({ type: 'combine', parts: [], separator: '' })).toBe('Partes configuradas');
+    expect(getCustomValuePartsDisplaySummary({ type: 'combine', parts: [], separator: '' }, inputColumns)).toBe('Sin partes configuradas');
+
+    expect(
+      getCustomValuePartsDisplayLabel({
+        type: 'combine',
+        parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
+      }),
+    ).toBe('Origen/base');
+    expect(
+      getCustomValuePartsDisplaySummary({
+        type: 'combine',
+        parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
+      }, inputColumns),
+    ).toBe('Columna AN (Precio)');
+  });
+
   it('summarizes numeric operation adjustments', () => {
     expect(
       getConstructorAdjustmentsSummary(
@@ -1248,6 +1266,19 @@ describe('constructor helpers', () => {
         inputColumns,
       ),
     ).toBe('sumar 10% · 2 decimales');
+  });
+
+  it('builds readable display labels for constructor adjustments', () => {
+    expect(
+      getConstructorAdjustmentLabels(
+        {
+          type: 'combine',
+          parts: [{ id: 'name', type: 'input', inputColumnId: 'input-name', steps: [{ id: 'upper', type: 'uppercase' }] }],
+          steps: [{ id: 'trim', type: 'trim' }],
+        },
+        inputColumns,
+      ),
+    ).toEqual(['Mayusculas en Columna D (Nombre)', 'Limpiar espacios']);
   });
 
   it('builds a preview using sample input values and part steps', () => {

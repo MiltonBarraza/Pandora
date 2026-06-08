@@ -192,6 +192,10 @@ h3 {
   margin: 0 0 16px;
 }
 
+.fileUploader {
+  display: grid;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed #9db2bf;
@@ -200,10 +204,18 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: 164px;
   justify-content: center;
-  min-height: 132px;
-  padding: 24px;
+  padding: 28px 24px;
+  position: relative;
   text-align: center;
+}
+
+.dropZone.hasFile {
+  background: #eef8f4;
+  border-color: #216869;
+  border-style: solid;
+  box-shadow: inset 0 0 0 1px rgba(33, 104, 105, 0.12);
 }
 
 .dropZone.isDragging {
@@ -215,10 +227,67 @@ h3 {
   display: none;
 }
 
+.dropZoneRemoveButton {
+  background: #e9eef2;
+  color: #aa1e2c;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.dropZoneRemoveButton:hover:not(:disabled),
+.dropZoneRemoveButton:focus-visible {
+  background: #d9e2e9;
+  color: #aa1e2c;
+}
+
+.dropZone.hasFile:hover .dropZoneRemoveButton,
+.dropZone.hasFile:focus-visible .dropZoneRemoveButton,
+.dropZoneRemoveButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .dropZone span,
 .field span,
 .stats span {
   color: #5f6f7b;
+}
+
+.dropZone strong {
+  color: #18202a;
+  font-size: 1.08rem;
+  overflow-wrap: anywhere;
+}
+
+.dropZone.hasFile strong {
+  color: #164f50;
+  font-size: 1.16rem;
+}
+
+.dropZoneReadyIcon {
+  color: #216869;
+  font-size: 1.85rem;
+}
+
+.dropZone .dropZoneStatus {
+  color: #216869;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dropZone .dropZoneHelp {
+  line-height: 1.35;
+}
+
+.dropZone .dropZoneHelpSecondary {
+  font-size: 0.92rem;
 }
 
 .field {
@@ -282,6 +351,18 @@ select {
 
 .tableWrap.small {
   max-height: 300px;
+}
+
+.rawPreviewTableWrap {
+  max-height: 360px;
+}
+
+.previewSummary {
+  margin: 2px 0 0;
+}
+
+.previewSummaryRow {
+  margin-top: 6px;
 }
 
 table {
@@ -405,6 +486,43 @@ th {
   grid-template-columns: minmax(180px, 1fr) auto;
 }
 
+.outputColumnsHeaderActions {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: min(100%, 520px);
+}
+
+.exportSections {
+  display: grid;
+  gap: 12px;
+}
+
+.exportBlock {
+  align-items: center;
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px;
+}
+
+.exportBlock p {
+  margin: 6px 0 0;
+}
+
+.secondaryExportBlock {
+  background: #ffffff;
+}
+
+.exportFileName {
+  font-size: 0.86rem;
+}
+
 .massRuleGrid {
   align-items: end;
   display: grid;
@@ -436,19 +554,19 @@ th {
 .outputColumnsWorkspace {
   align-items: start;
   display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   min-width: 0;
 }
 
 .outputColumnsList {
-  background: #f8fafb;
+  background: #f7faf9;
   border: 1px solid #e2e9ee;
   border-radius: 8px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  padding: 10px;
+  padding: 14px;
 }
 
 .outputColumnsList > div {
@@ -461,21 +579,38 @@ th {
   border: 1px solid #e2e9ee;
   border-radius: 8px;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 34px minmax(0, 1fr) 54px 34px;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) 38px 38px;
+  min-height: 58px;
   min-width: 0;
-  padding: 8px;
+  padding: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.outputColumnListItem:hover {
+  background: #fbfefd;
+  border-color: #c8dfe0;
 }
 
 .outputColumnDuplicateButton {
-  font-size: 0.72rem;
-  padding: 0 6px;
-  width: 54px;
+  justify-self: center;
+}
+
+.outputColumnListItem > .actionButton {
+  justify-self: center;
 }
 
 .outputColumnListItem.selected {
-  border-color: #1f6f6d;
-  box-shadow: 0 0 0 1px #1f6f6d;
+  background: #edf8f4;
+  border-color: #8dc7b5;
+  box-shadow: 0 0 0 1px #8dc7b5;
+  color: #0f4d43;
+}
+
+.outputColumnListItem.selected .dragHandle {
+  background: #f7fffc;
+  border-color: #a7d7c7;
+  color: #0f4d43;
 }
 
 .outputColumnSelectButton {
@@ -484,7 +619,7 @@ th {
   border: 0;
   color: inherit;
   display: flex;
-  min-height: auto;
+  min-height: 38px;
   min-width: 0;
   overflow: hidden;
   padding: 0;
@@ -508,9 +643,9 @@ th {
   border: 1px solid #e2e9ee;
   border-radius: 8px;
   display: grid;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
-  padding: 12px;
+  padding: 16px;
 }
 
 .outputColumnHeader {
@@ -548,7 +683,7 @@ th {
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding: 12px;
+  padding: 14px;
 }
 
 .constructorSummary {
@@ -556,8 +691,50 @@ th {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.constructorSummary p {
-  margin: 6px 0 0;
+.customValueSummaryList {
+  display: grid;
+  gap: 9px;
+  margin: 10px 0 0;
+  min-width: 0;
+}
+
+.customValueSummaryList > div {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
+  min-width: 0;
+}
+
+.customValueSummaryList dt {
+  color: #657685;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.customValueSummaryList dd {
+  color: #21313b;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summaryPillList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summaryPill {
+  background: #eef3f6;
+  border: 1px solid #d7e3e8;
+  border-radius: 999px;
+  color: #334852;
+  display: inline-flex;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  padding: 3px 8px;
 }
 
 .constructorModalContent {
@@ -1243,6 +1420,11 @@ th {
   padding: 12px;
 }
 
+.filenamePreview small {
+  color: #657685;
+  font-size: 0.86rem;
+}
+
 .checkboxField {
   align-items: center;
   display: flex;
@@ -1257,12 +1439,43 @@ th {
   width: auto;
 }
 
+.startRowControls {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.startRowPreviewToggle {
+  margin: 0;
+}
+
+.rowConfigurationError {
+  margin: 12px 0 0;
+}
+
+.rawPreviewOptions {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.rawPreviewOptions p {
+  margin: 0;
+}
+
 .ruleHint {
   align-items: center;
   color: #5f6f7b;
   display: flex;
   font-size: 0.9rem;
   min-height: 40px;
+}
+
+.ruleIncompleteHint {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0;
 }
 
 .wideCheckbox {
@@ -1385,6 +1598,65 @@ th {
   min-width: 0;
 }
 
+.columnDetectionHeader {
+  display: grid;
+  gap: 14px;
+}
+
+.columnDetectionSummary {
+  display: grid;
+  gap: 4px;
+}
+
+.columnDetectionSummary p,
+.columnQuickActions p {
+  margin: 0;
+}
+
+.columnQuickActions {
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.columnQuickActionsButtons {
+  gap: 8px;
+}
+
+.suggestionToggleButton.isActive {
+  background: #eef8f4;
+  color: #216869;
+  box-shadow: inset 0 0 0 1px #8cc7b6;
+}
+
+.suggestionToggleButton.isActive:hover:not(:disabled) {
+  background: #dff2ec;
+}
+
+.appliedSuggestions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appliedSuggestions > span:first-child {
+  font-weight: 700;
+}
+
+.suggestionChip {
+  background: #eef8f4;
+  border: 1px solid #bddbd2;
+  border-radius: 999px;
+  color: #216869;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
 .columnTable input[type='checkbox'] {
   min-height: auto;
   width: auto;
@@ -1452,8 +1724,35 @@ th {
     justify-self: start;
   }
 
+  .customValueSummaryList > div {
+    grid-template-columns: 1fr;
+  }
+
   .inlineForm {
     grid-template-columns: 1fr;
+  }
+
+  .outputColumnsHeaderActions {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .exportBlock {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .startRowControls {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .previewSummaryRow {
+    margin-top: 8px;
+  }
+
+  .previewSummaryRow > span {
+    display: none;
   }
 
   .sectionHeader {

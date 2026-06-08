@@ -4,10 +4,12 @@ export function buildOutputFileBaseName({
   settings,
   sourceFileName,
   sheetName,
+  now = new Date(),
 }: {
   settings: FileNameSettings;
   sourceFileName: string;
   sheetName?: string;
+  now?: Date;
 }) {
   if (settings.mode === 'custom' && settings.customName.trim()) {
     return sanitizeNamePart(removeExtension(settings.customName)) || 'Archivo sanitizado';
@@ -17,7 +19,7 @@ export function buildOutputFileBaseName({
     settings.includeBaseText ? settings.baseText || 'Archivo sanitizado' : '',
     settings.includeOriginalName ? removeExtension(sourceFileName) : '',
     settings.includeSheetName ? sheetName : '',
-    settings.includeDate ? new Date().toISOString().slice(0, 10) : '',
+    settings.includeDate ? formatLocalDatePart(now, settings.includeTime ?? false) : '',
   ]
     .map((part) => sanitizeNamePart(part))
     .filter(Boolean);
@@ -39,6 +41,24 @@ export function sanitizeNamePart(value?: string) {
     .replace(/^-|-$/g, '');
 }
 
+export function formatLocalDatePart(value: Date, includeTime = false) {
+  const date = [
+    value.getFullYear(),
+    padDatePart(value.getMonth() + 1),
+    padDatePart(value.getDate()),
+  ].join('-');
+
+  if (!includeTime) {
+    return date;
+  }
+
+  return `${date}_${padDatePart(value.getHours())}-${padDatePart(value.getMinutes())}`;
+}
+
 function removeExtension(fileName: string) {
   return fileName.replace(/\.[^/.]+$/, '');
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, '0');
 }

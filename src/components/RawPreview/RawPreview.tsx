@@ -1,5 +1,5 @@
-import type { RawRow } from '../../types/import';
 import { columnLetter } from '../../domain/import/columnAnalysis';
+import type { RawRow } from '../../types/import';
 
 type RawPreviewProps = {
   rows: RawRow[];
@@ -7,6 +7,7 @@ type RawPreviewProps = {
   activeColumns?: number[];
   rowNumberOffset?: number;
   showAllColumns?: boolean;
+  showHiddenColumnsToggle?: boolean;
   onShowAllColumnsChange?: (showAllColumns: boolean) => void;
 };
 
@@ -16,23 +17,28 @@ export function RawPreview({
   activeColumns,
   rowNumberOffset = 0,
   showAllColumns = false,
+  showHiddenColumnsToggle = false,
   onShowAllColumnsChange,
 }: RawPreviewProps) {
   const columns = showAllColumns || !activeColumns?.length ? Array.from({ length: maxColumns }, (_, index) => index) : activeColumns;
+  const previewRows = rows.slice(0, 30);
 
   return (
     <>
-      {activeColumns ? (
-        <label className="checkboxField previewToggle">
-          <input
-            type="checkbox"
-            checked={showAllColumns}
-            onChange={(event) => onShowAllColumnsChange?.(event.target.checked)}
-          />
-          Ver todas las columnas
-        </label>
+      {showHiddenColumnsToggle ? (
+        <div className="rawPreviewOptions">
+          <label className="checkboxField">
+            <input
+              type="checkbox"
+              checked={showAllColumns}
+              onChange={(event) => onShowAllColumnsChange?.(event.target.checked)}
+            />
+            Mostrar columnas ocultadas automáticamente
+          </label>
+          <p className="muted">Algunas columnas pueden ocultarse automáticamente porque no están vacías, no tienen ancho o tienen pocos datos.</p>
+        </div>
       ) : null}
-      <div className="tableWrap">
+      <div className="tableWrap rawPreviewTableWrap">
         <table>
           <thead>
             <tr>
@@ -43,7 +49,7 @@ export function RawPreview({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIndex) => (
+            {previewRows.map((row, rowIndex) => (
               <tr key={rowIndex}>
                 <td>{rowNumberOffset + rowIndex + 1}</td>
                 {columns.map((column) => (

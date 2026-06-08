@@ -138,6 +138,10 @@ export function matchesProcessedIgnoreRule(row: ProcessedRow, rule: IgnoreRule) 
 }
 
 export function evaluateIgnoreRule(values: Record<string, string>, rule: IgnoreRule) {
+  if (!isIgnoreRuleComplete(rule)) {
+    return false;
+  }
+
   const value = String(values[rule.columnId] ?? '').trim();
   const expected = rule.value ?? '';
   const normalizedValue = value.toLowerCase();
@@ -178,6 +182,18 @@ export function evaluateIgnoreRule(values: Record<string, string>, rule: IgnoreR
   return false;
 }
 
+export function isIgnoreRuleComplete(rule: IgnoreRule) {
+  if (!rule.columnId || !rule.operator) {
+    return false;
+  }
+
+  return !ignoreRuleNeedsValue(rule.operator) || (rule.value?.trim() ?? '') !== '';
+}
+
+export function ignoreRuleNeedsValue(operator: IgnoreRule['operator']) {
+  return operator !== '' && operator !== 'isEmpty' && operator !== 'isNotEmpty';
+}
+
 function forceRuleTarget(rule: IgnoreRule, target: IgnoreRule['target']): IgnoreRule {
   return { ...rule, target };
 }
@@ -215,7 +231,11 @@ export function describeProcessedIgnoreRule(rule: IgnoreRule, inputColumns: Inpu
     return `Ignorada por regla: ${columnName} empieza con "${rule.value ?? ''}"`;
   }
 
-  return `Ignorada por regla: ${columnName} termina con "${rule.value ?? ''}"`;
+  if (rule.operator === 'endsWith') {
+    return `Ignorada por regla: ${columnName} termina con "${rule.value ?? ''}"`;
+  }
+
+  return 'Ignorada por regla incompleta';
 }
 
 function getMatchedInputColumnLabel(columnId: string, inputColumns: InputColumn[]) {

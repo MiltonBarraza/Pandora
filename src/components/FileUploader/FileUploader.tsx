@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { ReadyCheckIcon } from '../../dev/icons';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type FileUploaderProps = {
   fileName: string;
   onFileSelected: (file: File | undefined) => void;
+  onFileRemoved: () => void;
 };
 
 const acceptedExtensions = ['.xlsx', '.xls', '.xlsm', '.csv'];
 
-export function FileUploader({ fileName, onFileSelected }: FileUploaderProps) {
+export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUploaderProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dropError, setDropError] = useState('');
+  const hasFile = fileName !== '';
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
 
   const processFiles = (files: FileList | null) => {
     const file = files?.[0];
@@ -33,33 +42,74 @@ export function FileUploader({ fileName, onFileSelected }: FileUploaderProps) {
     onFileSelected(file);
   };
 
+  const removeFile = () => {
+    setDropError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    onFileRemoved();
+  };
+
   return (
     <>
-    <label
-      className={`dropZone ${isDragging ? 'isDragging' : ''}`}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setIsDragging(false);
-        processFiles(event.dataTransfer.files);
-      }}
-    >
-      <input
-        type="file"
-        accept=".xlsx,.xls,.xlsm,.csv"
-        onChange={(event) => {
-          processFiles(event.target.files);
-          event.target.value = '';
-        }}
-      />
-      <strong>{fileName || 'Elegir archivo'}</strong>
-      <span>Arrastra un archivo aca o hace click. .xlsx, .xls, .xlsm o .csv</span>
-    </label>
-    {dropError ? <p className="errorText">{dropError}</p> : null}
+      <div className={`fileUploader ${hasFile ? 'hasFile' : ''}`}>
+        <div
+          className={`dropZone ${isDragging ? 'isDragging' : ''} ${hasFile ? 'hasFile' : ''}`}
+          role="button"
+          tabIndex={0}
+          onClick={openFilePicker}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+            processFiles(event.dataTransfer.files);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openFilePicker();
+            }
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.xlsm,.csv"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              processFiles(event.target.files);
+              event.target.value = '';
+            }}
+          />
+          {hasFile ? (
+            <ActionButton
+              action="close"
+              variant="secondary"
+              size="sm"
+              type="button"
+              className="dropZoneRemoveButton"
+              onClick={(event) => {
+                event.stopPropagation();
+                removeFile();
+              }}
+              aria-label={`Remover archivo ${fileName}`}
+            >
+              Remover
+            </ActionButton>
+          ) : null}
+          {hasFile ? <ReadyCheckIcon className="dropZoneReadyIcon" aria-hidden="true" focusable="false" /> : null}
+          {hasFile ? <span className="dropZoneStatus">Archivo listo</span> : null}
+          <strong>{hasFile ? fileName : 'Elegir archivo'}</strong>
+          <span className="dropZoneHelp">Arrastra un archivo aquí de tipo .xlsx, .xls, .xlsm o .csv</span>
+          <span className="dropZoneHelp dropZoneHelpSecondary">o hace click.</span>
+        </div>
+      </div>
+      {dropError ? <p className="errorText">{dropError}</p> : null}
     </>
   );
 }

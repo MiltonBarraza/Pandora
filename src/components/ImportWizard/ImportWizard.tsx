@@ -11,7 +11,7 @@ import { applyColumnVisibilitySettings, createApplyPayloadFromSettings, resolveI
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
 import { canDiscardWizardConfiguration } from '../../domain/import/wizardConfiguration';
 import { useBeforeUnloadWarning } from '../../hooks/useBeforeUnloadWarning';
-import { defaultFileNameSettings, loadFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
+import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { showInfoToast } from '../../services/toastService';
@@ -76,6 +76,20 @@ export function ImportWizard() {
     () => columnAnalysis.filter((column) => !column.ignored).map((column) => column.columnIndex),
     [columnAnalysis],
   );
+  const rawPreviewColumnIndexes = useMemo(
+    () => columnAnalysis.filter((column) => !column.autoIgnored).map((column) => column.columnIndex),
+    [columnAnalysis],
+  );
+  const hasAutoHiddenColumns = useMemo(
+    () => columnAnalysis.some((column) => column.autoIgnored),
+    [columnAnalysis],
+  );
+  const rowConfigurationError = headerRowIndex !== null && headerRowIndex >= startRowIndex
+    ? 'La fila de encabezados debe estar antes de la primera fila de datos.'
+    : '';
+  const rawPreviewSummary = showRawPreviewFromDataStart
+    ? `Vista previa desde la fila ${startRowIndex + 1}. Se muestran hasta 30 filas.`
+    : 'Vista previa de las primeras 30 filas.';
   const processedPipeline = useMemo(
     () =>
       buildProcessedRowsPipeline({
@@ -194,6 +208,30 @@ export function ImportWizard() {
     }
   };
 
+  const resetSourceFile = () => {
+    setFileName('');
+    setFileType('');
+    setWorkbook(null);
+    setSelectedSheet('');
+    setRows([]);
+    setReadError('');
+  };
+
+  const removeFile = () => {
+    if (!fileName && fileType === '' && !workbook) {
+      return;
+    }
+
+    if (!confirmConfigurationDiscard('Quitar el archivo descartara la configuracion actual. Queres continuar?')) {
+      return;
+    }
+
+    const wasDirty = isConfigurationDirty;
+    resetWizardConfiguration();
+    resetSourceFile();
+    showInfoToast(wasDirty ? 'Configuracion descartada.' : 'Archivo quitado.');
+  };
+
   const loadFile = async (file: File | undefined) => {
     if (!file) {
       return;
@@ -296,7 +334,7 @@ export function ImportWizard() {
     setInputIgnoreRules(payload.inputIgnoreRules);
     setOutputColumns(payload.outputColumns);
     setOutputIgnoreRules(payload.outputIgnoreRules);
-    setFileNameSettings(payload.fileNameSettings);
+    setFileNameSettings(normalizeFileNameSettings(payload.fileNameSettings));
     setIsConfigurationDirty(true);
   };
 
@@ -329,7 +367,7 @@ export function ImportWizard() {
 
       <div className="wizard">
         <Step title="1. Subir archivo">
-          <FileUploader fileName={fileName} onFileSelected={loadFile} />
+          <FileUploader fileName={fileName} onFileSelected={loadFile} onFileRemoved={removeFile} />
           {readError ? <p className="errorText">{readError}</p> : null}
         </Step>
 
@@ -385,47 +423,54 @@ export function ImportWizard() {
                 }
               }}
             />
-            <label className="field">
+            <div className="field startRowField">
               <span>Primera fila de datos</span>
-              <input
-                type="number"
-                min="1"
-                value={startRowInputValue}
-                onChange={(event) => setStartRowInputValue(event.target.value)}
-                onBlur={(event) => {
-                  const rowNumber = normalizeNumberInputOnBlur(event.target.value, {
-                    fallback: startRowIndex + 1,
-                    min: 1,
-                    integer: true,
-                  });
-                  setStartRowInputValue(String(rowNumber));
-                  if (rowNumber - 1 !== startRowIndex) {
-                    setIsConfigurationDirty(true);
-                    setStartRowIndex(rowNumber - 1);
-                  }
-                }}
-              />
-            </label>
+              <div className="startRowControls">
+                <input
+                  type="number"
+                  min="1"
+                  value={startRowInputValue}
+                  onChange={(event) => setStartRowInputValue(event.target.value)}
+                  onBlur={(event) => {
+                    const rowNumber = normalizeNumberInputOnBlur(event.target.value, {
+                      fallback: startRowIndex + 1,
+                      min: 1,
+                      integer: true,
+                    });
+                    setStartRowInputValue(String(rowNumber));
+                    if (rowNumber - 1 !== startRowIndex) {
+                      setIsConfigurationDirty(true);
+                      setStartRowIndex(rowNumber - 1);
+                    }
+                  }}
+                />
+                <label className="checkboxField startRowPreviewToggle">
+                  <input
+                    type="checkbox"
+                    checked={showRawPreviewFromDataStart}
+                    onChange={(event) => {
+                      setIsConfigurationDirty(true);
+                      importedPreviewSettingsRef.current = null;
+                      setShowRawPreviewFromDataStart(event.target.checked);
+                    }}
+                  />
+                  Previsualizar desde esta fila
+                </label>
+              </div>
+            </div>
           </div>
-          <label className="checkboxField previewToggle">
-            <input
-              type="checkbox"
-              checked={showRawPreviewFromDataStart}
-              onChange={(event) => {
-                setIsConfigurationDirty(true);
-                importedPreviewSettingsRef.current = null;
-                setShowRawPreviewFromDataStart(event.target.checked);
-              }}
-            />
-            Mostrar desde la primera fila de datos
-          </label>
-          {!showRawPreviewFromDataStart ? <p className="muted">Mostrando todas las filas del archivo.</p> : null}
+          <div className="twoColumns previewSummaryRow">
+            <span aria-hidden="true" />
+            <p className="muted previewSummary">{rawPreviewSummary}</p>
+          </div>
+          {rowConfigurationError ? <p className="errorText rowConfigurationError">{rowConfigurationError}</p> : null}
           <RawPreview
             rows={rawPreviewRows}
             maxColumns={maxColumns}
-            activeColumns={activeColumnIndexes}
+            activeColumns={rawPreviewColumnIndexes}
             rowNumberOffset={rawPreviewRowNumberOffset}
             showAllColumns={showAllRawPreviewColumns}
+            showHiddenColumnsToggle={hasAutoHiddenColumns}
             onShowAllColumnsChange={(showAllColumns) => {
               setIsConfigurationDirty(true);
               importedPreviewSettingsRef.current = null;
@@ -435,7 +480,11 @@ export function ImportWizard() {
         </Step>
 
         <Step title="4. Columnas detectadas">
-          <ColumnVisibilityManager columns={columnAnalysis} onChange={updateColumnAnalysis} />
+          <ColumnVisibilityManager
+            columns={columnAnalysis}
+            showHeaderColumn={headerRowIndex !== null}
+            onChange={updateColumnAnalysis}
+          />
         </Step>
 
         <Step title="5. Filtrar filas de entrada">

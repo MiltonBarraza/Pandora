@@ -189,7 +189,7 @@ export type IgnoreRule = {
   id: string;
   target: 'input' | 'output';
   columnId: string;
-  operator: 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'startsWith' | 'endsWith';
+  operator: '' | 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'startsWith' | 'endsWith';
   value?: string;
 };
 
@@ -210,6 +210,7 @@ export type FileNameSettings = {
   includeOriginalName: boolean;
   includeSheetName: boolean;
   includeDate: boolean;
+  includeTime?: boolean;
 };
 
 export type IgnoredReason = 'hidden' | 'narrow' | 'empty' | 'lowData' | 'manual';

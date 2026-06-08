@@ -5,6 +5,32 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-06-08
+
+### Added
+
+- Accion en columnas de salida para crear automaticamente salidas directas desde columnas activas.
+- Opcion para incluir hora local en nombres de archivo con formato seguro `YYYY-MM-DD_HH-mm`.
+- Tests de caracterizacion para acciones rapidas de columnas, reglas incompletas, preview normalizada, nombres de descarga y defaults de columnas de salida.
+
+### Changed
+
+- La seccion de carga de archivo diferencia mejor el estado vacio y el archivo listo, con accion interna para remover.
+- La configuracion de filas limita la preview cruda a 30 filas, reordena opciones relacionadas y valida encabezados antes de primera fila de datos.
+- Las acciones rapidas de columnas detectadas explican que las sugerencias de ignorado se acumulan sobre la seleccion actual.
+- Las reglas nuevas de filtros de entrada y salida arrancan incompletas, con placeholders y sin afectar el procesamiento hasta completarse.
+- La seccion de columnas de salida mejora espaciado, contraste, estado seleccionado y resumen de valores personalizados.
+- Las columnas de salida ya no incluyen columnas default innecesarias en instalaciones nuevas o defaults legacy guardados.
+- La vista normalizada muestra solo columnas reales de salida y limita la preview visual a 30 filas sin afectar exportaciones.
+- La configuracion de nombre muestra un unico nombre final sin extension y separa descargas de archivo final y auditoria.
+
+### Fixed
+
+- Las reglas incompletas ya no filtran filas por valores default accidentales.
+- El boton de borrar reglas queda alineado con los inputs.
+- La accion de remover archivo respeta dirty state sin abrir el selector de archivos.
+- La preview normalizada oculta columnas tecnicas como seleccion, estado, fila y motivo/error.
+
 ## [0.2.2] - 2026-06-06
 
 ### Added
