@@ -11,7 +11,7 @@ import { applyColumnVisibilitySettings, createApplyPayloadFromSettings, resolveI
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
 import { canDiscardWizardConfiguration } from '../../domain/import/wizardConfiguration';
 import { useBeforeUnloadWarning } from '../../hooks/useBeforeUnloadWarning';
-import { defaultFileNameSettings, loadFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
+import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { showInfoToast } from '../../services/toastService';
@@ -334,7 +334,7 @@ export function ImportWizard() {
     setInputIgnoreRules(payload.inputIgnoreRules);
     setOutputColumns(payload.outputColumns);
     setOutputIgnoreRules(payload.outputIgnoreRules);
-    setFileNameSettings(payload.fileNameSettings);
+    setFileNameSettings(normalizeFileNameSettings(payload.fileNameSettings));
     setIsConfigurationDirty(true);
   };
 

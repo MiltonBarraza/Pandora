@@ -14,27 +14,36 @@ afterEach(() => {
 });
 
 describe('localOutputColumnsService', () => {
-  it('creates independent default output column copies', async () => {
+  it('creates an empty default output column list', async () => {
     const { createDefaultOutputColumns } = await import('../localOutputColumnsService');
     const first = createDefaultOutputColumns();
     const second = createDefaultOutputColumns();
 
-    first[0].label = 'Changed';
-
-    expect(second[0].label).toBe('Codigo');
+    expect(first).toEqual([]);
+    expect(second).toEqual([]);
     expect(first).not.toBe(second);
-    expect(first[0].recipe).not.toBe(second[0].recipe);
   });
 
   it('returns current default output columns when storage is empty', async () => {
     const { loadOutputColumns } = await import('../localOutputColumnsService');
 
-    expect(loadOutputColumns()).toEqual([
-      { id: 'output-code', label: 'Codigo', order: 0, enabled: true, recipe: { type: 'empty' } },
-      { id: 'output-name', label: 'Nombre', order: 1, enabled: true, recipe: { type: 'empty' } },
-      { id: 'output-price', label: 'Precio', order: 2, enabled: true, recipe: { type: 'empty' } },
-      { id: 'output-comments', label: 'Comentarios', order: 3, enabled: true, recipe: { type: 'empty' } },
-    ]);
+    expect(loadOutputColumns()).toEqual([]);
+  });
+
+  it('drops the legacy default output columns saved by older sessions', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        { id: 'output-code', label: 'Codigo', order: 0, enabled: true, recipe: { type: 'empty' } },
+        { id: 'output-name', label: 'Nombre', order: 1, enabled: true, recipe: { type: 'empty' } },
+        { id: 'output-price', label: 'Precio', order: 2, enabled: true, recipe: { type: 'empty' } },
+        { id: 'output-comments', label: 'Comentarios', order: 3, enabled: true, recipe: { type: 'empty' } },
+      ]),
+    );
+
+    expect(loadOutputColumns()).toEqual([]);
   });
 
   it('preserves an explicitly saved empty output column list', async () => {

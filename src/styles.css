@@ -486,6 +486,43 @@ th {
   grid-template-columns: minmax(180px, 1fr) auto;
 }
 
+.outputColumnsHeaderActions {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: min(100%, 520px);
+}
+
+.exportSections {
+  display: grid;
+  gap: 12px;
+}
+
+.exportBlock {
+  align-items: center;
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px;
+}
+
+.exportBlock p {
+  margin: 6px 0 0;
+}
+
+.secondaryExportBlock {
+  background: #ffffff;
+}
+
+.exportFileName {
+  font-size: 0.86rem;
+}
+
 .massRuleGrid {
   align-items: end;
   display: grid;
@@ -517,19 +554,19 @@ th {
 .outputColumnsWorkspace {
   align-items: start;
   display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   min-width: 0;
 }
 
 .outputColumnsList {
-  background: #f8fafb;
+  background: #f7faf9;
   border: 1px solid #e2e9ee;
   border-radius: 8px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  padding: 10px;
+  padding: 14px;
 }
 
 .outputColumnsList > div {
@@ -542,21 +579,38 @@ th {
   border: 1px solid #e2e9ee;
   border-radius: 8px;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 34px minmax(0, 1fr) 54px 34px;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) 38px 38px;
+  min-height: 58px;
   min-width: 0;
-  padding: 8px;
+  padding: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.outputColumnListItem:hover {
+  background: #fbfefd;
+  border-color: #c8dfe0;
 }
 
 .outputColumnDuplicateButton {
-  font-size: 0.72rem;
-  padding: 0 6px;
-  width: 54px;
+  justify-self: center;
+}
+
+.outputColumnListItem > .actionButton {
+  justify-self: center;
 }
 
 .outputColumnListItem.selected {
-  border-color: #1f6f6d;
-  box-shadow: 0 0 0 1px #1f6f6d;
+  background: #edf8f4;
+  border-color: #8dc7b5;
+  box-shadow: 0 0 0 1px #8dc7b5;
+  color: #0f4d43;
+}
+
+.outputColumnListItem.selected .dragHandle {
+  background: #f7fffc;
+  border-color: #a7d7c7;
+  color: #0f4d43;
 }
 
 .outputColumnSelectButton {
@@ -565,7 +619,7 @@ th {
   border: 0;
   color: inherit;
   display: flex;
-  min-height: auto;
+  min-height: 38px;
   min-width: 0;
   overflow: hidden;
   padding: 0;
@@ -589,9 +643,9 @@ th {
   border: 1px solid #e2e9ee;
   border-radius: 8px;
   display: grid;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
-  padding: 12px;
+  padding: 16px;
 }
 
 .outputColumnHeader {
@@ -629,7 +683,7 @@ th {
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding: 12px;
+  padding: 14px;
 }
 
 .constructorSummary {
@@ -637,8 +691,50 @@ th {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.constructorSummary p {
-  margin: 6px 0 0;
+.customValueSummaryList {
+  display: grid;
+  gap: 9px;
+  margin: 10px 0 0;
+  min-width: 0;
+}
+
+.customValueSummaryList > div {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
+  min-width: 0;
+}
+
+.customValueSummaryList dt {
+  color: #657685;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.customValueSummaryList dd {
+  color: #21313b;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summaryPillList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summaryPill {
+  background: #eef3f6;
+  border: 1px solid #d7e3e8;
+  border-radius: 999px;
+  color: #334852;
+  display: inline-flex;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  padding: 3px 8px;
 }
 
 .constructorModalContent {
@@ -1324,6 +1420,11 @@ th {
   padding: 12px;
 }
 
+.filenamePreview small {
+  color: #657685;
+  font-size: 0.86rem;
+}
+
 .checkboxField {
   align-items: center;
   display: flex;
@@ -1369,6 +1470,12 @@ th {
   display: flex;
   font-size: 0.9rem;
   min-height: 40px;
+}
+
+.ruleIncompleteHint {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0;
 }
 
 .wideCheckbox {
@@ -1617,7 +1724,21 @@ th {
     justify-self: start;
   }
 
+  .customValueSummaryList > div {
+    grid-template-columns: 1fr;
+  }
+
   .inlineForm {
+    grid-template-columns: 1fr;
+  }
+
+  .outputColumnsHeaderActions {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .exportBlock {
+    align-items: stretch;
     grid-template-columns: 1fr;
   }
 

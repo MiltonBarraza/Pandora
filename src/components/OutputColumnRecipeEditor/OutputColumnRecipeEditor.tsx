@@ -23,6 +23,21 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
   const effectiveCustomValueMode = column.recipe.type === 'combine'
     ? getCustomValueMode(column.recipe) || customValueMode
     : '';
+  const customValuePreview = column.recipe.type === 'combine'
+    ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode)
+    : '';
+  const customValuePartsLabel = column.recipe.type === 'combine'
+    ? getCustomValuePartsDisplayLabel(column.recipe)
+    : '';
+  const customValuePartsSummary = column.recipe.type === 'combine'
+    ? getCustomValuePartsDisplaySummary(column.recipe, activeInputColumns)
+    : '';
+  const customValueAdjustments = column.recipe.type === 'combine'
+    ? getConstructorAdjustmentLabels(column.recipe, activeInputColumns)
+    : [];
+  const customValueAllAdjustments = column.recipe.type === 'combine'
+    ? getConstructorAdjustmentLabels(column.recipe, activeInputColumns, Number.POSITIVE_INFINITY)
+    : [];
 
   const updateRecipe = (recipe: OutputRecipe) => {
     onChange({ ...column, recipe });
@@ -76,13 +91,30 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
           <div className="recipeSubBlock constructorSummary">
             <div>
               <strong>Crear valor personalizado</strong>
-              <p className="muted">Vista previa: {buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode)}</p>
-              <p className="muted">{getCustomValueSummary(column.recipe, activeInputColumns)}</p>
-              {getConstructorAdjustmentsSummary(column.recipe, activeInputColumns) ? (
-                <p className="muted" title={getConstructorAdjustmentsSummary(column.recipe, activeInputColumns, Number.POSITIVE_INFINITY)}>
-                  Ajustes: {getConstructorAdjustmentsSummary(column.recipe, activeInputColumns)}
-                </p>
-              ) : null}
+              <dl className="customValueSummaryList">
+                <div>
+                  <dt>Vista previa</dt>
+                  <dd>{customValuePreview}</dd>
+                </div>
+                <div>
+                  <dt>{customValuePartsLabel}</dt>
+                  <dd>{customValuePartsSummary}</dd>
+                </div>
+                <div>
+                  <dt>Transformaciones</dt>
+                  <dd title={customValueAllAdjustments.join(' | ')}>
+                    {customValueAdjustments.length > 0 ? (
+                      <span className="summaryPillList">
+                        {customValueAdjustments.map((adjustment, index) => (
+                          <span key={`${adjustment}-${index}`} className="summaryPill">{adjustment}</span>
+                        ))}
+                      </span>
+                    ) : (
+                      'Sin transformaciones'
+                    )}
+                  </dd>
+                </div>
+              </dl>
             </div>
             <button type="button" onClick={() => setIsConstructorOpen(true)}>
               Editar valor personalizado
@@ -166,15 +198,36 @@ export function getCustomValueSummary(recipe: Extract<OutputRecipe, { type: 'com
   return getConstructorPartsSummary(recipe, inputColumns);
 }
 
+export function getCustomValuePartsDisplayLabel(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  const concatStep = getConfiguredConcatStep(recipe);
+
+  if (!concatStep && recipe.parts.length === 1) {
+    return 'Origen/base';
+  }
+
+  return 'Partes configuradas';
+}
+
+export function getCustomValuePartsDisplaySummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
+  const concatStep = getConfiguredConcatStep(recipe);
+
+  if (concatStep?.parts?.length) {
+    return concatStep.parts.map((part) => describeConcatPartSource(part, inputColumns)).join(' | ');
+  }
+
+  if (recipe.parts.length === 0) {
+    return 'Sin partes configuradas';
+  }
+
+  return describeCombineParts(recipe, inputColumns);
+}
+
 export function getConstructorAdjustmentsSummary(
   recipe: Extract<OutputRecipe, { type: 'combine' }>,
   inputColumns: InputColumn[],
   limit = 3,
 ) {
-  const adjustments = [
-    ...recipe.parts.flatMap((part) => describePartAdjustments(part, inputColumns)),
-    ...describeStepAdjustments(recipe.steps ?? []),
-  ];
+  const adjustments = getConstructorAdjustmentDescriptions(recipe, inputColumns);
 
   if (adjustments.length === 0) {
     return '';
@@ -185,6 +238,50 @@ export function getConstructorAdjustmentsSummary(
   }
 
   return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} ajustes mas`;
+}
+
+export function getConstructorAdjustmentLabels(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  inputColumns: InputColumn[],
+  limit = 4,
+) {
+  const adjustments = getConstructorAdjustmentDescriptions(recipe, inputColumns);
+
+  if (adjustments.length <= limit) {
+    return adjustments.map(formatAdjustmentForDisplay);
+  }
+
+  return [
+    ...adjustments.slice(0, limit).map(formatAdjustmentForDisplay),
+    `${adjustments.length - limit} ajustes mas`,
+  ];
+}
+
+function getConstructorAdjustmentDescriptions(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
+  return [
+    ...recipe.parts.flatMap((part) => describePartAdjustments(part, inputColumns)),
+    ...describeStepAdjustments(recipe.steps ?? []),
+  ];
+}
+
+function getConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return (recipe.steps ?? []).find((step) => step.type === 'concat' && (step.parts?.length ?? 0) > 0);
+}
+
+function formatAdjustmentForDisplay(adjustment: string) {
+  const labels: Record<string, string> = {
+    'limpiar espacios': 'Limpiar espacios',
+    'sin operacion seleccionada': 'Sin operacion seleccionada',
+    mayusculas: 'Mayusculas',
+    minusculas: 'Minusculas',
+    concatenar: 'Concatenar',
+    'extraer numero': 'Extraer numero',
+    'convertir a numero': 'Convertir a numero',
+    'convertir a texto': 'Convertir a texto',
+    'sin redondeo': 'Sin redondeo',
+  };
+
+  return labels[adjustment] ?? adjustment.charAt(0).toUpperCase() + adjustment.slice(1);
 }
 
 function describePart(part: RecipePart, inputColumns: InputColumn[]) {

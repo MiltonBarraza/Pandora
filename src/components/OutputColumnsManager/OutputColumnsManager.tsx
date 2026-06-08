@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { createOutputColumnsFromActiveInputColumns } from '../../domain/import/createOutputColumnsFromActiveInputColumns';
 import { duplicateOutputColumn } from '../../domain/import/duplicateOutputColumn';
+import { showInfoToast, showSuccessToast } from '../../services/toastService';
 import type { InputColumn, OutputColumn } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
-import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
@@ -48,6 +50,30 @@ export function OutputColumnsManager({
     setNewColumnName('');
   };
 
+  const createFromActiveColumns = () => {
+    const result = createOutputColumnsFromActiveInputColumns(inputColumns, ordered);
+
+    if (result.activeCount === 0) {
+      showInfoToast('No hay columnas activas para crear.');
+      return;
+    }
+
+    if (result.createdCount === 0) {
+      showInfoToast('No hay columnas nuevas para crear.');
+      return;
+    }
+
+    onChange(result.columns);
+    setSelectedColumnId(result.columns[result.columns.length - result.createdCount]?.id ?? null);
+
+    if (result.skippedExistingCount > 0) {
+      showSuccessToast(`Se crearon ${result.createdCount} columnas. ${result.skippedExistingCount} ya existian y se omitieron.`);
+      return;
+    }
+
+    showSuccessToast(`Se crearon ${result.createdCount} columnas.`);
+  };
+
   const reorderColumns = (items: OutputColumn[]) => {
     onChange(reorder(items));
   };
@@ -86,9 +112,16 @@ export function OutputColumnsManager({
     <div className="manager">
       <div className="sectionHeader">
         <p>Define las columnas finales del archivo y como se llena cada una.</p>
-        <div className="inlineForm">
-          <input value={newColumnName} onChange={(event) => setNewColumnName(event.target.value)} placeholder="Nueva columna" />
-          <button type="button" onClick={addColumn}>Agregar</button>
+        <div className="outputColumnsHeaderActions">
+          <div className="inlineForm">
+            <input value={newColumnName} onChange={(event) => setNewColumnName(event.target.value)} placeholder="Nueva columna" />
+            <ActionButton type="button" action="add" onClick={addColumn}>Agregar</ActionButton>
+          </div>
+          <ButtonGroup>
+            <ActionButton action="duplicate" variant="secondary" onClick={createFromActiveColumns}>
+              Crear columnas activas
+            </ActionButton>
+          </ButtonGroup>
         </div>
       </div>
 

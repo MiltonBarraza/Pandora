@@ -83,9 +83,21 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
               <input
                 type="checkbox"
                 checked={settings.includeDate}
-                onChange={(event) => update({ includeDate: event.target.checked })}
+                onChange={(event) => update({
+                  includeDate: event.target.checked,
+                  ...(!event.target.checked ? { includeTime: false } : {}),
+                })}
               />
               Incluir fecha actual
+            </label>
+            <label className="checkboxField">
+              <input
+                type="checkbox"
+                checked={settings.includeDate && Boolean(settings.includeTime)}
+                disabled={!settings.includeDate}
+                onChange={(event) => update({ includeTime: event.target.checked })}
+              />
+              Incluir hora actual
             </label>
           </div>
         </>
@@ -93,9 +105,9 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
 
       <div className="filenamePreview">
         <strong>Nombre final</strong>
-        <span>{outputName}.xlsx</span>
-        <span>{outputName}.csv</span>
-        <span>{auditName}.xlsx</span>
+        <span>{outputName}</span>
+        <small>Formatos disponibles: .xlsx y .csv</small>
+        <small>Auditoria: {auditName}.xlsx</small>
       </div>
     </div>
   );

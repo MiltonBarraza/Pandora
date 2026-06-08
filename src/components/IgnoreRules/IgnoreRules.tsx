@@ -1,4 +1,5 @@
 import type { IgnoreRule, InputColumn, OutputColumn } from '../../types/import';
+import { ignoreRuleNeedsValue, isIgnoreRuleComplete } from '../../domain/import/applyIgnoreRules';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
@@ -12,7 +13,9 @@ type IgnoreRulesProps = {
   onChange: (rules: IgnoreRule[]) => void;
 };
 
-const operators: Array<{ value: IgnoreRule['operator']; label: string; needsValue: boolean }> = [
+type CompletedIgnoreRuleOperator = Exclude<IgnoreRule['operator'], ''>;
+
+const operators: Array<{ value: CompletedIgnoreRuleOperator; label: string; needsValue: boolean }> = [
   { value: 'isEmpty', label: 'esta vacia', needsValue: false },
   { value: 'isNotEmpty', label: 'no esta vacia', needsValue: false },
   { value: 'contains', label: 'contiene', needsValue: true },
@@ -37,9 +40,9 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
       {
         id: crypto.randomUUID(),
         target: mode,
-        columnId: activeColumns[0]?.id ?? '',
-        operator: 'contains',
-        value: 'PROXIMAMENTE',
+        columnId: '',
+        operator: '',
+        value: '',
       },
     ]);
   };
@@ -58,7 +61,8 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
       {rules.length === 0 ? <p className="muted">No hay reglas de ignorado configuradas.</p> : null}
 
       {rules.map((rule) => {
-        const selectedOperator = operators.find((operator) => operator.value === rule.operator);
+        const needsValue = ignoreRuleNeedsValue(rule.operator);
+        const isComplete = isIgnoreRuleComplete(rule);
         const target = mode;
         const columns = activeColumns;
 
@@ -69,9 +73,8 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
                 className="compact"
                 label="Columna"
                 value={rule.columnId}
-                options={columns.length === 0
-                  ? [{ value: '', label: 'Sin columnas disponibles' }]
-                  : columns.map((column) => ({
+                placeholder="Seleccionar columna"
+                options={columns.map((column) => ({
                     value: column.id,
                     label: target === 'input' && 'columnLetter' in column ? getInputColumnLabel(column) : column.label,
                   }))}
@@ -79,19 +82,25 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
                 onChange={(columnId) => updateRule(rule.id, { columnId })}
               />
 
-              <Dropdown<IgnoreRule['operator']>
+              <Dropdown<CompletedIgnoreRuleOperator>
                 className="compact"
                 label="Condicion"
                 value={rule.operator}
+                placeholder="Seleccionar condicion"
                 options={operators}
                 scrollStrategy="close"
                 onChange={(operator) => updateRule(rule.id, { operator, value: '' })}
               />
 
-              {selectedOperator?.needsValue ? (
+              {needsValue || !rule.operator ? (
                 <label className="field compact">
                   <span>Valor</span>
-                  <input value={rule.value ?? ''} onChange={(event) => updateRule(rule.id, { value: event.target.value })} />
+                  <input
+                    value={rule.value ?? ''}
+                    disabled={!rule.operator}
+                    placeholder="Ingresar valor"
+                    onChange={(event) => updateRule(rule.id, { value: event.target.value })}
+                  />
                 </label>
               ) : (
                 <div className="ruleHint">No requiere valor</div>
@@ -99,6 +108,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
             </div>
             <DeleteButton onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
+            {!isComplete ? <p className="muted ruleIncompleteHint">Completa la regla para aplicarla.</p> : null}
           </div>
         );
       })}

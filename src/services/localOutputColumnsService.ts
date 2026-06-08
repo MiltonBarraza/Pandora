@@ -14,12 +14,8 @@ import type {
 
 const outputColumnsKey = 'excel-sanitizer:v2-output-columns';
 
-const defaultOutputColumns: OutputColumn[] = [
-  { id: 'output-code', label: 'Codigo', order: 0, enabled: true, recipe: { type: 'empty' } },
-  { id: 'output-name', label: 'Nombre', order: 1, enabled: true, recipe: { type: 'empty' } },
-  { id: 'output-price', label: 'Precio', order: 2, enabled: true, recipe: { type: 'empty' } },
-  { id: 'output-comments', label: 'Comentarios', order: 3, enabled: true, recipe: { type: 'empty' } },
-];
+const defaultOutputColumns: OutputColumn[] = [];
+const legacyDefaultOutputColumnIds = ['output-code', 'output-name', 'output-price', 'output-comments'];
 
 export function createDefaultOutputColumns(): OutputColumn[] {
   return defaultOutputColumns.map((column) => ({ ...column, recipe: { ...column.recipe } }));
@@ -33,7 +29,13 @@ export function loadOutputColumns(): OutputColumn[] {
     }
 
     const parsed = JSON.parse(raw) as Partial<OutputColumn>[];
-    return parsed.map(normalizeOutputColumn).filter((column): column is OutputColumn => Boolean(column));
+    const columns = parsed.map(normalizeOutputColumn).filter((column): column is OutputColumn => Boolean(column));
+
+    if (isLegacyDefaultOutputColumns(columns)) {
+      return createDefaultOutputColumns();
+    }
+
+    return columns;
   } catch {
     return createDefaultOutputColumns();
   }
@@ -55,6 +57,14 @@ function normalizeOutputColumn(column: Partial<OutputColumn>): OutputColumn | nu
     enabled: true,
     recipe: normalizeRecipe(column.recipe),
   };
+}
+
+function isLegacyDefaultOutputColumns(columns: OutputColumn[]) {
+  return columns.length === legacyDefaultOutputColumnIds.length
+    && columns.every((column, index) => (
+      column.id === legacyDefaultOutputColumnIds[index]
+      && column.recipe.type === 'empty'
+    ));
 }
 
 function normalizeRecipe(recipe?: Partial<OutputRecipe>): OutputRecipe {

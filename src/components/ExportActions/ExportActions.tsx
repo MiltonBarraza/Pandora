@@ -20,16 +20,33 @@ export function ExportActions({ rows, auditRows = rows, inputColumns, outputColu
   const auditFilename = buildAuditFileBaseName(filename);
 
   return (
-    <div className="actions">
-      <ActionButton action="download" disabled={includedRows.length === 0} onClick={() => exportXlsxFromProcessedRows(includedRows, outputColumns, filename)}>
-        Descargar Excel
-      </ActionButton>
-      <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
-        Descargar CSV
-      </ActionButton>
-      <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
-        Descargar auditoria
-      </ActionButton>
+    <div className="exportSections">
+      <div className="exportBlock">
+        <div>
+          <strong>Archivo final</strong>
+          <p className="muted">Descarga el resultado procesado con el mismo nombre base.</p>
+        </div>
+        <div className="actions">
+          <ActionButton action="download" disabled={includedRows.length === 0} onClick={() => exportXlsxFromProcessedRows(includedRows, outputColumns, filename)}>
+            Descargar Excel .xlsx
+          </ActionButton>
+          <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
+            Descargar CSV .csv
+          </ActionButton>
+        </div>
+      </div>
+      <div className="exportBlock secondaryExportBlock">
+        <div>
+          <strong>Control y revision</strong>
+          <p className="muted">Descarga un archivo de auditoria con filas procesadas, excluidas, advertencias y errores.</p>
+          <p className="muted exportFileName">Archivo: {auditFilename}.xlsx</p>
+        </div>
+        <div className="actions">
+          <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
+            Descargar auditoria
+          </ActionButton>
+        </div>
+      </div>
     </div>
   );
 }
