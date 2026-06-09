@@ -107,7 +107,7 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
         <strong>Nombre final</strong>
         <span>{outputName}</span>
         <small>Formatos disponibles: .xlsx y .csv</small>
-        <small>Auditoria: {auditName}.xlsx</small>
+        <small>Auditoría: {auditName}.xlsx</small>
       </div>
     </div>
   );

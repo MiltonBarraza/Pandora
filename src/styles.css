@@ -57,6 +57,18 @@ button.ghost:hover:not(:disabled) {
   background: #d9e2e9;
 }
 
+.appToastInfoIconWrap {
+  align-items: center;
+  color: #a66a00;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.appToastInfoIcon {
+  font-size: 1rem;
+  stroke-width: 2.2;
+}
+
 button.danger {
   color: #aa1e2c;
 }
@@ -1427,14 +1439,19 @@ th {
 
 .checkboxField {
   align-items: center;
-  display: flex;
+  cursor: pointer;
+  display: inline-flex;
   gap: 8px;
+  justify-self: start;
   min-height: 40px;
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
   white-space: normal;
 }
 
 .checkboxField input {
+  cursor: pointer;
   min-height: auto;
   width: auto;
 }
@@ -1522,9 +1539,29 @@ th {
 }
 
 .settingsActions {
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 10px;
   display: grid;
   gap: 12px;
+  margin-top: 18px;
   min-width: 0;
+  padding: 14px;
+}
+
+.settingsActionsIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.settingsActionsIntro h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.settingsActionsIntro p {
+  color: #5f6f7b;
+  margin: 0;
 }
 
 .hiddenFileInput {
@@ -1663,6 +1700,7 @@ th {
 }
 
 .tableWrap input[type='checkbox'] {
+  cursor: pointer;
   min-height: auto;
   width: auto;
 }

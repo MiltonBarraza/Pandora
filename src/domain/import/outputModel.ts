@@ -336,7 +336,7 @@ function resolveStepOperand(operand: StepOperand | undefined, context: StepValue
 
   return {
     value: null,
-    warnings: ['No se pudo aplicar operacion numerica: operando invalido'],
+    warnings: ['No se pudo aplicar operación numérica: operando inválido'],
   };
 }
 
@@ -373,7 +373,7 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
   if (parsedValue === null || !Number.isFinite(amount)) {
     return {
       value,
-      warnings: ['No se pudo aplicar operacion numerica: valor invalido'],
+      warnings: ['No se pudo aplicar operación numérica: valor inválido'],
     };
   }
 
@@ -422,7 +422,7 @@ function applyExtractNumberStep(value: string) {
   if (parsedValue === null) {
     return {
       value,
-      warnings: ['No se pudo extraer numero del texto'],
+      warnings: ['No se pudo extraer número del texto'],
     };
   }
 
@@ -434,7 +434,7 @@ function applyToNumberStep(value: string) {
   if (parsedValue === null) {
     return {
       value,
-      warnings: ['No se pudo convertir a numero: valor invalido'],
+      warnings: ['No se pudo convertir a número: valor inválido'],
     };
   }
 

@@ -258,7 +258,7 @@ describe('constructor helpers', () => {
       'Restar %',
       'Quitar % incluido',
     ]);
-    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operacion numerica');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operación numérica');
   });
 
   it('infers step mode from existing step type', () => {
@@ -448,7 +448,7 @@ describe('constructor helpers', () => {
       rounding: 2,
     });
 
-    expect(buildCustomValuePreview(recipe, { 'input-code': 'ABC123' })).toBe('No se pudo calcular: valor no numerico.');
+    expect(buildCustomValuePreview(recipe, { 'input-code': 'ABC123' })).toBe('No se pudo calcular: valor no numérico.');
   });
 
   it('calculates numeric preview when sample value is currency', () => {
@@ -1183,7 +1183,7 @@ describe('constructor helpers', () => {
   });
 
   it('shows specific empty states for simple number and text modes', () => {
-    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'numeric', type: 'numericOperation' }] }, {}, true, 'number')).toBe('Selecciona una columna numerica.');
+    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'numeric', type: 'numericOperation' }] }, {}, true, 'number')).toBe('Selecciona una columna numérica.');
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'suffix', type: 'addSuffix', value: 'lts' }] }, {}, true, 'text')).toBe('Selecciona una columna de texto.');
   });
 
@@ -1278,7 +1278,7 @@ describe('constructor helpers', () => {
         },
         inputColumns,
       ),
-    ).toEqual(['Mayusculas en Columna D (Nombre)', 'Limpiar espacios']);
+    ).toEqual(['Mayúsculas en Columna D (Nombre)', 'Limpiar espacios']);
   });
 
   it('builds a preview using sample input values and part steps', () => {

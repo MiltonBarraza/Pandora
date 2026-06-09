@@ -3,7 +3,7 @@ import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
 import { getSheetRows } from '../../domain/import/getSheetRows';
-import { normalizeNumberInputOnBlur } from '../../domain/import/numberInput';
+import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
@@ -24,8 +24,8 @@ import { IgnoreRules } from '../IgnoreRules/IgnoreRules';
 import { OutputColumnsManager } from '../OutputColumnsManager/OutputColumnsManager';
 import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRowsDebugPreview';
 import { RawPreview } from '../RawPreview/RawPreview';
-import { SheetSelector } from '../SheetSelector/SheetSelector';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
+import { SheetSelector } from '../SheetSelector/SheetSelector';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 const persisted = loadPersistedSettings();
@@ -61,6 +61,7 @@ export function ImportWizard() {
   const [showOutputModelDebug] = useState(() => localStorage.getItem('excel-sanitizer:debug-output-model') === '1');
   const importedColumnVisibilityRef = useRef<ImportedSettingsApplyPayload | null>(null);
   const importedPreviewSettingsRef = useRef<PreviewSettingsState | null>(null);
+  const skipStartRowInputSyncRef = useRef(false);
 
   useBeforeUnloadWarning(isConfigurationDirty);
 
@@ -141,6 +142,11 @@ export function ImportWizard() {
   }, [inputIgnoreRules, outputIgnoreRules, inputColumnAliases]);
 
   useEffect(() => {
+    if (skipStartRowInputSyncRef.current) {
+      skipStartRowInputSyncRef.current = false;
+      return;
+    }
+
     setStartRowInputValue(String(startRowIndex + 1));
   }, [startRowIndex]);
 
@@ -204,7 +210,7 @@ export function ImportWizard() {
 
   const notifyConfigurationDiscarded = () => {
     if (isConfigurationDirty) {
-      showInfoToast('Configuracion descartada.');
+      showInfoToast('Configuración descartada.');
     }
   };
 
@@ -222,14 +228,14 @@ export function ImportWizard() {
       return;
     }
 
-    if (!confirmConfigurationDiscard('Quitar el archivo descartara la configuracion actual. Queres continuar?')) {
+    if (!confirmConfigurationDiscard('Quitar el archivo descartará la configuración actual. ¿Querés continuar?')) {
       return;
     }
 
     const wasDirty = isConfigurationDirty;
     resetWizardConfiguration();
     resetSourceFile();
-    showInfoToast(wasDirty ? 'Configuracion descartada.' : 'Archivo quitado.');
+    showInfoToast(wasDirty ? 'Configuración descartada.' : 'Se quitó el archivo seleccionado.');
   };
 
   const loadFile = async (file: File | undefined) => {
@@ -237,7 +243,7 @@ export function ImportWizard() {
       return;
     }
 
-    if (!confirmConfigurationDiscard('Cambiar de archivo descartara la configuracion actual. Queres continuar?')) {
+    if (!confirmConfigurationDiscard('Cambiar de archivo descartará la configuración actual. ¿Querés continuar?')) {
       return;
     }
 
@@ -343,7 +349,7 @@ export function ImportWizard() {
       return;
     }
 
-    if (!confirmConfigurationDiscard('Cambiar de hoja descartara la configuracion actual. Queres continuar?')) {
+    if (!confirmConfigurationDiscard('Cambiar de hoja descartará la configuración actual. ¿Querés continuar?')) {
       return;
     }
 
@@ -353,14 +359,44 @@ export function ImportWizard() {
     setRows(workbook ? getSheetRows(workbook, sheetName) : []);
   };
 
+  const applyStartRowIndex = (nextRowNumber: number) => {
+    if (nextRowNumber - 1 !== startRowIndex) {
+      setIsConfigurationDirty(true);
+      skipStartRowInputSyncRef.current = true;
+      setStartRowIndex(nextRowNumber - 1);
+    }
+  };
+
+  const applyStartRowInputIfValid = (value: string) => {
+    const nextRowNumber = parseStartRowInputWhileEditing(value);
+    if (nextRowNumber === undefined) {
+      return false;
+    }
+
+    applyStartRowIndex(nextRowNumber);
+    return true;
+  };
+
+  const commitStartRowInput = (value: string) => {
+    const rowNumber = normalizeNumberInputOnBlur(value, {
+      fallback: startRowIndex + 1,
+      min: 1,
+      integer: true,
+    });
+
+    skipStartRowInputSyncRef.current = false;
+    setStartRowInputValue(String(rowNumber));
+    applyStartRowIndex(rowNumber);
+  };
+
   return (
     <main className="appShell">
       <header className="hero">
         <div>
-          <p className="eyebrow">excel-sanitizer</p>
-          <h1>Sanitizador de archivos tabulares</h1>
+          <p className="eyebrow">PANDORA</p>
+          <h1>Limpia, transforma y guarda tus planillas </h1>
           <p>
-            Importa un Excel o CSV, mapea columnas, aplica transformaciones y descarga un archivo de salida limpio.
+            Carga un Excel o CSV, configura columnas, aplica transformaciones y descarga un archivo limpio sin tocar fórmulas ni código.
           </p>
         </div>
       </header>
@@ -373,7 +409,7 @@ export function ImportWizard() {
 
         <Step title="2. Seleccionar hoja">
           {fileType === 'csv' ? (
-            <p className="muted">El archivo CSV se procesa como una unica hoja.</p>
+            <p className="muted">El archivo CSV se procesa como una única hoja.</p>
           ) : (
             <SheetSelector
               sheetNames={sheetNames}
@@ -381,9 +417,6 @@ export function ImportWizard() {
               onSelectSheet={changeSelectedSheet}
             />
           )}
-        </Step>
-
-        <Step title="Settings reutilizables">
           <SettingsActions
             key={configurationRevision}
             fileType={fileType}
@@ -430,18 +463,19 @@ export function ImportWizard() {
                   type="number"
                   min="1"
                   value={startRowInputValue}
-                  onChange={(event) => setStartRowInputValue(event.target.value)}
-                  onBlur={(event) => {
-                    const rowNumber = normalizeNumberInputOnBlur(event.target.value, {
-                      fallback: startRowIndex + 1,
-                      min: 1,
-                      integer: true,
-                    });
-                    setStartRowInputValue(String(rowNumber));
-                    if (rowNumber - 1 !== startRowIndex) {
-                      setIsConfigurationDirty(true);
-                      setStartRowIndex(rowNumber - 1);
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setStartRowInputValue(nextValue);
+                    applyStartRowInputIfValid(nextValue);
+                  }}
+                  onBlur={(event) => commitStartRowInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') {
+                      return;
                     }
+
+                    event.preventDefault();
+                    commitStartRowInput(event.currentTarget.value);
                   }}
                 />
                 <label className="checkboxField startRowPreviewToggle">
@@ -564,7 +598,6 @@ export function ImportWizard() {
     </main>
   );
 }
-
 function getApplicableSheet(
   payload: ImportedSettingsApplyPayload,
   compatibility: SettingsCompatibilityResult,

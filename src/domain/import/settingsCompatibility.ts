@@ -42,7 +42,7 @@ export function compareSettingsToCurrentSnapshot(
       expectedSheet,
       currentSnapshot,
       message: sheet.suggestedSheet
-        ? `La hoja "${expectedSheet}" no existe. Se encontro una hoja parecida: "${sheet.suggestedSheet}".`
+        ? `La hoja "${expectedSheet}" no existe. Se encontró una hoja parecida: "${sheet.suggestedSheet}".`
         : `La hoja "${expectedSheet}" no existe en el archivo actual.`,
       sheetExists: false,
       suggestedSheet: sheet.suggestedSheet,
@@ -92,7 +92,7 @@ export function findColumnMatches(savedColumns: SourceColumnSnapshot[], currentC
       matches.push({
         savedColumn,
         confidence: 'none',
-        reason: 'No se encontro una columna compatible.',
+        reason: 'No se encontró una columna compatible.',
       });
       return;
     }
@@ -109,7 +109,7 @@ export function findColumnMatches(savedColumns: SourceColumnSnapshot[], currentC
     if (isAmbiguous) {
       ambiguous.push({
         ...match,
-        reason: `Hay mas de una columna actual que podria coincidir con "${getColumnDisplayName(savedColumn)}".`,
+        reason: `Hay más de una columna actual que podría coincidir con "${getColumnDisplayName(savedColumn)}".`,
       });
     }
 
@@ -208,7 +208,7 @@ function validateSettings(settings: Partial<ExportedImportSettings>) {
   }
 
   if (settings.schemaVersion !== 1) {
-    return 'La version del archivo de settings no es compatible.';
+    return 'La versión del archivo de settings no es compatible.';
   }
 
   if (!settings.sourceSnapshot) {
@@ -216,7 +216,7 @@ function validateSettings(settings: Partial<ExportedImportSettings>) {
   }
 
   if (!settings.config) {
-    return 'El archivo de settings no contiene configuracion.';
+    return 'El archivo de settings no contiene configuración.';
   }
 
   return '';
@@ -267,7 +267,7 @@ function getColumnCandidate(savedColumn: SourceColumnSnapshot, currentColumn: So
     return {
       currentColumn,
       confidence: 'exact',
-      reason: 'Mismo indice y mismo encabezado normalizado.',
+      reason: 'Mismo índice y mismo encabezado normalizado.',
       score: 500,
     };
   }
@@ -276,7 +276,7 @@ function getColumnCandidate(savedColumn: SourceColumnSnapshot, currentColumn: So
     return {
       currentColumn,
       confidence: 'strong',
-      reason: sameIndex ? 'Mismo encabezado normalizado.' : 'Mismo encabezado normalizado en otra posicion.',
+      reason: sameIndex ? 'Mismo encabezado normalizado.' : 'Mismo encabezado normalizado en otra posición.',
       score: 420 - Math.abs(savedColumn.columnIndex - currentColumn.columnIndex),
     };
   }
@@ -321,7 +321,7 @@ function getColumnCandidate(savedColumn: SourceColumnSnapshot, currentColumn: So
     return {
       currentColumn,
       confidence: 'weak',
-      reason: sameIndex ? 'Mismo indice con encabezado diferente.' : 'Misma letra con encabezado diferente.',
+      reason: sameIndex ? 'Mismo índice con encabezado diferente.' : 'Misma letra con encabezado diferente.',
       score: 120,
     };
   }
@@ -411,11 +411,11 @@ function buildMessages({
 
   usedMissing.forEach((column) => {
     const references = matches.find((match) => match.savedColumn.inputColumnId === column.inputColumnId)?.references ?? [];
-    messages.push(`La columna "${getColumnDisplayName(column)}" falta y esta usada por ${references.length} configuracion(es).`);
+    messages.push(`La columna "${getColumnDisplayName(column)}" falta y está usada por ${references.length} configuración(es).`);
   });
 
   unusedMissing.forEach((column) => {
-    messages.push(`La columna "${getColumnDisplayName(column)}" falta, pero no esta usada por ninguna regla o receta.`);
+    messages.push(`La columna "${getColumnDisplayName(column)}" falta, pero no está usada por ninguna regla o receta.`);
   });
 
   if (missing.length > 0 && usedMissing.length === 0 && unusedMissing.length === 0) {
@@ -431,12 +431,12 @@ function buildMessages({
   }
 
   weakUsedMatches.forEach((match) => {
-    messages.push(`La columna "${getColumnDisplayName(match.savedColumn)}" tiene un match debil y esta usada; requiere revision.`);
+    messages.push(`La columna "${getColumnDisplayName(match.savedColumn)}" tiene un match débil y está usada; requiere revisión.`);
   });
 
   const weakMatches = matches.filter((match) => match.confidence === 'weak' && !match.isUsed);
   if (weakMatches.length > 0) {
-    messages.push(`${weakMatches.length} columna(s) solo coinciden por posicion.`);
+    messages.push(`${weakMatches.length} columna(s) solo coinciden por posición.`);
   }
 
   return messages;

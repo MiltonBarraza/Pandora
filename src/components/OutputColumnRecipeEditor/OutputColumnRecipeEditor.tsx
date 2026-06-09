@@ -192,7 +192,7 @@ export function getConstructorPartsSummary(recipe: Extract<OutputRecipe, { type:
 
 export function getCustomValueSummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
   if (!isCustomValueConfigured(recipe)) {
-    return 'Todavia no se eligio como crear este valor.';
+    return 'Todavía no se eligió cómo crear este valor.';
   }
 
   return getConstructorPartsSummary(recipe, inputColumns);
@@ -237,7 +237,7 @@ export function getConstructorAdjustmentsSummary(
     return adjustments.join(' · ');
   }
 
-  return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} ajustes mas`;
+  return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} ajustes más`;
 }
 
 export function getConstructorAdjustmentLabels(
@@ -253,7 +253,7 @@ export function getConstructorAdjustmentLabels(
 
   return [
     ...adjustments.slice(0, limit).map(formatAdjustmentForDisplay),
-    `${adjustments.length - limit} ajustes mas`,
+    `${adjustments.length - limit} ajustes más`,
   ];
 }
 
@@ -271,12 +271,12 @@ function getConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine'
 function formatAdjustmentForDisplay(adjustment: string) {
   const labels: Record<string, string> = {
     'limpiar espacios': 'Limpiar espacios',
-    'sin operacion seleccionada': 'Sin operacion seleccionada',
-    mayusculas: 'Mayusculas',
-    minusculas: 'Minusculas',
+    'sin operación seleccionada': 'Sin operación seleccionada',
+    mayúsculas: 'Mayúsculas',
+    minúsculas: 'Minúsculas',
     concatenar: 'Concatenar',
-    'extraer numero': 'Extraer numero',
-    'convertir a numero': 'Convertir a numero',
+    'extraer número': 'Extraer número',
+    'convertir a número': 'Convertir a número',
     'convertir a texto': 'Convertir a texto',
     'sin redondeo': 'Sin redondeo',
   };
@@ -342,15 +342,15 @@ function describeSimpleStep(step: TransformStep) {
   }
 
   if (step.type === 'noop') {
-    return ['sin operacion seleccionada'];
+    return ['sin operación seleccionada'];
   }
 
   if (step.type === 'uppercase') {
-    return ['mayusculas'];
+    return ['mayúsculas'];
   }
 
   if (step.type === 'lowercase') {
-    return ['minusculas'];
+    return ['minúsculas'];
   }
 
   if (step.type === 'addPrefix') {
@@ -366,11 +366,11 @@ function describeSimpleStep(step: TransformStep) {
   }
 
   if (step.type === 'extractNumber') {
-    return ['extraer numero'];
+    return ['extraer número'];
   }
 
   if (step.type === 'toNumber') {
-    return ['convertir a numero'];
+    return ['convertir a número'];
   }
 
   if (step.type === 'toText') {
@@ -447,7 +447,7 @@ export function buildCustomValuePreview(
   const effectiveMode = hasNumericOperands ? 'number' : mode;
 
   if (effectiveMode === 'number' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasNumericOperands) {
-    return 'Selecciona una columna numerica.';
+    return 'Selecciona una columna numérica.';
   }
 
   if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe)) {
@@ -463,7 +463,7 @@ export function buildCustomValuePreview(
   }
 
   if (effectiveMode === 'number' && !canPreviewNumericValue(recipe, sampleInputValues)) {
-    return 'No se pudo calcular: valor no numerico.';
+    return 'No se pudo calcular: valor no numérico.';
   }
 
   return buildCombinePreview(recipe, sampleInputValues) ?? 'Sin datos de ejemplo disponibles';
@@ -496,8 +496,8 @@ export const valueConstructionOptions: Array<{ value: Exclude<ValueConstructionM
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
   { value: 'text', label: 'Trabajar con texto' },
-  { value: 'number', label: 'Trabajar con numero' },
-  { value: 'conversion', label: 'Conversion' },
+  { value: 'number', label: 'Trabajar con número' },
+  { value: 'conversion', label: 'Conversión' },
 ];
 
 function CustomValueEditor({
@@ -935,7 +935,7 @@ function StepTypeSelect({
         label="Que quiero hacer"
         value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
         options={[
-          { value: '', label: 'Seleccionar operacion' },
+          { value: '', label: 'Seleccionar operación' },
           ...numericOperationOptions,
         ]}
         scrollStrategy="close"
@@ -971,7 +971,7 @@ function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange:
   return (
     <Dropdown<TransformStepMode>
       className="compact"
-      label="Tipo de operacion"
+      label="Tipo de operación"
       value={mode}
       options={stepModeOptions}
       scrollStrategy="close"
@@ -1495,7 +1495,7 @@ function ConcatPartStepsEditor({
       <div className="concatPartAdditionalTransforms">
         <div className="concatPartAdditionalHeader">
           <strong>Transformaciones adicionales</strong>
-          <button type="button" className="secondary" onClick={addAdditionalStep}>Agregar otra transformacion</button>
+          <button type="button" className="secondary" onClick={addAdditionalStep}>Agregar otra transformación</button>
         </div>
       {additionalSteps.length > 0 ? (
         <div className="concatPartTransformList">
@@ -1506,8 +1506,8 @@ function ConcatPartStepsEditor({
             return (
               <div key={step.id} className="concatPartTransformCard">
                 <div className="stepCardHeader">
-                  <strong>Transformacion adicional {index + 1}</strong>
-                  <DeleteButton title="Eliminar transformacion" onClick={() => deleteAdditionalStep(step.id)} />
+                  <strong>Transformación adicional {index + 1}</strong>
+                  <DeleteButton title="Eliminar transformación" onClick={() => deleteAdditionalStep(step.id)} />
                 </div>
                 <div className="simpleCustomValueGrid">
                   <StepModeSelect mode={stepMode} onChange={(mode) => updateAdditionalStep(step.id, changeStepMode(step, mode))} />
@@ -1540,19 +1540,19 @@ function ConcatPartStepsEditor({
 }
 
 const stepTypes: Array<{ value: TransformStepType; label: string }> = [
-  { value: 'noop', label: 'Seleccionar operacion' },
+  { value: 'noop', label: 'Seleccionar operación' },
   { value: 'trim', label: 'Limpiar espacios' },
-  { value: 'uppercase', label: 'Convertir a mayusculas' },
-  { value: 'lowercase', label: 'Convertir a minusculas' },
+  { value: 'uppercase', label: 'Convertir a mayúsculas' },
+  { value: 'lowercase', label: 'Convertir a minúsculas' },
   { value: 'addPrefix', label: 'Agregar prefijo' },
   { value: 'addSuffix', label: 'Agregar sufijo' },
   { value: 'removeText', label: 'Quitar texto' },
   { value: 'replaceText', label: 'Reemplazar texto' },
   { value: 'concat', label: 'Concatenar' },
-  { value: 'extractNumber', label: 'Extraer numero del texto' },
-  { value: 'toNumber', label: 'Convertir a numero' },
+  { value: 'extractNumber', label: 'Extraer número del texto' },
+  { value: 'toNumber', label: 'Convertir a número' },
   { value: 'toText', label: 'Convertir a texto' },
-  { value: 'numericOperation', label: 'Operacion numerica' },
+  { value: 'numericOperation', label: 'Operación numérica' },
 ];
 
 const textStepTypes = stepTypes.filter((stepType) => [
@@ -1765,7 +1765,7 @@ function StepConditionFields({
     <div className="transformConditionBlock conditionFieldsRow">
       <Dropdown<'always' | 'conditional'>
         className="compact"
-        label="Condicion"
+        label="Condición"
         value={condition ? 'conditional' : 'always'}
         options={[
           { value: 'always', label: 'Aplicar siempre' },
@@ -1814,7 +1814,7 @@ function StepConditionFields({
       ) : null}
       {inputCondition && conditionNeedsValue(inputCondition.operator) ? (
         <label className="field compact">
-          <span>Valor condicion</span>
+          <span>Valor condición</span>
           <input value={inputCondition.value ?? ''} onChange={(event) => onChange({ condition: { ...inputCondition, value: event.target.value } })} />
         </label>
       ) : null}
@@ -1835,8 +1835,8 @@ const conditionOperators: Array<{ value: ConditionOperator; label: string }> = [
   { value: 'greaterThanOrEqual', label: 'mayor o igual que' },
   { value: 'lessThan', label: 'menor que' },
   { value: 'lessThanOrEqual', label: 'menor o igual que' },
-  { value: 'numericEquals', label: 'igual numerico' },
-  { value: 'numericNotEquals', label: 'distinto numerico' },
+  { value: 'numericEquals', label: 'igual numérico' },
+  { value: 'numericNotEquals', label: 'distinto numérico' },
 ];
 
 const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
@@ -2444,7 +2444,7 @@ export function getTextStepSourceLabel(type: TransformStepType) {
   }
 
   if (type === 'extractNumber') {
-    return 'Valor del que extraer numero';
+    return 'Valor del que extraer número';
   }
 
   if (type === 'toNumber' || type === 'toText') {

@@ -1,6 +1,6 @@
+import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import { exportCsvFromProcessedRows } from '../../domain/import/exportCsv';
 import { exportAuditXlsxFromProcessedRows, exportXlsxFromProcessedRows } from '../../domain/import/exportXlsx';
-import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import type { FileNameSettings, InputColumn, OutputColumn, ProcessedRow } from '../../types/import';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 
@@ -28,22 +28,22 @@ export function ExportActions({ rows, auditRows = rows, inputColumns, outputColu
         </div>
         <div className="actions">
           <ActionButton action="download" disabled={includedRows.length === 0} onClick={() => exportXlsxFromProcessedRows(includedRows, outputColumns, filename)}>
-            Descargar Excel .xlsx
+            Descargar Excel
           </ActionButton>
           <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
-            Descargar CSV .csv
+            Descargar CSV
           </ActionButton>
         </div>
       </div>
       <div className="exportBlock secondaryExportBlock">
         <div>
-          <strong>Control y revision</strong>
-          <p className="muted">Descarga un archivo de auditoria con filas procesadas, excluidas, advertencias y errores.</p>
+          <strong>Control y revisión</strong>
+          <p className="muted">Descarga un archivo de auditoría con filas procesadas, excluidas, advertencias y errores.</p>
           <p className="muted exportFileName">Archivo: {auditFilename}.xlsx</p>
         </div>
         <div className="actions">
           <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
-            Descargar auditoria
+            Descargar auditoría
           </ActionButton>
         </div>
       </div>

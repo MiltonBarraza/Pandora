@@ -204,11 +204,11 @@ export function describeProcessedIgnoreRule(rule: IgnoreRule, inputColumns: Inpu
     : outputColumns.find((column) => column.id === rule.columnId)?.label ?? 'Columna de salida';
 
   if (rule.operator === 'isEmpty') {
-    return `Ignorada por regla: ${columnName} esta vacia`;
+    return `Ignorada por regla: ${columnName} está vacía`;
   }
 
   if (rule.operator === 'isNotEmpty') {
-    return `Ignorada por regla: ${columnName} no esta vacia`;
+    return `Ignorada por regla: ${columnName} no está vacía`;
   }
 
   if (rule.operator === 'contains') {

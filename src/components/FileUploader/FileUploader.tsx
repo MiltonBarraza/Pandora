@@ -27,7 +27,7 @@ export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUp
     }
 
     if (files && files.length > 1) {
-      setDropError('Solo se permite un archivo. Se usara el primero.');
+      setDropError('Solo se permite un archivo. Se usará el primero.');
     } else {
       setDropError('');
     }
@@ -35,7 +35,7 @@ export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUp
     const lowerName = file.name.toLowerCase();
     const isAccepted = acceptedExtensions.some((extension) => lowerName.endsWith(extension));
     if (!isAccepted) {
-      setDropError('Archivo invalido. Subi un .xlsx, .xls, .xlsm o .csv.');
+      setDropError('Archivo inválido. Subí un .xlsx, .xls, .xlsm o .csv.');
       return;
     }
 
