@@ -755,12 +755,6 @@ th {
   min-width: 0;
 }
 
-.constructorModalContent > .filenamePreview {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
 .modalDialog {
   border: 1px solid #cbd7df;
   border-radius: 8px;
@@ -768,8 +762,18 @@ th {
   color: #18202a;
   max-height: min(86vh, 900px);
   max-width: min(980px, calc(100vw - 24px));
+  overflow: hidden;
   padding: 0;
   width: 100%;
+}
+
+.modalDialog:not([open]) {
+  display: none;
+}
+
+.modalDialog[open] {
+  display: flex;
+  flex-direction: column;
 }
 
 .modalDialogXl {
@@ -783,26 +787,141 @@ th {
 }
 
 .modalHeader {
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 1px solid #edf2f5;
   display: flex;
+  flex: 0 0 auto;
   gap: 12px;
   justify-content: space-between;
   padding: 12px 14px;
+}
+
+.modalTitleBlock {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .modalHeader h3 {
   margin: 0;
 }
 
+.modalHeaderDetails {
+  min-width: 0;
+}
+
+.constructorModalHeaderPreview {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.constructorModalHeaderPreview strong {
+  color: #657685;
+  flex: 0 0 auto;
+  font-size: 0.86rem;
+}
+
+.constructorModalHeaderPreview span {
+  color: #334852;
+  font-size: 0.86rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .modalBody {
-  max-height: calc(86vh - 64px);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 14px;
 }
 
 .modalDialogXl .modalBody {
-  max-height: calc(90vh - 64px);
+  min-height: 0;
+}
+
+.modalFooter {
+  background: #ffffff;
+  border-top: 1px solid #edf2f5;
+  flex: 0 0 auto;
+  padding: 10px 14px;
+}
+
+.constructorModalFooterContent {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.constructorModalFooterContent p {
+  color: #657685;
+  margin: 0;
+}
+
+.modalDialogXl .constructorModalContent {
+  font-size: 0.92rem;
+  gap: 10px;
+}
+
+.modalDialogXl .constructorModalContent .recipeSubBlock,
+.modalDialogXl .constructorModalContent .stepDetailPanel,
+.modalDialogXl .constructorModalContent .concatPartDetailPanel,
+.modalDialogXl .constructorModalContent .concatStepCondition,
+.modalDialogXl .constructorModalContent .concatPartTransformCard {
+  gap: 8px;
+  padding: 9px;
+}
+
+.modalDialogXl .constructorModalContent .simpleStepsEditor,
+.modalDialogXl .constructorModalContent .simpleCustomValueGrid,
+.modalDialogXl .constructorModalContent .concatPartsWorkspace,
+.modalDialogXl .constructorModalContent .concatPartFields,
+.modalDialogXl .constructorModalContent .concatPartPrimaryTransform,
+.modalDialogXl .constructorModalContent .concatPartAdditionalTransforms,
+.modalDialogXl .constructorModalContent .concatPartTransformList,
+.modalDialogXl .constructorModalContent .conditionFieldsRow,
+.modalDialogXl .constructorModalContent .numericOperationFields {
+  gap: 8px;
+}
+
+.modalDialogXl .constructorModalContent .dropdownField,
+.modalDialogXl .constructorModalContent .dropdownField.compact {
+  gap: 5px;
+}
+
+.modalDialogXl .constructorModalContent .dropdownLabel,
+.modalDialogXl .constructorModalContent .field span {
+  font-size: 0.88rem;
+}
+
+.modalDialogXl .constructorModalContent input,
+.modalDialogXl .constructorModalContent button.dropdownTrigger {
+  height: 36px;
+  min-height: 36px;
+}
+
+.modalDialogXl .constructorModalContent input {
+  padding-inline: 9px;
+}
+
+.modalDialogXl .constructorModalContent button:not(.iconButton):not(.dragHandle):not(.dropdownOption):not(.dropdownTrigger),
+.modalDialogXl .modalFooter button:not(.iconButton) {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.modalDialogXl .dropdownMenu {
+  font-size: 0.92rem;
+}
+
+.modalDialogXl button.dropdownOption {
+  min-height: 32px;
+  padding: 6px 8px;
 }
 
 .combinePartRow,
@@ -856,6 +975,17 @@ th {
   gap: 8px;
   min-width: 0;
   padding: 8px;
+}
+
+.concatPartsEmptyState {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.concatAddPartButton {
+  justify-self: stretch;
 }
 
 .concatPartListItem {
@@ -1109,7 +1239,7 @@ th {
   display: grid;
   gap: 10px;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   width: 100%;
 }
@@ -1128,6 +1258,23 @@ th {
   min-height: 36px;
   padding: 6px 10px;
   white-space: nowrap;
+}
+
+.sourceHelpText {
+  display: grid;
+  font-size: 0.86rem;
+  gap: 3px;
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+}
+
+.sourceHelpText p {
+  margin: 0;
+}
+
+.sourceHelpText strong {
+  color: #334852;
+  font-weight: 700;
 }
 
 .concatStepCondition {

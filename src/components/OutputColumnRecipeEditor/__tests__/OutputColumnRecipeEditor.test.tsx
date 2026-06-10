@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { InputColumn, OutputColumn } from '../../../types/import';
-import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, setSimpleStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
+import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorModalAutoApplyText, recipeEditorModalDoneLabel, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -88,6 +88,23 @@ describe('buildRecipeForSelectedType', () => {
 });
 
 describe('constructor helpers', () => {
+  it('uses auto-apply modal copy without save or cancel semantics', () => {
+    expect(recipeEditorModalAutoApplyText).toBe('Los cambios se aplican automáticamente.');
+    expect(recipeEditorModalDoneLabel).toBe('Listo');
+  });
+
+  it('uses clear presentation copy for additional steps and previous result help', () => {
+    expect(recipeEditorAdditionalStepLabel).toBe('Agregar ajuste');
+    expect(recipeEditorAdditionalStepLabel).not.toBe('Agregar otra transformación');
+    expect(recipeEditorPreviousResultHelpText).toBe('Toma el valor que salió del paso anterior, no de la parte anterior.');
+  });
+
+  it('shows previous result help only when previous result is selected', () => {
+    expect(shouldShowPreviousResultSourceHelp({ type: 'previousResult' })).toBe(true);
+    expect(shouldShowPreviousResultSourceHelp({ type: 'input', inputColumnId: 'input-code' })).toBe(false);
+    expect(shouldShowPreviousResultSourceHelp({ type: 'fixedText', value: 'AS4350' })).toBe(false);
+  });
+
   it('builds an empty custom value recipe when no operation mode is selected', () => {
     expect(createCustomValueRecipeForMode('', {
       type: 'combine',
@@ -129,6 +146,89 @@ describe('constructor helpers', () => {
   it('does not show invented preview before custom value is configured', () => {
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' })).toBe('Sin valores configurados');
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' }, true)).toBe('Configura el Paso 1 para ver la vista previa.');
+  });
+
+  it('does not preview previous result for the first step', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'upper', type: 'uppercase', source: { type: 'input', inputColumnId: 'input-code' } },
+      ],
+    };
+
+    expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'as4350' }, 0)).toBeNull();
+  });
+
+  it('previews the value generated before a later step', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'upper', type: 'uppercase', source: { type: 'input', inputColumnId: 'input-code' } },
+        {
+          id: 'concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [
+            { id: 'previous', source: { type: 'previousResult' } },
+            { id: 'suffix', source: { type: 'fixedText', value: '-' } },
+          ],
+        },
+      ],
+    };
+
+    expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'as4350' }, 1)).toBe('AS4350');
+  });
+
+  it('respects previous step conditions when previewing previous result', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        {
+          id: 'suffix',
+          type: 'addSuffix',
+          source: { type: 'input', inputColumnId: 'input-code' },
+          value: '-OK',
+          condition: {
+            target: 'input',
+            columnId: 'input-pack',
+            operator: 'equals',
+            value: 'aplicar',
+          },
+        },
+        { id: 'upper', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+
+    expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'AS4350', 'input-pack': 'omitir' }, 1)).toBe('AS4350');
+  });
+
+  it('does not mutate recipe when previewing previous result', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'suffix', type: 'addSuffix', source: { type: 'input', inputColumnId: 'input-code' }, value: '-' },
+        { id: 'upper', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+    const originalSteps = recipe.steps;
+    const before = JSON.stringify(recipe);
+
+    getPreviousStepPreviewValue(recipe, { 'input-code': 'AS4350' }, 1);
+
+    expect(JSON.stringify(recipe)).toBe(before);
+    expect(recipe.steps).toBe(originalSteps);
   });
 
   it('keeps concat mode selected with an empty combine recipe', () => {
@@ -212,6 +312,7 @@ describe('constructor helpers', () => {
   });
 
   it('filters step options by step mode', () => {
+    expect(getStepTypesForMode('text').find((stepType) => stepType.value === 'noop')?.label).toBe('Usar valor tal cual');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('addSuffix');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('concat');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).not.toContain('numericOperation');
@@ -390,7 +491,7 @@ describe('constructor helpers', () => {
   it('summarizes concat parts for the lateral list', () => {
     expect(describeConcatPartSource({ id: 'name', source: { type: 'input', inputColumnId: 'input-name' } }, inputColumns)).toBe('Columna D (Nombre)');
     expect(describeConcatPartSource({ id: 'fixed', source: { type: 'fixedText', value: ' - ' } }, inputColumns)).toBe('Texto fijo " - "');
-    expect(describeConcatPartSource({ id: 'previous', source: { type: 'previousResult' } }, inputColumns)).toBe('Resultado anterior');
+    expect(describeConcatPartSource({ id: 'previous', source: { type: 'previousResult' } }, inputColumns)).toBe('Resultado del paso anterior');
   });
 
   it('preserves concat part steps when editing source-like fields', () => {
