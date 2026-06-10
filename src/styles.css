@@ -872,7 +872,7 @@ th {
 .modalDialogXl .constructorModalContent .stepDetailPanel,
 .modalDialogXl .constructorModalContent .concatPartDetailPanel,
 .modalDialogXl .constructorModalContent .concatStepCondition,
-.modalDialogXl .constructorModalContent .concatPartTransformCard {
+.modalDialogXl .constructorModalContent .concatPartSeparatorBlock {
   gap: 8px;
   padding: 9px;
 }
@@ -881,8 +881,8 @@ th {
 .modalDialogXl .constructorModalContent .simpleCustomValueGrid,
 .modalDialogXl .constructorModalContent .concatPartsWorkspace,
 .modalDialogXl .constructorModalContent .concatPartFields,
-.modalDialogXl .constructorModalContent .concatPartPrimaryTransform,
-.modalDialogXl .constructorModalContent .concatPartAdditionalTransforms,
+.modalDialogXl .constructorModalContent .concatPartStepsEditor,
+.modalDialogXl .constructorModalContent .concatPartStepsBlock,
 .modalDialogXl .constructorModalContent .concatPartTransformList,
 .modalDialogXl .constructorModalContent .conditionFieldsRow,
 .modalDialogXl .constructorModalContent .numericOperationFields {
@@ -1062,7 +1062,7 @@ th {
   min-width: 180px;
 }
 
-.concatPartPrimaryTransform {
+.concatPartStepsEditor {
   border-top: 1px solid #edf2f5;
   display: grid;
   gap: 12px;
@@ -1070,28 +1070,30 @@ th {
   padding-top: 10px;
 }
 
-.concatPartPrimaryGrid {
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+.concatPartSeparatorBlock {
+  background: #ffffff;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
 }
 
-.concatPartPrimaryGrid .concatPartFields {
-  grid-column: 1 / -1;
-}
-
-.concatPartAdditionalTransforms {
+.concatPartStepsBlock {
   display: grid;
   gap: 8px;
   min-width: 0;
 }
 
-.concatPartAdditionalHeader {
+.concatPartStepsActions {
   align-items: center;
   display: flex;
   gap: 8px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
-.concatPartAdditionalHeader .secondary {
+.concatPartStepsActions .secondary {
   min-height: 32px;
   padding: 6px 10px;
 }
@@ -1100,16 +1102,6 @@ th {
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-.concatPartTransformCard {
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px;
 }
 
 .constructorWorkspace {
