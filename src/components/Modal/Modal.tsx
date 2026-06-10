@@ -8,9 +8,11 @@ type ModalProps = {
   size?: 'default' | 'xl';
   onClose: () => void;
   children: ReactNode;
+  headerDetails?: ReactNode;
+  footer?: ReactNode;
 };
 
-export function Modal({ open, title, size = 'default', onClose, children }: ModalProps) {
+export function Modal({ open, title, size = 'default', onClose, children, headerDetails, footer }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
 
@@ -31,6 +33,24 @@ export function Modal({ open, title, size = 'default', onClose, children }: Moda
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeyDown);
+    };
+  }, [onClose, open]);
+
   return (
     <dialog
       ref={dialogRef}
@@ -43,10 +63,14 @@ export function Modal({ open, title, size = 'default', onClose, children }: Moda
       onClose={onClose}
     >
       <div className="modalHeader">
-        <h3 id={titleId}>{title}</h3>
+        <div className="modalTitleBlock">
+          <h3 id={titleId}>{title}</h3>
+          {headerDetails ? <div className="modalHeaderDetails">{headerDetails}</div> : null}
+        </div>
         <ActionButton action="close" variant="icon" size="sm" title="Cerrar" aria-label="Cerrar" onClick={onClose} />
       </div>
       <div className="modalBody">{children}</div>
+      {footer ? <div className="modalFooter">{footer}</div> : null}
     </dialog>
   );
 }

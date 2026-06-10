@@ -34,7 +34,7 @@ export function evaluateTransformCondition({
   if (numericOperators.has(condition.operator) || condition.valueType === 'number') {
     const result = evaluateNumericCondition(value, condition.operator, condition.value);
     return result.warning
-      ? { matches: false, warning: 'No se pudo evaluar la condicion de transformacion' }
+      ? { matches: false, warning: 'No se pudo evaluar la condición de transformación' }
       : result;
   }
 
@@ -87,7 +87,7 @@ export function evaluateNumericCondition(value: string, operator: ConditionOpera
   if (current === null || expected === null) {
     return {
       matches: false,
-      warning: 'No se pudo evaluar condición numérica: valor inválido',
+      warning: 'No se pudo evaluar la condición numérica: valor inválido',
     };
   }
 

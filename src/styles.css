@@ -57,6 +57,18 @@ button.ghost:hover:not(:disabled) {
   background: #d9e2e9;
 }
 
+.appToastInfoIconWrap {
+  align-items: center;
+  color: #a66a00;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.appToastInfoIcon {
+  font-size: 1rem;
+  stroke-width: 2.2;
+}
+
 button.danger {
   color: #aa1e2c;
 }
@@ -288,6 +300,12 @@ h3 {
 
 .dropZone .dropZoneHelpSecondary {
   font-size: 0.92rem;
+}
+
+.dropZone .dropZoneHint {
+  color: #657685;
+  font-size: 0.86rem;
+  line-height: 1.25;
 }
 
 .field {
@@ -743,12 +761,6 @@ th {
   min-width: 0;
 }
 
-.constructorModalContent > .filenamePreview {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
 .modalDialog {
   border: 1px solid #cbd7df;
   border-radius: 8px;
@@ -756,11 +768,22 @@ th {
   color: #18202a;
   max-height: min(86vh, 900px);
   max-width: min(980px, calc(100vw - 24px));
+  overflow: hidden;
   padding: 0;
   width: 100%;
 }
 
+.modalDialog:not([open]) {
+  display: none;
+}
+
+.modalDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
 .modalDialogXl {
+  height: 90vh;
   max-height: 90vh;
   max-width: min(1280px, 95vw);
   width: 95vw;
@@ -771,26 +794,146 @@ th {
 }
 
 .modalHeader {
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 1px solid #edf2f5;
   display: flex;
+  flex: 0 0 auto;
   gap: 12px;
   justify-content: space-between;
   padding: 12px 14px;
+}
+
+.modalTitleBlock {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .modalHeader h3 {
   margin: 0;
 }
 
+.modalHeaderDetails {
+  min-width: 0;
+}
+
+.constructorModalHeaderPreview {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.constructorModalHeaderPreview strong {
+  color: #657685;
+  flex: 0 0 auto;
+  font-size: 0.86rem;
+}
+
+.constructorModalHeaderPreview span {
+  color: #334852;
+  font-size: 0.86rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .modalBody {
-  max-height: calc(86vh - 64px);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 14px;
 }
 
 .modalDialogXl .modalBody {
-  max-height: calc(90vh - 64px);
+  min-height: 0;
+}
+
+.modalFooter {
+  background: #ffffff;
+  border-top: 1px solid #edf2f5;
+  flex: 0 0 auto;
+  padding: 10px 14px;
+}
+
+.constructorModalFooterContent {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.constructorModalFooterContent p {
+  color: #657685;
+  margin: 0;
+}
+
+.constructorModalFooterActions {
+  display: flex;
+  gap: 8px;
+}
+
+.modalDialogXl .constructorModalContent {
+  font-size: 0.92rem;
+  gap: 10px;
+}
+
+.modalDialogXl .constructorModalContent .recipeSubBlock,
+.modalDialogXl .constructorModalContent .stepDetailPanel,
+.modalDialogXl .constructorModalContent .concatPartDetailPanel,
+.modalDialogXl .constructorModalContent .concatStepCondition,
+.modalDialogXl .constructorModalContent .concatPartSeparatorBlock {
+  gap: 8px;
+  padding: 9px;
+}
+
+.modalDialogXl .constructorModalContent .simpleStepsEditor,
+.modalDialogXl .constructorModalContent .simpleCustomValueGrid,
+.modalDialogXl .constructorModalContent .concatPartsWorkspace,
+.modalDialogXl .constructorModalContent .concatPartFields,
+.modalDialogXl .constructorModalContent .concatPartStepsEditor,
+.modalDialogXl .constructorModalContent .concatPartStepsBlock,
+.modalDialogXl .constructorModalContent .concatPartTransformList,
+.modalDialogXl .constructorModalContent .conditionFieldsRow,
+.modalDialogXl .constructorModalContent .numericOperationFields {
+  gap: 8px;
+}
+
+.modalDialogXl .constructorModalContent .dropdownField,
+.modalDialogXl .constructorModalContent .dropdownField.compact {
+  gap: 5px;
+}
+
+.modalDialogXl .constructorModalContent .dropdownLabel,
+.modalDialogXl .constructorModalContent .field span {
+  font-size: 0.88rem;
+}
+
+.modalDialogXl .constructorModalContent input,
+.modalDialogXl .constructorModalContent button.dropdownTrigger {
+  height: 36px;
+  min-height: 36px;
+}
+
+.modalDialogXl .constructorModalContent input {
+  padding-inline: 9px;
+}
+
+.modalDialogXl .constructorModalContent button:not(.iconButton):not(.dragHandle):not(.dropdownOption):not(.dropdownTrigger),
+.modalDialogXl .modalFooter button:not(.iconButton) {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.modalDialogXl .dropdownMenu {
+  font-size: 0.92rem;
+}
+
+.modalDialogXl button.dropdownOption {
+  min-height: 32px;
+  padding: 6px 8px;
 }
 
 .combinePartRow,
@@ -844,6 +987,17 @@ th {
   gap: 8px;
   min-width: 0;
   padding: 8px;
+}
+
+.concatPartsEmptyState {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.concatAddPartButton {
+  justify-self: stretch;
 }
 
 .concatPartListItem {
@@ -920,7 +1074,7 @@ th {
   min-width: 180px;
 }
 
-.concatPartPrimaryTransform {
+.concatPartStepsEditor {
   border-top: 1px solid #edf2f5;
   display: grid;
   gap: 12px;
@@ -928,28 +1082,30 @@ th {
   padding-top: 10px;
 }
 
-.concatPartPrimaryGrid {
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+.concatPartSeparatorBlock {
+  background: #ffffff;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
 }
 
-.concatPartPrimaryGrid .concatPartFields {
-  grid-column: 1 / -1;
-}
-
-.concatPartAdditionalTransforms {
+.concatPartStepsBlock {
   display: grid;
   gap: 8px;
   min-width: 0;
 }
 
-.concatPartAdditionalHeader {
+.concatPartStepsActions {
   align-items: center;
   display: flex;
   gap: 8px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
-.concatPartAdditionalHeader .secondary {
+.concatPartStepsActions .secondary {
   min-height: 32px;
   padding: 6px 10px;
 }
@@ -958,16 +1114,6 @@ th {
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-.concatPartTransformCard {
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px;
 }
 
 .constructorWorkspace {
@@ -1097,7 +1243,7 @@ th {
   display: grid;
   gap: 10px;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   width: 100%;
 }
@@ -1116,6 +1262,23 @@ th {
   min-height: 36px;
   padding: 6px 10px;
   white-space: nowrap;
+}
+
+.sourceHelpText {
+  display: grid;
+  font-size: 0.86rem;
+  gap: 3px;
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+}
+
+.sourceHelpText p {
+  margin: 0;
+}
+
+.sourceHelpText strong {
+  color: #334852;
+  font-weight: 700;
 }
 
 .concatStepCondition {
@@ -1427,14 +1590,19 @@ th {
 
 .checkboxField {
   align-items: center;
-  display: flex;
+  cursor: pointer;
+  display: inline-flex;
   gap: 8px;
+  justify-self: start;
   min-height: 40px;
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
   white-space: normal;
 }
 
 .checkboxField input {
+  cursor: pointer;
   min-height: auto;
   width: auto;
 }
@@ -1522,9 +1690,29 @@ th {
 }
 
 .settingsActions {
+  background: #f8fafb;
+  border: 1px solid #e2e9ee;
+  border-radius: 10px;
   display: grid;
   gap: 12px;
+  margin-top: 18px;
   min-width: 0;
+  padding: 14px;
+}
+
+.settingsActionsIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.settingsActionsIntro h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.settingsActionsIntro p {
+  color: #5f6f7b;
+  margin: 0;
 }
 
 .hiddenFileInput {
@@ -1663,6 +1851,7 @@ th {
 }
 
 .tableWrap input[type='checkbox'] {
+  cursor: pointer;
   min-height: auto;
   width: auto;
 }

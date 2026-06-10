@@ -82,9 +82,9 @@ describe('applyIgnoreRulesToProcessedRows', () => {
     });
 
     expect(result[0].status).toBe('ignored');
-    expect(result[0].ignoredReason).toBe('Ignorada por regla: A - Codigo original esta vacia');
+    expect(result[0].ignoredReason).toBe('Ignorada por regla: A - Codigo original está vacía');
     expect(result[1].status).toBe('ignored');
-    expect(result[1].ignoredReason).toBe('Ignorada por regla: Codigo esta vacia');
+    expect(result[1].ignoredReason).toBe('Ignorada por regla: Codigo está vacía');
   });
 
   it('applies output rules over transformed output values', () => {

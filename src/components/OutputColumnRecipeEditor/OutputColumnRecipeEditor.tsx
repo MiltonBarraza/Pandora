@@ -7,7 +7,8 @@ import type { ConcatPart, ConditionOperator, InputColumn, OutputColumn, OutputRe
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
-import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 
 type OutputColumnRecipeEditorProps = {
   column: OutputColumn;
@@ -16,12 +17,42 @@ type OutputColumnRecipeEditorProps = {
   onChange: (column: OutputColumn) => void;
 };
 
+type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
+
+export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
+export const recipeEditorModalCancelLabel = 'Cancelar';
+export const recipeEditorModalApplyLabel = 'Aplicar';
+export const recipeEditorDiscardChangesMessage = 'Descartar cambios\n\nHay cambios sin aplicar en esta receta. Si cerrás el editor, se perderán.';
+export const recipeEditorAdditionalStepLabel = 'Agregar paso';
+export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
+
+export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: CombineRecipe | null) {
+  return recipe.type === 'combine' ? draftRecipe ?? recipe : null;
+}
+
+export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: CombineRecipe | null): OutputColumn {
+  return draftRecipe ? { ...column, recipe: draftRecipe } : column;
+}
+
+export function hasRecipeEditorDraftChanges(originalRecipe: CombineRecipe, draftRecipe: CombineRecipe | null) {
+  return Boolean(draftRecipe) && JSON.stringify(originalRecipe) !== JSON.stringify(draftRecipe);
+}
+
 export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
   const [isConstructorOpen, setIsConstructorOpen] = useState(false);
+  const [draftRecipe, setDraftRecipe] = useState<CombineRecipe | null>(null);
   const [customValueMode, setCustomValueMode] = useState<CustomValueMode>('');
+  const isApplyingConstructorRef = useRef(false);
+  const modalRecipe = getRecipeEditorModalRecipe(column.recipe, draftRecipe);
+  const hasDraftChanges = column.recipe.type === 'combine'
+    ? hasRecipeEditorDraftChanges(column.recipe, draftRecipe)
+    : false;
   const effectiveCustomValueMode = column.recipe.type === 'combine'
     ? getCustomValueMode(column.recipe) || customValueMode
+    : '';
+  const effectiveModalCustomValueMode = modalRecipe
+    ? getCustomValueMode(modalRecipe) || customValueMode
     : '';
   const customValuePreview = column.recipe.type === 'combine'
     ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode)
@@ -41,6 +72,35 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
 
   const updateRecipe = (recipe: OutputRecipe) => {
     onChange({ ...column, recipe });
+  };
+  const openConstructor = (recipe: CombineRecipe) => {
+    isApplyingConstructorRef.current = false;
+    setDraftRecipe(recipe);
+    setIsConstructorOpen(true);
+  };
+  const closeConstructor = () => {
+    isApplyingConstructorRef.current = false;
+    setDraftRecipe(null);
+    setIsConstructorOpen(false);
+  };
+  const requestCancelConstructor = () => {
+    if (isApplyingConstructorRef.current) {
+      closeConstructor();
+      return;
+    }
+
+    if (!hasDraftChanges || window.confirm(recipeEditorDiscardChangesMessage)) {
+      closeConstructor();
+    }
+  };
+  const applyConstructor = () => {
+    if (draftRecipe) {
+      isApplyingConstructorRef.current = true;
+      onChange(applyRecipeEditorDraft(column, draftRecipe));
+    }
+
+    setDraftRecipe(null);
+    setIsConstructorOpen(false);
   };
 
   return (
@@ -116,7 +176,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
                 </div>
               </dl>
             </div>
-            <button type="button" onClick={() => setIsConstructorOpen(true)}>
+            <button
+              type="button"
+              onClick={() => {
+                if (column.recipe.type === 'combine') {
+                  openConstructor(column.recipe);
+                }
+              }}
+            >
               Editar valor personalizado
             </button>
           </div>
@@ -124,19 +191,37 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
             open={isConstructorOpen}
             title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
             size="xl"
-            onClose={() => setIsConstructorOpen(false)}
+            onClose={requestCancelConstructor}
+            headerDetails={(
+              <div className="constructorModalHeaderPreview">
+                <strong>Vista previa:</strong>
+                <span>{modalRecipe ? buildCustomValuePreview(modalRecipe, sampleInputValues, true, effectiveModalCustomValueMode) : customValuePreview}</span>
+              </div>
+            )}
+            footer={(
+              <div className="constructorModalFooterContent">
+                <p>{recipeEditorModalPendingApplyText}</p>
+                <div className="constructorModalFooterActions">
+                  <ActionButton action="close" variant="secondary" onClick={requestCancelConstructor}>
+                    {recipeEditorModalCancelLabel}
+                  </ActionButton>
+                  <ActionButton action="done" onClick={applyConstructor}>
+                    {recipeEditorModalApplyLabel}
+                  </ActionButton>
+                </div>
+              </div>
+            )}
           >
             <div className="constructorModalContent">
-              <div className="filenamePreview">
-                <strong>Vista previa</strong>
-                <span>{buildCustomValuePreview(column.recipe, sampleInputValues, true, effectiveCustomValueMode)}</span>
-              </div>
-              <CustomValueEditor
-                recipe={column.recipe}
-                inputColumns={activeInputColumns}
-                mode={effectiveCustomValueMode}
-                onChange={(recipe) => updateRecipe(recipe)}
-              />
+              {modalRecipe ? (
+                <CustomValueEditor
+                  recipe={modalRecipe}
+                  inputColumns={activeInputColumns}
+                  sampleInputValues={sampleInputValues}
+                  mode={effectiveModalCustomValueMode}
+                  onChange={setDraftRecipe}
+                />
+              ) : null}
             </div>
           </Modal>
         </>
@@ -192,7 +277,7 @@ export function getConstructorPartsSummary(recipe: Extract<OutputRecipe, { type:
 
 export function getCustomValueSummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
   if (!isCustomValueConfigured(recipe)) {
-    return 'Todavia no se eligio como crear este valor.';
+    return 'Todavía no se eligió cómo crear este valor.';
   }
 
   return getConstructorPartsSummary(recipe, inputColumns);
@@ -237,7 +322,7 @@ export function getConstructorAdjustmentsSummary(
     return adjustments.join(' · ');
   }
 
-  return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} ajustes mas`;
+  return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} pasos más`;
 }
 
 export function getConstructorAdjustmentLabels(
@@ -253,7 +338,7 @@ export function getConstructorAdjustmentLabels(
 
   return [
     ...adjustments.slice(0, limit).map(formatAdjustmentForDisplay),
-    `${adjustments.length - limit} ajustes mas`,
+    `${adjustments.length - limit} pasos más`,
   ];
 }
 
@@ -271,12 +356,12 @@ function getConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine'
 function formatAdjustmentForDisplay(adjustment: string) {
   const labels: Record<string, string> = {
     'limpiar espacios': 'Limpiar espacios',
-    'sin operacion seleccionada': 'Sin operacion seleccionada',
-    mayusculas: 'Mayusculas',
-    minusculas: 'Minusculas',
+    'sin operación seleccionada': 'Sin operación seleccionada',
+    mayúsculas: 'Mayúsculas',
+    minúsculas: 'Minúsculas',
     concatenar: 'Concatenar',
-    'extraer numero': 'Extraer numero',
-    'convertir a numero': 'Convertir a numero',
+    'extraer número': 'Extraer número',
+    'convertir a número': 'Convertir a número',
     'convertir a texto': 'Convertir a texto',
     'sin redondeo': 'Sin redondeo',
   };
@@ -342,15 +427,15 @@ function describeSimpleStep(step: TransformStep) {
   }
 
   if (step.type === 'noop') {
-    return ['sin operacion seleccionada'];
+    return ['sin operación seleccionada'];
   }
 
   if (step.type === 'uppercase') {
-    return ['mayusculas'];
+    return ['mayúsculas'];
   }
 
   if (step.type === 'lowercase') {
-    return ['minusculas'];
+    return ['minúsculas'];
   }
 
   if (step.type === 'addPrefix') {
@@ -366,11 +451,11 @@ function describeSimpleStep(step: TransformStep) {
   }
 
   if (step.type === 'extractNumber') {
-    return ['extraer numero'];
+    return ['extraer número'];
   }
 
   if (step.type === 'toNumber') {
-    return ['convertir a numero'];
+    return ['convertir a número'];
   }
 
   if (step.type === 'toText') {
@@ -447,7 +532,7 @@ export function buildCustomValuePreview(
   const effectiveMode = hasNumericOperands ? 'number' : mode;
 
   if (effectiveMode === 'number' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasNumericOperands) {
-    return 'Selecciona una columna numerica.';
+    return 'Selecciona una columna numérica.';
   }
 
   if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe)) {
@@ -463,7 +548,7 @@ export function buildCustomValuePreview(
   }
 
   if (effectiveMode === 'number' && !canPreviewNumericValue(recipe, sampleInputValues)) {
-    return 'No se pudo calcular: valor no numerico.';
+    return 'No se pudo calcular: valor no numérico.';
   }
 
   return buildCombinePreview(recipe, sampleInputValues) ?? 'Sin datos de ejemplo disponibles';
@@ -485,6 +570,19 @@ export function buildCombinePreview(recipe: Extract<OutputRecipe, { type: 'combi
   return row?.outputValues[previewColumn.id] ?? '';
 }
 
+export function getPreviousStepPreviewValue(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  stepIndex: number,
+) {
+  if (stepIndex <= 0 || !sampleInputValues) {
+    return null;
+  }
+
+  const previousSteps = getVisibleRecipeSteps(recipe).slice(0, stepIndex);
+  return buildCombinePreview({ ...recipe, steps: previousSteps }, sampleInputValues);
+}
+
 export type CustomValueMode = '' | PersistedCustomValueMode;
 
 type ValueConstructionMode = '' | 'steps' | 'concat';
@@ -496,18 +594,20 @@ export const valueConstructionOptions: Array<{ value: Exclude<ValueConstructionM
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
   { value: 'text', label: 'Trabajar con texto' },
-  { value: 'number', label: 'Trabajar con numero' },
-  { value: 'conversion', label: 'Conversion' },
+  { value: 'number', label: 'Trabajar con número' },
+  { value: 'conversion', label: 'Conversión' },
 ];
 
 function CustomValueEditor({
   recipe,
   inputColumns,
+  sampleInputValues,
   mode,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'combine' }>;
   inputColumns: InputColumn[];
+  sampleInputValues?: Record<string, string>;
   mode: CustomValueMode;
   onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
 }) {
@@ -530,6 +630,7 @@ function CustomValueEditor({
         baseInputColumnId={baseInputPart.inputColumnId}
         steps={visibleSteps}
         requireAtLeastOne
+        getPreviousStepPreviewValue={(stepIndex) => getPreviousStepPreviewValue(recipe, sampleInputValues, stepIndex)}
         onBaseInputColumnChange={updateBaseInputColumn}
         onStepsChange={updateSteps}
       />
@@ -603,6 +704,7 @@ function StepBlocksEditor({
   baseInputColumnId,
   steps,
   requireAtLeastOne = false,
+  getPreviousStepPreviewValue,
   onBaseInputColumnChange,
   onStepsChange,
 }: {
@@ -611,6 +713,7 @@ function StepBlocksEditor({
   baseInputColumnId: string;
   steps: TransformStep[];
   requireAtLeastOne?: boolean;
+  getPreviousStepPreviewValue?: (stepIndex: number) => string | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onStepsChange: (steps: TransformStep[]) => void;
 }) {
@@ -641,6 +744,7 @@ function StepBlocksEditor({
               defaultStepMode={defaultStepMode}
               baseInputColumnId={baseInputColumnId}
               canDelete={!requireAtLeastOne || steps.length > 1}
+              previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
               onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
               onDelete={() => deleteStep(index)}
@@ -662,6 +766,7 @@ function SimpleStepBlock({
   defaultStepMode,
   baseInputColumnId,
   canDelete,
+  previousResultPreviewValue,
   onBaseInputColumnChange,
   onChange,
   onDelete,
@@ -672,6 +777,7 @@ function SimpleStepBlock({
   defaultStepMode: TransformStepMode;
   baseInputColumnId: string;
   canDelete: boolean;
+  previousResultPreviewValue?: string | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
@@ -685,19 +791,6 @@ function SimpleStepBlock({
     }
 
     onChange({ source });
-  };
-
-  const addConcatPart = () => {
-    if (step.type !== 'concat') {
-      return;
-    }
-
-    onChange({
-      parts: [
-        ...(step.parts ?? []),
-        createDefaultConcatPart(step.parts?.length ?? 0, index > 0),
-      ],
-    });
   };
 
   return (
@@ -719,9 +812,6 @@ function SimpleStepBlock({
                 onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
               />
             </div>
-            <button type="button" className="secondary" onClick={addConcatPart}>
-              Agregar parte
-            </button>
           </div>
         ) : (
           <>
@@ -739,6 +829,7 @@ function SimpleStepBlock({
           stepSource={stepSource}
           inputColumns={inputColumns}
           labels="workflow"
+          previousResultPreviewValue={previousResultPreviewValue}
           onSourceChange={updateStepSource}
           onChange={onChange}
         />
@@ -836,6 +927,11 @@ function StepDetailPanel({
   index,
   inputColumns,
   canDelete,
+  allowConcat = true,
+  stepSource = step.source ?? { type: 'previousResult' },
+  allowPreviousResultSource,
+  previousResultPreviewValue,
+  onSourceChange,
   onChange,
   onDelete,
 }: {
@@ -843,24 +939,16 @@ function StepDetailPanel({
   index: number;
   inputColumns: InputColumn[];
   canDelete: boolean;
+  allowConcat?: boolean;
+  stepSource?: StepSource;
+  allowPreviousResultSource?: boolean;
+  previousResultPreviewValue?: string | null;
+  onSourceChange?: (source: StepSource) => void;
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
 }) {
   const summary = getStepSummary(step);
   const stepMode = getStepMode(step);
-  const addConcatPart = () => {
-    if (step.type !== 'concat') {
-      return;
-    }
-
-    onChange({
-      parts: [
-        ...(step.parts ?? []),
-        createDefaultConcatPart(step.parts?.length ?? 0, index > 0),
-      ],
-    });
-  };
-
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
@@ -877,12 +965,10 @@ function StepDetailPanel({
               <StepTypeSelect
                 step={step}
                 mode={stepMode}
+                allowConcat={allowConcat}
                 onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
               />
             </div>
-            <button type="button" className="secondary" onClick={addConcatPart}>
-              Agregar parte
-            </button>
           </div>
         ) : (
           <>
@@ -890,6 +976,7 @@ function StepDetailPanel({
             <StepTypeSelect
               step={step}
               mode={stepMode}
+              allowConcat={allowConcat}
               onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
             />
           </>
@@ -897,10 +984,12 @@ function StepDetailPanel({
         <StepFields
           step={step}
           stepIndex={index}
-          stepSource={step.source ?? { type: 'previousResult' }}
+          stepSource={stepSource}
           inputColumns={inputColumns}
           labels="workflow"
-          onSourceChange={(source) => onChange({ source })}
+          allowPreviousResultSource={allowPreviousResultSource}
+          previousResultPreviewValue={previousResultPreviewValue}
+          onSourceChange={onSourceChange ?? ((source) => onChange({ source }))}
           onChange={onChange}
         />
         {step.type === 'concat' ? (
@@ -935,7 +1024,7 @@ function StepTypeSelect({
         label="Que quiero hacer"
         value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
         options={[
-          { value: '', label: 'Seleccionar operacion' },
+          { value: '', label: 'Usar valor tal cual' },
           ...numericOperationOptions,
         ]}
         scrollStrategy="close"
@@ -971,7 +1060,7 @@ function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange:
   return (
     <Dropdown<TransformStepMode>
       className="compact"
-      label="Tipo de operacion"
+      label="Tipo de operación"
       value={mode}
       options={stepModeOptions}
       scrollStrategy="close"
@@ -985,47 +1074,42 @@ function StepSourceFields({
   source,
   inputColumns,
   allowPreviousResult,
+  previousResultPreviewValue,
   onChange,
 }: {
   label?: string;
   source: StepSource;
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
+  previousResultPreviewValue?: string | null;
   onChange: (source: StepSource) => void;
 }) {
   const safeSource = !allowPreviousResult && source.type === 'previousResult'
     ? { type: 'input' as const, inputColumnId: '' }
     : source;
+  const showPreviousResultHelp = shouldShowPreviousResultSourceHelp(safeSource);
+  const showPreviousResultPreview = showPreviousResultHelp && previousResultPreviewValue !== null && previousResultPreviewValue !== undefined && previousResultPreviewValue !== '';
+  const sourceValue = getStepSourceDropdownValue(safeSource);
 
   return (
     <>
-      <Dropdown<StepSource['type']>
+      <Dropdown
         className="compact"
         label={label}
-        value={safeSource.type}
-        options={[
-          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado anterior' }] : []),
-          { value: 'input', label: 'Columna de entrada' },
-          { value: 'fixedText', label: 'Texto fijo' },
-        ]}
+        value={sourceValue}
+        options={getStepSourceDropdownOptions(inputColumns, allowPreviousResult)}
+        placeholder="Seleccionar fuente"
         scrollStrategy="close"
-        onChange={(type) => {
-          if (type === 'previousResult') {
-            onChange({ type: 'previousResult' });
-            return;
-          }
-
-          if (type === 'fixedText') {
-            onChange({ type: 'fixedText', value: '' });
-            return;
-          }
-
-          onChange({ type: 'input', inputColumnId: inputColumns[0]?.id ?? '' });
-        }}
+        onChange={(value) => onChange(getStepSourceFromDropdownValue(value, safeSource))}
       />
 
-      {safeSource.type === 'input' ? (
-        <InputColumnSelect value={safeSource.inputColumnId} inputColumns={inputColumns} onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })} />
+      {showPreviousResultHelp ? (
+        <div className="muted sourceHelpText">
+          <p>{recipeEditorPreviousResultHelpText}</p>
+          {showPreviousResultPreview ? (
+            <p>Valor disponible: <strong>{previousResultPreviewValue}</strong></p>
+          ) : null}
+        </div>
       ) : null}
 
       {safeSource.type === 'fixedText' ? (
@@ -1036,6 +1120,46 @@ function StepSourceFields({
       ) : null}
     </>
   );
+}
+
+export function getStepSourceDropdownValue(source: StepSource) {
+  if (source.type === 'previousResult') {
+    return 'previousResult';
+  }
+
+  if (source.type === 'fixedText') {
+    return 'fixedText';
+  }
+
+  return source.inputColumnId ? `input:${source.inputColumnId}` : '';
+}
+
+export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean): DropdownOption[] {
+  return [
+    ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
+    { value: 'fixedText', label: 'Texto fijo' },
+    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
+  ];
+}
+
+export function getStepSourceFromDropdownValue(value: string, currentSource: StepSource): StepSource {
+  if (value === 'previousResult') {
+    return { type: 'previousResult' };
+  }
+
+  if (value === 'fixedText') {
+    return { type: 'fixedText', value: currentSource.type === 'fixedText' ? currentSource.value : '' };
+  }
+
+  if (value.startsWith('input:')) {
+    return { type: 'input', inputColumnId: value.slice('input:'.length) };
+  }
+
+  return currentSource;
+}
+
+export function shouldShowPreviousResultSourceHelp(source: StepSource) {
+  return source.type === 'previousResult';
 }
 
 function StepOperandFields({
@@ -1062,7 +1186,7 @@ function StepOperandFields({
         label={label}
         value={safeOperand.type}
         options={[
-          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado anterior' }] : []),
+          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado del paso anterior' }] : []),
           { value: 'input', label: 'Columna de entrada' },
           { value: 'fixedText', label: 'Valor fijo' },
         ]}
@@ -1117,7 +1241,7 @@ function StepOperandFields({
 function InputColumnSelect({
   value,
   inputColumns,
-  label = 'Desde que columna',
+  label = 'Columna de entrada',
   onChange,
 }: {
   value: string;
@@ -1316,7 +1440,7 @@ function ConcatPartFields({
 
       <Dropdown<RecipePart['type']>
         className="compact"
-        label="Origen de la parte"
+        label="Tipo de parte"
         value={part.type}
         options={[
           { value: 'input', label: 'Columna de entrada' },
@@ -1342,11 +1466,13 @@ function ConcatStepFields({
   parts,
   inputColumns,
   allowPreviousResult,
+  previousResultPreviewValue,
   onChange,
 }: {
   parts: ConcatPart[];
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
+  previousResultPreviewValue?: string | null;
   onChange: (parts: ConcatPart[]) => void;
 }) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null);
@@ -1366,6 +1492,12 @@ function ConcatStepFields({
   const updatePart = (partId: string, nextPart: ConcatPart) => {
     onChange(parts.map((part) => (part.id === partId ? nextPart : part)));
   };
+  const addPart = () => {
+    onChange([
+      ...parts,
+      createDefaultConcatPart(parts.length, allowPreviousResult),
+    ]);
+  };
   const removePart = (partId: string) => {
     setSelectedPartId(getNextSelectedConcatPartIdAfterRemove(parts, partId, safeSelectedPartId));
     onChange(parts.filter((part) => part.id !== partId));
@@ -1373,7 +1505,12 @@ function ConcatStepFields({
 
   return (
     <div className="concatStepFields">
-      {parts.length === 0 ? <p className="muted">Agrega una parte para construir el valor.</p> : null}
+      {parts.length === 0 ? (
+        <div className="concatPartsEmptyState">
+          <p className="muted">Agrega una parte para construir el valor.</p>
+          <button type="button" className="secondary" onClick={addPart}>Agregar parte</button>
+        </div>
+      ) : null}
       {parts.length > 0 ? (
         <div className="concatPartsWorkspace">
           <div className="concatPartsSidebar">
@@ -1398,6 +1535,7 @@ function ConcatStepFields({
                 );
               }}
             />
+            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>Agregar parte</button>
           </div>
           {selectedPart ? (
             <div className="concatPartDetailPanel">
@@ -1408,25 +1546,26 @@ function ConcatStepFields({
               <ConcatPartStepsEditor
                 inputColumns={inputColumns}
                 steps={selectedPart.steps ?? []}
-                baseFields={(
+                baseSource={selectedPart.source}
+                separatorFields={selectedPartIndex > 0 ? (
                   <div className="concatPartFields">
-                    {selectedPartIndex > 0 ? (
-                      <label className="field compact">
-                        <span>Separador antes de esta parte</span>
-                        <input
-                          value={selectedPart.separatorBefore ?? ''}
-                          onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
-                        />
-                      </label>
-                    ) : null}
-                    <StepSourceFields
-                      label="Origen de la parte"
-                      source={selectedPart.source}
-                      inputColumns={inputColumns}
-                      allowPreviousResult={allowPreviousResult}
-                      onChange={(source) => updatePart(selectedPart.id, { ...selectedPart, source })}
-                    />
+                    <label className="field compact">
+                      <span>Separador antes de esta parte</span>
+                      <input
+                        value={selectedPart.separatorBefore ?? ''}
+                        onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
+                      />
+                    </label>
                   </div>
+                ) : null}
+                previousResultPreviewValue={previousResultPreviewValue}
+                onBaseSourceChange={(source, nextSteps) => updatePart(
+                  selectedPart.id,
+                  {
+                    ...selectedPart,
+                    source,
+                    ...(nextSteps ? { steps: nextSteps } : {}),
+                  },
                 )}
                 onChange={(steps) => updatePart(selectedPart.id, { ...selectedPart, steps })}
               />
@@ -1441,18 +1580,27 @@ function ConcatStepFields({
 function ConcatPartStepsEditor({
   inputColumns,
   steps,
-  baseFields,
+  baseSource,
+  separatorFields,
+  previousResultPreviewValue,
+  onBaseSourceChange,
   onChange,
 }: {
   inputColumns: InputColumn[];
   steps: TransformStep[];
-  baseFields?: ReactNode;
+  baseSource: StepSource;
+  separatorFields?: ReactNode;
+  previousResultPreviewValue?: string | null;
+  onBaseSourceChange: (source: StepSource, nextSteps?: TransformStep[]) => void;
   onChange: (steps: TransformStep[]) => void;
 }) {
   const primaryStep = getVisibleConcatPartPrimaryStep(steps);
   const additionalSteps = steps.slice(1);
   const updatePrimaryStep = (patch: Partial<TransformStep>) => {
     onChange(updateConcatPartPrimaryStep(steps, patch));
+  };
+  const updatePrimaryStepSource = (source: StepSource) => {
+    onBaseSourceChange(source, primaryStep.source ? clearPrimaryStepSource(steps) : undefined);
   };
   const addAdditionalStep = () => {
     onChange([...steps, createNoopStep('text')]);
@@ -1466,93 +1614,83 @@ function ConcatPartStepsEditor({
   const deleteAdditionalStep = (stepId: string) => {
     onChange([primaryStep, ...additionalSteps.filter((step) => step.id !== stepId)]);
   };
-  const primaryStepMode = getStepMode(primaryStep);
 
   return (
-    <div className="concatPartPrimaryTransform">
-      <div className="simpleCustomValueGrid concatPartPrimaryGrid">
-        <StepModeSelect mode={primaryStepMode} onChange={(mode) => updatePrimaryStep(changeStepMode(primaryStep, mode))} />
-        <StepTypeSelect
-          step={primaryStep}
-          mode={primaryStepMode}
-          allowConcat={false}
-          onChange={(type, operation) => updatePrimaryStep(replaceStepType(primaryStep, type, primaryStepMode, operation, 0))}
-        />
-        <StepFields
-          step={primaryStep}
-          stepIndex={0}
-          stepSource={{ type: 'previousResult' }}
-          inputColumns={inputColumns}
-          labels="workflow"
-          showSourceFields={false}
-          onSourceChange={(source) => updatePrimaryStep({ source })}
-          onChange={updatePrimaryStep}
-        />
-        {baseFields}
-        <StepConditionFields step={primaryStep} inputColumns={inputColumns} onChange={updatePrimaryStep} />
-      </div>
-
-      <div className="concatPartAdditionalTransforms">
-        <div className="concatPartAdditionalHeader">
-          <strong>Transformaciones adicionales</strong>
-          <button type="button" className="secondary" onClick={addAdditionalStep}>Agregar otra transformacion</button>
-        </div>
-      {additionalSteps.length > 0 ? (
-        <div className="concatPartTransformList">
-          {additionalSteps.map((step, index) => {
-            const stepMode = getStepMode(step);
-            const transformIndex = index + 1;
-
-            return (
-              <div key={step.id} className="concatPartTransformCard">
-                <div className="stepCardHeader">
-                  <strong>Transformacion adicional {index + 1}</strong>
-                  <DeleteButton title="Eliminar transformacion" onClick={() => deleteAdditionalStep(step.id)} />
-                </div>
-                <div className="simpleCustomValueGrid">
-                  <StepModeSelect mode={stepMode} onChange={(mode) => updateAdditionalStep(step.id, changeStepMode(step, mode))} />
-                  <StepTypeSelect
-                    step={step}
-                    mode={stepMode}
-                    allowConcat={false}
-                    onChange={(type, operation) => updateAdditionalStep(step.id, replaceStepType(step, type, stepMode, operation, transformIndex))}
-                  />
-                  <StepFields
-                    step={step}
-                    stepIndex={transformIndex}
-                    stepSource={{ type: 'previousResult' }}
-                    inputColumns={inputColumns}
-                    labels="workflow"
-                    showSourceFields={false}
-                    onSourceChange={(source) => updateAdditionalStep(step.id, { source })}
-                    onChange={(patch) => updateAdditionalStep(step.id, patch)}
-                  />
-                  <StepConditionFields step={step} inputColumns={inputColumns} onChange={(patch) => updateAdditionalStep(step.id, patch)} />
-                </div>
-              </div>
-            );
-          })}
+    <div className="concatPartStepsEditor">
+      {separatorFields ? (
+        <div className="concatPartSeparatorBlock">
+          {separatorFields}
         </div>
       ) : null}
+
+      <StepDetailPanel
+        step={primaryStep}
+        index={0}
+        inputColumns={inputColumns}
+        canDelete={false}
+        allowConcat={false}
+        stepSource={primaryStep.source ?? baseSource}
+        allowPreviousResultSource
+        previousResultPreviewValue={baseSource.type === 'previousResult' ? previousResultPreviewValue : null}
+        onSourceChange={updatePrimaryStepSource}
+        onChange={updatePrimaryStep}
+        onDelete={() => undefined}
+      />
+
+      <div className="concatPartStepsBlock">
+        {additionalSteps.length > 0 ? (
+          <div className="concatPartTransformList">
+            {additionalSteps.map((step, index) => {
+              const transformIndex = index + 1;
+
+              return (
+                <StepDetailPanel
+                  key={step.id}
+                  step={step}
+                  index={transformIndex}
+                  inputColumns={inputColumns}
+                  canDelete
+                  allowConcat={false}
+                  allowPreviousResultSource
+                  previousResultPreviewValue={previousResultPreviewValue}
+                  onChange={(patch) => updateAdditionalStep(step.id, patch)}
+                  onDelete={() => deleteAdditionalStep(step.id)}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+        <div className="concatPartStepsActions">
+          <button type="button" className="secondary" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
+        </div>
       </div>
     </div>
   );
 }
 
+function clearPrimaryStepSource(steps: TransformStep[]) {
+  if (steps.length === 0) {
+    return steps;
+  }
+
+  const [{ source: _source, ...primaryStep }, ...additionalSteps] = steps;
+  return [primaryStep, ...additionalSteps];
+}
+
 const stepTypes: Array<{ value: TransformStepType; label: string }> = [
-  { value: 'noop', label: 'Seleccionar operacion' },
+  { value: 'noop', label: 'Usar valor tal cual' },
   { value: 'trim', label: 'Limpiar espacios' },
-  { value: 'uppercase', label: 'Convertir a mayusculas' },
-  { value: 'lowercase', label: 'Convertir a minusculas' },
+  { value: 'uppercase', label: 'Convertir a mayúsculas' },
+  { value: 'lowercase', label: 'Convertir a minúsculas' },
   { value: 'addPrefix', label: 'Agregar prefijo' },
   { value: 'addSuffix', label: 'Agregar sufijo' },
   { value: 'removeText', label: 'Quitar texto' },
   { value: 'replaceText', label: 'Reemplazar texto' },
   { value: 'concat', label: 'Concatenar' },
-  { value: 'extractNumber', label: 'Extraer numero del texto' },
-  { value: 'toNumber', label: 'Convertir a numero' },
+  { value: 'extractNumber', label: 'Extraer número del texto' },
+  { value: 'toNumber', label: 'Convertir a número' },
   { value: 'toText', label: 'Convertir a texto' },
-  { value: 'numericOperation', label: 'Operacion numerica' },
+  { value: 'numericOperation', label: 'Operación numérica' },
 ];
 
 const textStepTypes = stepTypes.filter((stepType) => [
@@ -1604,6 +1742,8 @@ function StepFields({
   inputColumns,
   labels = 'default',
   showSourceFields = true,
+  allowPreviousResultSource,
+  previousResultPreviewValue,
   onSourceChange,
   onChange,
 }: {
@@ -1613,15 +1753,19 @@ function StepFields({
   inputColumns: InputColumn[];
   labels?: StepFieldLabels;
   showSourceFields?: boolean;
+  allowPreviousResultSource?: boolean;
+  previousResultPreviewValue?: string | null;
   onSourceChange: (source: StepSource) => void;
   onChange: (patch: Partial<TransformStep>) => void;
 }) {
+  const canUsePreviousResultSource = allowPreviousResultSource ?? stepIndex > 0;
   const sourceFields = showSourceFields && shouldShowTextSourceFields(step.type) ? (
     <StepSourceFields
-      label={getTextStepSourceLabel(step.type)}
+      label="Desde donde toma el valor"
       source={stepSource}
       inputColumns={inputColumns}
-      allowPreviousResult={stepIndex > 0}
+      allowPreviousResult={canUsePreviousResultSource}
+      previousResultPreviewValue={previousResultPreviewValue}
       onChange={onSourceChange}
     />
   ) : null;
@@ -1692,14 +1836,14 @@ function StepFields({
           label="Primer valor"
           operand={leftOperand}
           inputColumns={inputColumns}
-          allowPreviousResult={stepIndex > 0}
+          allowPreviousResult={canUsePreviousResultSource}
           onChange={(leftOperand) => onChange({ leftOperand })}
         />
         <StepOperandFields
           label="Segundo valor"
           operand={rightOperand}
           inputColumns={inputColumns}
-          allowPreviousResult={stepIndex > 0}
+          allowPreviousResult={canUsePreviousResultSource}
           onChange={(rightOperand) => onChange({
             rightOperand,
             ...(rightOperand.type === 'fixedText' ? { amount: parseOptionalNumberInput(rightOperand.value) } : {}),
@@ -1727,7 +1871,8 @@ function StepFields({
       <ConcatStepFields
         parts={step.parts ?? []}
         inputColumns={inputColumns}
-        allowPreviousResult={stepIndex > 0}
+        allowPreviousResult={canUsePreviousResultSource}
+        previousResultPreviewValue={previousResultPreviewValue}
         onChange={(parts) => onChange({ parts })}
       />
     );
@@ -1765,7 +1910,7 @@ function StepConditionFields({
     <div className="transformConditionBlock conditionFieldsRow">
       <Dropdown<'always' | 'conditional'>
         className="compact"
-        label="Condicion"
+        label="Condición"
         value={condition ? 'conditional' : 'always'}
         options={[
           { value: 'always', label: 'Aplicar siempre' },
@@ -1814,7 +1959,7 @@ function StepConditionFields({
       ) : null}
       {inputCondition && conditionNeedsValue(inputCondition.operator) ? (
         <label className="field compact">
-          <span>Valor condicion</span>
+          <span>Valor condición</span>
           <input value={inputCondition.value ?? ''} onChange={(event) => onChange({ condition: { ...inputCondition, value: event.target.value } })} />
         </label>
       ) : null}
@@ -1835,8 +1980,8 @@ const conditionOperators: Array<{ value: ConditionOperator; label: string }> = [
   { value: 'greaterThanOrEqual', label: 'mayor o igual que' },
   { value: 'lessThan', label: 'menor que' },
   { value: 'lessThanOrEqual', label: 'menor o igual que' },
-  { value: 'numericEquals', label: 'igual numerico' },
-  { value: 'numericNotEquals', label: 'distinto numerico' },
+  { value: 'numericEquals', label: 'igual numérico' },
+  { value: 'numericNotEquals', label: 'distinto numérico' },
 ];
 
 const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
@@ -2146,7 +2291,7 @@ export function describeConcatPartSource(part: ConcatPart, inputColumns: InputCo
   const { source } = part;
 
   if (source.type === 'previousResult') {
-    return 'Resultado anterior';
+    return 'Resultado del paso anterior';
   }
 
   if (source.type === 'fixedText') {
@@ -2444,7 +2589,7 @@ export function getTextStepSourceLabel(type: TransformStepType) {
   }
 
   if (type === 'extractNumber') {
-    return 'Valor del que extraer numero';
+    return 'Valor del que extraer número';
   }
 
   if (type === 'toNumber' || type === 'toText') {

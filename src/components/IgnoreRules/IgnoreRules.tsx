@@ -16,8 +16,8 @@ type IgnoreRulesProps = {
 type CompletedIgnoreRuleOperator = Exclude<IgnoreRule['operator'], ''>;
 
 const operators: Array<{ value: CompletedIgnoreRuleOperator; label: string; needsValue: boolean }> = [
-  { value: 'isEmpty', label: 'esta vacia', needsValue: false },
-  { value: 'isNotEmpty', label: 'no esta vacia', needsValue: false },
+  { value: 'isEmpty', label: 'está vacía', needsValue: false },
+  { value: 'isNotEmpty', label: 'no está vacía', needsValue: false },
   { value: 'contains', label: 'contiene', needsValue: true },
   { value: 'notContains', label: 'no contiene', needsValue: true },
   { value: 'equals', label: 'es igual a', needsValue: true },
@@ -84,9 +84,9 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
               <Dropdown<CompletedIgnoreRuleOperator>
                 className="compact"
-                label="Condicion"
+                label="Condición"
                 value={rule.operator}
-                placeholder="Seleccionar condicion"
+                placeholder="Seleccionar condición"
                 options={operators}
                 scrollStrategy="close"
                 onChange={(operator) => updateRule(rule.id, { operator, value: '' })}

@@ -19,6 +19,16 @@ export function normalizeNumberInputWhileTyping(previousValue: string, nextValue
   return nextValue.slice(0, -1);
 }
 
+export function parseStartRowInputWhileEditing(value: string): number | undefined {
+  const parsed = parseOptionalNumberInput(value.trim());
+
+  if (parsed === undefined || !Number.isInteger(parsed) || parsed < 1) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
 export function normalizeNumberInputOnBlur(
   value: string,
   options: {

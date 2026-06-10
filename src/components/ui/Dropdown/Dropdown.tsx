@@ -27,6 +27,10 @@ type MenuPosition = {
   maxHeight: number;
 };
 
+type DropdownBoundaryRect = Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>;
+const MAX_UPWARD_MENU_HEIGHT = 220;
+const MIN_SPACE_TO_OPEN_DOWN = 160;
+
 export function Dropdown<T extends string = string>({
   value,
   options,
@@ -72,6 +76,7 @@ export function Dropdown<T extends string = string>({
       window.innerWidth,
       window.innerHeight,
       getDropdownPreferredMenuHeight(options.length),
+      getDropdownBoundaryRect(rootRef.current, window.innerWidth, window.innerHeight),
     ));
     setIsOpen(true);
   };
@@ -125,6 +130,7 @@ export function Dropdown<T extends string = string>({
           window.innerWidth,
           window.innerHeight,
           getDropdownPreferredMenuHeight(options.length),
+          getDropdownBoundaryRect(rootRef.current, window.innerWidth, window.innerHeight),
         ));
       }
     };
@@ -165,6 +171,34 @@ export function Dropdown<T extends string = string>({
     };
   }, [isOpen, options.length, scrollStrategy]);
 
+  const menu = (
+    <div
+      ref={menuRef}
+      id={listboxId}
+      role="listbox"
+      className="dropdownMenu"
+      style={menuPosition as CSSProperties}
+      aria-labelledby={label ? labelId : undefined}
+    >
+      {options.length === 0 ? <div className="dropdownEmpty">Sin opciones</div> : null}
+      {options.map((option, index) => (
+        <button
+          key={option.value}
+          type="button"
+          role="option"
+          className={`dropdownOption${index === activeIndex ? ' isActive' : ''}${option.value === value ? ' isSelected' : ''}`}
+          title={getDropdownOptionNativeTitle()}
+          disabled={option.disabled}
+          aria-selected={option.value === value}
+          onMouseEnter={() => setActiveIndex(index)}
+          onClick={() => selectOption(option)}
+        >
+          <span>{option.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div ref={rootRef} className={`dropdownField${className ? ` ${className}` : ''}`}>
       {label ? <span id={labelId} className="dropdownLabel">{label}</span> : null}
@@ -187,34 +221,7 @@ export function Dropdown<T extends string = string>({
         <span className="dropdownChevron" aria-hidden="true">▾</span>
       </button>
       {isOpen && menuPosition
-        ? createPortal(
-            <div
-              ref={menuRef}
-              id={listboxId}
-              role="listbox"
-              className="dropdownMenu"
-              style={menuPosition as CSSProperties}
-              aria-labelledby={label ? labelId : undefined}
-            >
-              {options.length === 0 ? <div className="dropdownEmpty">Sin opciones</div> : null}
-              {options.map((option, index) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  className={`dropdownOption${index === activeIndex ? ' isActive' : ''}${option.value === value ? ' isSelected' : ''}`}
-                  title={option.label}
-                  disabled={option.disabled}
-                  aria-selected={option.value === value}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  onClick={() => selectOption(option)}
-                >
-                  <span>{option.label}</span>
-                </button>
-              ))}
-            </div>,
-            portalTarget,
-          )
+        ? createPortal(menu, portalTarget)
         : null}
     </div>
   );
@@ -222,6 +229,39 @@ export function Dropdown<T extends string = string>({
 
 export function getDropdownPortalTarget(root: HTMLElement | null, fallback: HTMLElement) {
   return root?.closest('dialog') ?? fallback;
+}
+
+export function getDropdownBoundaryElement(root: HTMLElement | null) {
+  const dialog = root?.closest('dialog');
+  if (!dialog) {
+    return null;
+  }
+
+  const modalBody = dialog.querySelector<HTMLElement>('.modalBody');
+  if (root && modalBody?.contains(root)) {
+    return modalBody;
+  }
+
+  return dialog as HTMLElement;
+}
+
+export function getDropdownBoundaryRect(root: HTMLElement | null, viewportWidth: number, viewportHeight: number): DropdownBoundaryRect {
+  const boundaryElement = getDropdownBoundaryElement(root);
+
+  if (boundaryElement) {
+    return boundaryElement.getBoundingClientRect();
+  }
+
+  return {
+    left: 0,
+    top: 0,
+    right: viewportWidth,
+    bottom: viewportHeight,
+  };
+}
+
+export function getDropdownOptionNativeTitle() {
+  return undefined;
 }
 
 export function getInitialDropdownIndex(options: DropdownOption[], selectedIndex: number) {
@@ -256,17 +296,31 @@ export function getDropdownMenuPosition(
   viewportWidth: number,
   viewportHeight: number,
   preferredHeight = 320,
+  boundary: DropdownBoundaryRect = getViewportDropdownBoundary(viewportWidth, viewportHeight),
 ): MenuPosition {
   const margin = 8;
-  const gap = 6;
-  const width = Math.min(Math.max(rect.width, 240), viewportWidth - margin * 2);
-  const left = Math.min(Math.max(rect.left, margin), viewportWidth - width - margin);
-  const spaceBelow = Math.max(0, viewportHeight - rect.bottom - margin - gap);
-  const spaceAbove = Math.max(0, rect.top - margin - gap);
-  const opensAbove = spaceBelow < Math.min(preferredHeight, 180) && spaceAbove > spaceBelow;
+  const menuGap = 6;
+  const boundaryWidth = Math.max(0, boundary.right - boundary.left);
+  const maxWidth = Math.max(0, boundaryWidth - margin * 2);
+  const width = Math.min(Math.max(rect.width, 240), maxWidth);
+  const minLeft = boundary.left + margin;
+  const maxLeft = Math.max(minLeft, boundary.right - width - margin);
+  const left = Math.min(Math.max(rect.left, minLeft), maxLeft);
+  const spaceBelow = Math.max(0, boundary.bottom - rect.bottom - margin - menuGap);
+  const spaceAbove = Math.max(0, rect.top - boundary.top - margin - menuGap);
+  const opensAbove = spaceBelow < MIN_SPACE_TO_OPEN_DOWN;
   const availableSpace = opensAbove ? spaceAbove : spaceBelow;
-  const maxHeight = Math.min(preferredHeight, Math.max(46, availableSpace));
-  const top = opensAbove ? Math.max(margin, rect.top - maxHeight - gap) : rect.bottom + gap;
+  const maxHeight = Math.min(preferredHeight, availableSpace, opensAbove ? MAX_UPWARD_MENU_HEIGHT : preferredHeight);
+  const top = opensAbove ? rect.top - maxHeight - menuGap : rect.bottom + menuGap;
 
   return { left, top, width, maxHeight };
+}
+
+function getViewportDropdownBoundary(viewportWidth: number, viewportHeight: number): DropdownBoundaryRect {
+  return {
+    left: 0,
+    top: 0,
+    right: viewportWidth,
+    bottom: viewportHeight,
+  };
 }

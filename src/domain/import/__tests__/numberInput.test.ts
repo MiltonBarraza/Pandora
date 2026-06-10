@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeNumberInputOnBlur, normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../numberInput';
+import { normalizeNumberInputOnBlur, normalizeNumberInputWhileTyping, parseOptionalNumberInput, parseStartRowInputWhileEditing } from '../numberInput';
 
 describe('parseOptionalNumberInput', () => {
   it('keeps empty and invalid editing states out of numeric state', () => {
@@ -37,5 +37,18 @@ describe('normalizeNumberInputOnBlur', () => {
 
   it('never returns NaN when the fallback is invalid', () => {
     expect(normalizeNumberInputOnBlur('invalid', { fallback: Number.NaN })).toBe(0);
+  });
+});
+
+describe('parseStartRowInputWhileEditing', () => {
+  it('accepts only positive integer values while keeping empty or invalid edits unapplied', () => {
+    expect(parseStartRowInputWhileEditing('8')).toBe(8);
+    expect(parseStartRowInputWhileEditing('08')).toBe(8);
+    expect(parseStartRowInputWhileEditing(' 12 ')).toBe(12);
+    expect(parseStartRowInputWhileEditing('')).toBeUndefined();
+    expect(parseStartRowInputWhileEditing('0')).toBeUndefined();
+    expect(parseStartRowInputWhileEditing('-1')).toBeUndefined();
+    expect(parseStartRowInputWhileEditing('1.5')).toBeUndefined();
+    expect(parseStartRowInputWhileEditing('abc')).toBeUndefined();
   });
 });

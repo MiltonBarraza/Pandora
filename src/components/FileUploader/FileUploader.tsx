@@ -4,13 +4,14 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type FileUploaderProps = {
   fileName: string;
+  emptyHint?: string;
   onFileSelected: (file: File | undefined) => void;
   onFileRemoved: () => void;
 };
 
 const acceptedExtensions = ['.xlsx', '.xls', '.xlsm', '.csv'];
 
-export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUploaderProps) {
+export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemoved }: FileUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dropError, setDropError] = useState('');
@@ -27,7 +28,7 @@ export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUp
     }
 
     if (files && files.length > 1) {
-      setDropError('Solo se permite un archivo. Se usara el primero.');
+      setDropError('Solo se permite un archivo. Se usará el primero.');
     } else {
       setDropError('');
     }
@@ -35,7 +36,7 @@ export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUp
     const lowerName = file.name.toLowerCase();
     const isAccepted = acceptedExtensions.some((extension) => lowerName.endsWith(extension));
     if (!isAccepted) {
-      setDropError('Archivo invalido. Subi un .xlsx, .xls, .xlsm o .csv.');
+      setDropError('Archivo inválido. Subí un .xlsx, .xls, .xlsm o .csv.');
       return;
     }
 
@@ -107,6 +108,7 @@ export function FileUploader({ fileName, onFileSelected, onFileRemoved }: FileUp
           <strong>{hasFile ? fileName : 'Elegir archivo'}</strong>
           <span className="dropZoneHelp">Arrastra un archivo aquí de tipo .xlsx, .xls, .xlsm o .csv</span>
           <span className="dropZoneHelp dropZoneHelpSecondary">o hace click.</span>
+          {!hasFile && emptyHint ? <span className="dropZoneHint">{emptyHint}</span> : null}
         </div>
       </div>
       {dropError ? <p className="errorText">{dropError}</p> : null}

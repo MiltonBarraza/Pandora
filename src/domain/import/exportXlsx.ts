@@ -17,7 +17,7 @@ export function exportXlsxFromProcessedRows(
 export function exportAuditXlsxFromProcessedRows(
   rows: ProcessedRow[],
   outputColumns: OutputColumn[],
-  filename = 'auditoria',
+  filename = 'auditoría',
   inputColumns: InputColumn[] = [],
 ) {
   const ordered = getEnabledOutputColumns(outputColumns);
@@ -44,7 +44,7 @@ export function exportAuditXlsxFromProcessedRows(
   ];
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(data);
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Auditoria');
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Auditoría');
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 

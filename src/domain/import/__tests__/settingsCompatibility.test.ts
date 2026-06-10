@@ -198,7 +198,7 @@ describe('settingsCompatibility', () => {
     );
 
     expect(result.status).toBe('blocked');
-    expect(result.messages[0]).toContain('version');
+    expect(result.messages[0]).toContain('versión');
   });
 
   it('is blocked when expected sheet does not exist and no reasonable suggestion exists', () => {
@@ -232,7 +232,7 @@ describe('settingsCompatibility', () => {
 
     expect(result.status).toBe('compatible');
     expect(result.summary.strongMatches).toBe(2);
-    expect(result.columns.matches[0].reason).toContain('otra posicion');
+    expect(result.columns.matches[0].reason).toContain('otra posición');
   });
 
   it('detects weak matches by same index with different header', () => {
@@ -264,7 +264,7 @@ describe('settingsCompatibility', () => {
     expect(result.columns.usedMissing).toEqual([savedColumns[1]]);
     expect(result.columns.unusedMissing).toEqual([]);
     expect(result.summary.usedMissingColumns).toBe(1);
-    expect(result.messages[0]).toContain('esta usada');
+    expect(result.messages[0]).toContain('está usada');
   });
 
   it('keeps used exact and strong matches compatible', () => {
@@ -315,7 +315,7 @@ describe('settingsCompatibility', () => {
     expect(result.status).toBe('needsRemap');
     expect(result.columns.weakUsedMatches).toHaveLength(1);
     expect(result.summary.weakUsedMatches).toBe(1);
-    expect(result.messages[0]).toContain('match debil');
+    expect(result.messages[0]).toContain('match débil');
   });
 
   it('needs remap when a used column has ambiguous matches', () => {

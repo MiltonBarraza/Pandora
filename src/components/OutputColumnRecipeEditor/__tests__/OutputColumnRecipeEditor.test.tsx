@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { InputColumn, OutputColumn } from '../../../types/import';
-import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, setSimpleStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
+import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -88,6 +88,83 @@ describe('buildRecipeForSelectedType', () => {
 });
 
 describe('constructor helpers', () => {
+  it('uses confirm/cancel modal copy without auto-apply semantics', () => {
+    expect(recipeEditorModalPendingApplyText).toBe('Los cambios se aplican al confirmar.');
+    expect(recipeEditorModalCancelLabel).toBe('Cancelar');
+    expect(recipeEditorModalApplyLabel).toBe('Aplicar');
+  });
+
+  it('uses draft recipe inside the modal without changing the persisted column until apply', () => {
+    const draftRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      parts: [],
+      separator: '',
+      steps: [{ id: 'draft', type: 'addPrefix', value: 'DRAFT-' }],
+    };
+
+    expect(getRecipeEditorModalRecipe(combineColumn.recipe, null)).toBe(combineColumn.recipe);
+    expect(getRecipeEditorModalRecipe(combineColumn.recipe, draftRecipe)).toBe(draftRecipe);
+    expect(applyRecipeEditorDraft(combineColumn, null)).toBe(combineColumn);
+    expect(applyRecipeEditorDraft(combineColumn, draftRecipe)).toEqual({
+      ...combineColumn,
+      recipe: draftRecipe,
+    });
+  });
+
+  it('detects draft changes before discarding the modal editor', () => {
+    const originalRecipe = combineColumn.recipe as Extract<OutputRecipe, { type: 'combine' }>;
+    const sameDraft = structuredClone(originalRecipe);
+    const changedDraft: Extract<OutputRecipe, { type: 'combine' }> = {
+      ...sameDraft,
+      steps: [{ id: 'draft-change', type: 'addPrefix', value: 'DRAFT-' }],
+    };
+
+    expect(hasRecipeEditorDraftChanges(originalRecipe, null)).toBe(false);
+    expect(hasRecipeEditorDraftChanges(originalRecipe, sameDraft)).toBe(false);
+    expect(hasRecipeEditorDraftChanges(originalRecipe, changedDraft)).toBe(true);
+    expect(recipeEditorDiscardChangesMessage).toContain('Descartar cambios');
+    expect(recipeEditorDiscardChangesMessage).toContain('Hay cambios sin aplicar');
+  });
+
+  it('uses clear presentation copy for part steps and previous result help', () => {
+    expect(recipeEditorAdditionalStepLabel).toBe('Agregar paso');
+    expect(recipeEditorAdditionalStepLabel).not.toBe('Agregar ajuste');
+    expect(recipeEditorAdditionalStepLabel).not.toBe('Agregar otra transformación');
+    expect(recipeEditorPreviousResultHelpText).toBe('Toma el valor que salió del paso anterior, no de la parte anterior.');
+  });
+
+  it('shows previous result help only when previous result is selected', () => {
+    expect(shouldShowPreviousResultSourceHelp({ type: 'previousResult' })).toBe(true);
+    expect(shouldShowPreviousResultSourceHelp({ type: 'input', inputColumnId: 'input-code' })).toBe(false);
+    expect(shouldShowPreviousResultSourceHelp({ type: 'fixedText', value: 'AS4350' })).toBe(false);
+  });
+
+  it('maps unified source dropdown values to step sources', () => {
+    expect(getStepSourceDropdownValue({ type: 'previousResult' })).toBe('previousResult');
+    expect(getStepSourceDropdownValue({ type: 'fixedText', value: 'Manual' })).toBe('fixedText');
+    expect(getStepSourceDropdownValue({ type: 'input', inputColumnId: 'input-code' })).toBe('input:input-code');
+    expect(getStepSourceDropdownValue({ type: 'input', inputColumnId: '' })).toBe('');
+
+    expect(getStepSourceFromDropdownValue('previousResult', { type: 'input', inputColumnId: 'input-code' })).toEqual({ type: 'previousResult' });
+    expect(getStepSourceFromDropdownValue('fixedText', { type: 'fixedText', value: 'Manual' })).toEqual({ type: 'fixedText', value: 'Manual' });
+    expect(getStepSourceFromDropdownValue('fixedText', { type: 'input', inputColumnId: 'input-code' })).toEqual({ type: 'fixedText', value: '' });
+    expect(getStepSourceFromDropdownValue('input:input-name', { type: 'previousResult' })).toEqual({ type: 'input', inputColumnId: 'input-name' });
+  });
+
+  it('builds unified source dropdown options with input column labels', () => {
+    expect(getStepSourceDropdownOptions(inputColumns.slice(0, 2), true)).toEqual([
+      { value: 'previousResult', label: 'Resultado del paso anterior' },
+      { value: 'fixedText', label: 'Texto fijo' },
+      { value: 'input:input-code', label: 'A' },
+      { value: 'input:input-name', label: 'D - Nombre' },
+    ]);
+
+    expect(getStepSourceDropdownOptions(inputColumns.slice(0, 1), false)).toEqual([
+      { value: 'fixedText', label: 'Texto fijo' },
+      { value: 'input:input-code', label: 'A' },
+    ]);
+  });
+
   it('builds an empty custom value recipe when no operation mode is selected', () => {
     expect(createCustomValueRecipeForMode('', {
       type: 'combine',
@@ -129,6 +206,89 @@ describe('constructor helpers', () => {
   it('does not show invented preview before custom value is configured', () => {
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' })).toBe('Sin valores configurados');
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' }, true)).toBe('Configura el Paso 1 para ver la vista previa.');
+  });
+
+  it('does not preview previous result for the first step', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'upper', type: 'uppercase', source: { type: 'input', inputColumnId: 'input-code' } },
+      ],
+    };
+
+    expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'as4350' }, 0)).toBeNull();
+  });
+
+  it('previews the value generated before a later step', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'upper', type: 'uppercase', source: { type: 'input', inputColumnId: 'input-code' } },
+        {
+          id: 'concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [
+            { id: 'previous', source: { type: 'previousResult' } },
+            { id: 'suffix', source: { type: 'fixedText', value: '-' } },
+          ],
+        },
+      ],
+    };
+
+    expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'as4350' }, 1)).toBe('AS4350');
+  });
+
+  it('respects previous step conditions when previewing previous result', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        {
+          id: 'suffix',
+          type: 'addSuffix',
+          source: { type: 'input', inputColumnId: 'input-code' },
+          value: '-OK',
+          condition: {
+            target: 'input',
+            columnId: 'input-pack',
+            operator: 'equals',
+            value: 'aplicar',
+          },
+        },
+        { id: 'upper', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+
+    expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'AS4350', 'input-pack': 'omitir' }, 1)).toBe('AS4350');
+  });
+
+  it('does not mutate recipe when previewing previous result', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'suffix', type: 'addSuffix', source: { type: 'input', inputColumnId: 'input-code' }, value: '-' },
+        { id: 'upper', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+    const originalSteps = recipe.steps;
+    const before = JSON.stringify(recipe);
+
+    getPreviousStepPreviewValue(recipe, { 'input-code': 'AS4350' }, 1);
+
+    expect(JSON.stringify(recipe)).toBe(before);
+    expect(recipe.steps).toBe(originalSteps);
   });
 
   it('keeps concat mode selected with an empty combine recipe', () => {
@@ -212,6 +372,7 @@ describe('constructor helpers', () => {
   });
 
   it('filters step options by step mode', () => {
+    expect(getStepTypesForMode('text').find((stepType) => stepType.value === 'noop')?.label).toBe('Usar valor tal cual');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('addSuffix');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('concat');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).not.toContain('numericOperation');
@@ -258,7 +419,7 @@ describe('constructor helpers', () => {
       'Restar %',
       'Quitar % incluido',
     ]);
-    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operacion numerica');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operación numérica');
   });
 
   it('infers step mode from existing step type', () => {
@@ -390,7 +551,7 @@ describe('constructor helpers', () => {
   it('summarizes concat parts for the lateral list', () => {
     expect(describeConcatPartSource({ id: 'name', source: { type: 'input', inputColumnId: 'input-name' } }, inputColumns)).toBe('Columna D (Nombre)');
     expect(describeConcatPartSource({ id: 'fixed', source: { type: 'fixedText', value: ' - ' } }, inputColumns)).toBe('Texto fijo " - "');
-    expect(describeConcatPartSource({ id: 'previous', source: { type: 'previousResult' } }, inputColumns)).toBe('Resultado anterior');
+    expect(describeConcatPartSource({ id: 'previous', source: { type: 'previousResult' } }, inputColumns)).toBe('Resultado del paso anterior');
   });
 
   it('preserves concat part steps when editing source-like fields', () => {
@@ -448,7 +609,7 @@ describe('constructor helpers', () => {
       rounding: 2,
     });
 
-    expect(buildCustomValuePreview(recipe, { 'input-code': 'ABC123' })).toBe('No se pudo calcular: valor no numerico.');
+    expect(buildCustomValuePreview(recipe, { 'input-code': 'ABC123' })).toBe('No se pudo calcular: valor no numérico.');
   });
 
   it('calculates numeric preview when sample value is currency', () => {
@@ -1183,7 +1344,7 @@ describe('constructor helpers', () => {
   });
 
   it('shows specific empty states for simple number and text modes', () => {
-    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'numeric', type: 'numericOperation' }] }, {}, true, 'number')).toBe('Selecciona una columna numerica.');
+    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'numeric', type: 'numericOperation' }] }, {}, true, 'number')).toBe('Selecciona una columna numérica.');
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'suffix', type: 'addSuffix', value: 'lts' }] }, {}, true, 'text')).toBe('Selecciona una columna de texto.');
   });
 
@@ -1278,7 +1439,7 @@ describe('constructor helpers', () => {
         },
         inputColumns,
       ),
-    ).toEqual(['Mayusculas en Columna D (Nombre)', 'Limpiar espacios']);
+    ).toEqual(['Mayúsculas en Columna D (Nombre)', 'Limpiar espacios']);
   });
 
   it('builds a preview using sample input values and part steps', () => {

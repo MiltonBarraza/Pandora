@@ -11,7 +11,7 @@ export function parseImportSettingsJson(json: string): ParseImportSettingsResult
   } catch {
     return {
       ok: false,
-      error: 'El archivo de settings no contiene JSON valido.',
+      error: 'El archivo de configuración no contiene JSON válido.',
     };
   }
 }
@@ -20,35 +20,35 @@ export function validateImportedSettings(value: unknown): ParseImportSettingsRes
   if (!isRecord(value)) {
     return {
       ok: false,
-      error: 'El archivo de settings debe contener un objeto JSON.',
+      error: 'El archivo de configuración debe contener un objeto JSON.',
     };
   }
 
   if (value.app !== 'excel-sanitizer') {
     return {
       ok: false,
-      error: 'El archivo de settings no pertenece a excel-sanitizer.',
+      error: 'El archivo de configuración no pertenece a excel-sanitizer.',
     };
   }
 
   if (value.schemaVersion !== 1) {
     return {
       ok: false,
-      error: 'La version del archivo de settings no es compatible.',
+      error: 'La versión del archivo de configuración no es compatible.',
     };
   }
 
   if (!isRecord(value.sourceSnapshot)) {
     return {
       ok: false,
-      error: 'El archivo de settings no contiene snapshot de origen.',
+      error: 'El archivo de configuración no contiene snapshot de origen.',
     };
   }
 
   if (!isRecord(value.config)) {
     return {
       ok: false,
-      error: 'El archivo de settings no contiene configuracion.',
+      error: 'El archivo de configuración no contiene "config".',
     };
   }
 
@@ -98,7 +98,7 @@ export function downloadImportSettingsFile(settings: ExportedImportSettings) {
 function buildMissingConfigError(fieldName: string): ParseImportSettingsResult {
   return {
     ok: false,
-    error: `El archivo de settings no contiene config.${fieldName} valido.`,
+    error: `El archivo de settings no contiene config.${fieldName} válido.`,
   };
 }
 

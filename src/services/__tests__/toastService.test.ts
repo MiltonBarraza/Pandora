@@ -32,7 +32,12 @@ describe('toastService', () => {
 
     expect(toastMock.success).toHaveBeenCalledWith('success');
     expect(toastMock.error).toHaveBeenCalledWith('error');
-    expect(toastMock.base).toHaveBeenCalledWith('info', { icon: 'i' });
+    expect(toastMock.base).toHaveBeenCalledWith(
+      'info',
+      expect.objectContaining({
+        icon: expect.any(Object),
+      }),
+    );
     expect(toastMock.loading).toHaveBeenCalledWith('loading');
   });
 

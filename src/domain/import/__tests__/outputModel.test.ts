@@ -294,7 +294,7 @@ describe('outputModel numeric transformations', () => {
 
     expect(row.outputValues.invalid).toBe('abc');
     expect(row.outputValues.zero).toBe('$ 200');
-    expect(row.warnings).toContain('No se pudo aplicar operacion numerica: valor invalido');
+    expect(row.warnings).toContain('No se pudo aplicar operación numérica: valor inválido');
     expect(row.warnings).toContain('No se puede dividir por cero');
   });
 
@@ -346,8 +346,8 @@ describe('outputModel numeric transformations', () => {
     ]);
 
     expect(row.outputValues.strict).toBe('ABC123');
-    expect(row.warnings).toContain('No se pudo convertir a numero: valor invalido');
-    expect(row.warnings).toContain('No se pudo aplicar operacion numerica: valor invalido');
+    expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
+    expect(row.warnings).toContain('No se pudo aplicar operación numérica: valor inválido');
   });
 });
 
@@ -587,7 +587,7 @@ describe('outputModel numeric operands', () => {
     expect(row.outputValues.zero).toBe('200');
     expect(row.outputValues.invalid).toBe('200');
     expect(row.warnings).toContain('No se puede dividir por cero');
-    expect(row.warnings).toContain('No se pudo aplicar operacion numerica: operando invalido');
+    expect(row.warnings).toContain('No se pudo aplicar operación numérica: operando inválido');
   });
 
   it('keeps old amount-based numeric operations working', () => {
@@ -826,7 +826,7 @@ describe('outputModel conditional transformations', () => {
     ]);
 
     expect(row.outputValues.code).toBe('ABC123');
-    expect(row.warnings).toContain('No se pudo evaluar la condicion de transformacion');
+    expect(row.warnings).toContain('No se pudo evaluar la condición de transformación');
   });
 });
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { compareSettingsToCurrentSnapshot } from '../../domain/import/settingsCompatibility';
 import { createSourceSnapshot, exportSettingsFromWizardState } from '../../domain/import/settingsSnapshot';
 import { downloadImportSettingsFile, parseImportSettingsJson } from '../../services/settingsFileService';
@@ -42,7 +42,7 @@ type ImportResult = {
 const statusLabels: Record<SettingsCompatibilityResult['status'], string> = {
   compatible: 'Compatible',
   warning: 'Con advertencias',
-  needsRemap: 'Requiere revision',
+  needsRemap: 'Requiere revisión',
   blocked: 'Bloqueado',
 };
 
@@ -85,7 +85,7 @@ export function SettingsActions({
     setSuccessMessage('');
 
     if (!currentSnapshot || fileType === '') {
-      const message = 'Primero carga un Excel y selecciona una hoja para exportar settings.';
+      const message = 'Primero carga un Excel y selecciona una hoja para guardar configuraciones.';
       setError(message);
       showErrorToast(message);
       return;
@@ -109,9 +109,9 @@ export function SettingsActions({
         outputIgnoreRules,
         fileNameSettings,
       }));
-      showSuccessToast('Settings exportados correctamente.');
+      showSuccessToast('Configuración guardada correctamente.');
     } catch {
-      const message = 'No se pudieron exportar los settings.';
+      const message = 'No se pudo guardar la configuración.';
       setError(message);
       showErrorToast(message);
     }
@@ -131,12 +131,12 @@ export function SettingsActions({
       const parsed = parseImportSettingsJson(text);
       if (!parsed.ok) {
         setError(parsed.error);
-        showErrorToast('No se pudo importar el archivo de settings.');
+        showErrorToast('No se pudo cargar el archivo de configuración.');
         return;
       }
 
       if (!currentSnapshot) {
-        const message = 'Primero carga un Excel y selecciona una hoja para validar estos settings.';
+        const message = 'Primero carga un Excel y selecciona una hoja para validar esta configuración.';
         setError(message);
         showErrorToast(message);
         return;
@@ -174,7 +174,7 @@ export function SettingsActions({
     }
 
     if (compatibility.status === 'blocked') {
-      const message = 'La configuracion no es compatible con este archivo.';
+      const message = 'La configuración no es compatible con este archivo.';
       setError(message);
       showErrorToast(message);
       return;
@@ -193,16 +193,19 @@ export function SettingsActions({
 
     setError('');
     setSuccessMessage('Settings aplicados correctamente.');
-    showSuccessToast(compatibility.status === 'warning' ? 'Configuracion aplicada con advertencias.' : 'Configuracion aplicada.');
+    showSuccessToast(compatibility.status === 'warning' ? 'Configuración aplicada con advertencias.' : 'Configuración aplicada.');
   };
 
   return (
     <div className="settingsActions">
       <div className="sectionHeader">
-        <p>Guarda o valida una configuracion reutilizable para archivos similares.</p>
+        <div className="settingsActionsIntro">
+          <h3>Guardar o cargar configuración</h3>
+          <p>Ahorra tiempo guardando o cargando una configuración para usarla nuevamente en archivos similares.</p>
+        </div>
         <ButtonGroup className="actions compactActions">
-          <ActionButton action="export" variant="secondary" onClick={exportSettings}>Exportar settings</ActionButton>
-          <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Importar settings</ActionButton>
+          <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
+          <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Cargar</ActionButton>
           {importResult || error ? (
             <ActionButton
               action="clear"
@@ -228,7 +231,7 @@ export function SettingsActions({
       />
 
       {!canCompareSettings ? (
-        <p className="muted">Primero carga un Excel y selecciona una hoja para validar settings importados.</p>
+        <p className="muted">Primero carga un Excel y selecciona una hoja para validar configuraciones importadas.</p>
       ) : null}
       {error ? <p className="errorText">{error}</p> : null}
       {successMessage ? <p className="successText">{successMessage}</p> : null}
@@ -241,7 +244,6 @@ export function SettingsActions({
     </div>
   );
 }
-
 function showImportedSettingsToast(status: SettingsCompatibilityResult['status']) {
   if (status === 'compatible') {
     showSuccessToast('Settings importados correctamente.');
@@ -258,7 +260,7 @@ function showImportedSettingsToast(status: SettingsCompatibilityResult['status']
     return;
   }
 
-  showErrorToast('La configuracion no es compatible con este archivo.');
+  showErrorToast('La configuración no es compatible con este archivo.');
 }
 
 function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilityResult }) {
@@ -274,7 +276,7 @@ function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilit
         <SummaryItem label="Exactas" value={result.summary.exactMatches} />
         <SummaryItem label="Fuertes" value={result.summary.strongMatches} />
         <SummaryItem label="Medias" value={result.summary.mediumMatches} />
-        <SummaryItem label="Debiles" value={result.summary.weakMatches} />
+        <SummaryItem label="Débiles" value={result.summary.weakMatches} />
         <SummaryItem label="Faltantes usadas" value={result.summary.usedMissingColumns} />
         <SummaryItem label="Faltantes no usadas" value={result.summary.unusedMissingColumns} />
         <SummaryItem label="Nuevas" value={result.summary.addedColumns} />

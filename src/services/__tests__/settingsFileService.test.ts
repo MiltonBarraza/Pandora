@@ -80,7 +80,7 @@ describe('settingsFileService', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toContain('JSON valido');
+      expect(result.error).toContain('JSON válido');
     }
   });
 
@@ -98,7 +98,7 @@ describe('settingsFileService', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toContain('version');
+      expect(result.error).toContain('versión');
     }
   });
 
@@ -115,7 +115,7 @@ describe('settingsFileService', () => {
       expect(snapshotResult.error).toContain('snapshot');
     }
     if (!configResult.ok) {
-      expect(configResult.error).toContain('configuracion');
+      expect(configResult.error).toContain('configuración');
     }
   });
 
