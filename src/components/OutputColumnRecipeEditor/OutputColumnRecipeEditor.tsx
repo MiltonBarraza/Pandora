@@ -17,17 +17,42 @@ type OutputColumnRecipeEditorProps = {
   onChange: (column: OutputColumn) => void;
 };
 
-export const recipeEditorModalAutoApplyText = 'Los cambios se aplican automáticamente.';
-export const recipeEditorModalDoneLabel = 'Listo';
+type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
+
+export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
+export const recipeEditorModalCancelLabel = 'Cancelar';
+export const recipeEditorModalApplyLabel = 'Aplicar';
+export const recipeEditorDiscardChangesMessage = 'Descartar cambios\n\nHay cambios sin aplicar en esta receta. Si cerrás el editor, se perderán.';
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
+
+export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: CombineRecipe | null) {
+  return recipe.type === 'combine' ? draftRecipe ?? recipe : null;
+}
+
+export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: CombineRecipe | null): OutputColumn {
+  return draftRecipe ? { ...column, recipe: draftRecipe } : column;
+}
+
+export function hasRecipeEditorDraftChanges(originalRecipe: CombineRecipe, draftRecipe: CombineRecipe | null) {
+  return Boolean(draftRecipe) && JSON.stringify(originalRecipe) !== JSON.stringify(draftRecipe);
+}
 
 export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
   const [isConstructorOpen, setIsConstructorOpen] = useState(false);
+  const [draftRecipe, setDraftRecipe] = useState<CombineRecipe | null>(null);
   const [customValueMode, setCustomValueMode] = useState<CustomValueMode>('');
+  const isApplyingConstructorRef = useRef(false);
+  const modalRecipe = getRecipeEditorModalRecipe(column.recipe, draftRecipe);
+  const hasDraftChanges = column.recipe.type === 'combine'
+    ? hasRecipeEditorDraftChanges(column.recipe, draftRecipe)
+    : false;
   const effectiveCustomValueMode = column.recipe.type === 'combine'
     ? getCustomValueMode(column.recipe) || customValueMode
+    : '';
+  const effectiveModalCustomValueMode = modalRecipe
+    ? getCustomValueMode(modalRecipe) || customValueMode
     : '';
   const customValuePreview = column.recipe.type === 'combine'
     ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode)
@@ -47,6 +72,35 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
 
   const updateRecipe = (recipe: OutputRecipe) => {
     onChange({ ...column, recipe });
+  };
+  const openConstructor = (recipe: CombineRecipe) => {
+    isApplyingConstructorRef.current = false;
+    setDraftRecipe(recipe);
+    setIsConstructorOpen(true);
+  };
+  const closeConstructor = () => {
+    isApplyingConstructorRef.current = false;
+    setDraftRecipe(null);
+    setIsConstructorOpen(false);
+  };
+  const requestCancelConstructor = () => {
+    if (isApplyingConstructorRef.current) {
+      closeConstructor();
+      return;
+    }
+
+    if (!hasDraftChanges || window.confirm(recipeEditorDiscardChangesMessage)) {
+      closeConstructor();
+    }
+  };
+  const applyConstructor = () => {
+    if (draftRecipe) {
+      isApplyingConstructorRef.current = true;
+      onChange(applyRecipeEditorDraft(column, draftRecipe));
+    }
+
+    setDraftRecipe(null);
+    setIsConstructorOpen(false);
   };
 
   return (
@@ -122,7 +176,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
                 </div>
               </dl>
             </div>
-            <button type="button" onClick={() => setIsConstructorOpen(true)}>
+            <button
+              type="button"
+              onClick={() => {
+                if (column.recipe.type === 'combine') {
+                  openConstructor(column.recipe);
+                }
+              }}
+            >
               Editar valor personalizado
             </button>
           </div>
@@ -130,30 +191,37 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
             open={isConstructorOpen}
             title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
             size="xl"
-            onClose={() => setIsConstructorOpen(false)}
+            onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
                 <strong>Vista previa:</strong>
-                <span>{buildCustomValuePreview(column.recipe, sampleInputValues, true, effectiveCustomValueMode)}</span>
+                <span>{modalRecipe ? buildCustomValuePreview(modalRecipe, sampleInputValues, true, effectiveModalCustomValueMode) : customValuePreview}</span>
               </div>
             )}
             footer={(
               <div className="constructorModalFooterContent">
-                <p>{recipeEditorModalAutoApplyText}</p>
-                <ActionButton action="done" variant="secondary" onClick={() => setIsConstructorOpen(false)}>
-                  {recipeEditorModalDoneLabel}
-                </ActionButton>
+                <p>{recipeEditorModalPendingApplyText}</p>
+                <div className="constructorModalFooterActions">
+                  <ActionButton action="close" variant="secondary" onClick={requestCancelConstructor}>
+                    {recipeEditorModalCancelLabel}
+                  </ActionButton>
+                  <ActionButton action="done" onClick={applyConstructor}>
+                    {recipeEditorModalApplyLabel}
+                  </ActionButton>
+                </div>
               </div>
             )}
           >
             <div className="constructorModalContent">
-              <CustomValueEditor
-                recipe={column.recipe}
-                inputColumns={activeInputColumns}
-                sampleInputValues={sampleInputValues}
-                mode={effectiveCustomValueMode}
-                onChange={(recipe) => updateRecipe(recipe)}
-              />
+              {modalRecipe ? (
+                <CustomValueEditor
+                  recipe={modalRecipe}
+                  inputColumns={activeInputColumns}
+                  sampleInputValues={sampleInputValues}
+                  mode={effectiveModalCustomValueMode}
+                  onChange={setDraftRecipe}
+                />
+              ) : null}
             </div>
           </Modal>
         </>

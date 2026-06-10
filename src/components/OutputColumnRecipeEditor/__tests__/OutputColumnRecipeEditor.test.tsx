@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
-import { buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorModalAutoApplyText, recipeEditorModalDoneLabel, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -88,9 +88,42 @@ describe('buildRecipeForSelectedType', () => {
 });
 
 describe('constructor helpers', () => {
-  it('uses auto-apply modal copy without save or cancel semantics', () => {
-    expect(recipeEditorModalAutoApplyText).toBe('Los cambios se aplican automáticamente.');
-    expect(recipeEditorModalDoneLabel).toBe('Listo');
+  it('uses confirm/cancel modal copy without auto-apply semantics', () => {
+    expect(recipeEditorModalPendingApplyText).toBe('Los cambios se aplican al confirmar.');
+    expect(recipeEditorModalCancelLabel).toBe('Cancelar');
+    expect(recipeEditorModalApplyLabel).toBe('Aplicar');
+  });
+
+  it('uses draft recipe inside the modal without changing the persisted column until apply', () => {
+    const draftRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      parts: [],
+      separator: '',
+      steps: [{ id: 'draft', type: 'addPrefix', value: 'DRAFT-' }],
+    };
+
+    expect(getRecipeEditorModalRecipe(combineColumn.recipe, null)).toBe(combineColumn.recipe);
+    expect(getRecipeEditorModalRecipe(combineColumn.recipe, draftRecipe)).toBe(draftRecipe);
+    expect(applyRecipeEditorDraft(combineColumn, null)).toBe(combineColumn);
+    expect(applyRecipeEditorDraft(combineColumn, draftRecipe)).toEqual({
+      ...combineColumn,
+      recipe: draftRecipe,
+    });
+  });
+
+  it('detects draft changes before discarding the modal editor', () => {
+    const originalRecipe = combineColumn.recipe as Extract<OutputRecipe, { type: 'combine' }>;
+    const sameDraft = structuredClone(originalRecipe);
+    const changedDraft: Extract<OutputRecipe, { type: 'combine' }> = {
+      ...sameDraft,
+      steps: [{ id: 'draft-change', type: 'addPrefix', value: 'DRAFT-' }],
+    };
+
+    expect(hasRecipeEditorDraftChanges(originalRecipe, null)).toBe(false);
+    expect(hasRecipeEditorDraftChanges(originalRecipe, sameDraft)).toBe(false);
+    expect(hasRecipeEditorDraftChanges(originalRecipe, changedDraft)).toBe(true);
+    expect(recipeEditorDiscardChangesMessage).toContain('Descartar cambios');
+    expect(recipeEditorDiscardChangesMessage).toContain('Hay cambios sin aplicar');
   });
 
   it('uses clear presentation copy for part steps and previous result help', () => {

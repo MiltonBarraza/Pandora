@@ -5,6 +5,22 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-06-10
+
+### Changed
+
+- El flujo inicial ahora muestra solo la carga de archivo hasta que haya un Excel o CSV valido; al remover el archivo vuelve a ocultar el resto de secciones.
+- El editor de recetas cambia a draft local con acciones Cancelar y Aplicar, preview basada en el draft y confirmacion al descartar cambios sin aplicar.
+- El modal XL del editor de recetas abre con altura maxima para dar mas espacio a dropdowns y mantener header/footer fijos.
+- Las partes concatenadas del editor usan nomenclatura de pasos, alineando visualmente los pasos internos con los pasos normales de la receta.
+- La seleccion de fuente de los pasos se unifica en un solo dropdown con columnas de entrada, texto fijo y resultado anterior cuando aplica.
+- La carga de archivo integra el texto de ayuda dentro del area de drop para no aumentar la altura de la seccion.
+
+### Fixed
+
+- Ajustada la estrategia de apertura del Dropdown para preferir abrir hacia abajo con scroll cuando hay espacio util, y limitar mejor los menus que abren hacia arriba dentro del modal.
+- Corregido el cierre visual del modal para que no quede renderizado como panel incrustado al cerrarse.
+
 ## [0.2.3] - 2026-06-08
 
 ### Added

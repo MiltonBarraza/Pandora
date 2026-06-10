@@ -28,7 +28,7 @@ describe('Dropdown helpers', () => {
       156,
     )).toMatchObject({
       left: 776,
-      top: 534,
+      top: 538,
       width: 240,
       maxHeight: 156,
     });
@@ -42,7 +42,7 @@ describe('Dropdown helpers', () => {
       156,
     )).toMatchObject({
       left: 40,
-      top: 170,
+      top: 166,
       width: 260,
       maxHeight: 156,
     });
@@ -56,8 +56,8 @@ describe('Dropdown helpers', () => {
       156,
     );
 
-    expect(position.maxHeight).toBe(34);
-    expect(position.top + position.maxHeight).toBe(42);
+    expect(position.maxHeight).toBe(38);
+    expect(position.top + position.maxHeight).toBe(46);
   });
 
   it('uses the viewport boundary outside dialogs', () => {
@@ -116,14 +116,14 @@ describe('Dropdown helpers', () => {
 
     expect(position).toMatchObject({
       left: 420,
-      top: 214,
+      top: 218,
       width: 260,
       maxHeight: 156,
     });
-    expect(position.top + position.maxHeight).toBe(370);
+    expect(position.top + position.maxHeight).toBe(374);
   });
 
-  it('opens above in constrained modal space when below cannot fit and above is comparable', () => {
+  it('opens below in constrained modal space when there is useful room for scrolling', () => {
     const position = getDropdownMenuPosition(
       { left: 553.5, top: 342, bottom: 378, width: 193.3 },
       1280,
@@ -134,9 +134,23 @@ describe('Dropdown helpers', () => {
 
     expect(position.left).toBe(553.5);
     expect(position.width).toBe(240);
-    expect(position.top).toBeCloseTo(76.4);
-    expect(position.maxHeight).toBeCloseTo(255.6);
-    expect(position.top + position.maxHeight).toBeCloseTo(332);
+    expect(position.top).toBeCloseTo(384);
+    expect(position.maxHeight).toBeCloseTo(260.4);
+    expect(position.top + position.maxHeight).toBeCloseTo(644.4);
+  });
+
+  it('caps long upward menus so they do not use all available modal space', () => {
+    const position = getDropdownMenuPosition(
+      { left: 294.4, top: 418.6, bottom: 454.6, width: 212 },
+      1280,
+      720,
+      320,
+      { left: 32.8, top: 108.8, right: 1247.2, bottom: 626.4 },
+    );
+
+    expect(position.maxHeight).toBe(220);
+    expect(position.top).toBeCloseTo(192.6);
+    expect(position.top + position.maxHeight).toBeCloseTo(412.6);
   });
 
   it('chooses the side with more modal space and limits maxHeight', () => {
@@ -148,8 +162,8 @@ describe('Dropdown helpers', () => {
       { left: 120, top: 100, right: 1180, bottom: 260 },
     );
 
-    expect(position.maxHeight).toBe(62);
-    expect(position.top + position.maxHeight).toBe(170);
+    expect(position.maxHeight).toBe(66);
+    expect(position.top + position.maxHeight).toBe(174);
   });
 
   it('does not render native titles on menu options', () => {

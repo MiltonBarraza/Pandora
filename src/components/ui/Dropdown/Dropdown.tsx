@@ -28,6 +28,8 @@ type MenuPosition = {
 };
 
 type DropdownBoundaryRect = Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>;
+const MAX_UPWARD_MENU_HEIGHT = 220;
+const MIN_SPACE_TO_OPEN_DOWN = 160;
 
 export function Dropdown<T extends string = string>({
   value,
@@ -297,7 +299,7 @@ export function getDropdownMenuPosition(
   boundary: DropdownBoundaryRect = getViewportDropdownBoundary(viewportWidth, viewportHeight),
 ): MenuPosition {
   const margin = 8;
-  const menuGap = 10;
+  const menuGap = 6;
   const boundaryWidth = Math.max(0, boundary.right - boundary.left);
   const maxWidth = Math.max(0, boundaryWidth - margin * 2);
   const width = Math.min(Math.max(rect.width, 240), maxWidth);
@@ -306,10 +308,9 @@ export function getDropdownMenuPosition(
   const left = Math.min(Math.max(rect.left, minLeft), maxLeft);
   const spaceBelow = Math.max(0, boundary.bottom - rect.bottom - margin - menuGap);
   const spaceAbove = Math.max(0, rect.top - boundary.top - margin - menuGap);
-  const fitsBelow = spaceBelow >= preferredHeight;
-  const opensAbove = !fitsBelow && spaceAbove >= spaceBelow * 0.8;
+  const opensAbove = spaceBelow < MIN_SPACE_TO_OPEN_DOWN;
   const availableSpace = opensAbove ? spaceAbove : spaceBelow;
-  const maxHeight = Math.min(preferredHeight, availableSpace);
+  const maxHeight = Math.min(preferredHeight, availableSpace, opensAbove ? MAX_UPWARD_MENU_HEIGHT : preferredHeight);
   const top = opensAbove ? rect.top - maxHeight - menuGap : rect.bottom + menuGap;
 
   return { left, top, width, maxHeight };

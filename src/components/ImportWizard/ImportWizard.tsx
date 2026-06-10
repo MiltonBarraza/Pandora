@@ -66,6 +66,7 @@ export function ImportWizard() {
   useBeforeUnloadWarning(isConfigurationDirty);
 
   const sheetNames = workbook?.SheetNames ?? [];
+  const hasLoadedFile = fileName !== '' && fileType !== '';
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
   const maxColumns = useMemo(() => Math.max(1, ...rows.slice(0, 25).map((row) => row.length)), [rows]);
   const rawPreviewRows = useMemo(
@@ -403,10 +404,17 @@ export function ImportWizard() {
 
       <div className="wizard">
         <Step title="1. Subir archivo">
-          <FileUploader fileName={fileName} onFileSelected={loadFile} onFileRemoved={removeFile} />
+          <FileUploader
+            fileName={fileName}
+            emptyHint={!hasLoadedFile ? 'Cargá un archivo para continuar con la configuración.' : undefined}
+            onFileSelected={loadFile}
+            onFileRemoved={removeFile}
+          />
           {readError ? <p className="errorText">{readError}</p> : null}
         </Step>
 
+        {hasLoadedFile ? (
+          <>
         <Step title="2. Seleccionar hoja">
           {fileType === 'csv' ? (
             <p className="muted">El archivo CSV se procesa como una única hoja.</p>
@@ -594,6 +602,8 @@ export function ImportWizard() {
             sheetName={selectedSheet}
           />
         </Step>
+          </>
+        ) : null}
       </div>
     </main>
   );

@@ -65,6 +65,7 @@ button.dropdownTrigger:focus-visible {
   background: white;
   border: 1px solid #cbd7df;
   border-radius: 7px;
+  box-sizing: border-box;
   box-shadow: 0 16px 38px rgba(24, 32, 42, 0.2);
   overflow: auto;
   padding: 5px;
