@@ -5,7 +5,7 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.4] - 2026-06-11
 
 ### Added
 
@@ -30,7 +30,7 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Corregida la visibilidad y alineacion del icono de ayuda dentro del modal de valor personalizado.
 - Corregidos desbordes de tooltips cerca de los bordes izquierdo, derecho, superior e inferior de la ventana.
 
-## [0.2.3] - 2026-06-10
+## [0.2.4] - 2026-06-10
 
 ### Changed
 
