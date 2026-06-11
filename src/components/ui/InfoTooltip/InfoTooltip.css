@@ -1,0 +1,160 @@
+.infoTooltip {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.infoTooltipCustomTrigger {
+  display: contents;
+}
+
+button.infoTooltipTrigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  box-sizing: border-box;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  flex: 0 0 22px;
+  height: 22px;
+  justify-content: center;
+  line-height: 0;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  width: 22px;
+}
+
+button.infoTooltipTrigger:hover:not(:disabled),
+button.infoTooltipTrigger:focus-visible {
+  background: var(--color-action-icon-bg);
+  color: var(--color-text-secondary);
+}
+
+.modalDialogXl .constructorModalContent button.infoTooltipTrigger,
+.modalDialogXl .modalFooter button.infoTooltipTrigger {
+  height: 22px;
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0;
+  width: 22px;
+}
+
+.modalDialogXl .constructorModalContent button.infoTooltipTrigger:hover:not(:disabled),
+.modalDialogXl .constructorModalContent button.infoTooltipTrigger:focus-visible,
+.modalDialogXl .modalFooter button.infoTooltipTrigger:hover:not(:disabled),
+.modalDialogXl .modalFooter button.infoTooltipTrigger:focus-visible {
+  background: var(--color-action-icon-bg);
+  color: var(--color-text-secondary);
+}
+
+.infoTooltipIcon {
+  color: currentColor;
+  display: block;
+  fill: none;
+  height: 15px;
+  opacity: 1;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+  width: 15px;
+}
+
+button.infoTooltipTrigger .infoTooltipIcon {
+  flex: 0 0 15px;
+  height: 15px;
+  width: 15px;
+}
+
+.infoTooltipBubble {
+  background: var(--color-text-primary);
+  border-radius: 6px;
+  box-shadow: var(--shadow-dropdown);
+  color: var(--color-bg-surface);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  max-width: min(240px, calc(100vw - 32px));
+  opacity: 0;
+  padding: 8px 10px;
+  pointer-events: none;
+  position: fixed;
+  text-align: left;
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  visibility: hidden;
+  white-space: normal;
+  width: max-content;
+  z-index: 10020;
+}
+
+.infoTooltipBubble.isPositioned {
+  opacity: 1;
+  visibility: visible;
+}
+
+.infoTooltipBubble.infoTooltip-top {
+  transform: translateY(2px);
+}
+
+.infoTooltipBubble.infoTooltip-top.isPositioned {
+  transform: translateY(0);
+}
+
+.infoTooltipBubble.infoTooltip-bottom {
+  transform: translateY(-2px);
+}
+
+.infoTooltipBubble.infoTooltip-bottom.isPositioned {
+  transform: translateY(0);
+}
+
+.infoTooltipBubble.infoTooltip-right {
+  transform: translateX(-2px);
+}
+
+.infoTooltipBubble.infoTooltip-right.isPositioned {
+  transform: translateX(0);
+}
+
+.infoTooltipBubble.infoTooltip-left {
+  transform: translateX(2px);
+}
+
+.infoTooltipBubble.infoTooltip-left.isPositioned {
+  transform: translateX(0);
+}
+
+.field .infoTooltipBubble,
+.dropdownLabel .infoTooltipBubble {
+  color: var(--color-bg-surface);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.labelWithInfo,
+.dropdownLabel.labelWithInfo,
+.field > .labelWithInfo,
+.headingWithInfo {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.headingWithInfo {
+  gap: 6px;
+}
+
+.headingWithInfo > .infoTooltip {
+  transform: translateY(0.08em);
+}
+
+.dropdownLabel.labelWithInfo > .infoTooltip,
+.field > .labelWithInfo > .infoTooltip {
+  transform: translateY(0);
+}

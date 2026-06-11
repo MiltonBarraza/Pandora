@@ -1,4 +1,5 @@
 import type { ColumnAnalysis, IgnoredReason } from '../../types/import';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type ColumnVisibilityManagerProps = {
   columns: ColumnAnalysis[];
@@ -79,7 +80,10 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
         </div>
         <div className="columnQuickActions">
           <div>
-            <strong>Acciones rápidas</strong>
+            <strong className="headingWithInfo">
+              <span>Acciones rápidas</span>
+              <InfoTooltip content="Activa o desactiva grupos sugeridos automaticamente." />
+            </strong>
             <p className="muted">Puedes activar o desactivar grupos sugeridos sin perder datos.</p>
           </div>
           <div className="appliedSuggestions" aria-label="Sugerencias aplicadas">
@@ -94,28 +98,36 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
             )}
           </div>
           <div className="actions columnQuickActionsButtons">
-            <button type="button" className="secondary" onClick={showAll}>
-              Activar todas
-            </button>
-            <button
-              type="button"
-              className={`secondary suggestionToggleButton${appliedSuggestionGroups.empty ? ' isActive' : ''}`}
-              aria-pressed={appliedSuggestionGroups.empty}
-              onClick={() => toggleByReasons(['empty'])}
-            >
-              Vacías sugeridas
-            </button>
-            <button
-              type="button"
-              className={`secondary suggestionToggleButton${appliedSuggestionGroups.hiddenOrNarrow ? ' isActive' : ''}`}
-              aria-pressed={appliedSuggestionGroups.hiddenOrNarrow}
-              onClick={() => toggleByReasons(['hidden', 'narrow'])}
-            >
-              Ocultas o angostas
-            </button>
-            <button type="button" className="secondary" onClick={restoreAutomatic}>
-              Restaurar detección automática
-            </button>
+            <InfoTooltip content="Incluye todas las columnas detectadas en la receta.">
+              <button type="button" className="secondary" onClick={showAll}>
+                Activar todas
+              </button>
+            </InfoTooltip>
+            <InfoTooltip content="Alterna las columnas que parecen no tener datos utiles.">
+              <button
+                type="button"
+                className={`secondary suggestionToggleButton${appliedSuggestionGroups.empty ? ' isActive' : ''}`}
+                aria-pressed={appliedSuggestionGroups.empty}
+                onClick={() => toggleByReasons(['empty'])}
+              >
+                Vacías sugeridas
+              </button>
+            </InfoTooltip>
+            <InfoTooltip content="Alterna columnas que el Excel trae ocultas o muy angostas.">
+              <button
+                type="button"
+                className={`secondary suggestionToggleButton${appliedSuggestionGroups.hiddenOrNarrow ? ' isActive' : ''}`}
+                aria-pressed={appliedSuggestionGroups.hiddenOrNarrow}
+                onClick={() => toggleByReasons(['hidden', 'narrow'])}
+              >
+                Ocultas o angostas
+              </button>
+            </InfoTooltip>
+            <InfoTooltip content="Vuelve a las sugerencias detectadas al leer el archivo.">
+              <button type="button" className="secondary" onClick={restoreAutomatic}>
+                Restaurar detección automática
+              </button>
+            </InfoTooltip>
           </div>
         </div>
       </div>

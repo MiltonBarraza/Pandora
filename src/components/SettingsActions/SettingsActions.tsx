@@ -14,6 +14,7 @@ import type {
   SourceSnapshot,
 } from '../../types/import';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type SettingsActionsProps = {
   fileType: 'spreadsheet' | 'csv' | '';
@@ -200,12 +201,19 @@ export function SettingsActions({
     <div className="settingsActions">
       <div className="sectionHeader">
         <div className="settingsActionsIntro">
-          <h3>Guardar o cargar configuración</h3>
+          <h3 className="headingWithInfo">
+            <span>Guardar o cargar configuración</span>
+            <InfoTooltip content="Reutiliza esta receta en archivos similares." />
+          </h3>
           <p>Ahorra tiempo guardando o cargando una configuración para usarla nuevamente en archivos similares.</p>
         </div>
         <ButtonGroup className="actions compactActions">
-          <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
-          <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Cargar</ActionButton>
+          <InfoTooltip content="Guarda la configuracion actual en un archivo JSON.">
+            <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
+          </InfoTooltip>
+          <InfoTooltip content="Carga una configuracion guardada y valida si coincide.">
+            <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Cargar</ActionButton>
+          </InfoTooltip>
           {importResult || error ? (
             <ActionButton
               action="clear"
