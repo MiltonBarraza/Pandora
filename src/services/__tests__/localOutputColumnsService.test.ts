@@ -265,6 +265,49 @@ describe('localOutputColumnsService', () => {
     expect(column.recipe).not.toMatchObject({ customMode: 'conversion' });
   });
 
+  it('preserves date step mode, type and fields when loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'date',
+          label: 'Fecha',
+          recipe: {
+            type: 'combine',
+            customMode: 'text',
+            parts: [{ id: 'date-part', type: 'input', inputColumnId: 'input-date' }],
+            steps: [{
+              id: 'format-date',
+              mode: 'date',
+              type: 'formatDate',
+              dateInputFormat: 'M/D/YY',
+              dateOutputFormat: 'YYYY-MM-DD',
+              dateInvalidFallback: 'fixedText',
+              dateInvalidFallbackText: 'SIN FECHA',
+            }],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+
+    expect(column.recipe).toMatchObject({
+      type: 'combine',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        dateInputFormat: 'M/D/YY',
+        dateOutputFormat: 'YYYY-MM-DD',
+        dateInvalidFallback: 'fixedText',
+        dateInvalidFallbackText: 'SIN FECHA',
+      }],
+    });
+  });
+
   it('preserves step sources, operands and concat step parts when loading saved columns', async () => {
     const { loadOutputColumns } = await import('../localOutputColumnsService');
 

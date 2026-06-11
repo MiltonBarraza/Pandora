@@ -37,9 +37,32 @@ export type TransformStepType =
   | 'extractNumber'
   | 'toNumber'
   | 'toText'
+  | 'formatDate'
   | 'numericOperation';
 
-export type TransformStepMode = 'text' | 'number' | 'conversion';
+export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date';
+
+export type DateInputFormat =
+  | 'DD/MM/YYYY'
+  | 'D/M/YYYY'
+  | 'YYYY-MM-DD'
+  | 'MM/DD/YYYY'
+  | 'M/D/YYYY'
+  | 'DD-MM-YYYY'
+  | 'YYYY/MM/DD'
+  | 'DD/MM/YY'
+  | 'D/M/YY'
+  | 'MM/DD/YY'
+  | 'M/D/YY';
+
+export type DateOutputFormat =
+  | 'DD/MM/YYYY'
+  | 'YYYY-MM-DD'
+  | 'MM/DD/YYYY'
+  | 'DD-MM-YYYY'
+  | 'YYYY/MM/DD';
+
+export type DateInvalidFallback = 'empty' | 'original' | 'fixedText';
 
 export type StepSource =
   | {
@@ -79,6 +102,10 @@ export type TransformStep = {
   rightOperand?: StepOperand;
   parts?: ConcatPart[];
   rounding?: 'none' | 0 | 2 | 4;
+  dateInputFormat?: DateInputFormat;
+  dateOutputFormat?: DateOutputFormat;
+  dateInvalidFallback?: DateInvalidFallback;
+  dateInvalidFallbackText?: string;
   condition?: TransformCondition;
   applyToEmptyValues?: boolean;
 };

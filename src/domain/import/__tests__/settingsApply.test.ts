@@ -119,6 +119,53 @@ describe('settingsApply', () => {
     expect(result.payload).not.toHaveProperty('rowOverrides');
   });
 
+  it('preserves date recipes in the apply payload', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-date',
+            label: 'Fecha',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'combine',
+              customMode: 'text',
+              parts: [{ id: 'date-part', type: 'input', inputColumnId: 'input-0' }],
+              steps: [{
+                id: 'format-date',
+                mode: 'date',
+                type: 'formatDate',
+                dateInputFormat: 'DD/MM/YYYY',
+                dateOutputFormat: 'YYYY-MM-DD',
+                dateInvalidFallback: 'original',
+              }],
+            },
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toMatchObject({
+      type: 'combine',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        dateInputFormat: 'DD/MM/YYYY',
+        dateOutputFormat: 'YYYY-MM-DD',
+        dateInvalidFallback: 'original',
+      }],
+    });
+  });
+
   it('does not mutate settings and clones arrays and objects defensively', () => {
     const settings = buildSettings();
     const before = JSON.stringify(settings);

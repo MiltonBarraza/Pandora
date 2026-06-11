@@ -1,6 +1,9 @@
 import type {
   ConcatPart,
   ConditionOperator,
+  DateInputFormat,
+  DateInvalidFallback,
+  DateOutputFormat,
   OutputColumn,
   OutputRecipe,
   RecipePart,
@@ -16,6 +19,9 @@ const outputColumnsKey = 'excel-sanitizer:v2-output-columns';
 
 const defaultOutputColumns: OutputColumn[] = [];
 const legacyDefaultOutputColumnIds = ['output-code', 'output-name', 'output-price', 'output-comments'];
+const defaultDateInputFormat: DateInputFormat = 'DD/MM/YYYY';
+const defaultDateOutputFormat: DateOutputFormat = 'YYYY-MM-DD';
+const defaultDateInvalidFallback: DateInvalidFallback = 'original';
 
 export function createDefaultOutputColumns(): OutputColumn[] {
   return defaultOutputColumns.map((column) => ({ ...column, recipe: { ...column.recipe } }));
@@ -160,6 +166,10 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     rightOperand: normalizeStepOperand(step.rightOperand),
     parts: normalizeConcatParts(step.parts),
     rounding: normalizeRounding(step.rounding),
+    dateInputFormat: normalizeDateFormat(step.dateInputFormat) ?? defaultDateInputFormat,
+    dateOutputFormat: normalizeDateOutputFormat(step.dateOutputFormat) ?? defaultDateOutputFormat,
+    dateInvalidFallback: normalizeDateInvalidFallback(step.dateInvalidFallback) ?? defaultDateInvalidFallback,
+    dateInvalidFallbackText: step.dateInvalidFallbackText ?? '',
     condition: normalizeCondition(step.condition),
     applyToEmptyValues: step.applyToEmptyValues ?? false,
   };
@@ -179,6 +189,7 @@ function normalizeStepType(type?: string): TransformStepType | null {
     'extractNumber',
     'toNumber',
     'toText',
+    'formatDate',
     'numericOperation',
   ].includes(type ?? '')
     ? type as TransformStepType
@@ -186,7 +197,7 @@ function normalizeStepType(type?: string): TransformStepType | null {
 }
 
 function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' ? mode : undefined;
+  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' ? mode : undefined;
 }
 
 function inferStepModeFromType(type: TransformStepType): TransformStepMode {
@@ -198,7 +209,45 @@ function inferStepModeFromType(type: TransformStepType): TransformStepMode {
     return 'conversion';
   }
 
+  if (type === 'formatDate') {
+    return 'date';
+  }
+
   return 'text';
+}
+
+function normalizeDateFormat(format?: string): DateInputFormat | undefined {
+  return [
+    'DD/MM/YYYY',
+    'D/M/YYYY',
+    'YYYY-MM-DD',
+    'MM/DD/YYYY',
+    'M/D/YYYY',
+    'DD-MM-YYYY',
+    'YYYY/MM/DD',
+    'DD/MM/YY',
+    'D/M/YY',
+    'MM/DD/YY',
+    'M/D/YY',
+  ].includes(format ?? '')
+    ? format as DateInputFormat
+    : undefined;
+}
+
+function normalizeDateOutputFormat(format?: string): DateOutputFormat | undefined {
+  return [
+    'DD/MM/YYYY',
+    'YYYY-MM-DD',
+    'MM/DD/YYYY',
+    'DD-MM-YYYY',
+    'YYYY/MM/DD',
+  ].includes(format ?? '')
+    ? format as DateOutputFormat
+    : undefined;
+}
+
+function normalizeDateInvalidFallback(fallback?: string): DateInvalidFallback | undefined {
+  return fallback === 'empty' || fallback === 'original' || fallback === 'fixedText' ? fallback : undefined;
 }
 
 function normalizeStepSource(source?: Partial<StepSource>): StepSource | undefined {

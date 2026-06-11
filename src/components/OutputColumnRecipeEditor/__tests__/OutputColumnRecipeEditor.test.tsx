@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
-import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -307,7 +307,8 @@ describe('constructor helpers', () => {
   it('keeps value construction options separate from step modes', () => {
     expect(valueConstructionOptions.map((option) => option.value)).toEqual(['steps', 'concat']);
     expect(valueConstructionOptions.map((option) => option.value)).not.toContain('conversion');
-    expect(stepModeOptions.map((option) => option.value)).toEqual(['text', 'number', 'conversion']);
+    expect(stepModeOptions.map((option) => option.value)).toEqual(['text', 'number', 'conversion', 'date']);
+    expect(stepModeOptions.find((option) => option.value === 'date')?.label).toBe('Trabajar con fechas');
     expect(stepModeOptions.map((option) => option.value)).not.toContain('concat');
   });
 
@@ -379,6 +380,25 @@ describe('constructor helpers', () => {
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).toContain('numericOperation');
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).not.toContain('addSuffix');
     expect(getStepTypesForMode('conversion').map((stepType) => stepType.value)).toEqual(['noop', 'extractNumber', 'toNumber', 'toText']);
+    expect(getStepTypesForMode('date').map((stepType) => stepType.value)).toEqual(['noop', 'formatDate']);
+    expect(getStepTypesForMode('date').find((stepType) => stepType.value === 'formatDate')?.label).toBe('Formatear fecha');
+  });
+
+  it('exposes date input formats for real spreadsheet display values', () => {
+    expect(dateInputFormatOptions.map((option) => option.value)).toContain('MM/DD/YY');
+    expect(dateInputFormatOptions.map((option) => option.value)).toContain('M/D/YY');
+    expect(dateInputFormatOptions.find((option) => option.value === 'DD/MM/YYYY')?.label).toBe('DD/MM/AAAA');
+    expect(dateInputFormatOptions.find((option) => option.value === 'M/D/YYYY')?.label).toBe('M/D/AAAA');
+    expect(dateInputFormatOptions.find((option) => option.value === 'MM/DD/YY')?.label).toBe('MM/DD/AA');
+    expect(dateInputFormatOptions.find((option) => option.value === 'M/D/YY')?.label).toBe('M/D/AA');
+    expect(dateOutputFormatOptions.map((option) => option.value)).toEqual([
+      'DD/MM/YYYY',
+      'YYYY-MM-DD',
+      'MM/DD/YYYY',
+      'DD-MM-YYYY',
+      'YYYY/MM/DD',
+    ]);
+    expect(dateOutputFormatOptions.find((option) => option.value === 'YYYY-MM-DD')?.label).toBe('AAAA-MM-DD');
   });
 
   it('does not offer concat inside concat part transformations', () => {
@@ -426,6 +446,7 @@ describe('constructor helpers', () => {
     expect(inferStepModeFromType('addSuffix')).toBe('text');
     expect(inferStepModeFromType('numericOperation')).toBe('number');
     expect(inferStepModeFromType('extractNumber')).toBe('conversion');
+    expect(inferStepModeFromType('formatDate')).toBe('date');
     expect(getStepMode({ id: 'noop', type: 'noop' }, 'number')).toBe('number');
   });
 
@@ -455,6 +476,7 @@ describe('constructor helpers', () => {
       applyToEmptyValues: false,
     });
     expect(changeStepMode({ id: 'text', type: 'toText', mode: 'conversion' }, 'conversion')).toEqual({ mode: 'conversion' });
+    expect(changeStepMode({ id: 'date', type: 'formatDate', mode: 'date' }, 'date')).toEqual({ mode: 'date' });
   });
 
   it('infers missing modes without forcing all steps to recipe mode', () => {
@@ -647,11 +669,100 @@ describe('constructor helpers', () => {
     expect(shouldShowTextSourceFields('uppercase')).toBe(true);
     expect(shouldShowTextSourceFields('addSuffix')).toBe(true);
     expect(shouldShowTextSourceFields('replaceText')).toBe(true);
+    expect(shouldShowTextSourceFields('formatDate')).toBe(true);
     expect(shouldShowTextSourceFields('numericOperation')).toBe(false);
     expect(shouldShowTextSourceFields('concat')).toBe(false);
     expect(getTextStepSourceLabel('uppercase')).toBe('Valor a convertir');
     expect(getTextStepSourceLabel('addSuffix')).toBe('Valor base');
     expect(getTextStepSourceLabel('replaceText')).toBe('Valor base');
+    expect(getTextStepSourceLabel('formatDate')).toBe('Fecha a formatear');
+  });
+
+  it('previews date formatting using the processing engine', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+          separator: '',
+          steps: [{
+            id: 'format-date',
+            mode: 'date',
+            type: 'formatDate',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+        { 'input-date': '01/06/2024' },
+      ),
+    ).toBe('2024-06-01');
+  });
+
+  it('previews real spreadsheet date display values with two digit years', () => {
+    expect(
+      buildCustomValuePreview(
+        {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+          separator: '',
+          steps: [{
+            id: 'format-date',
+            mode: 'date',
+            type: 'formatDate',
+            dateInputFormat: 'MM/DD/YY',
+            dateOutputFormat: 'YYYY-MM-DD',
+            dateInvalidFallback: 'fixedText',
+            dateInvalidFallbackText: 'Esta bonito',
+          }],
+        },
+        { 'input-date': '6/1/24' },
+      ),
+    ).toBe('2024-06-01');
+  });
+
+  it('updates date preview when output format changes', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+      separator: '',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        dateInputFormat: 'MM/DD/YY',
+        dateOutputFormat: 'YYYY-MM-DD',
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { 'input-date': '6/1/24' })).toBe('2024-06-01');
+    expect(buildCustomValuePreview({
+      ...recipe,
+      steps: [{ ...recipe.steps![0], dateOutputFormat: 'DD/MM/YYYY' }],
+    }, { 'input-date': '6/1/24' })).toBe('01/06/2024');
+  });
+
+  it('applies fixed date fallback only when preview value is invalid', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+      separator: '',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        dateInputFormat: 'MM/DD/YY',
+        dateOutputFormat: 'YYYY-MM-DD',
+        dateInvalidFallback: 'fixedText',
+        dateInvalidFallbackText: 'Esta bonito',
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { 'input-date': '6/1/24' })).toBe('2024-06-01');
+    expect(buildCustomValuePreview(recipe, { 'input-date': '31/02/24' })).toBe('Esta bonito');
   });
 
   it('previews uppercase with an explicit input source', () => {
