@@ -1,5 +1,6 @@
 import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import type { FileNameSettings as FileNameSettingsType } from '../../types/import';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type FileNameSettingsProps = {
   settings: FileNameSettingsType;
@@ -41,7 +42,10 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
 
       {settings.mode === 'custom' ? (
         <label className="field">
-          <span>Nombre base</span>
+          <span className="labelWithInfo">
+            <span>Nombre base</span>
+            <InfoTooltip content="Nombre principal para los archivos descargados." />
+          </span>
           <input
             value={settings.customName}
             onChange={(event) => update({ customName: event.target.value })}
@@ -51,7 +55,10 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
       ) : (
         <>
           <label className="field">
-            <span>Texto base</span>
+            <span className="labelWithInfo">
+              <span>Texto base</span>
+              <InfoTooltip content="Texto fijo que puede sumarse al nombre final." />
+            </span>
             <input value={settings.baseText} onChange={(event) => update({ baseText: event.target.value })} />
           </label>
           <div className="presetBar">
@@ -104,7 +111,10 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
       )}
 
       <div className="filenamePreview">
-        <strong>Nombre final</strong>
+        <strong className="headingWithInfo">
+          <span>Nombre final</span>
+          <InfoTooltip content="Asi se llamara el archivo al descargarlo." />
+        </strong>
         <span>{outputName}</span>
         <small>Formatos disponibles: .xlsx y .csv</small>
         <small>Auditoría: {auditName}.xlsx</small>

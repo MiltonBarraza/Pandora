@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useDocumentScrollLock } from '../../hooks/useDocumentScrollLock';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type ModalProps = {
   open: boolean;
@@ -8,11 +9,12 @@ type ModalProps = {
   size?: 'default' | 'xl';
   onClose: () => void;
   children: ReactNode;
+  titleInfo?: string;
   headerDetails?: ReactNode;
   footer?: ReactNode;
 };
 
-export function Modal({ open, title, size = 'default', onClose, children, headerDetails, footer }: ModalProps) {
+export function Modal({ open, title, size = 'default', onClose, children, titleInfo, headerDetails, footer }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
 
@@ -64,7 +66,10 @@ export function Modal({ open, title, size = 'default', onClose, children, header
     >
       <div className="modalHeader">
         <div className="modalTitleBlock">
-          <h3 id={titleId}>{title}</h3>
+          <h3 id={titleId} className={titleInfo ? 'headingWithInfo' : undefined}>
+            <span>{title}</span>
+            {titleInfo ? <InfoTooltip content={titleInfo} placement="right" /> : null}
+          </h3>
           {headerDetails ? <div className="modalHeaderDetails">{headerDetails}</div> : null}
         </div>
         <ActionButton action="close" variant="icon" size="sm" title="Cerrar" aria-label="Cerrar" onClick={onClose} />

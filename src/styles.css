@@ -1015,8 +1015,8 @@ tbody tr:hover {
   padding-inline: 9px;
 }
 
-.modalDialogXl .constructorModalContent button:not(.iconButton):not(.dragHandle):not(.dropdownOption):not(.dropdownTrigger),
-.modalDialogXl .modalFooter button:not(.iconButton) {
+.modalDialogXl .constructorModalContent button:not(.iconButton):not(.dragHandle):not(.dropdownOption):not(.dropdownTrigger):not(.infoTooltipTrigger),
+.modalDialogXl .modalFooter button:not(.iconButton):not(.infoTooltipTrigger) {
   min-height: 36px;
   padding: 0 12px;
 }

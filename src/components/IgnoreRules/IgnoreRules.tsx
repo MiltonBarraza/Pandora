@@ -4,6 +4,7 @@ import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type IgnoreRulesProps = {
   mode: 'input' | 'output';
@@ -55,7 +56,9 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
     <div className="rules">
       <div className="sectionHeader">
         <p>{sectionCopy}</p>
-        <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
+        <InfoTooltip content="Agrega una nueva regla para excluir filas.">
+          <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
+        </InfoTooltip>
       </div>
 
       {rules.length === 0 ? <p className="muted">No hay reglas de ignorado configuradas.</p> : null}
@@ -72,6 +75,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
               <Dropdown
                 className="compact"
                 label="Columna"
+                labelInfo={<InfoTooltip content="Elegi la columna que se va a revisar." />}
                 value={rule.columnId}
                 placeholder="Seleccionar columna"
                 options={columns.map((column) => ({
@@ -85,6 +89,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
               <Dropdown<CompletedIgnoreRuleOperator>
                 className="compact"
                 label="Condición"
+                labelInfo={<InfoTooltip content="Define cuando se excluye una fila." />}
                 value={rule.operator}
                 placeholder="Seleccionar condición"
                 options={operators}
@@ -94,7 +99,10 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
               {needsValue || !rule.operator ? (
                 <label className="field compact">
-                  <span>Valor</span>
+                  <span className="labelWithInfo">
+                    <span>Valor</span>
+                    <InfoTooltip content="Texto que se compara con la columna elegida." />
+                  </span>
                   <input
                     value={rule.value ?? ''}
                     disabled={!rule.operator}
