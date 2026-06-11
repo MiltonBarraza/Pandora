@@ -1,5 +1,6 @@
 import { columnLetter } from '../../domain/import/columnAnalysis';
 import type { RawRow } from '../../types/import';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type RawPreviewProps = {
   rows: RawRow[];
@@ -33,7 +34,10 @@ export function RawPreview({
               checked={showAllColumns}
               onChange={(event) => onShowAllColumnsChange?.(event.target.checked)}
             />
-            Mostrar columnas ocultadas automáticamente
+            <span className="labelWithInfo">
+              <span>Mostrar columnas ocultadas automáticamente</span>
+              <InfoTooltip content="Muestra columnas que fueron sugeridas como no utiles." />
+            </span>
           </label>
           <p className="muted">Algunas columnas pueden ocultarse automáticamente porque no están vacías, no tienen ancho o tienen pocos datos.</p>
         </div>

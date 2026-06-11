@@ -15,6 +15,22 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 - Los formatos visibles del editor de fechas usan labels compactos en espanol, manteniendo los valores internos compatibles con settings y localStorage.
+
+## [0.2.4] - 2026-06-11
+
+### Added
+
+- Componente reusable `InfoTooltip` con ayudas contextuales breves para labels, titulos, secciones y acciones del wizard.
+- Ayudas contextuales en configuracion de filas, columnas detectadas, filtros, columnas de salida, recetas, nombre de archivo, descargas y modal de valor personalizado.
+
+### Changed
+
+- Los tooltips de acciones se muestran sobre el boton correspondiente para reducir ruido visual.
+- El posicionamiento de `InfoTooltip` usa placement configurable con fallback simple y correccion contra bordes de viewport.
+## 2026-06-10
+
+### Changed
+
 - Migrada la paleta visual a tokens CSS semanticos con base Pandora, manteniendo superficies blancas y estados success, warning, error y danger diferenciados.
 - Los botones primarios, secundarios, danger, iconos, inputs, dropdowns, modales, tablas, previews y estados de foco usan tokens compartidos.
 - El editor de recetas, transformaciones y reglas usa acentos lavanda para distinguir bloques de sanitizacion sin saturar la interfaz.
@@ -28,7 +44,13 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Las previews de entrada para celdas Excel de fecha ahora evitan mostrar por defecto formatos estadounidenses inesperados como `6/1/24` cuando la celda representa `1/6/2024`.
 - Corregido el formateo de fechas leidas desde Excel para conservar una representacion local clara en las secciones de preview y deteccion de columnas.
 
-## [0.2.3] - 2026-06-10
+### Fixed
+
+- Corregido el rendering de tooltips dentro de modales para que queden sobre el `dialog` y no debajo del top layer del navegador.
+- Corregida la visibilidad y alineacion del icono de ayuda dentro del modal de valor personalizado.
+- Corregidos desbordes de tooltips cerca de los bordes izquierdo, derecho, superior e inferior de la ventana.
+
+## [0.2.4] - 2026-06-10
 
 ### Changed
 

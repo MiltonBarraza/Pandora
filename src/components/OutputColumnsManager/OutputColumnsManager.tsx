@@ -7,6 +7,7 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
@@ -115,12 +116,16 @@ export function OutputColumnsManager({
         <div className="outputColumnsHeaderActions">
           <div className="inlineForm">
             <input value={newColumnName} onChange={(event) => setNewColumnName(event.target.value)} placeholder="Nueva columna" />
-            <ActionButton type="button" action="add" onClick={addColumn}>Agregar</ActionButton>
+            <InfoTooltip content="Agrega una columna nueva al archivo final.">
+              <ActionButton type="button" action="add" onClick={addColumn}>Agregar</ActionButton>
+            </InfoTooltip>
           </div>
           <ButtonGroup>
-            <ActionButton action="duplicate" variant="secondary" onClick={createFromActiveColumns}>
-              Crear columnas activas
-            </ActionButton>
+            <InfoTooltip content="Crea columnas de salida desde las columnas activas.">
+              <ActionButton action="duplicate" variant="secondary" onClick={createFromActiveColumns}>
+                Crear columnas activas
+              </ActionButton>
+            </InfoTooltip>
           </ButtonGroup>
         </div>
       </div>
@@ -169,7 +174,10 @@ export function OutputColumnsManager({
               <>
                 <div className="outputColumnHeader">
                   <label className="field compact outputNameField">
-                    <span>Nombre de salida</span>
+                    <span className="labelWithInfo">
+                      <span>Nombre de salida</span>
+                      <InfoTooltip content="Este nombre se usara como encabezado final." />
+                    </span>
                     <input
                       value={selectedColumn.label}
                       onChange={(event) => updateOutputColumn(selectedColumn.id, { ...selectedColumn, label: event.target.value })}

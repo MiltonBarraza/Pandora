@@ -27,6 +27,7 @@ import { RawPreview } from '../RawPreview/RawPreview';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
@@ -403,7 +404,7 @@ export function ImportWizard() {
       </header>
 
       <div className="wizard">
-        <Step title="1. Subir archivo">
+        <Step title="1. Subir archivo" info="Elegi el Excel o CSV que queres limpiar.">
           <FileUploader
             fileName={fileName}
             emptyHint={!hasLoadedFile ? 'Cargá un archivo para continuar con la configuración.' : undefined}
@@ -415,7 +416,7 @@ export function ImportWizard() {
 
         {hasLoadedFile ? (
           <>
-        <Step title="2. Seleccionar hoja">
+        <Step title="2. Seleccionar hoja" info="Indica que hoja del archivo se va a procesar.">
           {fileType === 'csv' ? (
             <p className="muted">El archivo CSV se procesa como una única hoja.</p>
           ) : (
@@ -446,10 +447,11 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="3. Configurar filas">
+        <Step title="3. Configurar filas" info="Define donde empiezan los titulos y los datos reales.">
           <div className="twoColumns">
             <Dropdown
               label="Fila de encabezados"
+              labelInfo={<InfoTooltip content="Selecciona la fila que contiene los nombres de las columnas." />}
               value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
               options={[
                 { value: 'none', label: 'Sin encabezados' },
@@ -465,7 +467,10 @@ export function ImportWizard() {
               }}
             />
             <div className="field startRowField">
-              <span>Primera fila de datos</span>
+              <span className="labelWithInfo">
+                <span>Primera fila de datos</span>
+                <InfoTooltip content="Desde esta fila se empiezan a procesar los registros." />
+              </span>
               <div className="startRowControls">
                 <input
                   type="number"
@@ -521,7 +526,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="4. Columnas detectadas">
+        <Step title="4. Columnas detectadas" info="Revisa que columnas entran en la receta y cuales se ignoran.">
           <ColumnVisibilityManager
             columns={columnAnalysis}
             showHeaderColumn={headerRowIndex !== null}
@@ -529,7 +534,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="5. Filtrar filas de entrada">
+        <Step title="5. Filtrar filas de entrada" info="Excluye filas usando los datos originales del archivo.">
           <IgnoreRules
             mode="input"
             inputColumns={processedPipeline.inputColumns}
@@ -542,7 +547,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="6. Columnas de salida">
+        <Step title="6. Columnas de salida" info="Define las columnas que tendra el archivo final.">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
             sampleInputValues={processedPipeline.includedInputRows[0]?.values ?? processedPipeline.inputRows[0]?.values}
@@ -551,7 +556,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="7. Filtrar filas de salida">
+        <Step title="7. Filtrar filas de salida" info="Excluye filas despues de aplicar las transformaciones.">
           <IgnoreRules
             mode="output"
             inputColumns={processedPipeline.inputColumns}
@@ -564,7 +569,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="8. Vista normalizada">
+        <Step title="8. Vista normalizada" info="Muestra una vista previa del resultado ya procesado.">
           <ProcessedRowsPreview
             rows={processedRowsWithStatus}
             outputColumns={processedPipeline.outputColumns}
@@ -579,7 +584,7 @@ export function ImportWizard() {
           ) : null}
         </Step>
 
-        <Step title="9. Nombre del archivo de salida">
+        <Step title="9. Nombre del archivo de salida" info="Configura como se va a llamar el archivo final.">
           <FileNameSettings
             settings={fileNameSettings}
             sourceFileName={fileName}
@@ -591,7 +596,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="10. Descargar archivo">
+        <Step title="10. Descargar archivo" info="Genera el archivo final y, si hace falta, el archivo de auditoria.">
           <ExportActions
             rows={processedRowsWithStatus}
             auditRows={auditRows}
@@ -629,10 +634,13 @@ function getApplicableSheet(
   return currentSheet;
 }
 
-function Step({ title, children }: { title: string; children: ReactNode }) {
+function Step({ title, info, children }: { title: string; info?: string; children: ReactNode }) {
   return (
     <section className="panel">
-      <h2>{title}</h2>
+      <h2 className={info ? 'headingWithInfo' : undefined}>
+        <span>{title}</span>
+        {info ? <InfoTooltip content={info} ariaLabel={`Ayuda: ${title}`} placement="right" /> : null}
+      </h2>
       {children}
     </section>
   );

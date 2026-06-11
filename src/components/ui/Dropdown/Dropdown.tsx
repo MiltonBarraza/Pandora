@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useDocumentScrollLock } from '../../../hooks/useDocumentScrollLock';
 import './Dropdown.css';
@@ -15,6 +15,7 @@ type DropdownProps<T extends string = string> = {
   onChange: (value: T) => void;
   placeholder?: string;
   label?: string;
+  labelInfo?: ReactNode;
   disabled?: boolean;
   className?: string;
   scrollStrategy?: 'close' | 'lock';
@@ -37,6 +38,7 @@ export function Dropdown<T extends string = string>({
   onChange,
   placeholder = 'Seleccionar',
   label,
+  labelInfo,
   disabled = false,
   className = '',
   scrollStrategy = 'close',
@@ -201,7 +203,12 @@ export function Dropdown<T extends string = string>({
 
   return (
     <div ref={rootRef} className={`dropdownField${className ? ` ${className}` : ''}`}>
-      {label ? <span id={labelId} className="dropdownLabel">{label}</span> : null}
+      {label ? (
+        <span className="dropdownLabel labelWithInfo">
+          <span id={labelId}>{label}</span>
+          {labelInfo}
+        </span>
+      ) : null}
       <button
         ref={buttonRef}
         type="button"

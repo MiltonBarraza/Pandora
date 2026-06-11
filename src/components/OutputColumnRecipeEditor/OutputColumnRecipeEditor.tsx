@@ -10,6 +10,7 @@ import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type OutputColumnRecipeEditorProps = {
   column: OutputColumn;
@@ -110,6 +111,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
         <Dropdown<OutputRecipe['type']>
           className="compact"
           label="Origen del valor"
+          labelInfo={<InfoTooltip content="Define como se va a llenar esta columna." />}
           scrollStrategy="close"
           value={column.recipe.type}
           options={[
@@ -130,6 +132,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
           <Dropdown
             className="compact"
             label="Columna de entrada"
+            labelInfo={<InfoTooltip content="Elegi la columna del Excel que contiene este dato." />}
             value={column.recipe.inputColumnId}
             options={activeInputColumns.length === 0
               ? [{ value: '', label: 'Sin columnas activas' }]
@@ -141,7 +144,10 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
 
         {column.recipe.type === 'fixedText' ? (
           <label className="field compact">
-            <span>Texto fijo</span>
+            <span className="labelWithInfo">
+              <span>Texto fijo</span>
+              <InfoTooltip content="Usa el mismo texto en todas las filas." />
+            </span>
             <input value={column.recipe.value} onChange={(event) => updateRecipe({ type: 'fixedText', value: event.target.value })} />
           </label>
         ) : null}
@@ -151,7 +157,10 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
         <>
           <div className="recipeSubBlock constructorSummary">
             <div>
-              <strong>Crear valor personalizado</strong>
+              <strong className="headingWithInfo">
+                <span>Crear valor personalizado</span>
+                <InfoTooltip content="Combina datos y transformaciones para crear este valor." />
+              </strong>
               <dl className="customValueSummaryList">
                 <div>
                   <dt>Vista previa</dt>
@@ -191,6 +200,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
           <Modal
             open={isConstructorOpen}
             title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
+            titleInfo="Configura como se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
@@ -759,7 +769,9 @@ function StepBlocksEditor({
         </div>
       )}
       <div className="stepsBlockActions">
-        <button type="button" className="secondary" onClick={addStep}>Agregar paso</button>
+        <InfoTooltip content="Agrega una transformacion nueva al valor.">
+          <button type="button" className="secondary" onClick={addStep}>Agregar paso</button>
+        </InfoTooltip>
       </div>
     </div>
   );
@@ -887,8 +899,13 @@ function StepsWorkspace({
       <div className="stepsWorkspace">
         <div className="stepsListPanel">
           <div className="stepsListHeader">
-            <strong>Pasos</strong>
-            <button type="button" className="secondary" onClick={addStep}>Agregar paso</button>
+            <strong className="headingWithInfo">
+              <span>Pasos</span>
+              <InfoTooltip content="Cada paso transforma el resultado anterior." />
+            </strong>
+            <InfoTooltip content="Agrega una transformacion nueva al valor.">
+              <button type="button" className="secondary" onClick={addStep}>Agregar paso</button>
+            </InfoTooltip>
           </div>
           {steps.length === 0 ? (
             <p className="muted">Sin pasos configurados.</p>
@@ -1028,6 +1045,7 @@ function StepTypeSelect({
       <Dropdown<NonNullable<TransformStep['operation']> | ''>
         className="compact"
         label="Que quiero hacer"
+        labelInfo={<InfoTooltip content="Define como se va a transformar esta informacion." />}
         value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
         options={[
           { value: '', label: 'Usar valor tal cual' },
@@ -1052,6 +1070,7 @@ function StepTypeSelect({
       <Dropdown<TransformStepType>
         className="compact"
         label="Que quiero hacer"
+        labelInfo={<InfoTooltip content="Define como se va a transformar esta informacion." />}
         value={step.type}
         options={options}
         scrollStrategy="close"
@@ -1067,6 +1086,7 @@ function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange:
     <Dropdown<TransformStepMode>
       className="compact"
       label="Tipo de operación"
+      labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
       value={mode}
       options={stepModeOptions}
       scrollStrategy="close"
@@ -1102,6 +1122,7 @@ function StepSourceFields({
       <Dropdown
         className="compact"
         label={label}
+        labelInfo={<InfoTooltip content="Indica de donde sale el valor de este paso." />}
         value={sourceValue}
         options={getStepSourceDropdownOptions(inputColumns, allowPreviousResult)}
         placeholder="Seleccionar fuente"
@@ -1120,7 +1141,10 @@ function StepSourceFields({
 
       {safeSource.type === 'fixedText' ? (
         <label className="field compact">
-          <span>Texto fijo</span>
+          <span className="labelWithInfo">
+            <span>Texto fijo</span>
+            <InfoTooltip content="Valor manual usado en este paso." />
+          </span>
           <input value={safeSource.value} onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })} />
         </label>
       ) : null}
@@ -1190,6 +1214,7 @@ function StepOperandFields({
       <Dropdown<StepOperand['type']>
         className="compact"
         label={label}
+        labelInfo={<InfoTooltip content="Elige si el valor viene de una columna, un numero fijo o un paso previo." />}
         value={safeOperand.type}
         options={[
           ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado del paso anterior' }] : []),
@@ -1223,7 +1248,10 @@ function StepOperandFields({
 
       {safeOperand.type === 'fixedText' ? (
         <label className="field compact">
-          <span>{label}: valor fijo</span>
+          <span className="labelWithInfo">
+            <span>{label}: valor fijo</span>
+            <InfoTooltip content="Numero manual para usar en la operacion." />
+          </span>
           <input
             type="number"
             step="any"
@@ -1259,6 +1287,7 @@ function InputColumnSelect({
     <Dropdown
       className="compact"
       label={label}
+      labelInfo={<InfoTooltip content="Elegi la columna del Excel que contiene este dato." />}
       value={value}
       options={[
         { value: '', label: 'Seleccionar columna' },
@@ -1319,10 +1348,15 @@ function CombineRecipeFields({
   return (
     <div className="recipeSubBlock">
       <div className="sectionHeader">
-        <p>Partes del valor</p>
-        <button type="button" className="secondary" onClick={addPart}>
-          Agregar parte
-        </button>
+        <p className="headingWithInfo">
+          <span>Partes del valor</span>
+          <InfoTooltip content="Cada parte aporta un dato o texto al valor final." />
+        </p>
+        <InfoTooltip content="Agrega otro dato o texto a combinar.">
+          <button type="button" className="secondary" onClick={addPart}>
+            Agregar parte
+          </button>
+        </InfoTooltip>
       </div>
       {recipe.parts.length === 0 ? <p className="muted">Agrega una parte para construir el valor.</p> : null}
       {recipe.parts.length > 0 ? (
@@ -1435,7 +1469,10 @@ function ConcatPartFields({
     <>
       {!isFirstPart ? (
         <label className="field compact">
-          <span>Separador antes de esta parte</span>
+          <span className="labelWithInfo">
+            <span>Separador antes de esta parte</span>
+            <InfoTooltip content="Texto que separa esta parte de la anterior." />
+          </span>
           <input
             value={separatorBefore}
             onChange={(event) => onSeparatorBeforeChange(event.target.value)}
@@ -1447,6 +1484,7 @@ function ConcatPartFields({
       <Dropdown<RecipePart['type']>
         className="compact"
         label="Tipo de parte"
+        labelInfo={<InfoTooltip content="Elige si la parte viene de una columna o de texto fijo." />}
         value={part.type}
         options={[
           { value: 'input', label: 'Columna de entrada' },
@@ -1458,7 +1496,10 @@ function ConcatPartFields({
 
       {part.type === 'text' ? (
         <label className="field compact">
-          <span>Texto</span>
+          <span className="labelWithInfo">
+            <span>Texto</span>
+            <InfoTooltip content="Texto manual para sumar al valor." />
+          </span>
           <input value={part.type === 'text' ? part.value : ''} onChange={(event) => onChange({ ...part, value: event.target.value })} />
         </label>
       ) : (
@@ -1514,7 +1555,9 @@ function ConcatStepFields({
       {parts.length === 0 ? (
         <div className="concatPartsEmptyState">
           <p className="muted">Agrega una parte para construir el valor.</p>
-          <button type="button" className="secondary" onClick={addPart}>Agregar parte</button>
+          <InfoTooltip content="Agrega otro dato o texto a combinar.">
+            <button type="button" className="secondary" onClick={addPart}>Agregar parte</button>
+          </InfoTooltip>
         </div>
       ) : null}
       {parts.length > 0 ? (
@@ -1541,12 +1584,17 @@ function ConcatStepFields({
                 );
               }}
             />
-            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>Agregar parte</button>
+            <InfoTooltip content="Agrega otro dato o texto a combinar.">
+              <button type="button" className="secondary concatAddPartButton" onClick={addPart}>Agregar parte</button>
+            </InfoTooltip>
           </div>
           {selectedPart ? (
             <div className="concatPartDetailPanel">
               <div className="concatPartHeader">
-                <strong>Parte {selectedPartIndex + 1}</strong>
+                <strong className="headingWithInfo">
+                  <span>Parte {selectedPartIndex + 1}</span>
+                  <InfoTooltip content="Configura el dato o texto de esta parte." />
+                </strong>
                 <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
               </div>
               <ConcatPartStepsEditor
@@ -1556,7 +1604,10 @@ function ConcatStepFields({
                 separatorFields={selectedPartIndex > 0 ? (
                   <div className="concatPartFields">
                     <label className="field compact">
-                      <span>Separador antes de esta parte</span>
+                      <span className="labelWithInfo">
+                        <span>Separador antes de esta parte</span>
+                        <InfoTooltip content="Texto que separa esta parte de la anterior." />
+                      </span>
                       <input
                         value={selectedPart.separatorBefore ?? ''}
                         onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
@@ -1667,7 +1718,9 @@ function ConcatPartStepsEditor({
           </div>
         ) : null}
         <div className="concatPartStepsActions">
-          <button type="button" className="secondary" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
+          <InfoTooltip content="Agrega una transformacion adicional a esta parte.">
+            <button type="button" className="secondary" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
+          </InfoTooltip>
         </div>
       </div>
     </div>
@@ -1868,6 +1921,7 @@ function StepFields({
         <Dropdown
           className="compact"
           label={labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}
+          labelInfo={<InfoTooltip content="Define como mostrar los numeros del resultado." />}
           value={String(step.rounding ?? 2)}
           options={[
             { value: 'none', label: 'Sin redondeo' },
@@ -1965,6 +2019,7 @@ function StepConditionFields({
       <Dropdown<'always' | 'conditional'>
         className="compact"
         label="Condición"
+        labelInfo={<InfoTooltip content="Elige si este paso se aplica siempre o solo en algunos casos." />}
         value={condition ? 'conditional' : 'always'}
         options={[
           { value: 'always', label: 'Aplicar siempre' },
@@ -1985,6 +2040,7 @@ function StepConditionFields({
         <Dropdown
           className="compact"
           label="Columna"
+          labelInfo={<InfoTooltip content="Columna que se revisa para decidir si aplicar el paso." />}
           value={inputCondition?.columnId ?? ''}
           options={conditionColumns.length === 0
             ? [{ value: '', label: 'Sin columnas' }]
@@ -1997,6 +2053,7 @@ function StepConditionFields({
         <Dropdown<ConditionOperator>
           className="compact"
           label="Operador"
+          labelInfo={<InfoTooltip content="Regla que compara la columna elegida." />}
           value={inputCondition?.operator ?? 'isNotEmpty'}
           options={conditionOperators}
           scrollStrategy="close"
@@ -2013,7 +2070,10 @@ function StepConditionFields({
       ) : null}
       {inputCondition && conditionNeedsValue(inputCondition.operator) ? (
         <label className="field compact">
-          <span>Valor condición</span>
+          <span className="labelWithInfo">
+            <span>Valor condición</span>
+            <InfoTooltip content="Valor que debe coincidir para aplicar el paso." />
+          </span>
           <input value={inputCondition.value ?? ''} onChange={(event) => onChange({ condition: { ...inputCondition, value: event.target.value } })} />
         </label>
       ) : null}
