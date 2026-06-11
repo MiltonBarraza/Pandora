@@ -5,10 +5,16 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.5] - 2026-06-12
+
+### Added
+
+- Soporte inicial de fechas en el editor de recetas con modo "Trabajar con fechas", operacion "Formatear fecha", formatos de entrada/salida controlados y fallback configurable para valores invalidos.
+- Parseo de fechas como fecha civil, incluyendo dia/mes de uno o dos digitos y anos de dos digitos, sin cambiar la salida final como string.
 
 ### Changed
 
+- Los formatos visibles del editor de fechas usan labels compactos en espanol, manteniendo los valores internos compatibles con settings y localStorage.
 - Migrada la paleta visual a tokens CSS semanticos con base Pandora, manteniendo superficies blancas y estados success, warning, error y danger diferenciados.
 - Los botones primarios, secundarios, danger, iconos, inputs, dropdowns, modales, tablas, previews y estados de foco usan tokens compartidos.
 - El editor de recetas, transformaciones y reglas usa acentos lavanda para distinguir bloques de sanitizacion sin saturar la interfaz.
@@ -16,6 +22,11 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - El boton para remover archivo en el dropzone usa un estilo danger suave con borde y hover destructivo no solido.
 - La opcion seleccionada del Dropdown usa un fondo accent limpio sin barra lateral.
 - La pantalla interna de preview de iconos usa los tokens de color compartidos.
+
+### Fixed
+
+- Las previews de entrada para celdas Excel de fecha ahora evitan mostrar por defecto formatos estadounidenses inesperados como `6/1/24` cuando la celda representa `1/6/2024`.
+- Corregido el formateo de fechas leidas desde Excel para conservar una representacion local clara en las secciones de preview y deteccion de columnas.
 
 ## [0.2.3] - 2026-06-10
 

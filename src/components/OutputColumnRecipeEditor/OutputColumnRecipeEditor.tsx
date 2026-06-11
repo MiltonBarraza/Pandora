@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, ConditionOperator, InputColumn, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -462,6 +463,10 @@ function describeSimpleStep(step: TransformStep) {
     return ['convertir a texto'];
   }
 
+  if (step.type === 'formatDate') {
+    return ['formatear fecha'];
+  }
+
   if (step.type === 'concat') {
     return ['concatenar'];
   }
@@ -596,6 +601,7 @@ export const stepModeOptions: Array<{ value: TransformStepMode; label: string }>
   { value: 'text', label: 'Trabajar con texto' },
   { value: 'number', label: 'Trabajar con número' },
   { value: 'conversion', label: 'Conversión' },
+  { value: 'date', label: 'Trabajar con fechas' },
 ];
 
 function CustomValueEditor({
@@ -1690,6 +1696,7 @@ const stepTypes: Array<{ value: TransformStepType; label: string }> = [
   { value: 'extractNumber', label: 'Extraer número del texto' },
   { value: 'toNumber', label: 'Convertir a número' },
   { value: 'toText', label: 'Convertir a texto' },
+  { value: 'formatDate', label: 'Formatear fecha' },
   { value: 'numericOperation', label: 'Operación numérica' },
 ];
 
@@ -1703,6 +1710,11 @@ const textStepTypes = stepTypes.filter((stepType) => [
   'removeText',
   'replaceText',
   'concat',
+].includes(stepType.value));
+
+const dateStepTypes = stepTypes.filter((stepType) => [
+  'noop',
+  'formatDate',
 ].includes(stepType.value));
 
 const numberStepTypes = stepTypes.filter((stepType) => [
@@ -1728,6 +1740,10 @@ export function getStepTypesForMode(mode: TransformStepMode, { allowConcat = tru
 
   if (mode === 'conversion') {
     return conversionStepTypes;
+  }
+
+  if (mode === 'date') {
+    return dateStepTypes;
   }
 
   return allowConcat ? textStepTypes : textStepTypes.filter((stepType) => stepType.value !== 'concat');
@@ -1878,6 +1894,44 @@ function StepFields({
     );
   }
 
+  if (step.type === 'formatDate') {
+    return (
+      <>
+        {sourceFields}
+        <Dropdown<DateInputFormat>
+          className="compact"
+          label="Formato de entrada"
+          value={step.dateInputFormat ?? defaultDateInputFormat}
+          options={dateInputFormatOptions}
+          scrollStrategy="close"
+          onChange={(dateInputFormat) => onChange({ dateInputFormat })}
+        />
+        <Dropdown<DateOutputFormat>
+          className="compact"
+          label="Formato de salida"
+          value={step.dateOutputFormat ?? defaultDateOutputFormat}
+          options={dateOutputFormatOptions}
+          scrollStrategy="close"
+          onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
+        />
+        <Dropdown<DateInvalidFallback>
+          className="compact"
+          label="Si no es una fecha válida"
+          value={step.dateInvalidFallback ?? defaultDateInvalidFallback}
+          options={dateInvalidFallbackOptions}
+          scrollStrategy="close"
+          onChange={(dateInvalidFallback) => onChange({ dateInvalidFallback })}
+        />
+        {(step.dateInvalidFallback ?? defaultDateInvalidFallback) === 'fixedText' ? (
+          <label className="field compact">
+            <span>Texto fallback</span>
+            <input value={step.dateInvalidFallbackText ?? ''} onChange={(event) => onChange({ dateInvalidFallbackText: event.target.value })} />
+          </label>
+        ) : null}
+      </>
+    );
+  }
+
   if (step.type === 'extractNumber') {
     return sourceFields;
   }
@@ -1998,6 +2052,52 @@ export const numericOperationOptions = Object.entries(numericOperationLabels).ma
   value: value as NonNullable<TransformStep['operation']>,
   label,
 }));
+
+export const dateInputFormatOptions: Array<{ value: DateInputFormat; label: string }> = supportedDateInputFormats.map((format) => ({
+  value: format,
+  label: getDateInputFormatLabel(format),
+}));
+
+export const dateOutputFormatOptions: Array<{ value: DateOutputFormat; label: string }> = supportedDateOutputFormats.map((format) => ({
+  value: format,
+  label: getDateOutputFormatLabel(format),
+}));
+
+const dateInvalidFallbackOptions: Array<{ value: DateInvalidFallback; label: string }> = [
+  { value: 'empty', label: 'Dejar vacío' },
+  { value: 'original', label: 'Mantener valor original' },
+  { value: 'fixedText', label: 'Usar texto fijo' },
+];
+
+function getDateInputFormatLabel(format: DateInputFormat) {
+  const labels: Record<DateInputFormat, string> = {
+    'DD/MM/YYYY': 'DD/MM/AAAA',
+    'D/M/YYYY': 'D/M/AAAA',
+    'YYYY-MM-DD': 'AAAA-MM-DD',
+    'MM/DD/YYYY': 'MM/DD/AAAA',
+    'M/D/YYYY': 'M/D/AAAA',
+    'DD-MM-YYYY': 'DD-MM-AAAA',
+    'YYYY/MM/DD': 'AAAA/MM/DD',
+    'DD/MM/YY': 'DD/MM/AA',
+    'D/M/YY': 'D/M/AA',
+    'MM/DD/YY': 'MM/DD/AA',
+    'M/D/YY': 'M/D/AA',
+  };
+
+  return labels[format];
+}
+
+function getDateOutputFormatLabel(format: DateOutputFormat) {
+  const labels: Record<DateOutputFormat, string> = {
+    'DD/MM/YYYY': 'DD/MM/AAAA',
+    'YYYY-MM-DD': 'AAAA-MM-DD',
+    'MM/DD/YYYY': 'MM/DD/AAAA',
+    'DD-MM-YYYY': 'DD-MM-AAAA',
+    'YYYY/MM/DD': 'AAAA/MM/DD',
+  };
+
+  return labels[format];
+}
 
 function createDefaultCondition(inputColumns: InputColumn[]): TransformCondition {
   return {
@@ -2451,6 +2551,23 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
     };
   }
 
+  if (type === 'formatDate') {
+    return {
+      id: crypto.randomUUID(),
+      mode: 'date',
+      type,
+      value: '',
+      searchValue: '',
+      replaceValue: '',
+      dateInputFormat: defaultDateInputFormat,
+      dateOutputFormat: defaultDateOutputFormat,
+      dateInvalidFallback: defaultDateInvalidFallback,
+      dateInvalidFallbackText: '',
+      condition,
+      applyToEmptyValues: false,
+    };
+  }
+
   return {
     id: crypto.randomUUID(),
     mode: inferStepModeFromType(type),
@@ -2572,6 +2689,7 @@ export function shouldShowTextSourceFields(type: TransformStepType) {
     'extractNumber',
     'toNumber',
     'toText',
+    'formatDate',
   ].includes(type);
 }
 
@@ -2596,6 +2714,10 @@ export function getTextStepSourceLabel(type: TransformStepType) {
     return 'Valor a convertir';
   }
 
+  if (type === 'formatDate') {
+    return 'Fecha a formatear';
+  }
+
   return 'Desde donde toma el valor';
 }
 
@@ -2618,7 +2740,7 @@ export function getStepMode(step: TransformStep, fallbackMode: TransformStepMode
 }
 
 function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' ? mode : undefined;
+  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' ? mode : undefined;
 }
 
 export function inferStepModeFromType(type: TransformStepType): TransformStepMode {
@@ -2628,6 +2750,10 @@ export function inferStepModeFromType(type: TransformStepType): TransformStepMod
 
   if (type === 'extractNumber' || type === 'toNumber' || type === 'toText') {
     return 'conversion';
+  }
+
+  if (type === 'formatDate') {
+    return 'date';
   }
 
   return 'text';

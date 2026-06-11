@@ -218,6 +218,54 @@ describe('settingsSnapshot', () => {
     expect(settings).not.toHaveProperty('rowOverrides');
   });
 
+  it('exports output columns with date recipe fields intact', () => {
+    const settings = exportSettingsFromWizardState({
+      fileType: 'spreadsheet',
+      selectedSheet: 'Hoja 1',
+      rows,
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      columnAnalysis,
+      inputColumnAliases: {},
+      inputIgnoreRules: [],
+      outputColumns: [{
+        id: 'output-date',
+        label: 'Fecha',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'date-part', type: 'input', inputColumnId: 'input-0' }],
+          steps: [{
+            id: 'format-date',
+            mode: 'date',
+            type: 'formatDate',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+            dateInvalidFallback: 'fixedText',
+            dateInvalidFallbackText: 'SIN FECHA',
+          }],
+        },
+      }],
+      outputIgnoreRules: [],
+      fileNameSettings,
+    });
+
+    expect(settings.config.outputColumns[0].recipe).toMatchObject({
+      type: 'combine',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        dateInputFormat: 'DD/MM/YYYY',
+        dateOutputFormat: 'YYYY-MM-DD',
+        dateInvalidFallback: 'fixedText',
+        dateInvalidFallbackText: 'SIN FECHA',
+      }],
+    });
+  });
+
   it('does not mutate or share configurable arrays with the exported settings', () => {
     const inputRules: IgnoreRule[] = [{ ...inputIgnoreRules[0] }];
     const columns: OutputColumn[] = JSON.parse(JSON.stringify(outputColumns)) as OutputColumn[];

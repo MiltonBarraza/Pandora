@@ -13,6 +13,9 @@ const inputRows: InputRow[] = [
       'input-empty': '',
       'input-price': '$ 200',
       'input-large-price': '1500',
+      'input-date': '01/06/2024',
+      'input-short-date': '6/1/24',
+      'input-single-digit-date': '1/6/2024',
       'input-invalid': 'abc',
     },
   },
@@ -672,6 +675,224 @@ describe('outputModel concat step', () => {
     ]);
 
     expect(row.outputValues['concat-part-steps']).toBe('PINTURA LATEX - OK');
+  });
+});
+
+describe('outputModel date steps', () => {
+  it('formats a direct recipe value as a string', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('2024-06-01');
+  });
+
+  it('formats dates with two digit years from real spreadsheet display values', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-short-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'MM/DD/YY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('2024-06-01');
+  });
+
+  it('formats dates with single digit day and month', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-single-digit-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('2024-06-01');
+  });
+
+  it('changes the result when the output format changes', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'iso',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-short-date',
+          steps: [{ id: 'format-date', type: 'formatDate', dateInputFormat: 'MM/DD/YY', dateOutputFormat: 'YYYY-MM-DD' }],
+        },
+      }),
+      outputColumn({
+        id: 'slashed',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-short-date',
+          steps: [{ id: 'format-date', type: 'formatDate', dateInputFormat: 'MM/DD/YY', dateOutputFormat: 'DD/MM/YYYY' }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.iso).toBe('2024-06-01');
+    expect(row.outputValues.slashed).toBe('01/06/2024');
+  });
+
+  it('applies fixed text fallback only to invalid dates', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'valid',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-short-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            dateInputFormat: 'MM/DD/YY',
+            dateOutputFormat: 'YYYY-MM-DD',
+            dateInvalidFallback: 'fixedText',
+            dateInvalidFallbackText: 'Esta bonito',
+          }],
+        },
+      }),
+      outputColumn({
+        id: 'invalid',
+        recipe: {
+          type: 'fixedText',
+          value: '31/02/2024',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+            dateInvalidFallback: 'fixedText',
+            dateInvalidFallbackText: 'Esta bonito',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.valid).toBe('2024-06-01');
+    expect(row.outputValues.invalid).toBe('Esta bonito');
+  });
+
+  it('formats a value from an explicit input source', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'input', inputColumnId: 'input-date' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'DD-MM-YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('01-06-2024');
+  });
+
+  it('formats the previous result from an earlier step', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: ' 01/06/2024 ',
+          steps: [
+            { id: 'trim', type: 'trim' },
+            {
+              id: 'format-date',
+              type: 'formatDate',
+              source: { type: 'previousResult' },
+              dateInputFormat: 'DD/MM/YYYY',
+              dateOutputFormat: 'YYYY-MM-DD',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('2024-06-01');
+  });
+
+  it('formats dates inside concat part steps', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'concat-date',
+        recipe: {
+          type: 'fixedText',
+          value: '',
+          steps: [{
+            id: 'concat',
+            type: 'concat',
+            parts: [
+              {
+                id: 'date',
+                source: { type: 'input', inputColumnId: 'input-date' },
+                steps: [{
+                  id: 'format-date',
+                  type: 'formatDate',
+                  dateInputFormat: 'DD/MM/YYYY',
+                  dateOutputFormat: 'YYYY-MM-DD',
+                }],
+              },
+              { id: 'suffix', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' ' },
+            ],
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['concat-date']).toBe('2024-06-01 OK');
+  });
+
+  it('keeps existing text steps unchanged', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'name',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-name',
+          steps: [{ id: 'trim', type: 'trim' }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.name).toBe('Pintura Latex');
   });
 });
 

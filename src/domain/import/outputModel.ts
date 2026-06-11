@@ -12,6 +12,7 @@ import type {
   TransformStep,
 } from '../../types/import';
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
+import { applyFormatDateStep } from './dateOperations';
 import { evaluateTransformCondition } from './evaluateCondition';
 import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
@@ -292,6 +293,10 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
     return { value: String(value), warnings: [] };
   }
 
+  if (step.type === 'formatDate') {
+    return { value: applyFormatDateStep(value, step), warnings: [] };
+  }
+
   if (step.type === 'concat') {
     return applyConcatTransformStep(step, {
       ...context,
@@ -449,6 +454,6 @@ function shouldSkipEmptyValue(value: string, step: TransformStep) {
   return (
     value.trim() === '' &&
     !step.applyToEmptyValues &&
-    ['addPrefix', 'addSuffix', 'removeText', 'replaceText', 'extractNumber', 'toNumber', 'numericOperation'].includes(step.type)
+    ['addPrefix', 'addSuffix', 'removeText', 'replaceText', 'extractNumber', 'toNumber', 'formatDate', 'numericOperation'].includes(step.type)
   );
 }
