@@ -27,7 +27,8 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Los tooltips de acciones se muestran sobre el boton correspondiente para reducir ruido visual.
 - El posicionamiento de `InfoTooltip` usa placement configurable con fallback simple y correccion contra bordes de viewport.
-## 2026-06-10
+
+## [0.2.4] - 2026-06-10
 
 ### Changed
 
