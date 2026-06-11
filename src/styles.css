@@ -1,6 +1,74 @@
 :root {
-  color: #18202a;
-  background: #f5f7f9;
+  /* Base */
+  --color-bg-app: #f8fafc;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-muted: #f8fafb;
+  --color-bg-surface-subtle: #fbfcfd;
+
+  /* Text */
+  --color-text-primary: #233044;
+  --color-text-secondary: #4d5f6d;
+  --color-text-muted: #667085;
+  --color-text-placeholder: #71808c;
+
+  /* Borders */
+  --color-border-default: #dce4ea;
+  --color-border-muted: #e2e9ee;
+  --color-border-subtle: #edf2f5;
+  --color-border-control: #cbd7df;
+
+  /* Pandora identity */
+  --color-primary-bg: #7faedc;
+  --color-primary-bg-hover: #6fa6d8;
+  --color-primary-text: #233044;
+
+  --color-action-secondary-bg: #e9eef2;
+  --color-action-secondary-bg-hover: #d9e2e9;
+  --color-action-secondary-text: #233044;
+  --color-action-icon-bg: #eef3f6;
+  --color-action-icon-bg-hover: #dce7ee;
+  --color-action-icon-text: #4d5f6d;
+
+  --color-accent-bg: #c7ddf0;
+  --color-accent-bg-soft: #e8f4ff;
+  --color-accent-border: #9bc8ea;
+  --color-accent-text: #233044;
+
+  --color-magic-bg: #f1f0fa;
+  --color-magic-border: #d8d8e8;
+  --color-magic-text: #4f4a73;
+
+  /* Semantic states */
+  --color-success-bg: #eef8f4;
+  --color-success-border: #bddbd2;
+  --color-success-text: #216869;
+
+  --color-warning-bg: #fff7e6;
+  --color-warning-border: #f2d49b;
+  --color-warning-text: #73510b;
+
+  --color-error-bg: #fff1f3;
+  --color-error-border: #ffd5db;
+  --color-error-text: #b4232f;
+
+  --color-danger-bg: #ffe8eb;
+  --color-danger-border: var(--color-error-border);
+  --color-danger-bg-hover: #ffd5db;
+  --color-danger-text: #aa1e2c;
+
+  /* Focus / overlay / shadows */
+  --color-focus-border: #7faedc;
+  --color-focus-ring: rgba(127, 174, 220, 0.28);
+
+  --color-overlay-modal: rgba(24, 32, 42, 0.42);
+  --shadow-panel: 0 12px 30px rgba(24, 32, 42, 0.08);
+  --shadow-dropdown: 0 16px 38px rgba(24, 32, 42, 0.2);
+  --shadow-modal: 0 24px 70px rgba(24, 32, 42, 0.26);
+
+  --opacity-disabled: 0.45;
+
+  color: var(--color-text-primary);
+  background: var(--color-bg-app);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
@@ -29,8 +97,8 @@ select {
 button {
   border: 0;
   border-radius: 6px;
-  background: #216869;
-  color: white;
+  background: var(--color-primary-bg);
+  color: var(--color-primary-text);
   cursor: pointer;
   font-weight: 700;
   min-height: 40px;
@@ -38,28 +106,36 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: #1a5556;
+  background: var(--color-primary-bg-hover);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  border-color: var(--color-focus-border);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  outline: none;
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: var(--opacity-disabled);
 }
 
 button.secondary,
 button.ghost {
-  background: #e9eef2;
-  color: #1f2933;
+  background: var(--color-action-secondary-bg);
+  color: var(--color-action-secondary-text);
 }
 
 button.secondary:hover:not(:disabled),
 button.ghost:hover:not(:disabled) {
-  background: #d9e2e9;
+  background: var(--color-action-secondary-bg-hover);
 }
 
 .appToastInfoIconWrap {
   align-items: center;
-  color: #a66a00;
+  color: var(--color-primary-bg);
   display: inline-flex;
   justify-content: center;
 }
@@ -70,14 +146,19 @@ button.ghost:hover:not(:disabled) {
 }
 
 button.danger {
-  color: #aa1e2c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+button.danger:hover:not(:disabled) {
+  background: var(--color-danger-bg-hover);
 }
 
 .dragHandle {
   align-items: center;
   align-self: center;
-  background: #eef3f6;
-  color: #4d5f6d;
+  background: var(--color-action-icon-bg);
+  color: var(--color-text-secondary);
   cursor: grab;
   display: inline-flex;
   height: 34px;
@@ -89,7 +170,7 @@ button.danger {
 }
 
 .dragHandle:hover {
-  background: #dce7ee;
+  background: var(--color-action-icon-bg-hover);
 }
 
 .dragHandle:active {
@@ -116,21 +197,21 @@ button.danger {
 }
 
 .iconButton.danger {
-  background: #ffe8eb;
-  color: #aa1e2c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .iconButton.danger:hover:not(:disabled) {
-  background: #ffd5db;
+  background: var(--color-danger-bg-hover);
 }
 
 .iconButton:not(.danger) {
-  background: #eef3f6;
-  color: #4d5f6d;
+  background: var(--color-action-icon-bg);
+  color: var(--color-text-secondary);
 }
 
 .iconButton:not(.danger):hover:not(:disabled) {
-  background: #dce7ee;
+  background: var(--color-action-icon-bg-hover);
 }
 
 .appShell {
@@ -141,8 +222,8 @@ button.danger {
 }
 
 .hero {
-  background: linear-gradient(135deg, #163b44 0%, #216869 55%, #74a57f 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-primary-bg) 55%, var(--color-accent-bg) 100%);
+  color: var(--color-bg-surface);
   padding: 42px 12px 64px;
 }
 
@@ -166,7 +247,7 @@ h1 {
 }
 
 .hero p:last-child {
-  color: #e7f2ed;
+  color: var(--color-accent-bg-soft);
   font-size: 1.08rem;
   line-height: 1.6;
   margin: 18px 0 0;
@@ -184,10 +265,10 @@ h1 {
 }
 
 .panel {
-  background: white;
-  border: 1px solid #dce4ea;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
   border-radius: 8px;
-  box-shadow: 0 12px 30px rgba(24, 32, 42, 0.08);
+  box-shadow: var(--shadow-panel);
   min-width: 0;
   max-width: 100%;
   padding: 16px;
@@ -210,7 +291,7 @@ h3 {
 
 .dropZone {
   align-items: center;
-  border: 2px dashed #9db2bf;
+  border: 2px dashed var(--color-accent-border);
   border-radius: 8px;
   cursor: pointer;
   display: flex;
@@ -224,15 +305,15 @@ h3 {
 }
 
 .dropZone.hasFile {
-  background: #eef8f4;
-  border-color: #216869;
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-primary-bg);
   border-style: solid;
-  box-shadow: inset 0 0 0 1px rgba(33, 104, 105, 0.12);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring);
 }
 
 .dropZone.isDragging {
-  background: #eef8f4;
-  border-color: #216869;
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-primary-bg);
 }
 
 .dropZone input {
@@ -240,8 +321,10 @@ h3 {
 }
 
 .dropZoneRemoveButton {
-  background: #e9eef2;
-  color: #aa1e2c;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-text);
+  font-weight: 600;
   opacity: 0;
   pointer-events: none;
   position: absolute;
@@ -253,8 +336,8 @@ h3 {
 
 .dropZoneRemoveButton:hover:not(:disabled),
 .dropZoneRemoveButton:focus-visible {
-  background: #d9e2e9;
-  color: #aa1e2c;
+  background: var(--color-danger-bg-hover);
+  color: var(--color-danger-text);
 }
 
 .dropZone.hasFile:hover .dropZoneRemoveButton,
@@ -268,27 +351,27 @@ h3 {
 .dropZone span,
 .field span,
 .stats span {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
 }
 
 .dropZone strong {
-  color: #18202a;
+  color: var(--color-text-primary);
   font-size: 1.08rem;
   overflow-wrap: anywhere;
 }
 
 .dropZone.hasFile strong {
-  color: #164f50;
+  color: var(--color-accent-text);
   font-size: 1.16rem;
 }
 
 .dropZoneReadyIcon {
-  color: #216869;
+  color: var(--color-primary-bg);
   font-size: 1.85rem;
 }
 
 .dropZone .dropZoneStatus {
-  color: #216869;
+  color: var(--color-accent-text);
   font-size: 0.86rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -303,7 +386,7 @@ h3 {
 }
 
 .dropZone .dropZoneHint {
-  color: #657685;
+  color: var(--color-text-muted);
   font-size: 0.86rem;
   line-height: 1.25;
 }
@@ -325,14 +408,18 @@ h3 {
 
 input,
 select {
-  background: white;
-  border: 1px solid #cbd7df;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-control);
   border-radius: 6px;
-  color: #18202a;
+  color: var(--color-text-primary);
   min-height: 40px;
   min-width: 0;
   padding: 0 10px;
   width: 100%;
+}
+
+input[type='checkbox'] {
+  accent-color: var(--color-primary-bg);
 }
 
 .twoColumns {
@@ -358,7 +445,7 @@ select {
 }
 
 .tableWrap {
-  border: 1px solid #dce4ea;
+  border: 1px solid var(--color-border-default);
   border-radius: 8px;
   margin-top: 16px;
   max-height: 380px;
@@ -392,7 +479,7 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #edf2f5;
+  border-bottom: 1px solid var(--color-border-subtle);
   font-size: 0.88rem;
   min-width: 120px;
   overflow: hidden;
@@ -408,11 +495,15 @@ td:first-child {
 }
 
 th {
-  background: #f3f6f8;
-  color: #34424e;
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
   font-weight: 800;
   position: sticky;
   top: 0;
+}
+
+tbody tr:hover {
+  background: var(--color-accent-bg-soft);
 }
 
 .mapperGrid {
@@ -429,7 +520,7 @@ th {
 
 .ruleRow {
   align-items: end;
-  border-top: 1px solid #edf2f5;
+  border-top: 1px solid var(--color-border-subtle);
   display: grid;
   gap: 12px;
   grid-template-columns: 1fr 1.4fr auto auto;
@@ -438,7 +529,7 @@ th {
 
 .transformRule {
   align-items: end;
-  border-top: 1px solid #edf2f5;
+  border-top: 1px solid var(--color-border-subtle);
   display: grid;
   gap: 10px;
   grid-template-columns: 34px repeat(auto-fit, minmax(170px, 1fr)) 34px;
@@ -451,10 +542,10 @@ th {
 }
 
 .transformRuleCard {
-  background: #fbfcfd;
-  border: 1px solid #dce4ea;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(24, 32, 42, 0.04);
+  box-shadow: var(--shadow-panel);
   display: grid;
   gap: 12px;
   margin-top: 12px;
@@ -480,7 +571,7 @@ th {
 
 .ruleConditionBlock,
 .ruleOptionsBlock {
-  border-top: 1px solid #edf2f5;
+  border-top: 1px solid var(--color-border-subtle);
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -488,7 +579,7 @@ th {
 }
 
 .blockLabel {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   font-weight: 800;
 }
@@ -520,8 +611,8 @@ th {
 
 .exportBlock {
   align-items: center;
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -534,7 +625,7 @@ th {
 }
 
 .secondaryExportBlock {
-  background: #ffffff;
+  background: var(--color-bg-surface);
 }
 
 .exportFileName {
@@ -556,8 +647,8 @@ th {
 
 .listRow {
   align-items: center;
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -578,8 +669,8 @@ th {
 }
 
 .outputColumnsList {
-  background: #f7faf9;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -593,8 +684,8 @@ th {
 
 .outputColumnListItem {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -606,8 +697,8 @@ th {
 }
 
 .outputColumnListItem:hover {
-  background: #fbfefd;
-  border-color: #c8dfe0;
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
 }
 
 .outputColumnDuplicateButton {
@@ -619,16 +710,16 @@ th {
 }
 
 .outputColumnListItem.selected {
-  background: #edf8f4;
-  border-color: #8dc7b5;
-  box-shadow: 0 0 0 1px #8dc7b5;
-  color: #0f4d43;
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 1px var(--color-accent-border);
+  color: var(--color-accent-text);
 }
 
 .outputColumnListItem.selected .dragHandle {
-  background: #f7fffc;
-  border-color: #a7d7c7;
-  color: #0f4d43;
+  background: var(--color-bg-surface);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-text);
 }
 
 .outputColumnSelectButton {
@@ -657,8 +748,8 @@ th {
 }
 
 .outputColumnDetailPanel {
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 16px;
@@ -695,8 +786,8 @@ th {
 }
 
 .recipeSubBlock {
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -725,14 +816,14 @@ th {
 }
 
 .customValueSummaryList dt {
-  color: #657685;
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 700;
   margin: 0;
 }
 
 .customValueSummaryList dd {
-  color: #21313b;
+  color: var(--color-text-primary);
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -745,10 +836,10 @@ th {
 }
 
 .summaryPill {
-  background: #eef3f6;
-  border: 1px solid #d7e3e8;
+  background: var(--color-action-icon-bg);
+  border: 1px solid var(--color-border-muted);
   border-radius: 999px;
-  color: #334852;
+  color: var(--color-text-secondary);
   display: inline-flex;
   font-size: 0.78rem;
   line-height: 1.2;
@@ -762,10 +853,11 @@ th {
 }
 
 .modalDialog {
-  border: 1px solid #cbd7df;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-control);
   border-radius: 8px;
-  box-shadow: 0 24px 70px rgba(24, 32, 42, 0.26);
-  color: #18202a;
+  box-shadow: var(--shadow-modal);
+  color: var(--color-text-primary);
   max-height: min(86vh, 900px);
   max-width: min(980px, calc(100vw - 24px));
   overflow: hidden;
@@ -790,12 +882,13 @@ th {
 }
 
 .modalDialog::backdrop {
-  background: rgba(24, 32, 42, 0.42);
+  background: var(--color-overlay-modal);
 }
 
 .modalHeader {
   align-items: flex-start;
-  border-bottom: 1px solid #edf2f5;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   flex: 0 0 auto;
   gap: 12px;
@@ -825,13 +918,13 @@ th {
 }
 
 .constructorModalHeaderPreview strong {
-  color: #657685;
+  color: var(--color-text-muted);
   flex: 0 0 auto;
   font-size: 0.86rem;
 }
 
 .constructorModalHeaderPreview span {
-  color: #334852;
+  color: var(--color-text-secondary);
   font-size: 0.86rem;
   min-width: 0;
   overflow: hidden;
@@ -840,6 +933,7 @@ th {
 }
 
 .modalBody {
+  background: var(--color-bg-surface);
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -851,8 +945,8 @@ th {
 }
 
 .modalFooter {
-  background: #ffffff;
-  border-top: 1px solid #edf2f5;
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
   flex: 0 0 auto;
   padding: 10px 14px;
 }
@@ -866,7 +960,7 @@ th {
 }
 
 .constructorModalFooterContent p {
-  color: #657685;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -939,8 +1033,8 @@ th {
 .combinePartRow,
 .transformStepRow {
   align-items: start;
-  background: #f8fafb;
-  border: 1px solid #edf2f5;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -951,8 +1045,8 @@ th {
 
 .constructorPartRow {
   align-items: end;
-  background: #f8fafb;
-  border: 1px solid #edf2f5;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -980,8 +1074,8 @@ th {
 }
 
 .concatPartsSidebar {
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 8px;
@@ -1002,8 +1096,8 @@ th {
 
 .concatPartListItem {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 8px;
@@ -1013,8 +1107,8 @@ th {
 }
 
 .concatPartListItem.selected {
-  border-color: #1f6f6d;
-  box-shadow: 0 0 0 1px #1f6f6d;
+  border-color: var(--color-magic-text);
+  box-shadow: 0 0 0 1px var(--color-magic-text);
 }
 
 .concatPartSelectButton {
@@ -1040,13 +1134,13 @@ th {
 }
 
 .concatPartSelectButton span {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   font-size: 0.88rem;
 }
 
 .concatPartDetailPanel {
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -1075,7 +1169,7 @@ th {
 }
 
 .concatPartStepsEditor {
-  border-top: 1px solid #edf2f5;
+  border-top: 1px solid var(--color-border-subtle);
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -1083,8 +1177,8 @@ th {
 }
 
 .concatPartSeparatorBlock {
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -1147,8 +1241,8 @@ th {
 }
 
 .constructorOptions {
-  background: #f8fafb;
-  border: 1px solid #edf2f5;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   padding: 8px 10px;
 }
@@ -1165,8 +1259,8 @@ th {
 
 .constructorPartItem {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 6px;
@@ -1179,8 +1273,8 @@ th {
 }
 
 .constructorPartItem.selected {
-  border-color: #1f6f6d;
-  box-shadow: 0 0 0 1px #1f6f6d;
+  border-color: var(--color-magic-text);
+  box-shadow: 0 0 0 1px var(--color-magic-text);
 }
 
 .constructorPartSelect {
@@ -1200,7 +1294,7 @@ th {
 }
 
 .constructorPartSelect span {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   display: -webkit-box;
   line-height: 1.25;
   overflow: hidden;
@@ -1209,8 +1303,8 @@ th {
 }
 
 .constructorPartPanel {
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   padding: 12px;
 }
@@ -1277,13 +1371,13 @@ th {
 }
 
 .sourceHelpText strong {
-  color: #334852;
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 
 .concatStepCondition {
-  background: #f8fafb;
-  border: 1px solid #edf2f5;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -1363,10 +1457,10 @@ th {
 }
 
 .stepListItem {
-  background: #f8fbfd;
-  border: 1px solid #dce8ee;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
-  color: #17313f;
+  color: var(--color-magic-text);
   cursor: pointer;
   display: grid;
   gap: 4px;
@@ -1376,8 +1470,8 @@ th {
 }
 
 .stepListItem.selected {
-  background: #e8f4ff;
-  border-color: #9bc8ea;
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
 }
 
 .stepListItem strong,
@@ -1388,14 +1482,14 @@ th {
 }
 
 .stepListItem span {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   font-size: 0.88rem;
 }
 
 .stepDetailPanel {
   align-self: start;
-  background: #ffffff;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -1420,10 +1514,10 @@ th {
 }
 
 .numericWarning {
-  background: #fff7e6;
-  border: 1px solid #f2d49b;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
   border-radius: 8px;
-  color: #73510b;
+  color: var(--color-warning-text);
   grid-column: 1 / -1;
   padding: 8px 10px;
 }
@@ -1486,10 +1580,10 @@ th {
 }
 
 .numericOperationHeader {
-  background: #fff7e6;
-  border: 1px solid #f2d49b;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
   border-radius: 8px;
-  color: #73510b;
+  color: var(--color-warning-text);
   display: grid;
   gap: 2px;
   min-height: 40px;
@@ -1528,8 +1622,8 @@ th {
 
 .ignoreRuleCard {
   align-items: end;
-  background: #fbfcfd;
-  border: 1px solid #e2e9ee;
+  background: var(--color-magic-bg);
+  border: 1px solid var(--color-magic-border);
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -1554,8 +1648,8 @@ th {
 .segmentedControl label,
 .presetBar span {
   align-items: center;
-  background: #f3f6f8;
-  border: 1px solid #dce4ea;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-default);
   border-radius: 8px;
   display: flex;
   gap: 8px;
@@ -1575,8 +1669,8 @@ th {
 }
 
 .filenamePreview {
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 6px;
@@ -1584,7 +1678,7 @@ th {
 }
 
 .filenamePreview small {
-  color: #657685;
+  color: var(--color-text-muted);
   font-size: 0.86rem;
 }
 
@@ -1634,7 +1728,7 @@ th {
 
 .ruleHint {
   align-items: center;
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   display: flex;
   font-size: 0.9rem;
   min-height: 40px;
@@ -1651,7 +1745,7 @@ th {
 }
 
 .muted {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -1667,8 +1761,8 @@ th {
 }
 
 .stats div {
-  background: #f3f8f6;
-  border: 1px solid #d4e6df;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
   border-radius: 8px;
   display: grid;
   gap: 4px;
@@ -1690,8 +1784,8 @@ th {
 }
 
 .settingsActions {
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 10px;
   display: grid;
   gap: 12px;
@@ -1711,7 +1805,7 @@ th {
 }
 
 .settingsActionsIntro p {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -1720,7 +1814,7 @@ th {
 }
 
 .settingsCompatibilitySummary {
-  border: 1px solid #dce4ea;
+  border: 1px solid var(--color-border-default);
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -1729,19 +1823,19 @@ th {
 }
 
 .settingsCompatibilitySummary.compatible {
-  background: #f3f8f6;
-  border-color: #d4e6df;
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
 }
 
 .settingsCompatibilitySummary.warning,
 .settingsCompatibilitySummary.needsRemap {
-  background: #fff7e6;
-  border-color: #f2d49b;
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
 }
 
 .settingsCompatibilitySummary.blocked {
-  background: #fff1f3;
-  border-color: #ffd5db;
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
 }
 
 .settingsCompatibilityHeader {
@@ -1752,7 +1846,7 @@ th {
 }
 
 .settingsCompatibilityHeader span {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
 }
 
 .settingsCompatibilityGrid {
@@ -1762,8 +1856,8 @@ th {
 }
 
 .settingsCompatibilityGrid div {
-  background: #ffffff;
-  border: 1px solid #edf2f5;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
   display: grid;
   gap: 4px;
@@ -1771,7 +1865,7 @@ th {
 }
 
 .settingsCompatibilityGrid span {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
@@ -1802,8 +1896,8 @@ th {
 }
 
 .columnQuickActions {
-  background: #f8fafb;
-  border: 1px solid #e2e9ee;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -1815,13 +1909,13 @@ th {
 }
 
 .suggestionToggleButton.isActive {
-  background: #eef8f4;
-  color: #216869;
-  box-shadow: inset 0 0 0 1px #8cc7b6;
+  background: var(--color-accent-bg-soft);
+  color: var(--color-accent-text);
+  box-shadow: inset 0 0 0 1px var(--color-accent-border);
 }
 
 .suggestionToggleButton.isActive:hover:not(:disabled) {
-  background: #dff2ec;
+  background: var(--color-accent-bg);
 }
 
 .appliedSuggestions {
@@ -1836,10 +1930,10 @@ th {
 }
 
 .suggestionChip {
-  background: #eef8f4;
-  border: 1px solid #bddbd2;
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
   border-radius: 999px;
-  color: #216869;
+  color: var(--color-accent-text);
   font-size: 0.9rem;
   font-weight: 700;
   padding: 4px 10px;
@@ -1857,7 +1951,7 @@ th {
 }
 
 .mutedRow {
-  color: #7b8790;
+  color: var(--color-text-placeholder);
 }
 
 .previewToggle {
@@ -1865,12 +1959,12 @@ th {
 }
 
 .errorText {
-  color: #b4232f;
+  color: var(--color-error-text);
   font-weight: 700;
 }
 
 .successText {
-  color: #216869;
+  color: var(--color-success-text);
   font-weight: 700;
   margin: 0;
 }

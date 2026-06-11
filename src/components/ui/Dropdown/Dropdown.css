@@ -9,16 +9,16 @@
 }
 
 .dropdownLabel {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   font-size: 0.92rem;
   font-weight: 700;
 }
 
 button.dropdownTrigger {
   align-items: center;
-  background: white;
-  border: 1px solid #cbd7df;
-  color: #18202a;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-control);
+  color: var(--color-text-primary);
   display: flex;
   font-weight: 400;
   gap: 8px;
@@ -33,13 +33,13 @@ button.dropdownTrigger {
 }
 
 button.dropdownTrigger:hover:not(:disabled) {
-  background: #f8fafb;
-  border-color: #9db2bf;
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
 }
 
 button.dropdownTrigger:focus-visible {
-  border-color: #216869;
-  box-shadow: 0 0 0 3px rgba(33, 104, 105, 0.18);
+  border-color: var(--color-focus-border);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
   outline: none;
 }
 
@@ -51,22 +51,22 @@ button.dropdownTrigger:focus-visible {
 }
 
 .dropdownPlaceholder {
-  color: #71808c;
+  color: var(--color-text-placeholder);
 }
 
 .dropdownChevron {
-  color: #5f6f7b;
+  color: var(--color-text-muted);
   flex: 0 0 auto;
   font-size: 1.15rem;
   line-height: 1;
 }
 
 .dropdownMenu {
-  background: white;
-  border: 1px solid #cbd7df;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-control);
   border-radius: 7px;
   box-sizing: border-box;
-  box-shadow: 0 16px 38px rgba(24, 32, 42, 0.2);
+  box-shadow: var(--shadow-dropdown);
   overflow: auto;
   padding: 5px;
   position: fixed;
@@ -76,7 +76,7 @@ button.dropdownTrigger:focus-visible {
 button.dropdownOption {
   align-items: center;
   background: transparent;
-  color: #18202a;
+  color: var(--color-text-primary);
   display: flex;
   font-weight: 400;
   gap: 12px;
@@ -96,15 +96,16 @@ button.dropdownOption span:first-child {
 
 button.dropdownOption:hover:not(:disabled),
 button.dropdownOption.isActive {
-  background: #eef6f3;
+  background: var(--color-accent-bg-soft);
 }
 
 button.dropdownOption.isSelected {
-  color: #175657;
-  font-weight: 500;
+  background: var(--color-accent-bg);
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .dropdownEmpty {
-  color: #71808c;
+  color: var(--color-text-placeholder);
   padding: 9px;
 }

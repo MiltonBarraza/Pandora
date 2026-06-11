@@ -61,10 +61,10 @@ const iconItems: Array<{ title: string; Icon: IconComponent }> = [
 const sizeVariants = [16, 24, 32, 48];
 
 const colorVariants = [
-  { label: 'Verde', color: '#145c5c', background: '#ffffff' },
-  { label: 'Rojo', color: '#aa1e2c', background: '#fff4f6' },
-  { label: 'Azul', color: '#2455a6', background: '#f2f6ff' },
-  { label: 'Oscuro', color: '#f5fbff', background: '#18202a' },
+  { label: 'Verde', color: 'var(--color-success-text)', background: 'var(--color-bg-surface)' },
+  { label: 'Rojo', color: 'var(--color-danger-text)', background: 'var(--color-danger-bg)' },
+  { label: 'Azul', color: 'var(--color-primary-bg)', background: 'var(--color-accent-bg-soft)' },
+  { label: 'Oscuro', color: 'var(--color-bg-surface)', background: 'var(--color-text-primary)' },
 ];
 
 export function IconsPreview() {
@@ -84,7 +84,7 @@ export function IconsPreview() {
             <div style={sizeRowStyle}>
               {sizeVariants.map((size) => (
                 <div key={size} style={sampleStyle}>
-                  <span style={{ color: '#145c5c', fontSize: size, lineHeight: 1 }}>
+                  <span style={{ color: 'var(--color-primary-bg)', fontSize: size, lineHeight: 1 }}>
                     <Icon />
                   </span>
                   <small style={smallTextStyle}>{size}px</small>
@@ -135,7 +135,7 @@ const headerStyle = {
 } satisfies CSSProperties;
 
 const hintStyle = {
-  color: '#5f6f7b',
+  color: 'var(--color-text-muted)',
   margin: 0,
   maxWidth: 720,
 } satisfies CSSProperties;
@@ -148,8 +148,8 @@ const gridStyle = {
 } satisfies CSSProperties;
 
 const cardStyle = {
-  background: '#ffffff',
-  border: '1px solid #d9e2e8',
+  background: 'var(--color-bg-surface)',
+  border: '1px solid var(--color-border-default)',
   borderRadius: 8,
   display: 'grid',
   gap: 16,
@@ -159,7 +159,7 @@ const cardStyle = {
 } satisfies CSSProperties;
 
 const titleStyle = {
-  color: '#18202a',
+  color: 'var(--color-text-primary)',
   fontSize: 14,
 } satisfies CSSProperties;
 
@@ -179,7 +179,7 @@ const sampleStyle = {
 } satisfies CSSProperties;
 
 const smallTextStyle = {
-  color: '#5f6f7b',
+  color: 'var(--color-text-muted)',
   fontSize: 11,
 } satisfies CSSProperties;
 
@@ -191,7 +191,7 @@ const colorRowStyle = {
 
 const colorSampleStyle = {
   alignItems: 'center',
-  border: '1px solid #d9e2e8',
+  border: '1px solid var(--color-border-default)',
   borderRadius: 8,
   display: 'inline-flex',
   fontSize: 24,
