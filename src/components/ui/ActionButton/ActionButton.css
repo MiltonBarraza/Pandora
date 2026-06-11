@@ -6,41 +6,41 @@
 }
 
 .actionButton-primary {
-  background: #216869;
-  color: white;
+  background: var(--color-primary-bg);
+  color: var(--color-primary-text);
 }
 
 .actionButton-primary:hover:not(:disabled) {
-  background: #1a5556;
+  background: var(--color-primary-bg-hover);
 }
 
 .actionButton-secondary,
 .actionButton-ghost {
-  background: #e9eef2;
-  color: #1f2933;
+  background: var(--color-action-secondary-bg);
+  color: var(--color-action-secondary-text);
 }
 
 .actionButton-secondary:hover:not(:disabled),
 .actionButton-ghost:hover:not(:disabled) {
-  background: #d9e2e9;
+  background: var(--color-action-secondary-bg-hover);
 }
 
 .actionButton-danger {
-  background: #ffe8eb;
-  color: #aa1e2c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .actionButton-danger:hover:not(:disabled) {
-  background: #ffd5db;
+  background: var(--color-danger-bg-hover);
 }
 
 .actionButton-icon {
-  background: #eef3f6;
-  color: #4d5f6d;
+  background: var(--color-action-icon-bg);
+  color: var(--color-action-icon-text);
 }
 
 .actionButton-icon:hover:not(:disabled) {
-  background: #dce7ee;
+  background: var(--color-action-icon-bg-hover);
 }
 
 .actionButton-sm {
