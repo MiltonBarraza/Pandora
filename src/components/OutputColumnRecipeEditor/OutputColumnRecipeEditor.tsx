@@ -9,6 +9,7 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
@@ -24,7 +25,8 @@ type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
 export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
 export const recipeEditorModalCancelLabel = 'Cancelar';
 export const recipeEditorModalApplyLabel = 'Aplicar';
-export const recipeEditorDiscardChangesMessage = 'Descartar cambios\n\nHay cambios sin aplicar en esta receta. Si cerrás el editor, se perderán.';
+export const recipeEditorDiscardChangesTitle = 'Descartar';
+export const recipeEditorDiscardChangesMessage = 'Hay cambios sin aplicar en esta receta. Si cerrás el editor, se perderán.';
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
 
@@ -43,6 +45,7 @@ export function hasRecipeEditorDraftChanges(originalRecipe: CombineRecipe, draft
 export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
   const [isConstructorOpen, setIsConstructorOpen] = useState(false);
+  const [isDiscardConfirmationOpen, setIsDiscardConfirmationOpen] = useState(false);
   const [draftRecipe, setDraftRecipe] = useState<CombineRecipe | null>(null);
   const [customValueMode, setCustomValueMode] = useState<CustomValueMode>('');
   const isApplyingConstructorRef = useRef(false);
@@ -82,6 +85,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
   };
   const closeConstructor = () => {
     isApplyingConstructorRef.current = false;
+    setIsDiscardConfirmationOpen(false);
     setDraftRecipe(null);
     setIsConstructorOpen(false);
   };
@@ -91,9 +95,19 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
       return;
     }
 
-    if (!hasDraftChanges || window.confirm(recipeEditorDiscardChangesMessage)) {
+    if (!hasDraftChanges) {
       closeConstructor();
+      return;
     }
+
+    setIsDiscardConfirmationOpen(true);
+  };
+  const cancelDiscardConstructor = () => {
+    setIsDiscardConfirmationOpen(false);
+  };
+  const confirmDiscardConstructor = () => {
+    setIsDiscardConfirmationOpen(false);
+    closeConstructor();
   };
   const applyConstructor = () => {
     if (draftRecipe) {
@@ -101,6 +115,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
       onChange(applyRecipeEditorDraft(column, draftRecipe));
     }
 
+    setIsDiscardConfirmationOpen(false);
     setDraftRecipe(null);
     setIsConstructorOpen(false);
   };
@@ -172,7 +187,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
                 </div>
                 <div>
                   <dt>Transformaciones</dt>
-                  <dd title={customValueAllAdjustments.join(' | ')}>
+                  <dd>
                     {customValueAdjustments.length > 0 ? (
                       <span className="summaryPillList">
                         {customValueAdjustments.map((adjustment, index) => (
@@ -235,6 +250,16 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
               ) : null}
             </div>
           </Modal>
+          <ConfirmDialog
+            open={isDiscardConfirmationOpen}
+            title={recipeEditorDiscardChangesTitle}
+            message={recipeEditorDiscardChangesMessage}
+            cancelLabel="Cancelar"
+            confirmLabel="Descartar"
+            variant="danger"
+            onCancel={cancelDiscardConstructor}
+            onConfirm={confirmDiscardConstructor}
+          />
         </>
       ) : null}
     </div>
@@ -770,7 +795,7 @@ function StepBlocksEditor({
       )}
       <div className="stepsBlockActions">
         <InfoTooltip content="Agrega una transformacion nueva al valor.">
-          <button type="button" className="secondary" onClick={addStep}>Agregar paso</button>
+          <button type="button" className="secondary constructorAddStepButton" onClick={addStep}>Agregar paso</button>
         </InfoTooltip>
       </div>
     </div>
@@ -814,7 +839,7 @@ function SimpleStepBlock({
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
-        <strong title={summary ? `Paso ${index + 1} · ${summary}` : `Paso ${index + 1}`}>
+        <strong>
           Paso {index + 1}{summary ? ` · ${summary}` : ''}
         </strong>
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
@@ -904,7 +929,7 @@ function StepsWorkspace({
               <InfoTooltip content="Cada paso transforma el resultado anterior." />
             </strong>
             <InfoTooltip content="Agrega una transformacion nueva al valor.">
-              <button type="button" className="secondary" onClick={addStep}>Agregar paso</button>
+              <button type="button" className="secondary constructorAddStepButton" onClick={addStep}>Agregar paso</button>
             </InfoTooltip>
           </div>
           {steps.length === 0 ? (
@@ -920,7 +945,6 @@ function StepsWorkspace({
                     key={step.id}
                     className={`stepListItem${index === safeSelectedStepIndex ? ' selected' : ''}`}
                     onClick={() => setSelectedStepIndex(index)}
-                    title={summary ? `Paso ${index + 1} · ${summary}` : `Paso ${index + 1}`}
                   >
                     <strong>Paso {index + 1}</strong>
                     {summary ? <span>{summary}</span> : null}
@@ -975,7 +999,7 @@ function StepDetailPanel({
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
-        <strong title={summary ? `Paso ${index + 1} · ${summary}` : `Paso ${index + 1}`}>
+        <strong>
           Paso {index + 1}{summary ? ` · ${summary}` : ''}
         </strong>
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
@@ -1353,7 +1377,7 @@ function CombineRecipeFields({
           <InfoTooltip content="Cada parte aporta un dato o texto al valor final." />
         </p>
         <InfoTooltip content="Agrega otro dato o texto a combinar.">
-          <button type="button" className="secondary" onClick={addPart}>
+          <button type="button" className="secondary constructorAddPartButton" onClick={addPart}>
             Agregar parte
           </button>
         </InfoTooltip>
@@ -1374,7 +1398,7 @@ function CombineRecipeFields({
                     {handle}
                     <button type="button" className="constructorPartSelect" onClick={() => setSelectedPartId(part.id)}>
                       <strong>Parte {index + 1}</strong>
-                      <span title={summary}>{summary}</span>
+                      <span>{summary}</span>
                     </button>
                     <DeleteButton onClick={() => removePart(part.id)} />
                   </div>
@@ -1556,7 +1580,7 @@ function ConcatStepFields({
         <div className="concatPartsEmptyState">
           <p className="muted">Agrega una parte para construir el valor.</p>
           <InfoTooltip content="Agrega otro dato o texto a combinar.">
-            <button type="button" className="secondary" onClick={addPart}>Agregar parte</button>
+            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>Agregar parte</button>
           </InfoTooltip>
         </div>
       ) : null}
@@ -1719,7 +1743,7 @@ function ConcatPartStepsEditor({
         ) : null}
         <div className="concatPartStepsActions">
           <InfoTooltip content="Agrega una transformacion adicional a esta parte.">
-            <button type="button" className="secondary" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
+            <button type="button" className="secondary concatAddAdjustmentButton" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
           </InfoTooltip>
         </div>
       </div>

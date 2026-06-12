@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getInfoTooltipPlacementClass, getInfoTooltipPortalTarget, getInfoTooltipPosition } from '../InfoTooltip';
+import { getInfoTooltipPlacementClass, getInfoTooltipPortalTarget, getInfoTooltipPosition, isFocusVisible } from '../InfoTooltip';
 
 describe('InfoTooltip helpers', () => {
   it('builds stable placement classes', () => {
@@ -63,5 +63,18 @@ describe('InfoTooltip helpers', () => {
 
     expect(getInfoTooltipPortalTarget(trigger, fallback)).toBe(dialog);
     expect(getInfoTooltipPortalTarget(null, fallback)).toBe(fallback);
+  });
+
+  it('detects focus-visible before opening on focus', () => {
+    expect(isFocusVisible({ matches: () => true } as unknown as HTMLElement)).toBe(true);
+    expect(isFocusVisible({ matches: () => false } as unknown as HTMLElement)).toBe(false);
+  });
+
+  it('falls back to opening on focus if focus-visible is unsupported', () => {
+    expect(isFocusVisible({
+      matches: () => {
+        throw new Error('unsupported selector');
+      },
+    } as unknown as HTMLElement)).toBe(true);
   });
 });

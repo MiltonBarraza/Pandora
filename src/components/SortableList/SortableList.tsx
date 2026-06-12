@@ -53,7 +53,6 @@ function SortableRow({
     <button
       type="button"
       className="dragHandle"
-      title="Arrastrar para ordenar"
       aria-label="Arrastrar para ordenar"
       {...attributes}
       {...listeners}

@@ -7,6 +7,7 @@ type ModalProps = {
   open: boolean;
   title: string;
   size?: 'default' | 'xl';
+  className?: string;
   onClose: () => void;
   children: ReactNode;
   titleInfo?: string;
@@ -14,7 +15,7 @@ type ModalProps = {
   footer?: ReactNode;
 };
 
-export function Modal({ open, title, size = 'default', onClose, children, titleInfo, headerDetails, footer }: ModalProps) {
+export function Modal({ open, title, size = 'default', className = '', onClose, children, titleInfo, headerDetails, footer }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
 
@@ -41,6 +42,12 @@ export function Modal({ open, title, size = 'default', onClose, children, titleI
     }
 
     const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      const dialog = dialogRef.current;
+      const activeDialog = document.activeElement?.closest('dialog');
+      if (activeDialog && activeDialog !== dialog) {
+        return;
+      }
+
       if (event.key === 'Escape' && !event.defaultPrevented) {
         event.preventDefault();
         onClose();
@@ -56,7 +63,7 @@ export function Modal({ open, title, size = 'default', onClose, children, titleI
   return (
     <dialog
       ref={dialogRef}
-      className={`modalDialog${size === 'xl' ? ' modalDialogXl' : ''}`}
+      className={`modalDialog${size === 'xl' ? ' modalDialogXl' : ''}${className ? ` ${className}` : ''}`}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
