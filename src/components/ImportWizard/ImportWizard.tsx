@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
-import { getSheetRows } from '../../domain/import/getSheetRows';
+import { getSheetReadMetadata, getSheetRows } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
@@ -15,12 +15,13 @@ import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSetting
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { showInfoToast } from '../../services/toastService';
-import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputNormalizationRule, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult, SheetReadMetadata } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
 import { FileUploader } from '../FileUploader/FileUploader';
 import { IgnoreRules } from '../IgnoreRules/IgnoreRules';
+import { InputNormalizationRules, inputNormalizationSectionInfo, inputNormalizationSectionTitle } from '../InputNormalizationRules/InputNormalizationRules';
 import { OutputColumnsManager } from '../OutputColumnsManager/OutputColumnsManager';
 import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRowsDebugPreview';
 import { RawPreview } from '../RawPreview/RawPreview';
@@ -39,6 +40,7 @@ export function ImportWizard() {
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
   const [selectedSheet, setSelectedSheet] = useState('');
   const [rows, setRows] = useState<RawRow[]>([]);
+  const [sheetReadMetadata, setSheetReadMetadata] = useState<SheetReadMetadata | null>(null);
   const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
   const [startRowIndex, setStartRowIndex] = useState(0);
   const [startRowInputValue, setStartRowInputValue] = useState('1');
@@ -48,6 +50,7 @@ export function ImportWizard() {
   const [inputIgnoreRules, setInputIgnoreRules] = useState<IgnoreRule[]>(
     persisted.inputIgnoreRules?.length ? persisted.inputIgnoreRules : defaultIgnoreRules(),
   );
+  const [inputNormalizationRules, setInputNormalizationRules] = useState<InputNormalizationRule[]>([]);
   const [outputIgnoreRules, setOutputIgnoreRules] = useState<IgnoreRule[]>(
     persisted.outputIgnoreRules?.length ? persisted.outputIgnoreRules : defaultIgnoreRules(),
   );
@@ -82,6 +85,14 @@ export function ImportWizard() {
     () => (showRawPreviewFromDataStart ? rows.slice(startRowIndex) : rows),
     [rows, showRawPreviewFromDataStart, startRowIndex],
   );
+  const rawRowNumbers = useMemo(
+    () => getRawRowNumbersFromSheetMetadata(sheetReadMetadata),
+    [sheetReadMetadata],
+  );
+  const rawPreviewRowNumbers = useMemo(
+    () => (showRawPreviewFromDataStart ? rawRowNumbers?.slice(startRowIndex) : rawRowNumbers),
+    [rawRowNumbers, showRawPreviewFromDataStart, startRowIndex],
+  );
   const rawPreviewRowNumberOffset = showRawPreviewFromDataStart ? startRowIndex : 0;
   const activeColumnIndexes = useMemo(
     () => columnAnalysis.filter((column) => !column.ignored).map((column) => column.columnIndex),
@@ -106,11 +117,13 @@ export function ImportWizard() {
       buildProcessedRowsPipeline({
         rawRows: rows,
         columnAnalysis,
+        headerRowIndex,
         startRowIndex,
         outputColumns,
+        inputNormalizationRules,
         inputIgnoreRules,
       }),
-    [rows, columnAnalysis, startRowIndex, outputColumns, inputIgnoreRules],
+    [rows, columnAnalysis, headerRowIndex, startRowIndex, outputColumns, inputNormalizationRules, inputIgnoreRules],
   );
   const outputFilteredRows = useMemo(
     () =>
@@ -180,6 +193,7 @@ export function ImportWizard() {
     }
 
     setRows(getSheetRows(workbook, selectedSheet));
+    setSheetReadMetadata(getSheetReadMetadata(workbook, selectedSheet));
   }, [workbook, selectedSheet, fileType]);
 
   useEffect(() => {
@@ -211,6 +225,7 @@ export function ImportWizard() {
     setShowAllRawPreviewColumns(false);
     setInputColumnAliases({});
     setColumnAnalysis([]);
+    setInputNormalizationRules([]);
     setInputIgnoreRules(defaultIgnoreRules());
     setOutputColumns(createDefaultOutputColumns());
     setOutputIgnoreRules(defaultIgnoreRules());
@@ -253,6 +268,7 @@ export function ImportWizard() {
     setWorkbook(null);
     setSelectedSheet('');
     setRows([]);
+    setSheetReadMetadata(null);
     setReadError('');
   };
 
@@ -293,6 +309,7 @@ export function ImportWizard() {
         setWorkbook(null);
         setSelectedSheet('');
         setRows(csvRows);
+        setSheetReadMetadata(null);
         setFileType('csv');
         return;
       }
@@ -305,6 +322,7 @@ export function ImportWizard() {
       setWorkbook(nextWorkbook);
       setSelectedSheet(nextWorkbook.SheetNames[0] ?? '');
       setRows(nextWorkbook.SheetNames[0] ? getSheetRows(nextWorkbook, nextWorkbook.SheetNames[0]) : []);
+      setSheetReadMetadata(nextWorkbook.SheetNames[0] ? getSheetReadMetadata(nextWorkbook, nextWorkbook.SheetNames[0]) : null);
       setFileType('spreadsheet');
     } catch {
       setReadError('No se pudo leer el archivo. Revisa que sea .xlsx, .xls, .xlsm o .csv.');
@@ -370,6 +388,7 @@ export function ImportWizard() {
     setInputColumnAliases(payload.inputColumnAliases);
     importedColumnVisibilityRef.current = payload;
     setColumnAnalysis(applyColumnVisibilitySettings(columnAnalysis, payload));
+    setInputNormalizationRules(payload.inputNormalizationRules);
     setInputIgnoreRules(payload.inputIgnoreRules);
     setOutputColumns(payload.outputColumns);
     setOutputIgnoreRules(payload.outputIgnoreRules);
@@ -387,6 +406,7 @@ export function ImportWizard() {
       resetWizardConfiguration();
       setSelectedSheet(sheetName);
       setRows(workbook ? getSheetRows(workbook, sheetName) : []);
+      setSheetReadMetadata(workbook ? getSheetReadMetadata(workbook, sheetName) : null);
     };
 
     if (isConfigurationDirty) {
@@ -484,6 +504,7 @@ export function ImportWizard() {
             showAllRawPreviewColumns={showAllRawPreviewColumns}
             columnAnalysis={columnAnalysis}
             inputColumnAliases={inputColumnAliases}
+            inputNormalizationRules={inputNormalizationRules}
             inputIgnoreRules={inputIgnoreRules}
             outputColumns={outputColumns}
             outputIgnoreRules={outputIgnoreRules}
@@ -562,6 +583,7 @@ export function ImportWizard() {
             maxColumns={maxColumns}
             activeColumns={rawPreviewColumnIndexes}
             rowNumberOffset={rawPreviewRowNumberOffset}
+            rowNumbers={rawPreviewRowNumbers}
             showAllColumns={showAllRawPreviewColumns}
             showHiddenColumnsToggle={hasAutoHiddenColumns}
             onShowAllColumnsChange={(showAllColumns) => {
@@ -580,7 +602,21 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="5. Filtrar filas de entrada" info="Excluye filas usando los datos originales del archivo.">
+        <Step title={`5. ${inputNormalizationSectionTitle}`} info={inputNormalizationSectionInfo}>
+          <InputNormalizationRules
+            inputColumns={processedPipeline.inputColumns}
+            rawRows={rows}
+            rawRowNumbers={rawRowNumbers}
+            headerRowIndex={headerRowIndex}
+            rules={inputNormalizationRules}
+            onChange={(rules) => {
+              setIsConfigurationDirty(true);
+              setInputNormalizationRules(rules);
+            }}
+          />
+        </Step>
+
+        <Step title="6. Filtrar filas de entrada" info="Excluye filas usando los datos normalizados.">
           <IgnoreRules
             mode="input"
             inputColumns={processedPipeline.inputColumns}
@@ -593,7 +629,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="6. Columnas de salida" info="Define las columnas que tendra el archivo final.">
+        <Step title="7. Columnas de salida" info="Define las columnas que tendra el archivo final.">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
             sampleInputValues={processedPipeline.includedInputRows[0]?.values ?? processedPipeline.inputRows[0]?.values}
@@ -602,7 +638,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="7. Filtrar filas de salida" info="Excluye filas despues de aplicar las transformaciones.">
+        <Step title="8. Filtrar filas de salida" info="Excluye filas despues de aplicar las transformaciones.">
           <IgnoreRules
             mode="output"
             inputColumns={processedPipeline.inputColumns}
@@ -615,7 +651,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="8. Vista normalizada" info="Muestra una vista previa del resultado ya procesado.">
+        <Step title="9. Vista normalizada" info="Muestra una vista previa del resultado ya procesado.">
           <ProcessedRowsPreview
             rows={processedRowsWithStatus}
             outputColumns={processedPipeline.outputColumns}
@@ -630,7 +666,7 @@ export function ImportWizard() {
           ) : null}
         </Step>
 
-        <Step title="9. Nombre del archivo de salida" info="Configura como se va a llamar el archivo final.">
+        <Step title="10. Nombre del archivo de salida" info="Configura como se va a llamar el archivo final.">
           <FileNameSettings
             settings={fileNameSettings}
             sourceFileName={fileName}
@@ -642,7 +678,7 @@ export function ImportWizard() {
           />
         </Step>
 
-        <Step title="10. Descargar archivo" info="Genera el archivo final y, si hace falta, el archivo de auditoria.">
+        <Step title="11. Descargar archivo" info="Genera el archivo final y, si hace falta, el archivo de auditoria.">
           <ExportActions
             rows={processedRowsWithStatus}
             auditRows={auditRows}
@@ -713,4 +749,14 @@ export function shouldProtectWizardState({
   const hasLoadedSourceState = hasLoadedFile || selectedSheet.trim() !== '' || rowCount > 0;
   const hasDetectedColumns = hasLoadedSourceState && columnAnalysisCount > 0;
   return isConfigurationDirty || hasLoadedSourceState || hasDetectedColumns;
+}
+
+export function getRawRowNumbersFromSheetMetadata(metadata: SheetReadMetadata | null) {
+  if (!metadata) {
+    return undefined;
+  }
+
+  return metadata.rows
+    .filter((row) => !row.isEmpty)
+    .map((row) => row.originalRowIndex + 1);
 }

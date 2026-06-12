@@ -41,6 +41,9 @@ function buildSettings(partial: Partial<ExportedImportSettings> = {}): ExportedI
         },
       ],
       inputColumnAliases: { 'input-0': 'Codigo' },
+      inputNormalizationRules: [
+        { id: 'fill-down', type: 'fillDown', columnId: 'input-0', enabled: true },
+      ],
       inputIgnoreRules: [
         { id: 'input-rule', target: 'input', columnId: 'input-0', operator: 'isNotEmpty' },
       ],
@@ -84,6 +87,9 @@ describe('settingsApply', () => {
           },
         ],
         inputColumnAliases: { 'input-0': 'Codigo' },
+        inputNormalizationRules: [
+          { id: 'fill-down', type: 'fillDown', columnId: 'input-0', enabled: true },
+        ],
         inputIgnoreRules: [
           { id: 'input-rule', target: 'input', columnId: 'input-0', operator: 'isNotEmpty' },
         ],
@@ -166,6 +172,45 @@ describe('settingsApply', () => {
     });
   });
 
+  it('preserves rangeGroup normalization rules in the apply payload', () => {
+    const settings = buildSettings();
+    settings.config.inputNormalizationRules = [{
+      id: 'range-group',
+      type: 'rangeGroup',
+      enabled: true,
+      groupColumnId: 'input-0',
+      groupStartCondition: { columnId: 'input-1', operator: 'isEmpty' },
+      applyToRowCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+      targetColumnId: 'input-0',
+    }];
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.inputNormalizationRules).toEqual(settings.config.inputNormalizationRules);
+    }
+  });
+
+  it('preserves rangeValue normalization rules in the apply payload', () => {
+    const settings = buildSettings();
+    settings.config.inputNormalizationRules = [{
+      id: 'range-value',
+      type: 'rangeValue',
+      enabled: true,
+      valueColumnId: 'input-0',
+      captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+      targetColumnId: 'input-2',
+    }];
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.inputNormalizationRules).toEqual(settings.config.inputNormalizationRules);
+    }
+  });
+
   it('does not mutate settings and clones arrays and objects defensively', () => {
     const settings = buildSettings();
     const before = JSON.stringify(settings);
@@ -176,12 +221,20 @@ describe('settingsApply', () => {
     }
 
     result.payload.outputColumns[0].label = 'Mutada';
+    if (result.payload.inputNormalizationRules[0].type !== 'fillDown') {
+      throw new Error('Expected fillDown rule');
+    }
+    result.payload.inputNormalizationRules[0].columnId = 'input-mutated-normalization';
     result.payload.inputIgnoreRules[0].columnId = 'input-mutated';
     result.payload.inputColumnAliases['input-0'] = 'Mutado';
     result.payload.fileNameSettings.baseText = 'Mutado';
 
     expect(JSON.stringify(settings)).toBe(before);
     expect(settings.config.outputColumns[0].label).toBe('Codigo');
+    if (settings.config.inputNormalizationRules?.[0]?.type !== 'fillDown') {
+      throw new Error('Expected fillDown rule');
+    }
+    expect(settings.config.inputNormalizationRules?.[0].columnId).toBe('input-0');
     expect(settings.config.inputIgnoreRules[0].columnId).toBe('input-0');
     expect(settings.config.inputColumnAliases['input-0']).toBe('Codigo');
     expect(settings.config.fileNameSettings.baseText).toBe('Archivo sanitizado');
@@ -198,6 +251,18 @@ describe('settingsApply', () => {
     if (result.ok) {
       expect(result.payload).not.toHaveProperty('showRawPreviewFromDataStart');
       expect(result.payload).not.toHaveProperty('showAllRawPreviewColumns');
+    }
+  });
+
+  it('uses an empty normalization rule list for older exported settings', () => {
+    const settings = buildSettings();
+    delete settings.config.inputNormalizationRules;
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.inputNormalizationRules).toEqual([]);
     }
   });
 

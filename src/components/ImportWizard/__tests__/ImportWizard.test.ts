@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldProtectWizardState } from '../ImportWizard';
+import { getRawRowNumbersFromSheetMetadata, shouldProtectWizardState } from '../ImportWizard';
 
 describe('ImportWizard guard state', () => {
   it('does not protect an empty initial wizard', () => {
@@ -51,5 +51,22 @@ describe('ImportWizard guard state', () => {
       rowCount: 0,
       columnAnalysisCount: 2,
     })).toBe(true);
+  });
+});
+
+describe('ImportWizard sheet metadata helpers', () => {
+  it('maps non-empty metadata rows to real 1-based sheet row numbers', () => {
+    expect(getRawRowNumbersFromSheetMetadata({
+      merges: [],
+      rows: [
+        { originalRowIndex: 0, cells: [], isEmpty: true },
+        { originalRowIndex: 7, cells: [], isEmpty: false },
+        { originalRowIndex: 11, cells: [], isEmpty: false },
+      ],
+    })).toEqual([8, 12]);
+  });
+
+  it('returns undefined when spreadsheet metadata is not available', () => {
+    expect(getRawRowNumbersFromSheetMetadata(null)).toBeUndefined();
   });
 });

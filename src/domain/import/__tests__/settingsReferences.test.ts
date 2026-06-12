@@ -36,6 +36,9 @@ function settings(outputColumns: OutputColumn[]): ExportedImportSettings {
       startRowIndex: 1,
       columnVisibility: [],
       inputColumnAliases: {},
+      inputNormalizationRules: [
+        { id: 'fill-down', type: 'fillDown', columnId: 'input-group', enabled: true },
+      ],
       inputIgnoreRules: [
         { id: 'input-ignore', target: 'input', columnId: 'input-filter', operator: 'contains', value: 'X' },
       ],
@@ -82,6 +85,13 @@ describe('settingsReferences', () => {
         outputColumnId: 'output-code',
       }),
       expect.objectContaining({
+        columnId: 'input-group',
+        target: 'input',
+        kind: 'inputNormalizationRule',
+        path: 'config.inputNormalizationRules[0]',
+        ruleId: 'fill-down',
+      }),
+      expect.objectContaining({
         columnId: 'input-filter',
         target: 'input',
         kind: 'inputIgnoreRule',
@@ -96,8 +106,55 @@ describe('settingsReferences', () => {
         ruleId: 'output-ignore',
       }),
     ]));
-    expect(summary.inputColumnIds).toEqual(['input-code', 'input-filter']);
+    expect(summary.inputColumnIds).toEqual(['input-code', 'input-filter', 'input-group']);
     expect(summary.outputColumnIds).toEqual(['output-code', 'output-total']);
+  });
+
+  it('collects all rangeGroup normalization rule references', () => {
+    const currentSettings = settings([]);
+    currentSettings.config.inputNormalizationRules = [
+      {
+        id: 'range-group',
+        type: 'rangeGroup',
+        enabled: true,
+        groupColumnId: 'input-group',
+        groupStartCondition: { columnId: 'input-code', operator: 'isEmpty' },
+        applyToRowCondition: { columnId: 'input-code', operator: 'isNotEmpty' },
+        targetColumnId: 'input-target',
+      },
+    ];
+
+    const summary = collectSettingsReferences(currentSettings);
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ columnId: 'input-group', kind: 'inputNormalizationRule' }),
+      expect.objectContaining({ columnId: 'input-code', kind: 'inputNormalizationRule' }),
+      expect.objectContaining({ columnId: 'input-target', kind: 'inputNormalizationRule' }),
+    ]));
+    expect(summary.references.filter((reference) => reference.ruleId === 'range-group')).toHaveLength(4);
+  });
+
+  it('collects all rangeValue normalization rule references', () => {
+    const currentSettings = settings([]);
+    currentSettings.config.inputNormalizationRules = [
+      {
+        id: 'range-value',
+        type: 'rangeValue',
+        enabled: true,
+        valueColumnId: 'input-description',
+        captureCondition: { columnId: 'input-code', operator: 'isNotEmpty' },
+        targetColumnId: 'input-target',
+      },
+    ];
+
+    const summary = collectSettingsReferences(currentSettings);
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ columnId: 'input-description', kind: 'inputNormalizationRule' }),
+      expect.objectContaining({ columnId: 'input-code', kind: 'inputNormalizationRule' }),
+      expect.objectContaining({ columnId: 'input-target', kind: 'inputNormalizationRule' }),
+    ]));
+    expect(summary.references.filter((reference) => reference.ruleId === 'range-value')).toHaveLength(3);
   });
 
   it('collects recipe parts, transform sources, operands and conditions', () => {
@@ -261,7 +318,7 @@ describe('settingsReferences', () => {
       }),
     ]));
 
-    expect(summary.inputColumnIds).toEqual(['input-a', 'input-b', 'input-filter']);
+    expect(summary.inputColumnIds).toEqual(['input-a', 'input-b', 'input-filter', 'input-group']);
     expect(summary.outputColumnIds).toEqual(['output-a', 'output-b', 'output-duplicate-input', 'output-total']);
     expect(summary.referencesByColumnId['input-a']).toHaveLength(2);
     expect(groupReferencesByColumnId(summary.references)['input-a']).toHaveLength(2);
@@ -292,7 +349,7 @@ describe('settingsReferences', () => {
       }),
     ]));
 
-    expect(summary.inputColumnIds).toEqual(['input-filter']);
+    expect(summary.inputColumnIds).toEqual(['input-filter', 'input-group']);
     expect(summary.outputColumnIds).toEqual(['output-combine-empty', 'output-empty', 'output-fixed', 'output-total']);
     expect(summary.references.filter((reference) => reference.kind === 'outputColumn')).toHaveLength(3);
   });

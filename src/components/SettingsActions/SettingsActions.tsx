@@ -8,6 +8,7 @@ import type {
   ExportedImportSettings,
   FileNameSettings,
   IgnoreRule,
+  InputNormalizationRule,
   OutputColumn,
   RawRow,
   SettingsCompatibilityResult,
@@ -28,6 +29,7 @@ type SettingsActionsProps = {
   showAllRawPreviewColumns: boolean;
   columnAnalysis: ColumnAnalysis[];
   inputColumnAliases: Record<string, string>;
+  inputNormalizationRules: InputNormalizationRule[];
   inputIgnoreRules: IgnoreRule[];
   outputColumns: OutputColumn[];
   outputIgnoreRules: IgnoreRule[];
@@ -59,6 +61,7 @@ export function SettingsActions({
   showAllRawPreviewColumns,
   columnAnalysis,
   inputColumnAliases,
+  inputNormalizationRules,
   inputIgnoreRules,
   outputColumns,
   outputIgnoreRules,
@@ -107,6 +110,7 @@ export function SettingsActions({
         showAllRawPreviewColumns,
         columnAnalysis,
         inputColumnAliases,
+        inputNormalizationRules,
         inputIgnoreRules,
         outputColumns,
         outputIgnoreRules,

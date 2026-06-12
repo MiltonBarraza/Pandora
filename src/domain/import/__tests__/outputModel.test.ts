@@ -188,6 +188,279 @@ describe('outputModel input filters', () => {
       },
     ]);
   });
+
+  it('applies input normalization before input filters and output recipes', () => {
+    const columns: ColumnAnalysis[] = [
+      columnAnalysis(0, 'A', 'Producto'),
+      columnAnalysis(1, 'B', 'Codigo'),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['REMOVEDOR EN GEL', 'SKU-1'],
+        ['', 'SKU-2'],
+        ['AGUARRAS PREMIUM', 'SKU-3'],
+      ],
+      columnAnalysis: columns,
+      startRowIndex: 0,
+      inputNormalizationRules: [
+        { id: 'fill-product', type: 'fillDown', columnId: 'input-0', enabled: true },
+      ],
+      inputIgnoreRules: [
+        { id: 'remove-aguarras', target: 'input', columnId: 'input-0', operator: 'equals', value: 'AGUARRAS PREMIUM' },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'product', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-1' } }),
+      ],
+    });
+
+    expect(pipeline.normalizedRawRows).toEqual([
+      ['REMOVEDOR EN GEL', 'SKU-1'],
+      ['REMOVEDOR EN GEL', 'SKU-2'],
+      ['AGUARRAS PREMIUM', 'SKU-3'],
+    ]);
+    expect(pipeline.includedInputRows).toEqual([
+      {
+        rowNumber: 1,
+        values: { 'input-0': 'REMOVEDOR EN GEL', 'input-1': 'SKU-1' },
+      },
+      {
+        rowNumber: 2,
+        values: { 'input-0': 'REMOVEDOR EN GEL', 'input-1': 'SKU-2' },
+      },
+    ]);
+    expect(pipeline.processedRows.map((row) => row.outputValues)).toEqual([
+      { product: 'REMOVEDOR EN GEL', code: 'SKU-1' },
+      { product: 'REMOVEDOR EN GEL', code: 'SKU-2' },
+    ]);
+    expect(pipeline.ignoredInputRows[0]).toMatchObject({
+      rowNumber: 3,
+      inputValues: { 'input-0': 'AGUARRAS PREMIUM', 'input-1': 'SKU-3' },
+    });
+  });
+
+  it('does not use header rows as fill-down source values', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['Producto', 'Codigo'],
+        ['', 'SKU-1'],
+        ['REMOVEDOR EN GEL', 'SKU-2'],
+        ['', 'SKU-3'],
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Producto'),
+        columnAnalysis(1, 'B', 'Codigo'),
+      ],
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      inputNormalizationRules: [
+        { id: 'fill-product', type: 'fillDown', columnId: 'input-0', enabled: true },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'product', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.values['input-0'])).toEqual([
+      '',
+      'REMOVEDOR EN GEL',
+      'REMOVEDOR EN GEL',
+    ]);
+    expect(pipeline.normalizedRawRows).toEqual([
+      ['Producto', 'Codigo'],
+      ['', 'SKU-1'],
+      ['REMOVEDOR EN GEL', 'SKU-2'],
+      ['REMOVEDOR EN GEL', 'SKU-3'],
+    ]);
+  });
+
+  it('uses group rows above startRowIndex as fill-down source values after the header', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['Producto', 'Codigo'],
+        ['REMOVEDOR EN GEL', ''],
+        ['', 'SKU-1'],
+        ['', 'SKU-2'],
+        ['AGUARRAS PREMIUM', ''],
+        ['', 'SKU-3'],
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Producto'),
+        columnAnalysis(1, 'B', 'Codigo'),
+      ],
+      headerRowIndex: 0,
+      startRowIndex: 2,
+      inputNormalizationRules: [
+        { id: 'fill-product', type: 'fillDown', columnId: 'input-0', enabled: true },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'product', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-1' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.values['input-0'])).toEqual([
+      'REMOVEDOR EN GEL',
+      'REMOVEDOR EN GEL',
+      'AGUARRAS PREMIUM',
+      'AGUARRAS PREMIUM',
+    ]);
+    expect(pipeline.processedRows.map((row) => row.outputValues.product)).toEqual([
+      'REMOVEDOR EN GEL',
+      'REMOVEDOR EN GEL',
+      'AGUARRAS PREMIUM',
+      'AGUARRAS PREMIUM',
+    ]);
+  });
+
+  it('applies rangeGroup before output recipes without letting descriptor rows cut the group', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['Producto', 'Codigo'],
+        ['REMOVEDOR EN GEL', ''],
+        ['', '9280033'],
+        ['Rápida acción', '9280034'],
+        ['AGUARRAS PREMIUM', ''],
+        ['', '9400013'],
+        ['Disolvente para sintéticos', '9400014'],
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Producto'),
+        columnAnalysis(1, 'B', 'Codigo'),
+      ],
+      headerRowIndex: 0,
+      startRowIndex: 2,
+      inputNormalizationRules: [
+        {
+          id: 'range-group',
+          type: 'rangeGroup',
+          enabled: true,
+          groupColumnId: 'input-0',
+          groupStartCondition: { columnId: 'input-1', operator: 'isEmpty' },
+          applyToRowCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+          targetColumnId: 'input-0',
+        },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'product', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-1' } }),
+      ],
+    });
+
+    expect(pipeline.processedRows.map((row) => row.outputValues)).toEqual([
+      { product: 'REMOVEDOR EN GEL', code: '9280033' },
+      { product: 'REMOVEDOR EN GEL', code: '9280034' },
+      { product: 'AGUARRAS PREMIUM', code: '9400013' },
+      { product: 'AGUARRAS PREMIUM', code: '9400014' },
+    ]);
+  });
+
+  it('applies rangeValue before output recipes', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['Producto', 'Codigo', 'Dato'],
+        ['REMOVEDOR EN GEL', '', ''],
+        ['', '9280033', ''],
+        ['Rápida acción', '9280034', ''],
+        ['', '9280035', ''],
+        ['AGUARRAS PREMIUM', '', ''],
+        ['', '9400013', ''],
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Producto'),
+        columnAnalysis(1, 'B', 'Codigo'),
+        columnAnalysis(2, 'C', 'Dato'),
+      ],
+      headerRowIndex: 0,
+      startRowIndex: 2,
+      inputNormalizationRules: [
+        {
+          id: 'range-value',
+          type: 'rangeValue',
+          enabled: true,
+          valueColumnId: 'input-0',
+          captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+          targetColumnId: 'input-2',
+        },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-1' } }),
+        outputColumn({ id: 'extra', recipe: { type: 'direct', inputColumnId: 'input-2' } }),
+      ],
+    });
+
+    expect(pipeline.processedRows.map((row) => row.outputValues)).toEqual([
+      { code: '9280033', extra: '' },
+      { code: '9280034', extra: 'Rápida acción' },
+      { code: '9280035', extra: 'Rápida acción' },
+      { code: '9400013', extra: '' },
+    ]);
+  });
+
+  it('keeps rangeGroup and rangeValue output stable in any order', () => {
+    const rawRows = [
+      synthPlusRow('Producto', 'Codigo', 'Dato'),
+      synthPlusRow('REMOVEDOR EN GEL', '', ''),
+      synthPlusRow('', '9280033', ''),
+      synthPlusRow('Rápida acción', '9280034', ''),
+      synthPlusRow('AGUARRAS PREMIUM', '', ''),
+      synthPlusRow('', '9400013', ''),
+      synthPlusRow('Disolvente para sintéticos', '9400014', ''),
+    ];
+    const columnAnalysisConfig = [
+      columnAnalysis(0, 'A', 'Producto'),
+      columnAnalysis(1, 'B', 'Codigo'),
+      columnAnalysis(14, 'O', 'Dato'),
+    ];
+    const groupRule = {
+      id: 'range-group',
+      type: 'rangeGroup' as const,
+      enabled: true,
+      groupColumnId: 'input-0',
+      groupStartCondition: { columnId: 'input-1', operator: 'isEmpty' as const },
+      applyToRowCondition: { columnId: 'input-1', operator: 'isNotEmpty' as const },
+      targetColumnId: 'input-0',
+    };
+    const valueRule = {
+      id: 'range-value',
+      type: 'rangeValue' as const,
+      enabled: true,
+      valueColumnId: 'input-0',
+      captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' as const },
+      targetColumnId: 'input-14',
+    };
+    const outputColumns = [
+      outputColumn({ id: 'product', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-1' } }),
+      outputColumn({ id: 'extra', recipe: { type: 'direct', inputColumnId: 'input-14' } }),
+    ];
+
+    const groupThenValue = buildProcessedRowsPipeline({
+      rawRows,
+      columnAnalysis: columnAnalysisConfig,
+      headerRowIndex: 0,
+      startRowIndex: 2,
+      inputNormalizationRules: [groupRule, valueRule],
+      outputColumns,
+    });
+    const valueThenGroup = buildProcessedRowsPipeline({
+      rawRows,
+      columnAnalysis: columnAnalysisConfig,
+      headerRowIndex: 0,
+      startRowIndex: 2,
+      inputNormalizationRules: [valueRule, groupRule],
+      outputColumns,
+    });
+    const expected = [
+      { product: 'REMOVEDOR EN GEL', code: '9280033', extra: '' },
+      { product: 'REMOVEDOR EN GEL', code: '9280034', extra: 'Rápida acción' },
+      { product: 'AGUARRAS PREMIUM', code: '9400013', extra: '' },
+      { product: 'AGUARRAS PREMIUM', code: '9400014', extra: 'Disolvente para sintéticos' },
+    ];
+
+    expect(groupThenValue.processedRows.map((row) => row.outputValues)).toEqual(expected);
+    expect(valueThenGroup.processedRows.map((row) => row.outputValues)).toEqual(expected);
+  });
 });
 
 describe('outputModel simple transformations', () => {
@@ -1073,4 +1346,12 @@ function columnAnalysis(columnIndex: number, columnLetter: string, header: strin
     ignored: false,
     autoIgnored: false,
   };
+}
+
+function synthPlusRow(columnA: string, columnB: string, columnO: string) {
+  const row = Array.from({ length: 15 }, () => '');
+  row[0] = columnA;
+  row[1] = columnB;
+  row[14] = columnO;
+  return row;
 }

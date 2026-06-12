@@ -7,6 +7,7 @@ type RawPreviewProps = {
   maxColumns: number;
   activeColumns?: number[];
   rowNumberOffset?: number;
+  rowNumbers?: number[];
   showAllColumns?: boolean;
   showHiddenColumnsToggle?: boolean;
   onShowAllColumnsChange?: (showAllColumns: boolean) => void;
@@ -17,6 +18,7 @@ export function RawPreview({
   maxColumns,
   activeColumns,
   rowNumberOffset = 0,
+  rowNumbers,
   showAllColumns = false,
   showHiddenColumnsToggle = false,
   onShowAllColumnsChange,
@@ -55,7 +57,7 @@ export function RawPreview({
           <tbody>
             {previewRows.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                <td>{rowNumberOffset + rowIndex + 1}</td>
+                <td>{rowNumbers?.[rowIndex] ?? rowNumberOffset + rowIndex + 1}</td>
                 {columns.map((column) => (
                   <td key={column}>{String(row[column] ?? '')}</td>
                 ))}

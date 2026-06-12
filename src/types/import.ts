@@ -1,5 +1,40 @@
 export type RawRow = unknown[];
 
+export type SheetMergeRange = {
+  startRow: number;
+  startColumn: number;
+  endRow: number;
+  endColumn: number;
+  originAddress: string;
+  originValue: string;
+};
+
+export type SheetCellMeta = {
+  address: string;
+  rowIndex: number;
+  columnIndex: number;
+  value: string;
+  formattedValue: string;
+  rawValue?: unknown;
+  cellType?: string;
+  numberFormat?: string;
+  isMerged: boolean;
+  mergeRange?: SheetMergeRange;
+  mergeOriginAddress?: string;
+  mergeOriginValue?: string;
+};
+
+export type SheetRowMeta = {
+  originalRowIndex: number;
+  cells: SheetCellMeta[];
+  isEmpty: boolean;
+};
+
+export type SheetReadMetadata = {
+  rows: SheetRowMeta[];
+  merges: SheetMergeRange[];
+};
+
 export type InputColumn = {
   id: string;
   columnIndex: number;
@@ -23,6 +58,47 @@ export type IgnoredInputRow = {
   inputValues: Record<string, string>;
   ignoredReason: string;
 };
+
+export type InputNormalizationConditionOperator = 'isEmpty' | 'isNotEmpty';
+
+export type InputNormalizationCondition = {
+  columnId: string;
+  operator: InputNormalizationConditionOperator;
+};
+
+export type RangeValueApplyMode = 'matchingRowsOnly' | 'allRowsInRange';
+
+export type FillDownInputNormalizationRule = {
+  id: string;
+  type: 'fillDown';
+  columnId: string;
+  enabled: boolean;
+};
+
+export type RangeGroupInputNormalizationRule = {
+  id: string;
+  type: 'rangeGroup';
+  enabled: boolean;
+  groupColumnId: string;
+  groupStartCondition: InputNormalizationCondition;
+  applyToRowCondition: InputNormalizationCondition;
+  targetColumnId: string;
+};
+
+export type RangeValueInputNormalizationRule = {
+  id: string;
+  type: 'rangeValue';
+  enabled: boolean;
+  valueColumnId: string;
+  captureCondition: InputNormalizationCondition;
+  applyMode?: RangeValueApplyMode;
+  targetColumnId: string;
+};
+
+export type InputNormalizationRule =
+  | FillDownInputNormalizationRule
+  | RangeGroupInputNormalizationRule
+  | RangeValueInputNormalizationRule;
 
 export type TransformStepType =
   | 'noop'
@@ -283,6 +359,7 @@ export type ExportedImportSettings = {
     showAllRawPreviewColumns?: boolean;
     columnVisibility: SavedInputColumnConfig[];
     inputColumnAliases: Record<string, string>;
+    inputNormalizationRules?: InputNormalizationRule[];
     inputIgnoreRules: IgnoreRule[];
     outputColumns: OutputColumn[];
     outputIgnoreRules: IgnoreRule[];
@@ -379,6 +456,7 @@ export type SettingsReferenceKind =
   | 'concatPartSource'
   | 'concatPartTransform'
   | 'condition'
+  | 'inputNormalizationRule'
   | 'inputIgnoreRule'
   | 'outputIgnoreRule';
 
@@ -426,6 +504,7 @@ export type ImportedSettingsApplyPayload = {
   showAllRawPreviewColumns?: boolean;
   inputColumnAliases: Record<string, string>;
   columnVisibility: SavedInputColumnConfig[];
+  inputNormalizationRules: InputNormalizationRule[];
   inputIgnoreRules: IgnoreRule[];
   outputColumns: OutputColumn[];
   outputIgnoreRules: IgnoreRule[];

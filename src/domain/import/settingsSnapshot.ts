@@ -3,6 +3,7 @@ import type {
   ExportedImportSettings,
   FileNameSettings,
   IgnoreRule,
+  InputNormalizationRule,
   OutputColumn,
   RawRow,
   SavedInputColumnConfig,
@@ -41,6 +42,7 @@ export type ExportSettingsFromWizardStateOptions = {
   showAllRawPreviewColumns?: boolean;
   columnAnalysis: ColumnAnalysis[];
   inputColumnAliases: Record<string, string>;
+  inputNormalizationRules: InputNormalizationRule[];
   inputIgnoreRules: IgnoreRule[];
   outputColumns: OutputColumn[];
   outputIgnoreRules: IgnoreRule[];
@@ -94,6 +96,7 @@ export function exportSettingsFromWizardState({
   showAllRawPreviewColumns,
   columnAnalysis,
   inputColumnAliases,
+  inputNormalizationRules,
   inputIgnoreRules,
   outputColumns,
   outputIgnoreRules,
@@ -124,6 +127,7 @@ export function exportSettingsFromWizardState({
       ...(showAllRawPreviewColumns !== undefined ? { showAllRawPreviewColumns } : {}),
       columnVisibility: columnAnalysis.map(createSavedInputColumnConfig),
       inputColumnAliases: { ...inputColumnAliases },
+      inputNormalizationRules: cloneJson(inputNormalizationRules),
       inputIgnoreRules: cloneJson(inputIgnoreRules),
       outputColumns: cloneJson(outputColumns),
       outputIgnoreRules: cloneJson(outputIgnoreRules),

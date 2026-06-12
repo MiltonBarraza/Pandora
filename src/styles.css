@@ -1834,8 +1834,33 @@ tbody tr:hover {
 
 .ruleIncompleteHint {
   grid-column: 1 / -1;
-  grid-row: 2;
   margin: 0;
+}
+
+.ruleFeedback {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.ruleFeedback p {
+  margin: 0;
+}
+
+.ruleHelpText {
+  border-top: 1px solid var(--color-magic-border);
+  grid-column: 1 / -1;
+  line-height: 1.4;
+  margin: 0;
+  padding-top: 4px;
+}
+
+.normalizationRangeSummary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .wideCheckbox {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ColumnAnalysis, FileNameSettings, IgnoreRule, OutputColumn, RawRow } from '../../../types/import';
+import type { ColumnAnalysis, FileNameSettings, IgnoreRule, InputNormalizationRule, OutputColumn, RawRow } from '../../../types/import';
 import { createColumnFingerprint, createSourceSnapshot, exportSettingsFromWizardState } from '../settingsSnapshot';
 
 const columnAnalysis: ColumnAnalysis[] = [
@@ -35,6 +35,10 @@ const rows: RawRow[] = [
 
 const inputIgnoreRules: IgnoreRule[] = [
   { id: 'input-rule', target: 'input', columnId: 'input-0', operator: 'isNotEmpty' },
+];
+
+const inputNormalizationRules: InputNormalizationRule[] = [
+  { id: 'fill-down-product', type: 'fillDown', columnId: 'input-0', enabled: true },
 ];
 
 const outputIgnoreRules: IgnoreRule[] = [
@@ -160,6 +164,7 @@ describe('settingsSnapshot', () => {
       showAllRawPreviewColumns: true,
       columnAnalysis,
       inputColumnAliases: { 'input-0': 'SKU' },
+      inputNormalizationRules,
       inputIgnoreRules,
       outputColumns,
       outputIgnoreRules,
@@ -185,6 +190,7 @@ describe('settingsSnapshot', () => {
         showRawPreviewFromDataStart: false,
         showAllRawPreviewColumns: true,
         inputColumnAliases: { 'input-0': 'SKU' },
+        inputNormalizationRules,
         inputIgnoreRules,
         outputColumns,
         outputIgnoreRules,
@@ -227,6 +233,7 @@ describe('settingsSnapshot', () => {
       startRowIndex: 1,
       columnAnalysis,
       inputColumnAliases: {},
+      inputNormalizationRules: [],
       inputIgnoreRules: [],
       outputColumns: [{
         id: 'output-date',
@@ -266,6 +273,74 @@ describe('settingsSnapshot', () => {
     });
   });
 
+  it('exports rangeGroup normalization rules intact', () => {
+    const settings = exportSettingsFromWizardState({
+      fileType: 'spreadsheet',
+      selectedSheet: 'Hoja 1',
+      rows,
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      columnAnalysis,
+      inputColumnAliases: {},
+      inputNormalizationRules: [{
+        id: 'range-group',
+        type: 'rangeGroup',
+        enabled: true,
+        groupColumnId: 'input-0',
+        groupStartCondition: { columnId: 'input-1', operator: 'isEmpty' },
+        applyToRowCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+        targetColumnId: 'input-0',
+      }],
+      inputIgnoreRules: [],
+      outputColumns: [],
+      outputIgnoreRules: [],
+      fileNameSettings,
+    });
+
+    expect(settings.config.inputNormalizationRules).toEqual([{
+      id: 'range-group',
+      type: 'rangeGroup',
+      enabled: true,
+      groupColumnId: 'input-0',
+      groupStartCondition: { columnId: 'input-1', operator: 'isEmpty' },
+      applyToRowCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+      targetColumnId: 'input-0',
+    }]);
+  });
+
+  it('exports rangeValue normalization rules intact', () => {
+    const settings = exportSettingsFromWizardState({
+      fileType: 'spreadsheet',
+      selectedSheet: 'Hoja 1',
+      rows,
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      columnAnalysis,
+      inputColumnAliases: {},
+      inputNormalizationRules: [{
+        id: 'range-value',
+        type: 'rangeValue',
+        enabled: true,
+        valueColumnId: 'input-0',
+        captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+        targetColumnId: 'input-2',
+      }],
+      inputIgnoreRules: [],
+      outputColumns: [],
+      outputIgnoreRules: [],
+      fileNameSettings,
+    });
+
+    expect(settings.config.inputNormalizationRules).toEqual([{
+      id: 'range-value',
+      type: 'rangeValue',
+      enabled: true,
+      valueColumnId: 'input-0',
+      captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+      targetColumnId: 'input-2',
+    }]);
+  });
+
   it('does not mutate or share configurable arrays with the exported settings', () => {
     const inputRules: IgnoreRule[] = [{ ...inputIgnoreRules[0] }];
     const columns: OutputColumn[] = JSON.parse(JSON.stringify(outputColumns)) as OutputColumn[];
@@ -275,6 +350,7 @@ describe('settingsSnapshot', () => {
       startRowIndex: 0,
       columnAnalysis,
       inputColumnAliases: {},
+      inputNormalizationRules: [],
       inputIgnoreRules: inputRules,
       outputColumns: columns,
       outputIgnoreRules,
@@ -303,6 +379,7 @@ describe('settingsSnapshot', () => {
       showAllRawPreviewColumns,
       columnAnalysis,
       inputColumnAliases: {},
+      inputNormalizationRules,
       inputIgnoreRules,
       outputColumns,
       outputIgnoreRules,

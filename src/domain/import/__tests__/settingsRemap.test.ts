@@ -178,6 +178,9 @@ function buildSettings(): ExportedImportSettings {
         'input-direct': 'Directa',
         'input-part': 'Parte',
       },
+      inputNormalizationRules: [
+        { id: 'fill-down', type: 'fillDown', columnId: 'input-normalize', enabled: true },
+      ],
       inputIgnoreRules: [
         { id: 'input-ignore', target: 'input', columnId: 'input-ignore', operator: 'contains', value: 'x' },
         { id: 'input-unresolved-rule', target: 'input', columnId: 'input-unresolved', operator: 'isNotEmpty' },
@@ -205,6 +208,7 @@ const remap = {
   'input-concat-step-condition': 'input-110',
   'input-ignore': 'input-111',
   'input-unused-visibility': 'input-112',
+  'input-normalize': 'input-113',
 };
 
 describe('settingsRemap', () => {
@@ -250,6 +254,10 @@ describe('settingsRemap', () => {
     expect(combineRecipe.steps?.[1].parts?.[0].steps?.[0].condition?.columnId).toBe('input-110');
     expect(combineRecipe.steps?.[2].condition?.columnId).toBe('output-direct');
 
+    if (next.config.inputNormalizationRules?.[0]?.type !== 'fillDown') {
+      throw new Error('Expected fillDown rule');
+    }
+    expect(next.config.inputNormalizationRules[0].columnId).toBe('input-113');
     expect(next.config.inputIgnoreRules[0].columnId).toBe('input-111');
     expect(next.config.inputIgnoreRules[1].columnId).toBe('input-unresolved');
     expect(next.config.outputIgnoreRules).toEqual(original.config.outputIgnoreRules);
@@ -265,6 +273,60 @@ describe('settingsRemap', () => {
     });
     expect(result.settings.config.columnVisibility.map((column) => column.inputColumnId)).toEqual(['input-100', 'input-112']);
     expect(result.settings.sourceSnapshot.columns.map((column) => column.inputColumnId)).toEqual(['input-direct', 'input-unused-snapshot']);
+  });
+
+  it('remaps rangeGroup normalization rule references', () => {
+    const original = buildSettings();
+    original.config.inputNormalizationRules = [
+      {
+        id: 'range-group',
+        type: 'rangeGroup',
+        enabled: true,
+        groupColumnId: 'input-direct',
+        groupStartCondition: { columnId: 'input-ignore', operator: 'isEmpty' },
+        applyToRowCondition: { columnId: 'input-part', operator: 'isNotEmpty' },
+        targetColumnId: 'input-step-source',
+      },
+    ];
+
+    const result = applyInputColumnRemapToSettings(original, remap);
+    const [rule] = result.settings.config.inputNormalizationRules ?? [];
+    if (rule?.type !== 'rangeGroup') {
+      throw new Error('Expected rangeGroup rule');
+    }
+
+    expect(rule).toMatchObject({
+      groupColumnId: 'input-100',
+      groupStartCondition: { columnId: 'input-111', operator: 'isEmpty' },
+      applyToRowCondition: { columnId: 'input-101', operator: 'isNotEmpty' },
+      targetColumnId: 'input-104',
+    });
+  });
+
+  it('remaps rangeValue normalization rule references', () => {
+    const original = buildSettings();
+    original.config.inputNormalizationRules = [
+      {
+        id: 'range-value',
+        type: 'rangeValue',
+        enabled: true,
+        valueColumnId: 'input-direct',
+        captureCondition: { columnId: 'input-ignore', operator: 'isNotEmpty' },
+        targetColumnId: 'input-step-source',
+      },
+    ];
+
+    const result = applyInputColumnRemapToSettings(original, remap);
+    const [rule] = result.settings.config.inputNormalizationRules ?? [];
+    if (rule?.type !== 'rangeValue') {
+      throw new Error('Expected rangeValue rule');
+    }
+
+    expect(rule).toMatchObject({
+      valueColumnId: 'input-100',
+      captureCondition: { columnId: 'input-111', operator: 'isNotEmpty' },
+      targetColumnId: 'input-104',
+    });
   });
 
   it('reports changed and unresolved real references only', () => {
@@ -283,6 +345,7 @@ describe('settingsRemap', () => {
       'input-part-step-source',
       'input-part-step-condition',
       'input-ignore',
+      'input-normalize',
     ]);
     expect(result.unresolvedReferences).toEqual([
       expect.objectContaining({
@@ -301,6 +364,7 @@ describe('settingsRemap', () => {
 
     expect(summary.inputColumnIds).toContain('input-100');
     expect(summary.inputColumnIds).toContain('input-111');
+    expect(summary.inputColumnIds).toContain('input-113');
     expect(summary.inputColumnIds).toContain('input-unresolved');
     expect(summary.inputColumnIds).not.toContain('input-direct');
     expect(summary.outputColumnIds).toContain('output-direct');
@@ -331,6 +395,7 @@ describe('settingsRemap', () => {
         recipe: { type: 'combine', parts: [], separator: '' },
       },
     ];
+    currentSettings.config.inputNormalizationRules = [];
     currentSettings.config.inputIgnoreRules = [];
 
     const result = applyInputColumnRemapToSettings(currentSettings, remap);

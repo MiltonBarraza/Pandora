@@ -51,6 +51,52 @@ export function collectSettingsReferences(settings: Pick<ExportedImportSettings,
     });
   });
 
+  (settings.config.inputNormalizationRules ?? []).forEach((rule, ruleIndex) => {
+    const path = `config.inputNormalizationRules[${ruleIndex}]`;
+
+    if (rule.type === 'fillDown') {
+      if (!rule.columnId) {
+        return;
+      }
+
+      references.push({
+        columnId: rule.columnId,
+        target: 'input',
+        kind: 'inputNormalizationRule',
+        path,
+        ruleId: rule.id,
+      });
+      return;
+    }
+
+    const inputNormalizationColumnIds = rule.type === 'rangeGroup'
+      ? [
+          rule.groupColumnId,
+          rule.groupStartCondition.columnId,
+          rule.applyToRowCondition.columnId,
+          rule.targetColumnId,
+        ]
+      : [
+          rule.valueColumnId,
+          rule.captureCondition.columnId,
+          rule.targetColumnId,
+        ];
+
+    inputNormalizationColumnIds.forEach((columnId) => {
+      if (!columnId) {
+        return;
+      }
+
+      references.push({
+        columnId,
+        target: 'input',
+        kind: 'inputNormalizationRule',
+        path,
+        ruleId: rule.id,
+      });
+    });
+  });
+
   settings.config.outputIgnoreRules.forEach((rule, ruleIndex) => {
     if (!rule.columnId) {
       return;

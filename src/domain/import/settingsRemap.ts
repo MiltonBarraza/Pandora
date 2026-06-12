@@ -29,6 +29,40 @@ export function applyInputColumnRemapToSettings(
       ...rule,
       columnId: remapInputColumnId(rule.columnId, remap),
     }));
+    nextSettings.config.inputNormalizationRules = nextSettings.config.inputNormalizationRules?.map((rule) => {
+      if (rule.type === 'fillDown') {
+        return {
+          ...rule,
+          columnId: remapInputColumnId(rule.columnId, remap),
+        };
+      }
+
+      if (rule.type === 'rangeGroup') {
+        return {
+          ...rule,
+          groupColumnId: remapInputColumnId(rule.groupColumnId, remap),
+          groupStartCondition: {
+            ...rule.groupStartCondition,
+            columnId: remapInputColumnId(rule.groupStartCondition.columnId, remap),
+          },
+          applyToRowCondition: {
+            ...rule.applyToRowCondition,
+            columnId: remapInputColumnId(rule.applyToRowCondition.columnId, remap),
+          },
+          targetColumnId: remapInputColumnId(rule.targetColumnId, remap),
+        };
+      }
+
+      return {
+        ...rule,
+        valueColumnId: remapInputColumnId(rule.valueColumnId, remap),
+        captureCondition: {
+          ...rule.captureCondition,
+          columnId: remapInputColumnId(rule.captureCondition.columnId, remap),
+        },
+        targetColumnId: remapInputColumnId(rule.targetColumnId, remap),
+      };
+    });
     nextSettings.config.outputColumns = nextSettings.config.outputColumns.map((column) => ({
       ...column,
       recipe: remapOutputRecipe(column.recipe, remap),

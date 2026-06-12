@@ -2,6 +2,7 @@ import type {
   ColumnAnalysis,
   IgnoreRule,
   InputColumn,
+  InputNormalizationRule,
   InputRow,
   OutputColumn,
   ProcessedRow,
@@ -14,6 +15,7 @@ import type {
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
 import { applyFormatDateStep } from './dateOperations';
 import { evaluateTransformCondition } from './evaluateCondition';
+import { applyInputNormalizationRules, getInputNormalizationStartRowIndex } from './inputNormalization';
 import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
 
@@ -67,18 +69,27 @@ export function buildProcessedRows(inputRows: InputRow[], outputColumns: OutputC
 export function buildProcessedRowsPipeline({
   rawRows,
   columnAnalysis,
+  headerRowIndex = null,
   startRowIndex,
   outputColumns,
+  inputNormalizationRules = [],
   inputIgnoreRules = [],
 }: {
   rawRows: RawRow[];
   columnAnalysis: ColumnAnalysis[];
+  headerRowIndex?: number | null;
   startRowIndex: number;
   outputColumns: OutputColumn[];
+  inputNormalizationRules?: InputNormalizationRule[];
   inputIgnoreRules?: IgnoreRule[];
 }) {
   const inputColumns = buildInputColumnsFromAnalysis(columnAnalysis);
-  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex);
+  const normalizationStartRowIndex = getInputNormalizationStartRowIndex(headerRowIndex);
+  const normalizedRawRows = [
+    ...rawRows.slice(0, normalizationStartRowIndex).map((row) => [...row]),
+    ...applyInputNormalizationRules(rawRows.slice(normalizationStartRowIndex), inputNormalizationRules, inputColumns),
+  ];
+  const inputRows = buildInputRows(normalizedRawRows, inputColumns, startRowIndex);
   const { includedInputRows, ignoredInputRows } = applyInputIgnoreRulesToInputRows({
     inputRows,
     inputIgnoreRules,
@@ -89,6 +100,7 @@ export function buildProcessedRowsPipeline({
   return {
     inputColumns,
     outputColumns,
+    normalizedRawRows,
     inputRows,
     includedInputRows,
     ignoredInputRows,

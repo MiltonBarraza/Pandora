@@ -61,6 +61,10 @@ export function validateImportedSettings(value: unknown): ParseImportSettingsRes
     return buildMissingConfigError('inputIgnoreRules');
   }
 
+  if (config.inputNormalizationRules !== undefined && !Array.isArray(config.inputNormalizationRules)) {
+    return buildMissingConfigError('inputNormalizationRules');
+  }
+
   if (!Array.isArray(config.outputIgnoreRules)) {
     return buildMissingConfigError('outputIgnoreRules');
   }

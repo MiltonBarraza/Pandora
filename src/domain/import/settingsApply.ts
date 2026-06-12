@@ -27,6 +27,7 @@ export function createApplyPayloadFromSettings(settings: ExportedImportSettings)
         : {}),
       inputColumnAliases: { ...settings.config.inputColumnAliases },
       columnVisibility: cloneJson(settings.config.columnVisibility),
+      inputNormalizationRules: cloneJson(settings.config.inputNormalizationRules ?? []),
       inputIgnoreRules: cloneJson(settings.config.inputIgnoreRules),
       outputColumns: cloneJson(settings.config.outputColumns),
       outputIgnoreRules: cloneJson(settings.config.outputIgnoreRules),
