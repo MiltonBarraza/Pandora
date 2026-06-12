@@ -21,10 +21,13 @@ export function ActionButton({
   className = '',
   children,
   type = 'button',
+  title,
+  'aria-label': ariaLabel,
   ...props
 }: ActionButtonProps) {
   const Icon = icon ?? (action ? actionIcons[action] : undefined);
   const isIconOnly = !children;
+  const accessibleLabel = ariaLabel ?? (isIconOnly && typeof title === 'string' ? title : undefined);
   const classes = [
     'actionButton',
     `actionButton-${variant}`,
@@ -34,7 +37,7 @@ export function ActionButton({
   ].filter(Boolean).join(' ');
 
   return (
-    <button {...props} type={type} className={classes}>
+    <button {...props} type={type} className={classes} title={isIconOnly ? undefined : title} aria-label={accessibleLabel}>
       {Icon ? <Icon className="actionButtonIcon" focusable="false" /> : null}
       {children ? <span className="actionButtonText">{children}</span> : null}
     </button>

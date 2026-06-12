@@ -11,10 +11,24 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Soporte inicial de fechas en el editor de recetas con modo "Trabajar con fechas", operacion "Formatear fecha", formatos de entrada/salida controlados y fallback configurable para valores invalidos.
 - Parseo de fechas como fecha civil, incluyendo dia/mes de uno o dos digitos y anos de dos digitos, sin cambiar la salida final como string.
+- Dialogo visual reusable `ConfirmDialog` para confirmaciones internas sin depender de `window.confirm`.
+- Guard visual hibrido para perdida de cambios: modal custom en acciones internas y atajos de recarga interceptables, manteniendo `beforeunload` nativo como fallback para salidas reales.
+- Tooltips custom para acciones de duplicar y eliminar columnas de salida, manteniendo `aria-label` y evitando `title` nativo.
 
 ### Changed
 
 - Los formatos visibles del editor de fechas usan labels compactos en espanol, manteniendo los valores internos compatibles con settings y localStorage.
+- El modal/editor de recetas reemplaza confirmaciones nativas por `ConfirmDialog` al descartar cambios sin aplicar.
+- Los botones "Agregar" del editor de recetas usan estilos scoped con mejor contraste y jerarquia visual sin cambiar la paleta global.
+- La lista de columnas de salida mejora el espaciado del nombre, truncado de nombres largos, tooltips de nombres completos y alineacion de acciones icon-only.
+
+### Fixed
+
+- Corregido el comportamiento de tooltips para que hover, foco, click, blur y mouseleave no dejen popups pegados.
+- Corregida la posicion de tooltips custom al envolver botones que no forwardean `ref`, como `ActionButton` y `DeleteButton`.
+- Corregido el guard de cambio de hoja para pedir confirmacion solo cuando hay cambios reales de configuracion.
+- Corregido el estado protegido inicial para que la primera carga de archivo no dispare el guard por una columna sintetica vacia.
+- Corregido el truncado visible de nombres largos de columnas de salida cuando estan envueltos por tooltip custom.
 
 ## [0.2.4] - 2026-06-11
 

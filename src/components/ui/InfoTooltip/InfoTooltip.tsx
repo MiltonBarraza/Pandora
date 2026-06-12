@@ -10,7 +10,7 @@ import {
   type FocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
-  type Ref,
+  type PointerEvent as ReactPointerEvent,
   type ReactElement,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -102,7 +102,11 @@ export function InfoTooltip({
 
   const open = () => setIsOpen(true);
   const close = () => setIsOpen(false);
-  const toggle = () => setIsOpen((current) => !current);
+  const openOnVisibleFocus = (target: HTMLElement) => {
+    if (isFocusVisible(target)) {
+      open();
+    }
+  };
   const portalTarget = getInfoTooltipPortalTarget(triggerRef.current, document.body);
 
   const bubble = isOpen
@@ -123,51 +127,63 @@ export function InfoTooltip({
   if (hasCustomTrigger) {
     const child = children as ReactElement<Record<string, unknown>>;
     const childProps = child.props as {
-      ref?: Ref<HTMLElement>;
       className?: string;
       onMouseEnter?: (event: MouseEvent<HTMLElement>) => void;
       onMouseLeave?: (event: MouseEvent<HTMLElement>) => void;
       onFocus?: (event: FocusEvent<HTMLElement>) => void;
       onBlur?: (event: FocusEvent<HTMLElement>) => void;
+      onClick?: (event: MouseEvent<HTMLElement>) => void;
+      onPointerCancel?: (event: ReactPointerEvent<HTMLElement>) => void;
       onKeyDown?: (event: ReactKeyboardEvent<HTMLElement>) => void;
       'aria-describedby'?: string;
     };
 
     return (
       <span
-        ref={rootRef}
+        ref={(node) => {
+          rootRef.current = node;
+          triggerRef.current = node;
+        }}
         className={`infoTooltip infoTooltipCustomTrigger${isOpen ? ' isOpen' : ''}${className ? ` ${className}` : ''}`}
+        onMouseEnter={open}
+        onMouseLeave={close}
+        onFocus={(event) => {
+          if (event.target instanceof HTMLElement) {
+            openOnVisibleFocus(event.target);
+          }
+        }}
+        onBlur={close}
+        onClick={close}
+        onPointerCancel={close}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            close();
+          }
+        }}
       >
         {cloneElement(child, {
-          ref: (node: HTMLElement | null) => {
-            triggerRef.current = node;
-            assignRef(childProps.ref, node);
-          },
           className: childProps.className,
           'aria-describedby': mergeAriaDescribedBy(childProps['aria-describedby'], isOpen ? tooltipId : undefined),
           onMouseEnter: (event: MouseEvent<HTMLElement>) => {
             childProps.onMouseEnter?.(event);
-            open();
           },
           onMouseLeave: (event: MouseEvent<HTMLElement>) => {
             childProps.onMouseLeave?.(event);
-            if (!event.currentTarget.contains(document.activeElement)) {
-              close();
-            }
           },
           onFocus: (event: FocusEvent<HTMLElement>) => {
             childProps.onFocus?.(event);
-            open();
           },
           onBlur: (event: FocusEvent<HTMLElement>) => {
             childProps.onBlur?.(event);
-            close();
+          },
+          onClick: (event: MouseEvent<HTMLElement>) => {
+            childProps.onClick?.(event);
+          },
+          onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => {
+            childProps.onPointerCancel?.(event);
           },
           onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
             childProps.onKeyDown?.(event);
-            if (event.key === 'Escape') {
-              close();
-            }
           },
         })}
         {bubble}
@@ -180,13 +196,14 @@ export function InfoTooltip({
       ref={rootRef}
       className={`infoTooltip ${getInfoTooltipPlacementClass(placement)}${isOpen ? ' isOpen' : ''}${className ? ` ${className}` : ''}`}
       onMouseEnter={open}
-      onMouseLeave={() => {
-        if (!rootRef.current?.contains(document.activeElement)) {
-          close();
+      onMouseLeave={close}
+      onFocus={(event) => {
+        if (event.target instanceof HTMLElement) {
+          openOnVisibleFocus(event.target);
         }
       }}
-      onFocus={open}
       onBlur={close}
+      onPointerCancel={close}
     >
       <button
         ref={(node) => {
@@ -199,7 +216,7 @@ export function InfoTooltip({
         aria-expanded={isOpen}
         onClick={(event) => {
           event.stopPropagation();
-          toggle();
+          close();
         }}
       >
         <InfoTooltipIcon />
@@ -311,17 +328,12 @@ function mergeAriaDescribedBy(current: string | undefined, next: string | undefi
   return [current, next].filter(Boolean).join(' ') || undefined;
 }
 
-function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
-  if (!ref) {
-    return;
+export function isFocusVisible(element: HTMLElement) {
+  try {
+    return element.matches(':focus-visible');
+  } catch {
+    return true;
   }
-
-  if (typeof ref === 'function') {
-    ref(value);
-    return;
-  }
-
-  (ref as { current: T | null }).current = value;
 }
 
 function InfoTooltipIcon() {

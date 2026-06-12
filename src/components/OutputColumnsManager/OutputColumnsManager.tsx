@@ -145,24 +145,24 @@ export function OutputColumnsManager({
                 return (
                   <div className={`outputColumnListItem${isSelected ? ' selected' : ''}`}>
                     {handle}
-                    <button
-                      type="button"
-                      className="outputColumnSelectButton"
+                    <OutputColumnSelectButton
+                      index={index}
+                      label={outputColumn.label || 'Sin nombre'}
                       onClick={() => setSelectedColumnId(outputColumn.id)}
-                      title={outputColumn.label || 'Sin nombre'}
-                    >
-                      <span className="columnItemText">{index + 1}. {outputColumn.label || 'Sin nombre'}</span>
-                    </button>
-                    <ActionButton
-                      action="duplicate"
-                      variant="icon"
-                      size="sm"
-                      className="outputColumnDuplicateButton"
-                      title="Duplicar columna"
-                      aria-label="Duplicar columna"
-                      onClick={() => duplicateColumn(outputColumn.id)}
                     />
-                    <DeleteButton onClick={() => removeColumn(outputColumn.id)} />
+                    <InfoTooltip content="Duplicar columna">
+                      <ActionButton
+                        action="duplicate"
+                        variant="icon"
+                        size="sm"
+                        className="outputColumnDuplicateButton"
+                        aria-label="Duplicar columna"
+                        onClick={() => duplicateColumn(outputColumn.id)}
+                      />
+                    </InfoTooltip>
+                    <InfoTooltip content="Eliminar columna">
+                      <DeleteButton title="Eliminar columna" onClick={() => removeColumn(outputColumn.id)} />
+                    </InfoTooltip>
                   </div>
                 );
               }}
@@ -205,4 +205,38 @@ export function OutputColumnsManager({
 
 function reorder(columns: OutputColumn[]) {
   return columns.map((column, order) => ({ ...column, order }));
+}
+
+function OutputColumnSelectButton({
+  index,
+  label,
+  onClick,
+}: {
+  index: number;
+  label: string;
+  onClick: () => void;
+}) {
+  const button = (
+    <button
+      type="button"
+      className="outputColumnSelectButton"
+      onClick={onClick}
+    >
+      <span className="columnItemText">{index + 1}. {label}</span>
+    </button>
+  );
+
+  if (!shouldShowOutputColumnNameTooltip(label)) {
+    return button;
+  }
+
+  return (
+    <InfoTooltip content={label}>
+      {button}
+    </InfoTooltip>
+  );
+}
+
+export function shouldShowOutputColumnNameTooltip(label: string) {
+  return label.trim().length > 24;
 }

@@ -14,6 +14,7 @@ import type {
   SourceSnapshot,
 } from '../../types/import';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type SettingsActionsProps = {
@@ -69,6 +70,7 @@ export function SettingsActions({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [pendingWarningApply, setPendingWarningApply] = useState(false);
 
   const currentSnapshot = buildCurrentSnapshot({
     fileType,
@@ -181,10 +183,15 @@ export function SettingsActions({
       return;
     }
 
-    if (compatibility.status === 'warning' && !window.confirm('Estos settings tienen advertencias. ¿Querés aplicarlos igual?')) {
+    if (compatibility.status === 'warning') {
+      setPendingWarningApply(true);
       return;
     }
 
+    applyImportedSettingsResult(settings, compatibility);
+  };
+
+  const applyImportedSettingsResult = (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => {
     const result = onApplySettings(settings, compatibility);
     if (!result.ok) {
       setError(result.error);
@@ -197,8 +204,28 @@ export function SettingsActions({
     showSuccessToast(compatibility.status === 'warning' ? 'Configuración aplicada con advertencias.' : 'Configuración aplicada.');
   };
 
+  const confirmWarningApply = () => {
+    if (!importResult) {
+      setPendingWarningApply(false);
+      return;
+    }
+
+    setPendingWarningApply(false);
+    applyImportedSettingsResult(importResult.settings, importResult.compatibility);
+  };
+
   return (
     <div className="settingsActions">
+      <ConfirmDialog
+        open={pendingWarningApply}
+        title="Aplicar settings con advertencias"
+        message="Estos settings tienen advertencias. Revisá el resumen antes de aplicarlos."
+        cancelLabel="Cancelar"
+        confirmLabel="Aplicar igual"
+        variant="primary"
+        onCancel={() => setPendingWarningApply(false)}
+        onConfirm={confirmWarningApply}
+      />
       <div className="sectionHeader">
         <div className="settingsActionsIntro">
           <h3 className="headingWithInfo">

@@ -726,18 +726,27 @@ tbody tr:hover {
   align-items: center;
   background: transparent;
   border: 0;
+  border-radius: 7px;
   color: inherit;
   display: flex;
   min-height: 38px;
   min-width: 0;
   overflow: hidden;
-  padding: 0;
+  padding: 6px 10px;
   text-align: left;
+  user-select: none;
+  width: 100%;
+}
+
+.infoTooltipCustomTrigger:has(.outputColumnSelectButton) {
+  width: 100%;
 }
 
 .columnItemText {
   display: -webkit-box;
+  flex: 1 1 auto;
   line-clamp: 2;
+  line-height: 1.25;
   max-height: 2.7em;
   min-width: 0;
   overflow: hidden;
@@ -951,6 +960,55 @@ tbody tr:hover {
   padding: 10px 14px;
 }
 
+.confirmDialogMessage {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.confirmDialogModal[open] {
+  animation: confirmDialogEnter 140ms ease-out;
+}
+
+.confirmDialogModal::backdrop {
+  animation: confirmDialogBackdropEnter 140ms ease-out;
+}
+
+.confirmDialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@keyframes confirmDialogEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes confirmDialogBackdropEnter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirmDialogModal[open],
+  .confirmDialogModal::backdrop {
+    animation: none;
+  }
+}
+
 .constructorModalFooterContent {
   align-items: center;
   display: flex;
@@ -967,6 +1025,17 @@ tbody tr:hover {
 .constructorModalFooterActions {
   display: flex;
   gap: 8px;
+}
+
+.constructorModalFooterActions .secondary {
+  background: var(--color-action-secondary-bg-hover);
+  border: 1px solid var(--color-border-control);
+  color: var(--color-action-secondary-text);
+}
+
+.constructorModalFooterActions .secondary:hover:not(:disabled) {
+  background: var(--color-action-icon-bg-hover);
+  border-color: var(--color-action-secondary-text);
 }
 
 .modalDialogXl .constructorModalContent {
@@ -1028,6 +1097,35 @@ tbody tr:hover {
 .modalDialogXl button.dropdownOption {
   min-height: 32px;
   padding: 6px 8px;
+}
+
+.modalDialogXl .constructorModalContent .constructorAddPartButton,
+.modalDialogXl .constructorModalContent .concatAddPartButton,
+.modalDialogXl .constructorModalContent .constructorAddStepButton {
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-text);
+  font-weight: 700;
+}
+
+.modalDialogXl .constructorModalContent .constructorAddPartButton:hover:not(:disabled),
+.modalDialogXl .constructorModalContent .concatAddPartButton:hover:not(:disabled),
+.modalDialogXl .constructorModalContent .constructorAddStepButton:hover:not(:disabled) {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary-bg-hover);
+  color: var(--color-primary-text);
+}
+
+.modalDialogXl .constructorModalContent .concatAddAdjustmentButton {
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-magic-text);
+  font-weight: 700;
+}
+
+.modalDialogXl .constructorModalContent .concatAddAdjustmentButton:hover:not(:disabled) {
+  background: var(--color-action-secondary-bg-hover);
+  border-color: var(--color-magic-text);
 }
 
 .combinePartRow,

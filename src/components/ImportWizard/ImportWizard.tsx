@@ -9,8 +9,8 @@ import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
 import { applyColumnVisibilitySettings, createApplyPayloadFromSettings, resolveImportedPreviewSettings, type PreviewSettingsState } from '../../domain/import/settingsApply';
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
-import { canDiscardWizardConfiguration } from '../../domain/import/wizardConfiguration';
 import { useBeforeUnloadWarning } from '../../hooks/useBeforeUnloadWarning';
+import { useInternalReloadGuard } from '../../hooks/useInternalReloadGuard';
 import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
@@ -26,6 +26,7 @@ import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRows
 import { RawPreview } from '../RawPreview/RawPreview';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
@@ -58,16 +59,23 @@ export function ImportWizard() {
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [showAllRawPreviewColumns, setShowAllRawPreviewColumns] = useState(false);
   const [isConfigurationDirty, setIsConfigurationDirty] = useState(false);
+  const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
+  const [discardConfirmation, setDiscardConfirmation] = useState<DiscardConfirmationState | null>(null);
   const [configurationRevision, setConfigurationRevision] = useState(0);
   const [showOutputModelDebug] = useState(() => localStorage.getItem('excel-sanitizer:debug-output-model') === '1');
   const importedColumnVisibilityRef = useRef<ImportedSettingsApplyPayload | null>(null);
   const importedPreviewSettingsRef = useRef<PreviewSettingsState | null>(null);
   const skipStartRowInputSyncRef = useRef(false);
 
-  useBeforeUnloadWarning(isConfigurationDirty);
-
   const sheetNames = workbook?.SheetNames ?? [];
   const hasLoadedFile = fileName !== '' && fileType !== '';
+  const hasWizardStateToProtect = shouldProtectWizardState({
+    isConfigurationDirty,
+    hasLoadedFile,
+    selectedSheet,
+    rowCount: rows.length,
+    columnAnalysisCount: columnAnalysis.length,
+  });
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
   const maxColumns = useMemo(() => Math.max(1, ...rows.slice(0, 25).map((row) => row.length)), [rows]);
   const rawPreviewRows = useMemo(
@@ -130,6 +138,14 @@ export function ImportWizard() {
     ].sort((left, right) => left.rowNumber - right.rowNumber),
     [processedPipeline.ignoredInputRows, processedRowsWithStatus],
   );
+
+  useBeforeUnloadWarning(hasWizardStateToProtect && !isBeforeUnloadSuppressed);
+  useInternalReloadGuard(hasWizardStateToProtect, () => {
+    requestConfigurationDiscard(() => {
+      setIsBeforeUnloadSuppressed(true);
+      window.setTimeout(() => window.location.reload(), 0);
+    });
+  });
 
   useEffect(() => {
     saveOutputColumns(outputColumns);
@@ -206,8 +222,23 @@ export function ImportWizard() {
     setConfigurationRevision((revision) => revision + 1);
   };
 
-  const confirmConfigurationDiscard = (message: string) => {
-    return canDiscardWizardConfiguration(isConfigurationDirty, () => window.confirm(message));
+  const requestConfigurationDiscard = (onConfirm: () => void) => {
+    if (!hasWizardStateToProtect) {
+      onConfirm();
+      return;
+    }
+
+    setDiscardConfirmation({ onConfirm });
+  };
+
+  const cancelConfigurationDiscard = () => {
+    setDiscardConfirmation(null);
+  };
+
+  const confirmConfigurationDiscard = () => {
+    const nextAction = discardConfirmation?.onConfirm;
+    setDiscardConfirmation(null);
+    nextAction?.();
   };
 
   const notifyConfigurationDiscarded = () => {
@@ -230,14 +261,12 @@ export function ImportWizard() {
       return;
     }
 
-    if (!confirmConfigurationDiscard('Quitar el archivo descartará la configuración actual. ¿Querés continuar?')) {
-      return;
-    }
-
-    const wasDirty = isConfigurationDirty;
-    resetWizardConfiguration();
-    resetSourceFile();
-    showInfoToast(wasDirty ? 'Configuración descartada.' : 'Se quitó el archivo seleccionado.');
+    requestConfigurationDiscard(() => {
+      const wasDirty = isConfigurationDirty;
+      resetWizardConfiguration();
+      resetSourceFile();
+      showInfoToast(wasDirty ? 'Configuración descartada.' : 'Se quitó el archivo seleccionado.');
+    });
   };
 
   const loadFile = async (file: File | undefined) => {
@@ -245,10 +274,12 @@ export function ImportWizard() {
       return;
     }
 
-    if (!confirmConfigurationDiscard('Cambiar de archivo descartará la configuración actual. ¿Querés continuar?')) {
-      return;
-    }
+    requestConfigurationDiscard(() => {
+      void readSelectedFile(file);
+    });
+  };
 
+  const readSelectedFile = async (file: File) => {
     setReadError('');
 
     try {
@@ -351,14 +382,19 @@ export function ImportWizard() {
       return;
     }
 
-    if (!confirmConfigurationDiscard('Cambiar de hoja descartará la configuración actual. ¿Querés continuar?')) {
+    const applySheetChange = () => {
+      notifyConfigurationDiscarded();
+      resetWizardConfiguration();
+      setSelectedSheet(sheetName);
+      setRows(workbook ? getSheetRows(workbook, sheetName) : []);
+    };
+
+    if (isConfigurationDirty) {
+      requestConfigurationDiscard(applySheetChange);
       return;
     }
 
-    notifyConfigurationDiscarded();
-    resetWizardConfiguration();
-    setSelectedSheet(sheetName);
-    setRows(workbook ? getSheetRows(workbook, sheetName) : []);
+    applySheetChange();
   };
 
   const applyStartRowIndex = (nextRowNumber: number) => {
@@ -393,6 +429,16 @@ export function ImportWizard() {
 
   return (
     <main className="appShell">
+      <ConfirmDialog
+        open={Boolean(discardConfirmation)}
+        title="Hay cambios sin aplicar"
+        message="Si continuás, se perderá la configuración actual."
+        cancelLabel="Cancelar"
+        confirmLabel="Descartar"
+        variant="danger"
+        onCancel={cancelConfigurationDiscard}
+        onConfirm={confirmConfigurationDiscard}
+      />
       <header className="hero">
         <div>
           <p className="eyebrow">PANDORA</p>
@@ -613,6 +659,11 @@ export function ImportWizard() {
     </main>
   );
 }
+
+type DiscardConfirmationState = {
+  onConfirm: () => void;
+};
+
 function getApplicableSheet(
   payload: ImportedSettingsApplyPayload,
   compatibility: SettingsCompatibilityResult,
@@ -644,4 +695,22 @@ function Step({ title, info, children }: { title: string; info?: string; childre
       {children}
     </section>
   );
+}
+
+export function shouldProtectWizardState({
+  isConfigurationDirty,
+  hasLoadedFile,
+  selectedSheet,
+  rowCount,
+  columnAnalysisCount,
+}: {
+  isConfigurationDirty: boolean;
+  hasLoadedFile: boolean;
+  selectedSheet: string;
+  rowCount: number;
+  columnAnalysisCount: number;
+}) {
+  const hasLoadedSourceState = hasLoadedFile || selectedSheet.trim() !== '' || rowCount > 0;
+  const hasDetectedColumns = hasLoadedSourceState && columnAnalysisCount > 0;
+  return isConfigurationDirty || hasLoadedSourceState || hasDetectedColumns;
 }

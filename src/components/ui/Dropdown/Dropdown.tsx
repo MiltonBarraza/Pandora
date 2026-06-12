@@ -213,7 +213,6 @@ export function Dropdown<T extends string = string>({
         ref={buttonRef}
         type="button"
         className="dropdownTrigger"
-        title={selectedOption?.label ?? placeholder}
         disabled={disabled}
         aria-labelledby={label ? labelId : undefined}
         aria-haspopup="listbox"

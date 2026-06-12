@@ -7,7 +7,9 @@
 }
 
 .infoTooltipCustomTrigger {
-  display: contents;
+  display: inline-flex;
+  line-height: normal;
+  min-width: 0;
 }
 
 button.infoTooltipTrigger {
