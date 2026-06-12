@@ -28,12 +28,13 @@ button.infoTooltipTrigger {
   min-height: 22px;
   padding: 0;
   width: 22px;
+  cursor: default;
 }
 
-button.infoTooltipTrigger:hover:not(:disabled),
 button.infoTooltipTrigger:focus-visible {
-  background: var(--color-action-icon-bg);
   color: var(--color-text-secondary);
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .modalDialogXl .constructorModalContent button.infoTooltipTrigger,
@@ -45,11 +46,8 @@ button.infoTooltipTrigger:focus-visible {
   width: 22px;
 }
 
-.modalDialogXl .constructorModalContent button.infoTooltipTrigger:hover:not(:disabled),
 .modalDialogXl .constructorModalContent button.infoTooltipTrigger:focus-visible,
-.modalDialogXl .modalFooter button.infoTooltipTrigger:hover:not(:disabled),
 .modalDialogXl .modalFooter button.infoTooltipTrigger:focus-visible {
-  background: var(--color-action-icon-bg);
   color: var(--color-text-secondary);
 }
 

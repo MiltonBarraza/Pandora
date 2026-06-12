@@ -98,4 +98,20 @@ describe('duplicateOutputColumn', () => {
     expect(copy.recipe.steps?.[0].id).not.toBe(original.recipe.steps?.[0].id);
     expect(original.label).toBe('Precio +10%');
   });
+
+  it('does not preserve the generated column marker when duplicating', () => {
+    const original: OutputColumn = {
+      id: 'generated-name',
+      label: 'Nombre',
+      order: 1,
+      enabled: true,
+      generatedFromInputColumnId: 'input-name',
+      recipe: { type: 'direct', inputColumnId: 'input-name' },
+    };
+
+    const copy = duplicateOutputColumn(original);
+
+    expect(copy.generatedFromInputColumnId).toBeUndefined();
+    expect(copy.recipe).toEqual({ type: 'direct', inputColumnId: 'input-name' });
+  });
 });

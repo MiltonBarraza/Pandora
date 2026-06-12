@@ -23,12 +23,18 @@ const automaticReasonPluralLabels: Partial<Record<IgnoredReason, string>> = {
 };
 
 const automaticReasonOrder: IgnoredReason[] = ['empty', 'narrow', 'hidden', 'lowData'];
+const hiddenSuggestedReasons: IgnoredReason[] = ['hidden', 'narrow'];
+type AppliedFilterState = {
+  empty: boolean;
+  hidden: boolean;
+  customLabel?: string;
+};
 
 export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onChange }: ColumnVisibilityManagerProps) {
   const activeCount = columns.filter((column) => !column.ignored).length;
   const ignoredCount = columns.length - activeCount;
   const automaticReasonSummary = buildAutomaticReasonSummary(columns);
-  const appliedSuggestionGroups = getAppliedSuggestionGroups(columns);
+  const appliedFilters = getAppliedFilterState(columns);
 
   const updateColumn = (columnIndex: number, ignored: boolean) => {
     onChange(
@@ -74,7 +80,7 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
       <div className="columnDetectionHeader">
         <div className="columnDetectionSummary">
           <p>
-            {activeCount} columnas activas, {ignoredCount} ignoradas. Puedes reactivar cualquier columna sin perder datos.
+            {activeCount} columnas activas, {ignoredCount} ignoradas. Puedes activar columnas manualmente o usar filtros sugeridos.
           </p>
           {automaticReasonSummary ? <p className="muted">{automaticReasonSummary}</p> : null}
         </div>
@@ -82,20 +88,13 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
           <div>
             <strong className="headingWithInfo">
               <span>Acciones rápidas</span>
-              <InfoTooltip content="Activa o desactiva grupos sugeridos automaticamente." />
+              <InfoTooltip content="Usa filtros sugeridos por la detección o activa columnas manualmente." />
             </strong>
-            <p className="muted">Puedes activar o desactivar grupos sugeridos sin perder datos.</p>
+            <p className="muted">Los filtros solo cambian qué columnas quedan activas; no eliminan datos.</p>
           </div>
-          <div className="appliedSuggestions" aria-label="Sugerencias aplicadas">
-            <span>Sugerencias aplicadas:</span>
-            {appliedSuggestionGroups.empty || appliedSuggestionGroups.hiddenOrNarrow ? (
-              <>
-                {appliedSuggestionGroups.empty ? <span className="suggestionChip">Vacías</span> : null}
-                {appliedSuggestionGroups.hiddenOrNarrow ? <span className="suggestionChip">Ocultas o angostas</span> : null}
-              </>
-            ) : (
-              <span className="muted">Ninguna</span>
-            )}
+          <div className="appliedSuggestions" aria-label="Filtros aplicados">
+            <span>Filtros aplicados:</span>
+            <AppliedFilterStateChips state={appliedFilters} />
           </div>
           <div className="actions columnQuickActionsButtons">
             <InfoTooltip content="Incluye todas las columnas detectadas en la receta.">
@@ -106,26 +105,26 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
             <InfoTooltip content="Alterna las columnas que parecen no tener datos utiles.">
               <button
                 type="button"
-                className={`secondary suggestionToggleButton${appliedSuggestionGroups.empty ? ' isActive' : ''}`}
-                aria-pressed={appliedSuggestionGroups.empty}
+                className={`secondary suggestionToggleButton${appliedFilters.empty ? ' isActive' : ''}`}
+                aria-pressed={appliedFilters.empty}
                 onClick={() => toggleByReasons(['empty'])}
               >
                 Vacías sugeridas
               </button>
             </InfoTooltip>
-            <InfoTooltip content="Alterna columnas que el Excel trae ocultas o muy angostas.">
+            <InfoTooltip content="Alterna columnas que el Excel trae ocultas.">
               <button
                 type="button"
-                className={`secondary suggestionToggleButton${appliedSuggestionGroups.hiddenOrNarrow ? ' isActive' : ''}`}
-                aria-pressed={appliedSuggestionGroups.hiddenOrNarrow}
-                onClick={() => toggleByReasons(['hidden', 'narrow'])}
+                className={`secondary suggestionToggleButton${appliedFilters.hidden ? ' isActive' : ''}`}
+                aria-pressed={appliedFilters.hidden}
+                onClick={() => toggleByReasons(hiddenSuggestedReasons)}
               >
-                Ocultas o angostas
+                Ocultas sugeridas
               </button>
             </InfoTooltip>
             <InfoTooltip content="Vuelve a las sugerencias detectadas al leer el archivo.">
               <button type="button" className="secondary" onClick={restoreAutomatic}>
-                Restaurar detección automática
+                Restaurar filtros sugeridos
               </button>
             </InfoTooltip>
           </div>
@@ -180,6 +179,20 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
   );
 }
 
+function AppliedFilterStateChips({ state }: { state: AppliedFilterState }) {
+  if (!state.empty && !state.hidden && !state.customLabel) {
+    return <span className="muted">Sin filtros</span>;
+  }
+
+  return (
+    <>
+      {state.empty ? <span className="suggestionChip">Vacías sugeridas</span> : null}
+      {state.hidden ? <span className="suggestionChip">Ocultas sugeridas</span> : null}
+      {state.customLabel ? <span className="suggestionChip">{state.customLabel}</span> : null}
+    </>
+  );
+}
+
 export function activateAllColumns(columns: ColumnAnalysis[]) {
   return columns.map((column) => ({ ...column, ignored: false, ignoredReason: undefined }));
 }
@@ -215,15 +228,90 @@ export function restoreAutomaticColumnDetection(columns: ColumnAnalysis[]) {
 }
 
 export function getAppliedSuggestionGroups(columns: ColumnAnalysis[]) {
+  const appliedFilters = getAppliedFilterState(columns);
+
   return {
-    empty: isAutomaticReasonGroupApplied(columns, ['empty']),
-    hiddenOrNarrow: isAutomaticReasonGroupApplied(columns, ['hidden', 'narrow']),
+    empty: appliedFilters.empty,
+    hiddenOrNarrow: appliedFilters.hidden,
   };
 }
 
 function isAutomaticReasonGroupApplied(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
   const groupColumns = columns.filter((column) => column.autoIgnoredReason && reasons.includes(column.autoIgnoredReason));
   return groupColumns.length > 0 && groupColumns.every((column) => column.ignored);
+}
+
+export function getAppliedFilterState(columns: ColumnAnalysis[]): AppliedFilterState {
+  const ignoredColumnIndexes = columns.filter((column) => column.ignored).map((column) => column.columnIndex);
+  const emptyColumnIndexes = getSuggestedColumnIndexes(columns, ['empty']);
+  const hiddenColumnIndexes = getSuggestedColumnIndexes(columns, hiddenSuggestedReasons);
+  const suggestedIgnoredColumnIndexes = columns.filter((column) => column.autoIgnored).map((column) => column.columnIndex);
+
+  if (uniqueNumbers(ignoredColumnIndexes).length === 0) {
+    return { empty: false, hidden: false };
+  }
+
+  const empty = emptyColumnIndexes.length > 0 && containsEveryNumber(ignoredColumnIndexes, emptyColumnIndexes);
+  const hidden = hiddenColumnIndexes.length > 0 && containsEveryNumber(ignoredColumnIndexes, hiddenColumnIndexes);
+  const hasSomeEmptyIgnored = emptyColumnIndexes.some((columnIndex) => uniqueNumbers(ignoredColumnIndexes).includes(columnIndex));
+  const hasSomeHiddenIgnored = hiddenColumnIndexes.some((columnIndex) => uniqueNumbers(ignoredColumnIndexes).includes(columnIndex));
+  const manuallyIgnoredColumnIndexes = uniqueNumbers(ignoredColumnIndexes).filter((columnIndex) =>
+    !uniqueNumbers(suggestedIgnoredColumnIndexes).includes(columnIndex),
+  );
+  const manuallyActivatedColumnIndexes = [
+    ...(!empty && hasSomeEmptyIgnored ? emptyColumnIndexes : []),
+    ...(!hidden && hasSomeHiddenIgnored ? hiddenColumnIndexes : []),
+  ].filter((columnIndex) => !uniqueNumbers(ignoredColumnIndexes).includes(columnIndex));
+  const customLabel = getCustomFilterLabel({
+    ignoredCount: manuallyIgnoredColumnIndexes.length,
+    activatedCount: manuallyActivatedColumnIndexes.length,
+  });
+
+  return { empty, hidden, customLabel };
+}
+
+export function getSuggestedColumnIndexes(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
+  return columns
+    .filter((column) => column.autoIgnoredReason && reasons.includes(column.autoIgnoredReason))
+    .map((column) => column.columnIndex);
+}
+
+export function sameNumberSet(left: number[], right: number[]) {
+  const leftSet = uniqueNumbers(left);
+  const rightSet = uniqueNumbers(right);
+
+  return leftSet.length === rightSet.length && leftSet.every((value) => rightSet.includes(value));
+}
+
+export function containsEveryNumber(source: number[], expected: number[]) {
+  const sourceSet = uniqueNumbers(source);
+  return uniqueNumbers(expected).every((value) => sourceSet.includes(value));
+}
+
+function getCustomFilterLabel({
+  ignoredCount,
+  activatedCount,
+}: {
+  ignoredCount: number;
+  activatedCount: number;
+}) {
+  if (ignoredCount === 0 && activatedCount === 0) {
+    return undefined;
+  }
+
+  if (ignoredCount > 0 && activatedCount > 0) {
+    return `Personalizado: ${activatedCount} activadas, ${ignoredCount} ignoradas`;
+  }
+
+  if (ignoredCount > 0) {
+    return `Personalizado: ${ignoredCount} ${ignoredCount === 1 ? 'ignorada' : 'ignoradas'} manualmente`;
+  }
+
+  return `Personalizado: ${activatedCount} ${activatedCount === 1 ? 'activada' : 'activadas'} manualmente`;
+}
+
+function uniqueNumbers(values: number[]) {
+  return [...new Set(values)];
 }
 
 function buildAutomaticReasonSummary(columns: ColumnAnalysis[]) {

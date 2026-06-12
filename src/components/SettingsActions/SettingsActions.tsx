@@ -1,7 +1,7 @@
 ﻿import { useRef, useState } from 'react';
 import { compareSettingsToCurrentSnapshot } from '../../domain/import/settingsCompatibility';
-import { createSourceSnapshot, exportSettingsFromWizardState } from '../../domain/import/settingsSnapshot';
-import { downloadImportSettingsFile, parseImportSettingsJson } from '../../services/settingsFileService';
+import { createSourceSnapshot } from '../../domain/import/settingsSnapshot';
+import { parseImportSettingsJson } from '../../services/settingsFileService';
 import { showErrorToast, showInfoToast, showSuccessToast } from '../../services/toastService';
 import type {
   ColumnAnalysis,
@@ -32,6 +32,7 @@ type SettingsActionsProps = {
   outputColumns: OutputColumn[];
   outputIgnoreRules: IgnoreRule[];
   fileNameSettings: FileNameSettings;
+  onSaveSettings: () => { ok: true } | { ok: false; error: string };
   onApplySettings: (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => { ok: true } | { ok: false; error: string };
   onSettingsImported?: () => void;
 };
@@ -63,6 +64,7 @@ export function SettingsActions({
   outputColumns,
   outputIgnoreRules,
   fileNameSettings,
+  onSaveSettings,
   onApplySettings,
   onSettingsImported,
 }: SettingsActionsProps) {
@@ -87,37 +89,14 @@ export function SettingsActions({
     setError('');
     setSuccessMessage('');
 
-    if (!currentSnapshot || fileType === '') {
-      const message = 'Primero carga un Excel y selecciona una hoja para guardar configuraciones.';
-      setError(message);
-      showErrorToast(message);
+    const result = onSaveSettings();
+    if (!result.ok) {
+      setError(result.error);
+      showErrorToast(result.error);
       return;
     }
 
-    try {
-      downloadImportSettingsFile(exportSettingsFromWizardState({
-        name: selectedSheet || undefined,
-        fileType,
-        selectedSheet,
-        sheetNames,
-        rows,
-        headerRowIndex,
-        startRowIndex,
-        showRawPreviewFromDataStart,
-        showAllRawPreviewColumns,
-        columnAnalysis,
-        inputColumnAliases,
-        inputIgnoreRules,
-        outputColumns,
-        outputIgnoreRules,
-        fileNameSettings,
-      }));
-      showSuccessToast('Configuración guardada correctamente.');
-    } catch {
-      const message = 'No se pudo guardar la configuración.';
-      setError(message);
-      showErrorToast(message);
-    }
+    showSuccessToast('Configuración guardada correctamente.');
   };
 
   const importSettingsFile = async (file: File | undefined) => {

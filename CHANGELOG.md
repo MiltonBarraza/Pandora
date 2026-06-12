@@ -5,6 +5,29 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-06-12
+
+### Added
+
+- Control de preview para mostrar columnas con datos en configuracion de filas, sin afectar settings ni exportacion.
+- Prompt previo a descargar Excel para guardar configuracion solo cuando hay cambios relevantes contra la configuracion cargada o guardada.
+- Date picker para valores fijos de fecha en el editor de recetas, guardando el valor como `YYYY-MM-DD`.
+
+### Changed
+
+- Checkboxes migrados visualmente al estilo compacto global con estados hover, focus, checked, unchecked y disabled.
+- Filtros sugeridos de columnas detectadas reorganizados como Vacias sugeridas, Ocultas sugeridas, Activar todas y Restaurar filtros sugeridos.
+- Estado "Filtros aplicados" ahora muestra multiples tags simultaneos y distingue cambios manuales.
+- "Agregar columnas activas" ahora regenera columnas generadas desde las columnas activas actuales, evitando duplicados y obsoletas.
+- Textos de guards destructivos ajustados a "Seguir editando" y "Descartar cambios" para evitar ambiguedad.
+
+### Fixed
+
+- Columnas angostas ahora cuentan dentro de "Ocultas sugeridas" para evitar falsos estados personalizados.
+- Cambios manuales en filtros detectan tanto columnas activadas como ignoradas manualmente.
+- Regeneracion de columnas de salida muestra confirmacion si hay ediciones manuales sobre columnas generadas.
+- Fecha fija en recetas oculta el formato de entrada incompatible y exporta correctamente segun el formato de salida elegido.
+
 ## [0.2.5] - 2026-06-12
 
 ### Added

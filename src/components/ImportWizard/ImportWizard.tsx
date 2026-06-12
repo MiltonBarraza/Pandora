@@ -2,18 +2,22 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
+import { getColumnIndexesWithData } from '../../domain/import/columnData';
 import { getSheetRows } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
+import { createSettingsComparisonKey, hasRelevantSettingsChanges } from '../../domain/import/settingsBaseline';
 import { applyColumnVisibilitySettings, createApplyPayloadFromSettings, resolveImportedPreviewSettings, type PreviewSettingsState } from '../../domain/import/settingsApply';
+import { exportSettingsFromWizardState } from '../../domain/import/settingsSnapshot';
 import { validateProcessedRows } from '../../domain/import/validateProcessedRows';
 import { useBeforeUnloadWarning } from '../../hooks/useBeforeUnloadWarning';
 import { useInternalReloadGuard } from '../../hooks/useInternalReloadGuard';
 import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSettings, saveFileNameSettings } from '../../services/localFileNameService';
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
+import { downloadImportSettingsFile } from '../../services/settingsFileService';
 import { showInfoToast } from '../../services/toastService';
 import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
@@ -58,13 +62,16 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   const [readError, setReadError] = useState('');
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [showAllRawPreviewColumns, setShowAllRawPreviewColumns] = useState(false);
+  const [showDataRawPreviewColumns, setShowDataRawPreviewColumns] = useState(false);
   const [isConfigurationDirty, setIsConfigurationDirty] = useState(false);
   const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
   const [discardConfirmation, setDiscardConfirmation] = useState<DiscardConfirmationState | null>(null);
+  const [settingsBaselines, setSettingsBaselines] = useState<SettingsBaselineState>({});
   const [configurationRevision, setConfigurationRevision] = useState(0);
   const [showOutputModelDebug] = useState(() => localStorage.getItem('excel-sanitizer:debug-output-model') === '1');
   const importedColumnVisibilityRef = useRef<ImportedSettingsApplyPayload | null>(null);
   const importedPreviewSettingsRef = useRef<PreviewSettingsState | null>(null);
+  const pendingLoadedSettingsBaselineSyncRef = useRef(false);
   const skipStartRowInputSyncRef = useRef(false);
 
   const sheetNames = workbook?.SheetNames ?? [];
@@ -91,10 +98,56 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     () => columnAnalysis.filter((column) => !column.autoIgnored).map((column) => column.columnIndex),
     [columnAnalysis],
   );
+  const rawPreviewDataColumnIndexes = useMemo(
+    () => getColumnIndexesWithData(rawPreviewRows, maxColumns),
+    [rawPreviewRows, maxColumns],
+  );
   const hasAutoHiddenColumns = useMemo(
     () => columnAnalysis.some((column) => column.autoIgnored),
     [columnAnalysis],
   );
+  const currentSettings = useMemo(
+    () => createCurrentExportedSettings({
+      fileType,
+      selectedSheet,
+      sheetNames,
+      rows,
+      headerRowIndex,
+      startRowIndex,
+      showRawPreviewFromDataStart,
+      showAllRawPreviewColumns,
+      columnAnalysis,
+      inputColumnAliases,
+      inputIgnoreRules,
+      outputColumns,
+      outputIgnoreRules,
+      fileNameSettings,
+    }),
+    [
+      fileType,
+      selectedSheet,
+      sheetNames,
+      rows,
+      headerRowIndex,
+      startRowIndex,
+      showRawPreviewFromDataStart,
+      showAllRawPreviewColumns,
+      columnAnalysis,
+      inputColumnAliases,
+      inputIgnoreRules,
+      outputColumns,
+      outputIgnoreRules,
+      fileNameSettings,
+    ],
+  );
+  const currentSettingsKey = useMemo(
+    () => (currentSettings ? createSettingsComparisonKey(currentSettings) : null),
+    [currentSettings],
+  );
+  const shouldPromptSaveBeforeExcelDownload = hasRelevantSettingsChanges(currentSettingsKey, [
+    settingsBaselines.loaded,
+    settingsBaselines.saved,
+  ]);
   const rowConfigurationError = headerRowIndex !== null && headerRowIndex >= startRowIndex
     ? 'La fila de encabezados debe estar antes de la primera fila de datos.'
     : '';
@@ -175,6 +228,15 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   }, [processedPipeline, showOutputModelDebug]);
 
   useEffect(() => {
+    if (!pendingLoadedSettingsBaselineSyncRef.current || !currentSettingsKey) {
+      return;
+    }
+
+    pendingLoadedSettingsBaselineSyncRef.current = false;
+    setSettingsBaselines((baselines) => ({ ...baselines, loaded: currentSettingsKey }));
+  }, [currentSettingsKey]);
+
+  useEffect(() => {
     if (!workbook || !selectedSheet || fileType !== 'spreadsheet') {
       return;
     }
@@ -209,6 +271,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     setStartRowIndex(0);
     setShowRawPreviewFromDataStart(true);
     setShowAllRawPreviewColumns(false);
+    setShowDataRawPreviewColumns(false);
     setInputColumnAliases({});
     setColumnAnalysis([]);
     setInputIgnoreRules(defaultIgnoreRules());
@@ -216,6 +279,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     setOutputIgnoreRules(defaultIgnoreRules());
     setFileNameSettings(defaultFileNameSettings());
     setRowOverrides({});
+    setSettingsBaselines({});
     importedColumnVisibilityRef.current = null;
     importedPreviewSettingsRef.current = null;
     setIsConfigurationDirty(false);
@@ -375,6 +439,21 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     setOutputIgnoreRules(payload.outputIgnoreRules);
     setFileNameSettings(normalizeFileNameSettings(payload.fileNameSettings));
     setIsConfigurationDirty(true);
+    pendingLoadedSettingsBaselineSyncRef.current = true;
+  };
+
+  const saveCurrentSettings = () => {
+    if (!currentSettings || !currentSettingsKey) {
+      return { ok: false as const, error: 'Primero carga un Excel y selecciona una hoja para guardar configuraciones.' };
+    }
+
+    try {
+      downloadImportSettingsFile(currentSettings);
+      setSettingsBaselines((baselines) => ({ ...baselines, saved: currentSettingsKey }));
+      return { ok: true as const };
+    } catch {
+      return { ok: false as const, error: 'No se pudo guardar la configuración.' };
+    }
   };
 
   const changeSelectedSheet = (sheetName: string) => {
@@ -434,8 +513,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
         open={Boolean(discardConfirmation)}
         title="Hay cambios sin aplicar"
         message="Si continuás, se perderá la configuración actual."
-        cancelLabel="Cancelar"
-        confirmLabel="Descartar"
+        cancelLabel="Seguir editando"
+        confirmLabel="Descartar cambios"
         variant="danger"
         onCancel={cancelConfigurationDiscard}
         onConfirm={confirmConfigurationDiscard}
@@ -489,6 +568,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             outputColumns={outputColumns}
             outputIgnoreRules={outputIgnoreRules}
             fileNameSettings={fileNameSettings}
+            onSaveSettings={saveCurrentSettings}
             onApplySettings={applyImportedSettings}
             onSettingsImported={() => setIsConfigurationDirty(true)}
           />
@@ -562,14 +642,18 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             rows={rawPreviewRows}
             maxColumns={maxColumns}
             activeColumns={rawPreviewColumnIndexes}
+            dataColumns={rawPreviewDataColumnIndexes}
             rowNumberOffset={rawPreviewRowNumberOffset}
             showAllColumns={showAllRawPreviewColumns}
+            showDataColumns={showDataRawPreviewColumns}
             showHiddenColumnsToggle={hasAutoHiddenColumns}
+            showDataColumnsToggle
             onShowAllColumnsChange={(showAllColumns) => {
               setIsConfigurationDirty(true);
               importedPreviewSettingsRef.current = null;
               setShowAllRawPreviewColumns(showAllColumns);
             }}
+            onShowDataColumnsChange={setShowDataRawPreviewColumns}
           />
         </Step>
 
@@ -652,6 +736,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             fileNameSettings={fileNameSettings}
             sourceFileName={fileName}
             sheetName={selectedSheet}
+            shouldPromptSaveBeforeExcelDownload={shouldPromptSaveBeforeExcelDownload}
+            onSaveSettingsBeforeExcelDownload={async () => saveCurrentSettings().ok}
           />
         </Step>
           </>
@@ -664,6 +750,69 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 type DiscardConfirmationState = {
   onConfirm: () => void;
 };
+
+type SettingsBaselineState = {
+  loaded?: string;
+  saved?: string;
+};
+
+function createCurrentExportedSettings({
+  fileType,
+  selectedSheet,
+  sheetNames,
+  rows,
+  headerRowIndex,
+  startRowIndex,
+  showRawPreviewFromDataStart,
+  showAllRawPreviewColumns,
+  columnAnalysis,
+  inputColumnAliases,
+  inputIgnoreRules,
+  outputColumns,
+  outputIgnoreRules,
+  fileNameSettings,
+}: {
+  fileType: 'spreadsheet' | 'csv' | '';
+  selectedSheet: string;
+  sheetNames: string[];
+  rows: RawRow[];
+  headerRowIndex: number | null;
+  startRowIndex: number;
+  showRawPreviewFromDataStart: boolean;
+  showAllRawPreviewColumns: boolean;
+  columnAnalysis: ColumnAnalysis[];
+  inputColumnAliases: Record<string, string>;
+  inputIgnoreRules: IgnoreRule[];
+  outputColumns: OutputColumn[];
+  outputIgnoreRules: IgnoreRule[];
+  fileNameSettings: FileNameSettingsType;
+}) {
+  if (fileType === '' || columnAnalysis.length === 0) {
+    return null;
+  }
+
+  if (fileType === 'spreadsheet' && !selectedSheet) {
+    return null;
+  }
+
+  return exportSettingsFromWizardState({
+    name: selectedSheet || undefined,
+    fileType,
+    selectedSheet,
+    sheetNames,
+    rows,
+    headerRowIndex,
+    startRowIndex,
+    showRawPreviewFromDataStart,
+    showAllRawPreviewColumns,
+    columnAnalysis,
+    inputColumnAliases,
+    inputIgnoreRules,
+    outputColumns,
+    outputIgnoreRules,
+    fileNameSettings,
+  });
+}
 
 function getApplicableSheet(
   payload: ImportedSettingsApplyPayload,

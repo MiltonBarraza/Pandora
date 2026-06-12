@@ -80,6 +80,33 @@ describe('localOutputColumnsService', () => {
     ]);
   });
 
+  it('preserves generated output column markers when loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'generated-name',
+          label: 'Nombre',
+          generatedFromInputColumnId: 'input-name',
+          recipe: { type: 'direct', inputColumnId: 'input-name' },
+        },
+      ]),
+    );
+
+    expect(loadOutputColumns()).toEqual([
+      {
+        id: 'generated-name',
+        label: 'Nombre',
+        order: 0,
+        enabled: true,
+        generatedFromInputColumnId: 'input-name',
+        recipe: { type: 'direct', inputColumnId: 'input-name' },
+      },
+    ]);
+  });
+
   it('drops hidden final transformations from simple recipes when loading saved columns', async () => {
     const { loadOutputColumns } = await import('../localOutputColumnsService');
 

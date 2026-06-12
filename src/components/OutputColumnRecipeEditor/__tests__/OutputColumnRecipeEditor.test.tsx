@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
-import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { OutputColumnRecipeEditor, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -57,6 +59,15 @@ const combineColumn: OutputColumn = {
   },
 };
 
+function renderRecipeEditorMarkup(column: OutputColumn) {
+  vi.stubGlobal('document', { body: {} });
+  return renderToStaticMarkup(React.createElement(OutputColumnRecipeEditor, {
+    column,
+    inputColumns,
+    onChange: () => undefined,
+  }));
+}
+
 describe('buildRecipeForSelectedType', () => {
   it('drops hidden steps when switching from combine to direct', () => {
     expect(buildRecipeForSelectedType('direct', combineColumn, inputColumns)).toEqual({
@@ -88,6 +99,65 @@ describe('buildRecipeForSelectedType', () => {
 });
 
 describe('constructor helpers', () => {
+  it('renders a date picker for fixed text used by a date step', () => {
+    const column: OutputColumn = {
+      id: 'date-output',
+      label: 'Fecha',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        parts: [{ id: 'part-date', type: 'input', inputColumnId: 'input-code' }],
+        steps: [{
+          id: 'date-step',
+          mode: 'date',
+          type: 'formatDate',
+          source: { type: 'fixedText', value: '2024-06-01' },
+          dateInputFormat: 'YYYY-MM-DD',
+          dateOutputFormat: 'YYYY-MM-DD',
+        }],
+      },
+    };
+
+    const markup = renderRecipeEditorMarkup(column);
+
+    expect(markup).toContain('type="date"');
+    expect(markup).toContain('value="2024-06-01"');
+    expect(markup).not.toContain('Formato de entrada');
+  });
+
+  it('keeps a normal text input for non-date fixed text sources', () => {
+    const column: OutputColumn = {
+      id: 'text-output',
+      label: 'Texto',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        parts: [{ id: 'part-text', type: 'input', inputColumnId: 'input-code' }],
+        steps: [{
+          id: 'text-step',
+          mode: 'text',
+          type: 'addPrefix',
+          source: { type: 'fixedText', value: 'ABC' },
+          value: 'PRE-',
+        }],
+      },
+    };
+
+    const markup = renderRecipeEditorMarkup(column);
+
+    expect(markup).toContain('type="text"');
+    expect(markup).toContain('value="ABC"');
+    expect(markup).not.toContain('type="date"');
+  });
+
+  it('normalizes date picker values to ISO or an empty safe value', () => {
+    expect(getDatePickerValue('2024-06-01')).toBe('2024-06-01');
+    expect(getDatePickerValue('01/06/2024', 'DD/MM/YYYY')).toBe('2024-06-01');
+    expect(getDatePickerValue('no es fecha', 'DD/MM/YYYY')).toBe('');
+  });
+
   it('uses confirm/cancel modal copy without auto-apply semantics', () => {
     expect(recipeEditorModalPendingApplyText).toBe('Los cambios se aplican al confirmar.');
     expect(recipeEditorModalCancelLabel).toBe('Cancelar');
