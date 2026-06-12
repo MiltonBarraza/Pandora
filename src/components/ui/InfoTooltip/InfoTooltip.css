@@ -73,10 +73,10 @@ button.infoTooltipTrigger .infoTooltipIcon {
 }
 
 .infoTooltipBubble {
-  background: var(--color-text-primary);
+  background: var(--color-tooltip-bg);
   border-radius: 6px;
   box-shadow: var(--shadow-dropdown);
-  color: var(--color-bg-surface);
+  color: var(--color-tooltip-text);
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.35;
@@ -132,7 +132,7 @@ button.infoTooltipTrigger .infoTooltipIcon {
 
 .field .infoTooltipBubble,
 .dropdownLabel .infoTooltipBubble {
-  color: var(--color-bg-surface);
+  color: var(--color-tooltip-text);
   font-size: 0.82rem;
   font-weight: 600;
 }

@@ -14,6 +14,8 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Dialogo visual reusable `ConfirmDialog` para confirmaciones internas sin depender de `window.confirm`.
 - Guard visual hibrido para perdida de cambios: modal custom en acciones internas y atajos de recarga interceptables, manteniendo `beforeunload` nativo como fallback para salidas reales.
 - Tooltips custom para acciones de duplicar y eliminar columnas de salida, manteniendo `aria-label` y evitando `title` nativo.
+- Infraestructura de apariencia Light/Dark con toolbar superior, persistencia en `localStorage` y aplicacion de `data-theme` en el documento.
+- Tokens dark Pandora para fondos, superficies, texto, bordes, estados semanticos, hero, tablas, selected states, tooltips, toasts y toolbar.
 
 ### Changed
 
@@ -21,6 +23,8 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - El modal/editor de recetas reemplaza confirmaciones nativas por `ConfirmDialog` al descartar cambios sin aplicar.
 - Los botones "Agregar" del editor de recetas usan estilos scoped con mejor contraste y jerarquia visual sin cambiar la paleta global.
 - La lista de columnas de salida mejora el espaciado del nombre, truncado de nombres largos, tooltips de nombres completos y alineacion de acciones icon-only.
+- La toolbar de apariencia muestra solo las opciones visibles Claro y Oscuro, manteniendo soporte interno seguro para la preferencia `system`.
+- Hero, dropdowns, tablas, selected states, tooltips y toasts pasan a usar tokens preparados para Light/Dark sin cambiar la experiencia del modo claro.
 
 ### Fixed
 

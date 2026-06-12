@@ -33,7 +33,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
 
-export function ImportWizard() {
+export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactNode }) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
@@ -429,6 +429,7 @@ export function ImportWizard() {
 
   return (
     <main className="appShell">
+      {appearanceToolbar}
       <ConfirmDialog
         open={Boolean(discardConfirmation)}
         title="Hay cambios sin aplicar"
