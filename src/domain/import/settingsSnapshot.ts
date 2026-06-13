@@ -9,6 +9,7 @@ import type {
   SavedInputColumnConfig,
   SourceColumnSnapshot,
   SourceSnapshot,
+  VirtualInputColumn,
 } from '../../types/import';
 import { getInputColumnId } from './outputModel';
 
@@ -42,6 +43,7 @@ export type ExportSettingsFromWizardStateOptions = {
   showAllRawPreviewColumns?: boolean;
   columnAnalysis: ColumnAnalysis[];
   inputColumnAliases: Record<string, string>;
+  virtualInputColumns?: VirtualInputColumn[];
   inputNormalizationRules: InputNormalizationRule[];
   inputIgnoreRules: IgnoreRule[];
   outputColumns: OutputColumn[];
@@ -96,6 +98,7 @@ export function exportSettingsFromWizardState({
   showAllRawPreviewColumns,
   columnAnalysis,
   inputColumnAliases,
+  virtualInputColumns = [],
   inputNormalizationRules,
   inputIgnoreRules,
   outputColumns,
@@ -127,6 +130,7 @@ export function exportSettingsFromWizardState({
       ...(showAllRawPreviewColumns !== undefined ? { showAllRawPreviewColumns } : {}),
       columnVisibility: columnAnalysis.map(createSavedInputColumnConfig),
       inputColumnAliases: { ...inputColumnAliases },
+      virtualInputColumns: cloneJson(virtualInputColumns),
       inputNormalizationRules: cloneJson(inputNormalizationRules),
       inputIgnoreRules: cloneJson(inputIgnoreRules),
       outputColumns: cloneJson(outputColumns),

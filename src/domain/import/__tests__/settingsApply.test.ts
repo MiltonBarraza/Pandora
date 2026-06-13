@@ -87,6 +87,7 @@ describe('settingsApply', () => {
           },
         ],
         inputColumnAliases: { 'input-0': 'Codigo' },
+        virtualInputColumns: [],
         inputNormalizationRules: [
           { id: 'fill-down', type: 'fillDown', columnId: 'input-0', enabled: true },
         ],
@@ -200,6 +201,7 @@ describe('settingsApply', () => {
       enabled: true,
       valueColumnId: 'input-0',
       captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+      applyMode: 'allRowsInRange',
       targetColumnId: 'input-2',
     }];
 
@@ -263,6 +265,39 @@ describe('settingsApply', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.inputNormalizationRules).toEqual([]);
+    }
+  });
+
+  it('preserves virtual input columns in the apply payload', () => {
+    const settings = buildSettings();
+    settings.config.virtualInputColumns = [{
+      id: 'virtual:dato-adicional',
+      kind: 'virtual',
+      label: 'Dato adicional',
+      active: true,
+      source: {
+        type: 'inputNormalizationRule',
+        ruleId: 'range-value',
+      },
+    }];
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.virtualInputColumns).toEqual(settings.config.virtualInputColumns);
+    }
+  });
+
+  it('uses an empty virtual input column list for older exported settings', () => {
+    const settings = buildSettings();
+    delete settings.config.virtualInputColumns;
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.virtualInputColumns).toEqual([]);
     }
   });
 

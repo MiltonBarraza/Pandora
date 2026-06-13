@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ColumnAnalysis, FileNameSettings, IgnoreRule, InputNormalizationRule, OutputColumn, RawRow } from '../../../types/import';
+import type { ColumnAnalysis, FileNameSettings, IgnoreRule, InputNormalizationRule, OutputColumn, RawRow, VirtualInputColumn } from '../../../types/import';
 import { createColumnFingerprint, createSourceSnapshot, exportSettingsFromWizardState } from '../settingsSnapshot';
 
 const columnAnalysis: ColumnAnalysis[] = [
@@ -39,6 +39,19 @@ const inputIgnoreRules: IgnoreRule[] = [
 
 const inputNormalizationRules: InputNormalizationRule[] = [
   { id: 'fill-down-product', type: 'fillDown', columnId: 'input-0', enabled: true },
+];
+
+const virtualInputColumns: VirtualInputColumn[] = [
+  {
+    id: 'virtual:dato-adicional',
+    kind: 'virtual',
+    label: 'Dato adicional',
+    active: true,
+    source: {
+      type: 'inputNormalizationRule',
+      ruleId: 'range-value',
+    },
+  },
 ];
 
 const outputIgnoreRules: IgnoreRule[] = [
@@ -164,6 +177,7 @@ describe('settingsSnapshot', () => {
       showAllRawPreviewColumns: true,
       columnAnalysis,
       inputColumnAliases: { 'input-0': 'SKU' },
+      virtualInputColumns,
       inputNormalizationRules,
       inputIgnoreRules,
       outputColumns,
@@ -190,6 +204,7 @@ describe('settingsSnapshot', () => {
         showRawPreviewFromDataStart: false,
         showAllRawPreviewColumns: true,
         inputColumnAliases: { 'input-0': 'SKU' },
+        virtualInputColumns,
         inputNormalizationRules,
         inputIgnoreRules,
         outputColumns,
@@ -198,6 +213,7 @@ describe('settingsSnapshot', () => {
       },
     });
     expect(settings.sourceSnapshot.columns[0].sampleValues).toEqual(['ABC', 'DEF']);
+    expect(settings.sourceSnapshot.columns).toHaveLength(2);
     expect(settings.config.columnVisibility).toEqual([
       {
         inputColumnId: 'input-0',
@@ -323,6 +339,7 @@ describe('settingsSnapshot', () => {
         enabled: true,
         valueColumnId: 'input-0',
         captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+        applyMode: 'allRowsInRange',
         targetColumnId: 'input-2',
       }],
       inputIgnoreRules: [],
@@ -337,8 +354,28 @@ describe('settingsSnapshot', () => {
       enabled: true,
       valueColumnId: 'input-0',
       captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+      applyMode: 'allRowsInRange',
       targetColumnId: 'input-2',
     }]);
+  });
+
+  it('exports an empty virtual input column list by default', () => {
+    const settings = exportSettingsFromWizardState({
+      fileType: 'spreadsheet',
+      selectedSheet: 'Hoja 1',
+      rows,
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      columnAnalysis,
+      inputColumnAliases: {},
+      inputNormalizationRules: [],
+      inputIgnoreRules: [],
+      outputColumns: [],
+      outputIgnoreRules: [],
+      fileNameSettings,
+    });
+
+    expect(settings.config.virtualInputColumns).toEqual([]);
   });
 
   it('does not mutate or share configurable arrays with the exported settings', () => {

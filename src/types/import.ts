@@ -48,6 +48,23 @@ export type InputColumn = {
   ignoredReason?: IgnoredReason;
 };
 
+export type RealInputColumn = InputColumn & {
+  kind: 'real';
+};
+
+export type VirtualInputColumn = {
+  id: string;
+  kind: 'virtual';
+  label: string;
+  active: true;
+  source?: {
+    type: 'inputNormalizationRule';
+    ruleId: string;
+  };
+};
+
+export type AvailableInputColumn = RealInputColumn | VirtualInputColumn;
+
 export type InputRow = {
   rowNumber: number;
   values: Record<string, string>;
@@ -359,6 +376,7 @@ export type ExportedImportSettings = {
     showAllRawPreviewColumns?: boolean;
     columnVisibility: SavedInputColumnConfig[];
     inputColumnAliases: Record<string, string>;
+    virtualInputColumns?: VirtualInputColumn[];
     inputNormalizationRules?: InputNormalizationRule[];
     inputIgnoreRules: IgnoreRule[];
     outputColumns: OutputColumn[];
@@ -504,6 +522,7 @@ export type ImportedSettingsApplyPayload = {
   showAllRawPreviewColumns?: boolean;
   inputColumnAliases: Record<string, string>;
   columnVisibility: SavedInputColumnConfig[];
+  virtualInputColumns: VirtualInputColumn[];
   inputNormalizationRules: InputNormalizationRule[];
   inputIgnoreRules: IgnoreRule[];
   outputColumns: OutputColumn[];

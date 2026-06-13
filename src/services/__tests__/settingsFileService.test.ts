@@ -75,6 +75,55 @@ describe('settingsFileService', () => {
     });
   });
 
+  it('preserves rangeValue applyMode when serializing and parsing settings', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        inputNormalizationRules: [{
+          id: 'range-value',
+          type: 'rangeValue',
+          enabled: true,
+          valueColumnId: 'input-0',
+          captureCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
+          applyMode: 'allRowsInRange',
+          targetColumnId: 'input-2',
+        }],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
+  it('preserves virtual input columns when serializing and parsing settings', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        virtualInputColumns: [{
+          id: 'virtual:dato-adicional',
+          kind: 'virtual',
+          label: 'Dato adicional',
+          active: true,
+          source: {
+            type: 'inputNormalizationRule',
+            ruleId: 'range-value',
+          },
+        }],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
   it('returns a controlled error for invalid JSON', () => {
     const result = parseImportSettingsJson('{invalid');
 
