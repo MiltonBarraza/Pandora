@@ -11,6 +11,7 @@ import type {
   StepOperand,
   StepSource,
   TransformStep,
+  VirtualInputColumn,
 } from '../../types/import';
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
 import { applyFormatDateStep } from './dateOperations';
@@ -34,13 +35,17 @@ export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]):
   }));
 }
 
-export function buildInputRows(rows: RawRow[], inputColumns: InputColumn[], startRowIndex = 0): InputRow[] {
+export function buildInputRows(rows: RawRow[], inputColumns: InputColumn[], startRowIndex = 0, virtualInputColumns: VirtualInputColumn[] = []): InputRow[] {
   const activeColumns = inputColumns.filter((column) => column.active);
+  const activeVirtualColumns = virtualInputColumns.filter((column) => column.active);
 
   return rows.slice(startRowIndex).map((row, offset) => ({
     rowNumber: startRowIndex + offset + 1,
     values: Object.fromEntries(
-      activeColumns.map((column) => [column.id, toText(row[column.columnIndex])]),
+      [
+        ...activeColumns.map((column) => [column.id, toText(row[column.columnIndex])] as const),
+        ...activeVirtualColumns.map((column) => [column.id, toText(getRawRowVirtualValue(row, column.id))] as const),
+      ],
     ),
   }));
 }
@@ -72,6 +77,7 @@ export function buildProcessedRowsPipeline({
   headerRowIndex = null,
   startRowIndex,
   outputColumns,
+  virtualInputColumns = [],
   inputNormalizationRules = [],
   inputIgnoreRules = [],
 }: {
@@ -80,16 +86,20 @@ export function buildProcessedRowsPipeline({
   headerRowIndex?: number | null;
   startRowIndex: number;
   outputColumns: OutputColumn[];
+  virtualInputColumns?: VirtualInputColumn[];
   inputNormalizationRules?: InputNormalizationRule[];
   inputIgnoreRules?: IgnoreRule[];
 }) {
   const inputColumns = buildInputColumnsFromAnalysis(columnAnalysis);
   const normalizationStartRowIndex = getInputNormalizationStartRowIndex(headerRowIndex);
   const normalizedRawRows = [
-    ...rawRows.slice(0, normalizationStartRowIndex).map((row) => [...row]),
-    ...applyInputNormalizationRules(rawRows.slice(normalizationStartRowIndex), inputNormalizationRules, inputColumns),
+    ...rawRows.slice(0, normalizationStartRowIndex).map(cloneRawRowWithProperties),
+    ...copyVirtualRawRowValues(
+      applyInputNormalizationRules(rawRows.slice(normalizationStartRowIndex), inputNormalizationRules, inputColumns),
+      rawRows.slice(normalizationStartRowIndex),
+    ),
   ];
-  const inputRows = buildInputRows(normalizedRawRows, inputColumns, startRowIndex);
+  const inputRows = buildInputRows(normalizedRawRows, inputColumns, startRowIndex, virtualInputColumns);
   const { includedInputRows, ignoredInputRows } = applyInputIgnoreRulesToInputRows({
     inputRows,
     inputIgnoreRules,
@@ -122,6 +132,28 @@ export function getEnabledOutputColumns(outputColumns: OutputColumn[]) {
 
 export function getInputColumnId(columnIndex: number) {
   return `input-${columnIndex}`;
+}
+
+function getRawRowVirtualValue(row: RawRow, columnId: string) {
+  return (row as unknown as Record<string, unknown>)[columnId];
+}
+
+function cloneRawRowWithProperties(row: RawRow): RawRow {
+  return Object.assign([...row], getRawRowObjectProperties(row));
+}
+
+function copyVirtualRawRowValues(rows: RawRow[], sourceRows: RawRow[]): RawRow[] {
+  return rows.map((row, rowIndex) => Object.assign([...row], getRawRowObjectProperties(sourceRows[rowIndex] ?? [])));
+}
+
+function getRawRowObjectProperties(row: RawRow) {
+  return Object.fromEntries(
+    Object.entries(row as unknown as Record<string, unknown>).filter(([key]) => !isArrayIndexKey(key)),
+  );
+}
+
+function isArrayIndexKey(key: string) {
+  return String(Number(key)) === key && Number.isInteger(Number(key)) && Number(key) >= 0;
 }
 
 function hasAnyOutputValue(row: ProcessedRow) {

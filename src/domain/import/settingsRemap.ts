@@ -10,6 +10,7 @@ import type {
   TransformCondition,
   TransformStep,
 } from '../../types/import';
+import { isVirtualInputColumnId } from './inputColumnLabels';
 import { collectSettingsReferences } from './settingsReferences';
 
 export function applyInputColumnRemapToSettings(
@@ -71,12 +72,16 @@ export function applyInputColumnRemapToSettings(
 
   return {
     settings: nextSettings,
-    changedReferences: referencesBeforeRemap.filter((reference) => hasOwnRemap(reference.columnId, remap) && remap[reference.columnId] !== reference.columnId),
-    unresolvedReferences: referencesBeforeRemap.filter((reference) => !hasOwnRemap(reference.columnId, remap)),
+    changedReferences: referencesBeforeRemap.filter((reference) => !isVirtualInputColumnId(reference.columnId) && hasOwnRemap(reference.columnId, remap) && remap[reference.columnId] !== reference.columnId),
+    unresolvedReferences: referencesBeforeRemap.filter((reference) => isUnresolvedInputReference(reference.columnId, settings, remap)),
   };
 }
 
 export function remapInputColumnId(columnId: string, remap: InputColumnRemap) {
+  if (isVirtualInputColumnId(columnId)) {
+    return columnId;
+  }
+
   return hasOwnRemap(columnId, remap) ? remap[columnId] : columnId;
 }
 
@@ -193,6 +198,14 @@ function remapInputColumnAliases(inputColumnAliases: Record<string, string>, rem
 
 function hasOwnRemap(columnId: string, remap: InputColumnRemap) {
   return Object.prototype.hasOwnProperty.call(remap, columnId);
+}
+
+function isUnresolvedInputReference(columnId: string, settings: ExportedImportSettings, remap: InputColumnRemap) {
+  if (isVirtualInputColumnId(columnId)) {
+    return !settings.config.virtualInputColumns?.some((column) => column.id === columnId);
+  }
+
+  return !hasOwnRemap(columnId, remap);
 }
 
 function cloneJson<T>(value: T): T {

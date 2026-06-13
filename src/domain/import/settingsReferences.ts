@@ -11,6 +11,7 @@ import type {
   TransformCondition,
   TransformStep,
 } from '../../types/import';
+import { isVirtualInputColumnId } from './inputColumnLabels';
 
 type ReferenceCollectorContext = {
   outputColumnId?: string;
@@ -111,7 +112,7 @@ export function collectSettingsReferences(settings: Pick<ExportedImportSettings,
     });
   });
 
-  return buildReferencesSummary(references);
+  return buildReferencesSummary(references, settings.config.virtualInputColumns ?? []);
 }
 
 export function collectInputColumnReferences(settings: Pick<ExportedImportSettings, 'config'>) {
@@ -302,20 +303,33 @@ function addInputReference(
   });
 }
 
-function buildReferencesSummary(references: SettingsColumnReference[]): SettingsReferencesSummary {
+function buildReferencesSummary(references: SettingsColumnReference[], virtualInputColumns: ExportedImportSettings['config']['virtualInputColumns'] = []): SettingsReferencesSummary {
+  const virtualInputColumnIds = uniqueSortedIds(virtualInputColumns.map((column) => column.id));
+  const virtualInputColumnIdSet = new Set(virtualInputColumnIds);
+  const missingVirtualReferences = references.filter(
+    (reference) => reference.target === 'input' && isVirtualInputColumnId(reference.columnId) && !virtualInputColumnIdSet.has(reference.columnId),
+  );
+
   return {
     inputColumnIds: uniqueSortedColumnIds(references, 'input'),
     outputColumnIds: uniqueSortedColumnIds(references, 'output'),
+    virtualInputColumnIds,
+    missingVirtualInputColumnIds: uniqueSortedIds(missingVirtualReferences.map((reference) => reference.columnId)),
+    missingVirtualReferences,
     references,
     referencesByColumnId: groupReferencesByColumnId(references),
   };
 }
 
 function uniqueSortedColumnIds(references: SettingsColumnReference[], target: SettingsColumnReference['target']) {
-  return Array.from(new Set(
+  return uniqueSortedIds(
     references
       .filter((reference) => reference.target === target)
       .map((reference) => reference.columnId)
       .filter(Boolean),
-  )).sort((left, right) => left.localeCompare(right));
+  );
+}
+
+function uniqueSortedIds(ids: string[]) {
+  return Array.from(new Set(ids)).sort((left, right) => left.localeCompare(right));
 }

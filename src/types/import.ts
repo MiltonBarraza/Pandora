@@ -492,6 +492,9 @@ export type SettingsColumnReference = {
 export type SettingsReferencesSummary = {
   inputColumnIds: string[];
   outputColumnIds: string[];
+  virtualInputColumnIds: string[];
+  missingVirtualInputColumnIds: string[];
+  missingVirtualReferences: SettingsColumnReference[];
   references: SettingsColumnReference[];
   referencesByColumnId: Record<string, SettingsColumnReference[]>;
 };

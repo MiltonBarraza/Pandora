@@ -329,6 +329,74 @@ describe('settingsRemap', () => {
     });
   });
 
+  it('does not remap virtual input column ids in rangeValue targets', () => {
+    const original = buildSettings();
+    original.config.virtualInputColumns = [{
+      id: 'virtual:dato-adicional',
+      kind: 'virtual',
+      label: 'Dato adicional',
+      active: true,
+    }];
+    original.config.inputNormalizationRules = [
+      {
+        id: 'range-value',
+        type: 'rangeValue',
+        enabled: true,
+        valueColumnId: 'input-direct',
+        captureCondition: { columnId: 'input-ignore', operator: 'isNotEmpty' },
+        targetColumnId: 'virtual:dato-adicional',
+      },
+    ];
+
+    const result = applyInputColumnRemapToSettings(original, {
+      ...remap,
+      'virtual:dato-adicional': 'input-999',
+    });
+    const [rule] = result.settings.config.inputNormalizationRules ?? [];
+    if (rule?.type !== 'rangeValue') {
+      throw new Error('Expected rangeValue rule');
+    }
+
+    expect(rule).toMatchObject({
+      valueColumnId: 'input-100',
+      captureCondition: { columnId: 'input-111', operator: 'isNotEmpty' },
+      targetColumnId: 'virtual:dato-adicional',
+    });
+    expect(result.changedReferences.map((reference) => reference.columnId)).not.toContain('virtual:dato-adicional');
+    expect(result.unresolvedReferences.map((reference) => reference.columnId)).not.toContain('virtual:dato-adicional');
+  });
+
+  it('reports missing virtual input references without remapping them to real columns', () => {
+    const original = buildSettings();
+    original.config.inputNormalizationRules = [
+      {
+        id: 'range-value',
+        type: 'rangeValue',
+        enabled: true,
+        valueColumnId: 'input-direct',
+        captureCondition: { columnId: 'input-ignore', operator: 'isNotEmpty' },
+        targetColumnId: 'virtual:dato-faltante',
+      },
+    ];
+
+    const result = applyInputColumnRemapToSettings(original, {
+      ...remap,
+      'virtual:dato-faltante': 'input-999',
+    });
+    const [rule] = result.settings.config.inputNormalizationRules ?? [];
+    if (rule?.type !== 'rangeValue') {
+      throw new Error('Expected rangeValue rule');
+    }
+
+    expect(rule.targetColumnId).toBe('virtual:dato-faltante');
+    expect(result.unresolvedReferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'virtual:dato-faltante',
+        kind: 'inputNormalizationRule',
+      }),
+    ]));
+  });
+
   it('reports changed and unresolved real references only', () => {
     const result = applyInputColumnRemapToSettings(buildSettings(), remap);
 
@@ -372,6 +440,7 @@ describe('settingsRemap', () => {
 
   it('remaps simple ids and detects whether a remap has entries', () => {
     expect(remapInputColumnId('input-a', { 'input-a': 'input-b' })).toBe('input-b');
+    expect(remapInputColumnId('virtual:a', { 'virtual:a': 'input-b' })).toBe('virtual:a');
     expect(remapInputColumnId('input-a', {})).toBe('input-a');
     expect(hasInputColumnRemap({})).toBe(false);
     expect(hasInputColumnRemap({ 'input-a': 'input-b' })).toBe(true);

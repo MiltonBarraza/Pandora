@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ColumnAnalysis, InputRow, NumericOperation, OutputColumn } from '../../../types/import';
-import { buildProcessedRows, buildProcessedRowsPipeline } from '../outputModel';
+import type { ColumnAnalysis, InputRow, NumericOperation, OutputColumn, RawRow, VirtualInputColumn } from '../../../types/import';
+import { buildInputRows, buildProcessedRows, buildProcessedRowsPipeline } from '../outputModel';
 
 const inputRows: InputRow[] = [
   {
@@ -157,6 +157,87 @@ describe('outputModel recipes', () => {
 });
 
 describe('outputModel input filters', () => {
+  it('builds input rows without virtual input columns as before', () => {
+    expect(buildInputRows([
+      ['A1', 'Pintura'],
+    ], [
+      inputColumn(0, 'A', 'Codigo'),
+      inputColumn(1, 'B', 'Producto'),
+    ])).toEqual([
+      {
+        rowNumber: 1,
+        values: {
+          'input-0': 'A1',
+          'input-1': 'Pintura',
+        },
+      },
+    ]);
+  });
+
+  it('adds empty virtual input values when there is no calculated value yet', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A1'],
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Codigo'),
+      ],
+      startRowIndex: 0,
+      virtualInputColumns: [
+        virtualInputColumn('virtual:dato-adicional', 'Dato adicional'),
+      ],
+      outputColumns: [],
+    });
+
+    expect(pipeline.inputRows[0].values).toEqual({
+      'input-0': 'A1',
+      'virtual:dato-adicional': '',
+    });
+  });
+
+  it('preserves virtual input values already present on normalized rows', () => {
+    const row = rawRowWithVirtualValue(['A1'], 'virtual:dato-adicional', 'RÃ¡pida acciÃ³n');
+
+    expect(buildInputRows([
+      row,
+    ], [
+      inputColumn(0, 'A', 'Codigo'),
+    ], 0, [
+      virtualInputColumn('virtual:dato-adicional', 'Dato adicional'),
+    ])).toEqual([
+      {
+        rowNumber: 1,
+        values: {
+          'input-0': 'A1',
+          'virtual:dato-adicional': 'RÃ¡pida acciÃ³n',
+        },
+      },
+    ]);
+  });
+
+  it('allows direct output recipes to read virtual input values from the pipeline', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        rawRowWithVirtualValue(['9280034'], 'virtual:dato-adicional', 'RÃ¡pida acciÃ³n'),
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Codigo'),
+      ],
+      startRowIndex: 0,
+      virtualInputColumns: [
+        virtualInputColumn('virtual:dato-adicional', 'Dato adicional'),
+      ],
+      outputColumns: [
+        outputColumn({ id: 'extra', recipe: { type: 'direct', inputColumnId: 'virtual:dato-adicional' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows[0].values['virtual:dato-adicional']).toBe('RÃ¡pida acciÃ³n');
+    expect(pipeline.processedRows.map((row) => row.outputValues)).toEqual([
+      { extra: 'RÃ¡pida acciÃ³n' },
+    ]);
+  });
+
   it('filters input rows before building processed rows', () => {
     const columns: ColumnAnalysis[] = [
       columnAnalysis(0, 'A', 'Codigo'),
@@ -1346,6 +1427,32 @@ function columnAnalysis(columnIndex: number, columnLetter: string, header: strin
     ignored: false,
     autoIgnored: false,
   };
+}
+
+function inputColumn(columnIndex: number, columnLetter: string, header: string) {
+  return {
+    id: `input-${columnIndex}`,
+    columnIndex,
+    columnLetter,
+    label: header,
+    header,
+    active: true,
+    sampleValues: [],
+    nonEmptyCount: 1,
+  };
+}
+
+function virtualInputColumn(id: string, label: string): VirtualInputColumn {
+  return {
+    id,
+    kind: 'virtual',
+    label,
+    active: true,
+  };
+}
+
+function rawRowWithVirtualValue(row: RawRow, columnId: string, value: string): RawRow {
+  return Object.assign([...row], { [columnId]: value });
 }
 
 function synthPlusRow(columnA: string, columnB: string, columnO: string) {

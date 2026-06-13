@@ -157,6 +157,57 @@ describe('settingsReferences', () => {
     expect(summary.references.filter((reference) => reference.ruleId === 'range-value')).toHaveLength(3);
   });
 
+  it('recognizes existing virtual input column references as resolved', () => {
+    const currentSettings = settings([
+      outputColumn({
+        id: 'output-extra',
+        recipe: { type: 'direct', inputColumnId: 'virtual:dato-adicional' },
+      }),
+    ]);
+    currentSettings.config.virtualInputColumns = [{
+      id: 'virtual:dato-adicional',
+      kind: 'virtual',
+      label: 'Dato adicional',
+      active: true,
+    }];
+
+    const summary = collectSettingsReferences(currentSettings);
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'virtual:dato-adicional',
+        target: 'input',
+        kind: 'directRecipe',
+        path: 'config.outputColumns[0].recipe.inputColumnId',
+      }),
+    ]));
+    expect(summary.virtualInputColumnIds).toEqual(['virtual:dato-adicional']);
+    expect(summary.missingVirtualInputColumnIds).toEqual([]);
+    expect(summary.missingVirtualReferences).toEqual([]);
+    expect(summary.referencesByColumnId['virtual:dato-adicional']).toHaveLength(1);
+  });
+
+  it('reports missing virtual input column references without using source snapshot columns', () => {
+    const currentSettings = settings([
+      outputColumn({
+        id: 'output-extra',
+        recipe: { type: 'direct', inputColumnId: 'virtual:dato-inexistente' },
+      }),
+    ]);
+
+    const summary = collectSettingsReferences(currentSettings);
+
+    expect(summary.virtualInputColumnIds).toEqual([]);
+    expect(summary.missingVirtualInputColumnIds).toEqual(['virtual:dato-inexistente']);
+    expect(summary.missingVirtualReferences).toEqual([
+      expect.objectContaining({
+        columnId: 'virtual:dato-inexistente',
+        target: 'input',
+        kind: 'directRecipe',
+      }),
+    ]);
+  });
+
   it('collects recipe parts, transform sources, operands and conditions', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({
