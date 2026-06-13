@@ -1,4 +1,5 @@
 import type { InputColumn, InputNormalizationCondition, InputNormalizationRule, RangeGroupInputNormalizationRule, RangeValueInputNormalizationRule, RawRow } from '../../types/import';
+import { isVirtualInputColumnId } from './inputColumnLabels';
 
 export type InputNormalizationRuleImpact = {
   ruleId: string;
@@ -71,7 +72,7 @@ export function applyFillDownRule(rawRows: RawRow[], columnIndex: number): RawRo
   let lastValue: unknown;
 
   return rawRows.map((row) => {
-    const nextRow = [...row];
+    const nextRow = cloneRowWithProperties(row);
     const currentValue = nextRow[columnIndex];
 
     if (isEmptyCell(currentValue)) {
@@ -200,7 +201,7 @@ export function applyRangeGroupRule(
 
   // Range rules read the original Excel structure and write only their normalized target.
   return rawRows.map((row, rowIndex) => {
-    const nextRow = [...targetRows[rowIndex]];
+    const nextRow = cloneRowWithProperties(targetRows[rowIndex]);
     const groupValue = row[indexes.groupColumnIndex];
 
     if (!isEmptyCell(groupValue) && matchesCondition(row, indexes.groupStartConditionColumnIndex, rule.groupStartCondition)) {
@@ -208,9 +209,9 @@ export function applyRangeGroupRule(
     }
 
     if (matchesCondition(row, indexes.applyToRowConditionColumnIndex, rule.applyToRowCondition)) {
-      nextRow[indexes.targetColumnIndex] = currentGroup ?? '';
+      writeRangeTargetValue(nextRow, indexes, currentGroup ?? '');
     } else {
-      nextRow[indexes.targetColumnIndex] = '';
+      writeRangeTargetValue(nextRow, indexes, '');
     }
 
     return nextRow;
@@ -290,7 +291,7 @@ export function applyRangeValueRule(
 
   // Range rules read the original Excel structure and write only their normalized target.
   return rawRows.map((row, rowIndex) => {
-    const nextRow = [...targetRows[rowIndex]];
+    const nextRow = cloneRowWithProperties(targetRows[rowIndex]);
     const value = row[indexes.valueColumnIndex];
     const canCaptureOrApply = matchesCondition(row, indexes.captureConditionColumnIndex, rule.captureCondition);
 
@@ -299,9 +300,9 @@ export function applyRangeValueRule(
     }
 
     if (canCaptureOrApply) {
-      nextRow[indexes.targetColumnIndex] = currentValue ?? '';
+      writeRangeTargetValue(nextRow, indexes, currentValue ?? '');
     } else {
-      nextRow[indexes.targetColumnIndex] = '';
+      writeRangeTargetValue(nextRow, indexes, '');
     }
 
     return nextRow;
@@ -400,17 +401,17 @@ function applyRangeValueRuleToAllRowsInRange(
   indexes: RangeValueColumnIndexes,
   targetRows: RawRow[],
 ): RawRow[] {
-  const nextRows = targetRows.map((row) => [...row]);
+  const nextRows = targetRows.map(cloneRowWithProperties);
 
   rawRows.forEach((row, rowIndex) => {
     if (!matchesCondition(row, indexes.captureConditionColumnIndex, rule.captureCondition)) {
-      nextRows[rowIndex][indexes.targetColumnIndex] = '';
+      writeRangeTargetValue(nextRows[rowIndex], indexes, '');
     }
   });
 
   getAllRowsInRangeValueSegments(rawRows, rule, indexes).forEach((segment) => {
     segment.rowIndexes.forEach((rowIndex) => {
-      nextRows[rowIndex][indexes.targetColumnIndex] = segment.value;
+      writeRangeTargetValue(nextRows[rowIndex], indexes, segment.value);
     });
   });
 
@@ -477,13 +478,15 @@ export type RangeGroupColumnIndexes = {
   groupColumnIndex: number;
   groupStartConditionColumnIndex: number;
   applyToRowConditionColumnIndex: number;
-  targetColumnIndex: number;
+  targetColumnId: string;
+  targetColumnIndex?: number;
 };
 
 export type RangeValueColumnIndexes = {
   valueColumnIndex: number;
   captureConditionColumnIndex: number;
-  targetColumnIndex: number;
+  targetColumnId: string;
+  targetColumnIndex?: number;
 };
 
 export function getRangeGroupColumnIndexes(rule: RangeGroupInputNormalizationRule, inputColumns: InputColumn[]): RangeGroupColumnIndexes | null {
@@ -496,7 +499,7 @@ export function getRangeGroupColumnIndexes(rule: RangeGroupInputNormalizationRul
     typeof groupColumnIndex !== 'number' ||
     typeof groupStartConditionColumnIndex !== 'number' ||
     typeof applyToRowConditionColumnIndex !== 'number' ||
-    typeof targetColumnIndex !== 'number'
+    !isValidRangeTarget(rule.targetColumnId, targetColumnIndex)
   ) {
     return null;
   }
@@ -505,6 +508,7 @@ export function getRangeGroupColumnIndexes(rule: RangeGroupInputNormalizationRul
     groupColumnIndex,
     groupStartConditionColumnIndex,
     applyToRowConditionColumnIndex,
+    targetColumnId: rule.targetColumnId,
     targetColumnIndex,
   };
 }
@@ -517,7 +521,7 @@ export function getRangeValueColumnIndexes(rule: RangeValueInputNormalizationRul
   if (
     typeof valueColumnIndex !== 'number' ||
     typeof captureConditionColumnIndex !== 'number' ||
-    typeof targetColumnIndex !== 'number'
+    !isValidRangeTarget(rule.targetColumnId, targetColumnIndex)
   ) {
     return null;
   }
@@ -525,6 +529,7 @@ export function getRangeValueColumnIndexes(rule: RangeValueInputNormalizationRul
   return {
     valueColumnIndex,
     captureConditionColumnIndex,
+    targetColumnId: rule.targetColumnId,
     targetColumnIndex,
   };
 }
@@ -606,8 +611,37 @@ function getInputColumnIndex(inputColumns: InputColumn[], columnId: string) {
   return inputColumns.find((column) => column.id === columnId)?.columnIndex;
 }
 
+function isValidRangeTarget(columnId: string, columnIndex: number | undefined) {
+  return typeof columnIndex === 'number' || isVirtualInputColumnId(columnId);
+}
+
+function writeRangeTargetValue(row: RawRow, indexes: Pick<RangeGroupColumnIndexes, 'targetColumnId' | 'targetColumnIndex'>, value: unknown) {
+  if (isVirtualInputColumnId(indexes.targetColumnId)) {
+    (row as unknown as Record<string, unknown>)[indexes.targetColumnId] = value;
+    return;
+  }
+
+  if (typeof indexes.targetColumnIndex === 'number') {
+    row[indexes.targetColumnIndex] = value;
+  }
+}
+
 function cloneRows(rawRows: RawRow[]): RawRow[] {
-  return rawRows.map((row) => [...row]);
+  return rawRows.map(cloneRowWithProperties);
+}
+
+function cloneRowWithProperties(row: RawRow): RawRow {
+  return Object.assign([...row], getRawRowObjectProperties(row));
+}
+
+function getRawRowObjectProperties(row: RawRow) {
+  return Object.fromEntries(
+    Object.entries(row as unknown as Record<string, unknown>).filter(([key]) => !isArrayIndexKey(key)),
+  );
+}
+
+function isArrayIndexKey(key: string) {
+  return String(Number(key)) === key && Number.isInteger(Number(key)) && Number(key) >= 0;
 }
 
 export function isInputNormalizationEmptyCell(value: unknown) {

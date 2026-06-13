@@ -143,7 +143,11 @@ function cloneRawRowWithProperties(row: RawRow): RawRow {
 }
 
 function copyVirtualRawRowValues(rows: RawRow[], sourceRows: RawRow[]): RawRow[] {
-  return rows.map((row, rowIndex) => Object.assign([...row], getRawRowObjectProperties(sourceRows[rowIndex] ?? [])));
+  return rows.map((row, rowIndex) => Object.assign(
+    [...row],
+    getRawRowObjectProperties(sourceRows[rowIndex] ?? []),
+    getRawRowObjectProperties(row),
+  ));
 }
 
 function getRawRowObjectProperties(row: RawRow) {

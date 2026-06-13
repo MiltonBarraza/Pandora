@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, InputNormalizationRule, RangeGroupInputNormalizationRule, RangeValueInputNormalizationRule, RawRow } from '../../../types/import';
 import { applyFillDownRule, applyInputNormalizationRules, countFillDownCompletedCells, getFillDownRanges, getInputNormalizationRuleImpacts, getInputNormalizationRuleRanges } from '../inputNormalization';
+import { buildProcessedRowsPipeline } from '../outputModel';
 
 const inputColumns: InputColumn[] = [
   inputColumn('input-0', 0, 'A'),
@@ -394,6 +395,22 @@ describe('inputNormalization', () => {
     ]);
   });
 
+  it('writes rangeValue data to a virtual target for matching rows only', () => {
+    const rows: RawRow[] = [
+      ['REMOVEDOR EN GEL', ''],
+      ['', '9280033'],
+      ['RÃ¡pida acciÃ³n', '9280034'],
+    ];
+
+    const result = applyInputNormalizationRules(rows, [rangeValueRule('virtual:dato-adicional')], inputColumns);
+
+    expect(getVirtualValue(result[0], 'virtual:dato-adicional')).toBe('');
+    expect(getVirtualValue(result[1], 'virtual:dato-adicional')).toBe('');
+    expect(getVirtualValue(result[2], 'virtual:dato-adicional')).toBe('RÃ¡pida acciÃ³n');
+    expect(result.map((row) => row.slice(0, 2))).toEqual(rows);
+    expect(rows.some((row) => hasVirtualValue(row, 'virtual:dato-adicional'))).toBe(false);
+  });
+
   it('applies rangeValue data to all matching rows in the same range when configured', () => {
     const columns = [...inputColumns, inputColumn('input-2', 2, 'C')];
 
@@ -412,6 +429,30 @@ describe('inputNormalization', () => {
       ['', '9400013', 'Disolvente para sintÃ©ticos'],
       ['Disolvente para sintÃ©ticos', '9400014', 'Disolvente para sintÃ©ticos'],
     ]);
+  });
+
+  it('writes rangeValue data to a virtual target for all rows in the same range', () => {
+    const rows: RawRow[] = [
+      ['REMOVEDOR EN GEL', ''],
+      ['', '9280033'],
+      ['RÃ¡pida acciÃ³n', '9280034'],
+      ['AGUARRAS PREMIUM', ''],
+      ['', '9400013'],
+      ['Disolvente para sintÃ©ticos', '9400014'],
+    ];
+
+    const result = applyInputNormalizationRules(rows, [rangeValueRule('virtual:dato-adicional', 'allRowsInRange')], inputColumns);
+
+    expect(result.map((row) => getVirtualValue(row, 'virtual:dato-adicional'))).toEqual([
+      '',
+      'RÃ¡pida acciÃ³n',
+      'RÃ¡pida acciÃ³n',
+      '',
+      'Disolvente para sintÃ©ticos',
+      'Disolvente para sintÃ©ticos',
+    ]);
+    expect(result.map((row) => row.slice(0, 2))).toEqual(rows);
+    expect(rows.some((row) => hasVirtualValue(row, 'virtual:dato-adicional'))).toBe(false);
   });
 
   it('reports rangeValue allRowsInRange impacts and ranges', () => {
@@ -514,6 +555,23 @@ describe('inputNormalization', () => {
     ]);
   });
 
+  it('writes rangeGroup data to a virtual target without overwriting the real source column', () => {
+    const rows: RawRow[] = [
+      ['REMOVEDOR EN GEL', ''],
+      ['', '9280033'],
+      ['RÃ¡pida acciÃ³n', '9280034'],
+    ];
+
+    const result = applyInputNormalizationRules(rows, [rangeGroupRule('virtual:grupo-normalizado')], inputColumns);
+
+    expect(result.map((row) => row.slice(0, 2))).toEqual(rows);
+    expect(result.map((row) => getVirtualValue(row, 'virtual:grupo-normalizado'))).toEqual([
+      '',
+      'REMOVEDOR EN GEL',
+      'REMOVEDOR EN GEL',
+    ]);
+  });
+
   it('keeps rangeGroup and rangeValue independent from rule order', () => {
     const columns = [...inputColumns, inputColumn('input-14', 14, 'O')];
     const rows: RawRow[] = [
@@ -542,6 +600,98 @@ describe('inputNormalization', () => {
     expect(summarizeRows(valueThenGroup)).toEqual(expected);
     expect(rows[2][0]).toBe('Rápida acción');
   });
+
+  it('keeps rangeGroup and rangeValue independent from rule order with virtual targets', () => {
+    const rows: RawRow[] = [
+      ['REMOVEDOR EN GEL', ''],
+      ['', '9280033'],
+      ['RÃ¡pida acciÃ³n', '9280034'],
+      ['AGUARRAS PREMIUM', ''],
+      ['', '9400013'],
+      ['Disolvente para sintÃ©ticos', '9400014'],
+    ];
+    const groupRule = rangeGroupRule('virtual:grupo-normalizado');
+    const valueRule = rangeValueRule('virtual:dato-adicional', 'allRowsInRange');
+
+    const groupThenValue = applyInputNormalizationRules(rows, [groupRule, valueRule], inputColumns);
+    const valueThenGroup = applyInputNormalizationRules(rows, [valueRule, groupRule], inputColumns);
+    const summarizeVirtuals = (result: RawRow[]) => result.map((row) => ({
+      group: getVirtualValue(row, 'virtual:grupo-normalizado') ?? '',
+      extra: getVirtualValue(row, 'virtual:dato-adicional') ?? '',
+    }));
+    const expected = [
+      { group: '', extra: '' },
+      { group: 'REMOVEDOR EN GEL', extra: 'RÃ¡pida acciÃ³n' },
+      { group: 'REMOVEDOR EN GEL', extra: 'RÃ¡pida acciÃ³n' },
+      { group: '', extra: '' },
+      { group: 'AGUARRAS PREMIUM', extra: 'Disolvente para sintÃ©ticos' },
+      { group: 'AGUARRAS PREMIUM', extra: 'Disolvente para sintÃ©ticos' },
+    ];
+
+    expect(summarizeVirtuals(groupThenValue)).toEqual(expected);
+    expect(summarizeVirtuals(valueThenGroup)).toEqual(expected);
+    expect(rows.some((row) => hasVirtualValue(row, 'virtual:grupo-normalizado'))).toBe(false);
+    expect(rows.some((row) => hasVirtualValue(row, 'virtual:dato-adicional'))).toBe(false);
+  });
+
+  it('exposes virtual normalization targets to direct output recipes through the pipeline', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['Producto', 'Codigo'],
+        ['REMOVEDOR EN GEL', ''],
+        ['', '9280033'],
+        ['RÃ¡pida acciÃ³n', '9280034'],
+      ],
+      columnAnalysis: [
+        {
+          columnIndex: 0,
+          columnLetter: 'A',
+          header: 'Producto',
+          sampleValues: [],
+          nonEmptyCount: 2,
+          isEmpty: false,
+          ignored: false,
+          autoIgnored: false,
+        },
+        {
+          columnIndex: 1,
+          columnLetter: 'B',
+          header: 'Codigo',
+          sampleValues: [],
+          nonEmptyCount: 2,
+          isEmpty: false,
+          ignored: false,
+          autoIgnored: false,
+        },
+      ],
+      headerRowIndex: 0,
+      startRowIndex: 2,
+      virtualInputColumns: [
+        { id: 'virtual:dato-adicional', kind: 'virtual', label: 'Dato adicional', active: true },
+      ],
+      inputNormalizationRules: [
+        rangeValueRule('virtual:dato-adicional', 'allRowsInRange'),
+      ],
+      outputColumns: [
+        {
+          id: 'extra',
+          label: 'Extra',
+          order: 0,
+          enabled: true,
+          recipe: { type: 'direct', inputColumnId: 'virtual:dato-adicional' },
+        },
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.values['virtual:dato-adicional'])).toEqual([
+      'RÃ¡pida acciÃ³n',
+      'RÃ¡pida acciÃ³n',
+    ]);
+    expect(pipeline.processedRows.map((row) => row.outputValues)).toEqual([
+      { extra: 'RÃ¡pida acciÃ³n' },
+      { extra: 'RÃ¡pida acciÃ³n' },
+    ]);
+  });
 });
 
 function fillDownRule(columnId: string, enabled = true): InputNormalizationRule {
@@ -565,7 +715,7 @@ function inputColumn(id: string, columnIndex: number, columnLetter: string): Inp
   };
 }
 
-function rangeGroupRule(): RangeGroupInputNormalizationRule {
+function rangeGroupRule(targetColumnId = 'input-0'): RangeGroupInputNormalizationRule {
   return {
     id: 'range-group',
     type: 'rangeGroup',
@@ -573,7 +723,7 @@ function rangeGroupRule(): RangeGroupInputNormalizationRule {
     groupColumnId: 'input-0',
     groupStartCondition: { columnId: 'input-1', operator: 'isEmpty' },
     applyToRowCondition: { columnId: 'input-1', operator: 'isNotEmpty' },
-    targetColumnId: 'input-0',
+    targetColumnId,
   };
 }
 
@@ -595,4 +745,12 @@ function summarizeRows(rows: RawRow[]) {
     code: String(row[1] ?? ''),
     extra: String(row[14] ?? ''),
   }));
+}
+
+function getVirtualValue(row: RawRow, columnId: string) {
+  return (row as unknown as Record<string, unknown>)[columnId];
+}
+
+function hasVirtualValue(row: RawRow, columnId: string) {
+  return Object.prototype.hasOwnProperty.call(row, columnId);
 }
