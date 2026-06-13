@@ -1,8 +1,9 @@
-import type { ColumnAnalysis, IgnoredReason } from '../../types/import';
+import type { ColumnAnalysis, IgnoredReason, VirtualInputColumn } from '../../types/import';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type ColumnVisibilityManagerProps = {
   columns: ColumnAnalysis[];
+  virtualInputColumns?: VirtualInputColumn[];
   showHeaderColumn?: boolean;
   onChange: (columns: ColumnAnalysis[]) => void;
 };
@@ -24,7 +25,7 @@ const automaticReasonPluralLabels: Partial<Record<IgnoredReason, string>> = {
 
 const automaticReasonOrder: IgnoredReason[] = ['empty', 'narrow', 'hidden', 'lowData'];
 
-export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onChange }: ColumnVisibilityManagerProps) {
+export function ColumnVisibilityManager({ columns, virtualInputColumns = [], showHeaderColumn = true, onChange }: ColumnVisibilityManagerProps) {
   const activeCount = columns.filter((column) => !column.ignored).length;
   const ignoredCount = columns.length - activeCount;
   const automaticReasonSummary = buildAutomaticReasonSummary(columns);
@@ -176,6 +177,22 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
           </tbody>
         </table>
       </div>
+      {virtualInputColumns.length > 0 ? (
+        <div className="virtualColumnsBlock">
+          <div>
+            <h3>Columnas creadas por Pandora</h3>
+            <p className="muted">Estas columnas no vienen del Excel original.</p>
+          </div>
+          <div className="virtualColumnList">
+            {virtualInputColumns.map((column) => (
+              <div className="virtualColumnItem" key={column.id}>
+                <strong>{column.label}</strong>
+                <span className="suggestionChip">Virtual</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

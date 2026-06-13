@@ -13,6 +13,7 @@ import type {
   RawRow,
   SettingsCompatibilityResult,
   SourceSnapshot,
+  VirtualInputColumn,
 } from '../../types/import';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
@@ -29,6 +30,7 @@ type SettingsActionsProps = {
   showAllRawPreviewColumns: boolean;
   columnAnalysis: ColumnAnalysis[];
   inputColumnAliases: Record<string, string>;
+  virtualInputColumns: VirtualInputColumn[];
   inputNormalizationRules: InputNormalizationRule[];
   inputIgnoreRules: IgnoreRule[];
   outputColumns: OutputColumn[];
@@ -61,6 +63,7 @@ export function SettingsActions({
   showAllRawPreviewColumns,
   columnAnalysis,
   inputColumnAliases,
+  virtualInputColumns,
   inputNormalizationRules,
   inputIgnoreRules,
   outputColumns,
@@ -110,6 +113,7 @@ export function SettingsActions({
         showAllRawPreviewColumns,
         columnAnalysis,
         inputColumnAliases,
+        virtualInputColumns,
         inputNormalizationRules,
         inputIgnoreRules,
         outputColumns,

@@ -15,7 +15,7 @@ import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSetting
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { showInfoToast } from '../../services/toastService';
-import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputNormalizationRule, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult, SheetReadMetadata } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputNormalizationRule, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult, SheetReadMetadata, VirtualInputColumn } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -47,6 +47,7 @@ export function ImportWizard() {
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>(initialOutputColumns);
   const [fileNameSettings, setFileNameSettings] = useState<FileNameSettingsType>(() => loadFileNameSettings());
   const [columnAnalysis, setColumnAnalysis] = useState<ColumnAnalysis[]>([]);
+  const [virtualInputColumns, setVirtualInputColumns] = useState<VirtualInputColumn[]>([]);
   const [inputIgnoreRules, setInputIgnoreRules] = useState<IgnoreRule[]>(
     persisted.inputIgnoreRules?.length ? persisted.inputIgnoreRules : defaultIgnoreRules(),
   );
@@ -120,10 +121,11 @@ export function ImportWizard() {
         headerRowIndex,
         startRowIndex,
         outputColumns,
+        virtualInputColumns,
         inputNormalizationRules,
         inputIgnoreRules,
       }),
-    [rows, columnAnalysis, headerRowIndex, startRowIndex, outputColumns, inputNormalizationRules, inputIgnoreRules],
+    [rows, columnAnalysis, headerRowIndex, startRowIndex, outputColumns, virtualInputColumns, inputNormalizationRules, inputIgnoreRules],
   );
   const outputFilteredRows = useMemo(
     () =>
@@ -224,6 +226,7 @@ export function ImportWizard() {
     setShowRawPreviewFromDataStart(true);
     setShowAllRawPreviewColumns(false);
     setInputColumnAliases({});
+    setVirtualInputColumns([]);
     setColumnAnalysis([]);
     setInputNormalizationRules([]);
     setInputIgnoreRules(defaultIgnoreRules());
@@ -388,6 +391,7 @@ export function ImportWizard() {
     setInputColumnAliases(payload.inputColumnAliases);
     importedColumnVisibilityRef.current = payload;
     setColumnAnalysis(applyColumnVisibilitySettings(columnAnalysis, payload));
+    setVirtualInputColumns(payload.virtualInputColumns);
     setInputNormalizationRules(payload.inputNormalizationRules);
     setInputIgnoreRules(payload.inputIgnoreRules);
     setOutputColumns(payload.outputColumns);
@@ -504,6 +508,7 @@ export function ImportWizard() {
             showAllRawPreviewColumns={showAllRawPreviewColumns}
             columnAnalysis={columnAnalysis}
             inputColumnAliases={inputColumnAliases}
+            virtualInputColumns={virtualInputColumns}
             inputNormalizationRules={inputNormalizationRules}
             inputIgnoreRules={inputIgnoreRules}
             outputColumns={outputColumns}
@@ -597,6 +602,7 @@ export function ImportWizard() {
         <Step title="4. Columnas detectadas" info="Revisa que columnas entran en la receta y cuales se ignoran.">
           <ColumnVisibilityManager
             columns={columnAnalysis}
+            virtualInputColumns={virtualInputColumns}
             showHeaderColumn={headerRowIndex !== null}
             onChange={updateColumnAnalysis}
           />
