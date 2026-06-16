@@ -4,7 +4,7 @@ import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, ManualRangeCondition, ManualRangeValue, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -21,6 +21,14 @@ type OutputColumnRecipeEditorProps = {
 };
 
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
+
+export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
+  { value: 'direct', label: 'Directa desde entrada' },
+  { value: 'empty', label: 'Columna vacia' },
+  { value: 'fixedText', label: 'Texto fijo' },
+  { value: 'combine', label: 'Crear valor personalizado' },
+  { value: 'manualRange', label: 'Trabajar con rangos' },
+];
 
 export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
 export const recipeEditorModalCancelLabel = 'Cancelar';
@@ -125,16 +133,11 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
       <div className="recipeMainFields">
         <Dropdown<OutputRecipe['type']>
           className="compact"
-          label="Origen del valor"
+          label="Tipo de operación"
           labelInfo={<InfoTooltip content="Define como se va a llenar esta columna." />}
           scrollStrategy="close"
           value={column.recipe.type}
-          options={[
-            { value: 'direct', label: 'Directa desde entrada' },
-            { value: 'empty', label: 'Columna vacia' },
-            { value: 'fixedText', label: 'Texto fijo' },
-            { value: 'combine', label: 'Crear valor personalizado' },
-          ]}
+          options={outputRecipeTypeOptions}
           onChange={(nextType) => {
             if (nextType === 'combine') {
               setCustomValueMode('');
@@ -262,6 +265,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
           />
         </>
       ) : null}
+
+      {column.recipe.type === 'manualRange' ? (
+        <ManualRangeRecipeEditor
+          recipe={column.recipe}
+          inputColumns={activeInputColumns}
+          onChange={(recipe) => updateRecipe(recipe)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -287,7 +298,223 @@ export function buildRecipeForSelectedType(
     };
   }
 
+  if (type === 'manualRange') {
+    return createManualRangeRecipe();
+  }
+
   return { type: 'empty' };
+}
+
+export function createManualRangeRecipe(): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    type: 'manualRange',
+    ranges: [],
+  };
+}
+
+export function createDefaultManualRangeValue(index: number): ManualRangeValue {
+  const rowNumber = Math.max(1, index + 1);
+  return {
+    id: crypto.randomUUID(),
+    startRowNumber: rowNumber,
+    endRowNumber: rowNumber,
+    value: '',
+  };
+}
+
+export function getManualRangeRowCount(range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>) {
+  if (!isValidManualRangeNumber(range.startRowNumber) || !isValidManualRangeNumber(range.endRowNumber)) {
+    return '';
+  }
+
+  if (range.endRowNumber < range.startRowNumber) {
+    return '';
+  }
+
+  return String(range.endRowNumber - range.startRowNumber + 1);
+}
+
+export function addManualRangeValue(recipe: Extract<OutputRecipe, { type: 'manualRange' }>): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: [...recipe.ranges, createDefaultManualRangeValue(recipe.ranges.length)],
+  };
+}
+
+export function updateManualRangeValue(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  patch: Partial<ManualRangeValue>,
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: recipe.ranges.map((range) => (range.id === rangeId ? { ...range, ...sanitizeManualRangePatch(patch) } : range)),
+  };
+}
+
+export function removeManualRangeValue(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: recipe.ranges.filter((range) => range.id !== rangeId),
+  };
+}
+
+export function updateManualRangeCondition(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  condition: ManualRangeCondition | null,
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  if (!condition || !condition.inputColumnId) {
+    const { condition: _condition, ...nextRecipe } = recipe;
+    return nextRecipe;
+  }
+
+  return {
+    ...recipe,
+    condition,
+  };
+}
+
+function sanitizeManualRangePatch(patch: Partial<ManualRangeValue>): Partial<ManualRangeValue> {
+  return {
+    ...patch,
+    ...(patch.startRowNumber !== undefined ? { startRowNumber: sanitizeManualRangeNumber(patch.startRowNumber) } : {}),
+    ...(patch.endRowNumber !== undefined ? { endRowNumber: sanitizeManualRangeNumber(patch.endRowNumber) } : {}),
+  };
+}
+
+function sanitizeManualRangeNumber(value: number) {
+  return Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : 1;
+}
+
+function isValidManualRangeNumber(value: number) {
+  return Number.isInteger(value) && value > 0;
+}
+
+function ManualRangeRecipeEditor({
+  recipe,
+  inputColumns,
+  onChange,
+}: {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  inputColumns: InputColumn[];
+  onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
+}) {
+  const conditionMode = recipe.condition ? recipe.condition.operator : '';
+  const conditionInputColumnId = recipe.condition?.inputColumnId ?? inputColumns[0]?.id ?? '';
+  const updateCondition = (operator: '' | ManualRangeCondition['operator'], inputColumnId = conditionInputColumnId) => {
+    onChange(updateManualRangeCondition(
+      recipe,
+      operator && inputColumnId ? { inputColumnId, operator } : null,
+    ));
+  };
+
+  return (
+    <div className="recipeSubBlock manualRangeEditor">
+      <div className="sectionHeader">
+        <div>
+          <strong>Valores por rangos</strong>
+          <p className="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>
+        </div>
+        <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe))}>
+          Agregar rango
+        </ActionButton>
+      </div>
+
+      <div className="manualRangeCondition">
+        <strong>Aplicar sólo si</strong>
+        <div className="twoColumns">
+          <Dropdown
+            className="compact"
+            label="Condición"
+            value={conditionMode}
+            options={[
+              { value: '', label: 'Sin condición' },
+              { value: 'isEmpty', label: 'está vacía' },
+              { value: 'isNotEmpty', label: 'no está vacía' },
+            ]}
+            scrollStrategy="close"
+            onChange={(operator) => updateCondition(operator as '' | ManualRangeCondition['operator'])}
+          />
+          <Dropdown
+            className="compact"
+            label="Columna de entrada"
+            value={conditionInputColumnId}
+            options={inputColumns.length === 0
+              ? [{ value: '', label: 'Sin columnas activas' }]
+              : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+            scrollStrategy="close"
+            onChange={(inputColumnId) => updateCondition(conditionMode, inputColumnId)}
+          />
+        </div>
+      </div>
+
+      {recipe.ranges.length === 0 ? (
+        <p className="muted">No hay rangos configurados.</p>
+      ) : (
+        <div className="tableWrap manualRangeTable">
+          <table>
+            <thead>
+              <tr>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Filas</th>
+                <th>Valor</th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {recipe.ranges.map((range) => (
+                <tr key={range.id}>
+                  <td>
+                    <input
+                      aria-label="Inicio"
+                      type="number"
+                      min="1"
+                      value={range.startRowNumber}
+                      onChange={(event) => {
+                        const value = parseOptionalNumberInput(event.target.value);
+                        if (value !== undefined) {
+                          onChange(updateManualRangeValue(recipe, range.id, { startRowNumber: value }));
+                        }
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      aria-label="Fin"
+                      type="number"
+                      min="1"
+                      value={range.endRowNumber}
+                      onChange={(event) => {
+                        const value = parseOptionalNumberInput(event.target.value);
+                        if (value !== undefined) {
+                          onChange(updateManualRangeValue(recipe, range.id, { endRowNumber: value }));
+                        }
+                      }}
+                    />
+                  </td>
+                  <td>{getManualRangeRowCount(range) || '-'}</td>
+                  <td>
+                    <input
+                      aria-label="Valor"
+                      value={range.value}
+                      onChange={(event) => onChange(updateManualRangeValue(recipe, range.id, { value: event.target.value }))}
+                    />
+                  </td>
+                  <td>
+                    <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function describeCombineParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {

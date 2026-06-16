@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
-import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeRowCount, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeValue, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -85,9 +85,23 @@ describe('buildRecipeForSelectedType', () => {
       separator: '',
     });
   });
+
+  it('creates a manual range recipe when switching to work with ranges', () => {
+    expect(buildRecipeForSelectedType('manualRange', combineColumn, inputColumns)).toEqual({
+      type: 'manualRange',
+      ranges: [],
+    });
+  });
 });
 
 describe('constructor helpers', () => {
+  it('exposes a work with ranges recipe option', () => {
+    expect(outputRecipeTypeOptions).toContainEqual({
+      value: 'manualRange',
+      label: 'Trabajar con rangos',
+    });
+  });
+
   it('uses confirm/cancel modal copy without auto-apply semantics', () => {
     expect(recipeEditorModalPendingApplyText).toBe('Los cambios se aplican al confirmar.');
     expect(recipeEditorModalCancelLabel).toBe('Cancelar');
@@ -171,6 +185,44 @@ describe('constructor helpers', () => {
       parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
       steps: [{ id: 'numeric', type: 'numericOperation', operation: 'addPercentage', amount: 10 }],
     })).toEqual({ type: 'combine', parts: [], separator: '' });
+  });
+
+  it('builds and edits manual range recipes', () => {
+    const emptyRecipe = createManualRangeRecipe();
+    const withRange = addManualRangeValue(emptyRecipe);
+    const rangeId = withRange.ranges[0].id;
+    const edited = updateManualRangeValue(withRange, rangeId, {
+      startRowNumber: 8,
+      endRowNumber: 13,
+      value: 'Cerda china mango amarillo',
+    });
+
+    expect(emptyRecipe).toEqual({ type: 'manualRange', ranges: [] });
+    expect(edited.ranges[0]).toMatchObject({
+      startRowNumber: 8,
+      endRowNumber: 13,
+      value: 'Cerda china mango amarillo',
+    });
+    expect(getManualRangeRowCount(edited.ranges[0])).toBe('6');
+    expect(getManualRangeRowCount({ startRowNumber: 13, endRowNumber: 8 })).toBe('');
+    expect(removeManualRangeValue(edited, rangeId).ranges).toEqual([]);
+  });
+
+  it('configures and clears manual range conditions', () => {
+    const recipe = createManualRangeRecipe();
+    const withCondition = updateManualRangeCondition(recipe, {
+      inputColumnId: 'input-code',
+      operator: 'isNotEmpty',
+    });
+
+    expect(withCondition.condition).toEqual({
+      inputColumnId: 'input-code',
+      operator: 'isNotEmpty',
+    });
+    expect(updateManualRangeCondition(withCondition, null)).toEqual({
+      type: 'manualRange',
+      ranges: [],
+    });
   });
 
   it('builds a numeric custom value with one input part and one numeric final step', () => {
