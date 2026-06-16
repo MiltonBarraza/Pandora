@@ -1,14 +1,19 @@
 import * as XLSX from 'xlsx';
-import type { RawRow } from '../../types/import';
+import type { RawRow, SheetRowsWithMetadata } from '../../types/import';
 
 export function getSheetRows(workbook: XLSX.WorkBook, sheetName: string): RawRow[] {
+  return getSheetRowsWithMetadata(workbook, sheetName).rows;
+}
+
+export function getSheetRowsWithMetadata(workbook: XLSX.WorkBook, sheetName: string): SheetRowsWithMetadata {
   const sheet = workbook.Sheets[sheetName];
   if (!sheet || !sheet['!ref']) {
-    return [];
+    return { rows: [], rowMetadata: [] };
   }
 
   const range = XLSX.utils.decode_range(sheet['!ref']);
   const rows: RawRow[] = [];
+  const rowMetadata: SheetRowsWithMetadata['rowMetadata'] = [];
 
   for (let rowIndex = range.s.r; rowIndex <= range.e.r; rowIndex += 1) {
     const row: RawRow = [];
@@ -20,11 +25,15 @@ export function getSheetRows(workbook: XLSX.WorkBook, sheetName: string): RawRow
     }
 
     if (row.some((cell) => String(cell ?? '').trim() !== '')) {
+      rowMetadata.push({
+        internalRowIndex: rows.length,
+        excelRowNumber: rowIndex + 1,
+      });
       rows.push(row);
     }
   }
 
-  return rows;
+  return { rows, rowMetadata };
 }
 
 export function getSheetPreview(rows: RawRow[], limit = 12): RawRow[] {

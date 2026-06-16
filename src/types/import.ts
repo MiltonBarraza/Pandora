@@ -1,5 +1,15 @@
 export type RawRow = unknown[];
 
+export type SheetRowMetadata = {
+  internalRowIndex: number;
+  excelRowNumber: number;
+};
+
+export type SheetRowsWithMetadata = {
+  rows: RawRow[];
+  rowMetadata: SheetRowMetadata[];
+};
+
 export type InputColumn = {
   id: string;
   columnIndex: number;
