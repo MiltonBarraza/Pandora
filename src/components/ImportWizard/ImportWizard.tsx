@@ -395,15 +395,15 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
   const applyImportedSettings = (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => {
     if (!workbook && fileType !== 'csv') {
-      return { ok: false as const, error: 'Primero carga un Excel para aplicar settings.' };
+      return { ok: false as const, error: 'Primero carga un Excel para aplicar configuración.' };
     }
 
     if (compatibility.status === 'blocked') {
-      return { ok: false as const, error: 'Estos settings no se pueden aplicar a este archivo.' };
+      return { ok: false as const, error: 'Esta configuración no se puede aplicar a este archivo.' };
     }
 
     if (compatibility.status === 'needsRemap') {
-      return { ok: false as const, error: 'Estos settings necesitan remapeo de columnas antes de aplicarse.' };
+      return { ok: false as const, error: 'Esta configuración necesita remapeo de columnas antes de aplicarse.' };
     }
 
     const result = createApplyPayloadFromSettings(settings);

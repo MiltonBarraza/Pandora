@@ -2148,8 +2148,8 @@ tbody tr:hover {
 }
 
 .settingsCompatibilitySummary.compatible {
-  background: var(--color-success-bg);
-  border-color: var(--color-success-border);
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
 }
 
 .settingsCompatibilitySummary.warning,
@@ -2172,6 +2172,19 @@ tbody tr:hover {
 
 .settingsCompatibilityHeader span {
   color: var(--color-text-muted);
+}
+
+.settingsCompatibilitySummary.compatible .settingsCompatibilityHeader strong {
+  color: var(--color-selected-text);
+}
+
+.settingsCompatibilitySummary.warning .settingsCompatibilityHeader strong,
+.settingsCompatibilitySummary.needsRemap .settingsCompatibilityHeader strong {
+  color: var(--color-warning-text);
+}
+
+.settingsCompatibilitySummary.blocked .settingsCompatibilityHeader strong {
+  color: var(--color-error-text);
 }
 
 .settingsCompatibilityGrid {
@@ -2292,6 +2305,10 @@ tbody tr:hover {
   color: var(--color-success-text);
   font-weight: 700;
   margin: 0;
+}
+
+.settingsActions .successText {
+  color: var(--color-selected-text);
 }
 
 @media (max-width: 760px) {

@@ -31,7 +31,33 @@ button.infoTooltipTrigger {
   cursor: default;
 }
 
+button.infoTooltipTrigger:hover:not(:disabled) {
+  background: var(--color-action-secondary-bg-hover);
+  border-color: var(--color-border-control);
+  color: var(--color-text-secondary);
+}
+
+.field:hover button.infoTooltipTrigger:not(:hover):not(:focus-visible),
+.labelWithInfo:hover button.infoTooltipTrigger:not(:hover):not(:focus-visible),
+.headingWithInfo:hover button.infoTooltipTrigger:not(:hover):not(:focus-visible) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+.field:hover .infoTooltip:not(:hover) > button.infoTooltipTrigger:not(:focus-visible),
+.labelWithInfo:hover .infoTooltip:not(:hover) > button.infoTooltipTrigger:not(:focus-visible),
+.headingWithInfo:hover .infoTooltip:not(:hover) > button.infoTooltipTrigger:not(:focus-visible) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
 button.infoTooltipTrigger:focus-visible {
+  background: var(--color-action-secondary-bg-hover);
+  border-color: var(--color-focus-border);
   color: var(--color-text-secondary);
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
