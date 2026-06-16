@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
+import { normalizeNumberInputWhileTyping, parseOptionalNumberInput, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeCondition, ManualRangeValue, ManualRangeValueSource, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
@@ -392,6 +392,20 @@ export function getManualRangeRowCount(range: Pick<ManualRangeValue, 'startRowNu
   return String(range.endRowNumber - range.startRowNumber + 1);
 }
 
+export function getManualRangeRowCountFromInputs(startRowInput: string, endRowInput: string) {
+  const startRowNumber = parseManualRangeRowInput(startRowInput);
+  const endRowNumber = parseManualRangeRowInput(endRowInput);
+  if (startRowNumber === undefined || endRowNumber === undefined) {
+    return '';
+  }
+
+  return getManualRangeRowCount({ startRowNumber, endRowNumber });
+}
+
+export function parseManualRangeRowInput(value: string) {
+  return parseStartRowInputWhileEditing(value);
+}
+
 export function hasInvalidManualRange(range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>) {
   return getManualRangeRowCount(range) === '';
 }
@@ -753,100 +767,151 @@ function ManualRangeRecipeEditor({
                 </tr>
               </thead>
               <tbody>
-                {recipe.ranges.map((range) => {
-                  const rangeTextSource = getManualRangeRangeTextSource(range);
-                  const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
-                  const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
-
-                  return (
-                  <tr key={range.id}>
-                    <td>
-                      <input
-                        aria-label="Inicio"
-                        type="number"
-                        min="1"
-                        value={range.startRowNumber}
-                        onChange={(event) => {
-                          const value = parseOptionalNumberInput(event.target.value);
-                          if (value !== undefined) {
-                            onChange(updateManualRangeValue(recipe, range.id, { startRowNumber: value }));
-                          }
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        aria-label="Fin"
-                        type="number"
-                        min="1"
-                        value={range.endRowNumber}
-                        onChange={(event) => {
-                          const value = parseOptionalNumberInput(event.target.value);
-                          if (value !== undefined) {
-                            onChange(updateManualRangeValue(recipe, range.id, { endRowNumber: value }));
-                          }
-                        }}
-                      />
-                    </td>
-                    <td>{getManualRangeRowCount(range) || '-'}</td>
-                    <td>
-                      <div className="manualRangeValueFields">
-                        <Dropdown<ManualRangeValueSourceType>
-                          className="compact"
-                          label="Valor"
-                          value={getManualRangeValueSourceType(range)}
-                          options={manualRangeValueSourceOptions}
-                          scrollStrategy="close"
-                          onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
-                        />
-                        {getManualRangeValueSourceType(range) === 'rangeText' ? (
-                          <>
-                            <Dropdown
-                              className="compact"
-                              label="Buscar textos en"
-                              value={rangeTextSource.inputColumnId}
-                              options={inputColumns.length === 0
-                                ? [{ value: '', label: 'Sin columnas activas' }]
-                                : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
-                              scrollStrategy="close"
-                              onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))}
-                            />
-                            <Dropdown
-                              className="compact"
-                              label="Texto encontrado"
-                              value={rangeTextSource.selectedText}
-                              options={selectedTextOptions.length === 0
-                                ? [{ value: '', label: 'Sin textos encontrados', disabled: true }]
-                                : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-                              disabled={selectedTextOptions.length === 0}
-                              scrollStrategy="close"
-                              onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
-                            />
-                            {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
-                          </>
-                        ) : (
-                          <label className="field compact">
-                            <span>Texto fijo</span>
-                            <input
-                              value={getManualRangeFixedTextValue(range)}
-                              onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))}
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
-                    </td>
-                  </tr>
-                  );
-                })}
+                {recipe.ranges.map((range) => (
+                  <ManualRangeTableRow
+                    key={range.id}
+                    recipe={recipe}
+                    range={range}
+                    inputColumns={inputColumns}
+                    manualRangeRows={manualRangeRows}
+                    onChange={onChange}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
         </>
       )}
     </div>
+  );
+}
+
+function ManualRangeTableRow({
+  recipe,
+  range,
+  inputColumns,
+  manualRangeRows,
+  onChange,
+}: {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  range: ManualRangeValue;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
+}) {
+  const [startRowInput, setStartRowInput] = useState(String(range.startRowNumber));
+  const [endRowInput, setEndRowInput] = useState(String(range.endRowNumber));
+  const rangeTextSource = getManualRangeRangeTextSource(range);
+  const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
+  const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
+  const rowCount = getManualRangeRowCountFromInputs(startRowInput, endRowInput);
+
+  useEffect(() => {
+    setStartRowInput(String(range.startRowNumber));
+  }, [range.id, range.startRowNumber]);
+
+  useEffect(() => {
+    setEndRowInput(String(range.endRowNumber));
+  }, [range.id, range.endRowNumber]);
+
+  const updateStartRowInput = (value: string) => {
+    setStartRowInput(value);
+    const startRowNumber = parseManualRangeRowInput(value);
+    if (startRowNumber !== undefined) {
+      onChange(updateManualRangeValue(recipe, range.id, { startRowNumber }));
+    }
+  };
+
+  const updateEndRowInput = (value: string) => {
+    setEndRowInput(value);
+    const endRowNumber = parseManualRangeRowInput(value);
+    if (endRowNumber !== undefined) {
+      onChange(updateManualRangeValue(recipe, range.id, { endRowNumber }));
+    }
+  };
+
+  return (
+    <tr>
+      <td>
+        <label className="field compact manualRangeCellField">
+          <span>Inicio</span>
+          <input
+            aria-label="Inicio"
+            type="number"
+            min="1"
+            value={startRowInput}
+            onChange={(event) => updateStartRowInput(event.target.value)}
+          />
+        </label>
+      </td>
+      <td>
+        <label className="field compact manualRangeCellField">
+          <span>Fin</span>
+          <input
+            aria-label="Fin"
+            type="number"
+            min="1"
+            value={endRowInput}
+            onChange={(event) => updateEndRowInput(event.target.value)}
+          />
+        </label>
+      </td>
+      <td>
+        <div className="field compact manualRangeCellField manualRangeRowCountField">
+          <span>Filas</span>
+          <strong>{rowCount || '-'}</strong>
+        </div>
+      </td>
+      <td>
+        <div className="manualRangeValueFields">
+          <Dropdown<ManualRangeValueSourceType>
+            className="compact"
+            label="Valor"
+            value={getManualRangeValueSourceType(range)}
+            options={manualRangeValueSourceOptions}
+            scrollStrategy="close"
+            onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
+          />
+          {getManualRangeValueSourceType(range) === 'rangeText' ? (
+            <>
+              <Dropdown
+                className="compact"
+                label="Buscar textos en"
+                value={rangeTextSource.inputColumnId}
+                options={inputColumns.length === 0
+                  ? [{ value: '', label: 'Sin columnas activas' }]
+                  : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+                scrollStrategy="close"
+                onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))}
+              />
+              <Dropdown
+                className="compact"
+                label="Texto encontrado"
+                value={rangeTextSource.selectedText}
+                options={selectedTextOptions.length === 0
+                  ? [{ value: '', label: 'Sin textos encontrados', disabled: true }]
+                  : selectedTextOptions.map((text) => ({ value: text, label: text }))}
+                disabled={selectedTextOptions.length === 0}
+                scrollStrategy="close"
+                onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
+              />
+              {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
+            </>
+          ) : (
+            <label className="field compact">
+              <span>Texto fijo</span>
+              <input
+                value={getManualRangeFixedTextValue(range)}
+                onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))}
+              />
+            </label>
+          )}
+        </div>
+      </td>
+      <td>
+        <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
+      </td>
+    </tr>
   );
 }
 

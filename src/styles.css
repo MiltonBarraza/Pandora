@@ -1630,7 +1630,7 @@ tbody tr:hover {
 }
 
 .manualRangeTable table {
-  min-width: 760px;
+  min-width: 900px;
   width: 100%;
 }
 
@@ -1655,7 +1655,7 @@ tbody tr:hover {
 }
 
 .manualRangeTable td:nth-child(4) {
-  min-width: 260px;
+  min-width: 420px;
   white-space: normal;
 }
 
@@ -1663,15 +1663,39 @@ tbody tr:hover {
   width: 100%;
 }
 
+.manualRangeCellField {
+  gap: 5px;
+}
+
+.manualRangeCellField span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.manualRangeRowCountField strong {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
+}
+
 .manualRangeValueFields {
-  display: grid;
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  max-width: 320px;
-  min-width: 220px;
+  min-width: 0;
+}
+
+.manualRangeValueFields > .dropdownField,
+.manualRangeValueFields > .field {
+  flex: 1 1 190px;
+  min-width: 180px;
 }
 
 .manualRangeValueHelp {
   color: var(--color-muted);
+  flex: 1 0 100%;
   font-size: 0.85rem;
   line-height: 1.25;
   margin: 0;
