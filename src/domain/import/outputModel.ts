@@ -7,6 +7,7 @@ import type {
   ProcessedRow,
   RawRow,
   RecipePart,
+  SheetRowMetadata,
   StepOperand,
   StepSource,
   TransformStep,
@@ -32,11 +33,17 @@ export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]):
   }));
 }
 
-export function buildInputRows(rows: RawRow[], inputColumns: InputColumn[], startRowIndex = 0): InputRow[] {
+export function buildInputRows(
+  rows: RawRow[],
+  inputColumns: InputColumn[],
+  startRowIndex = 0,
+  rowMetadata: SheetRowMetadata[] = [],
+): InputRow[] {
   const activeColumns = inputColumns.filter((column) => column.active);
+  const rowMetadataByInternalIndex = new Map(rowMetadata.map((metadata) => [metadata.internalRowIndex, metadata]));
 
   return rows.slice(startRowIndex).map((row, offset) => ({
-    rowNumber: startRowIndex + offset + 1,
+    rowNumber: rowMetadataByInternalIndex.get(startRowIndex + offset)?.excelRowNumber ?? startRowIndex + offset + 1,
     values: Object.fromEntries(
       activeColumns.map((column) => [column.id, toText(row[column.columnIndex])]),
     ),
@@ -70,15 +77,17 @@ export function buildProcessedRowsPipeline({
   startRowIndex,
   outputColumns,
   inputIgnoreRules = [],
+  rowMetadata = [],
 }: {
   rawRows: RawRow[];
   columnAnalysis: ColumnAnalysis[];
   startRowIndex: number;
   outputColumns: OutputColumn[];
   inputIgnoreRules?: IgnoreRule[];
+  rowMetadata?: SheetRowMetadata[];
 }) {
   const inputColumns = buildInputColumnsFromAnalysis(columnAnalysis);
-  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex);
+  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex, rowMetadata);
   const { includedInputRows, ignoredInputRows } = applyInputIgnoreRulesToInputRows({
     inputRows,
     inputIgnoreRules,

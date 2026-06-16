@@ -188,6 +188,66 @@ describe('outputModel input filters', () => {
       },
     ]);
   });
+
+  it('keeps index-based row numbers when metadata is not provided', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A1'],
+        ['A2'],
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns: [
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.rowNumber)).toEqual([1, 2]);
+    expect(pipeline.processedRows.map((row) => row.rowNumber)).toEqual([1, 2]);
+  });
+
+  it('uses Excel row numbers from metadata while keeping filters and recipes working', () => {
+    const columns: ColumnAnalysis[] = [
+      columnAnalysis(0, 'A', 'Codigo'),
+      columnAnalysis(1, 'B', 'Estado'),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A1', 'ACTIVO'],
+        ['A2', 'BORRAR'],
+        ['A3', 'ACTIVO'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 1 },
+        { internalRowIndex: 1, excelRowNumber: 3 },
+        { internalRowIndex: 2, excelRowNumber: 5 },
+      ],
+      columnAnalysis: columns,
+      startRowIndex: 0,
+      inputIgnoreRules: [
+        { id: 'remove-deleted', target: 'input', columnId: 'input-1', operator: 'equals', value: 'BORRAR' },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.rowNumber)).toEqual([1, 3, 5]);
+    expect(pipeline.ignoredInputRows).toEqual([
+      {
+        rowNumber: 3,
+        inputValues: { 'input-0': 'A2', 'input-1': 'BORRAR' },
+        ignoredReason: 'Ignorada por regla: B - Estado es igual a "BORRAR"',
+      },
+    ]);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      code: row.outputValues.code,
+    }))).toEqual([
+      { rowNumber: 1, code: 'A1' },
+      { rowNumber: 5, code: 'A3' },
+    ]);
+  });
 });
 
 describe('outputModel simple transformations', () => {
