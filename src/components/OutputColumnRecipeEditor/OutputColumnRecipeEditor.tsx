@@ -79,7 +79,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     ? getCustomValueMode(modalCombineRecipe) || customValueMode
     : '';
   const customValuePreview = column.recipe.type === 'combine'
-    ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode)
+    ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode, manualRangeRows)
     : '';
   const customValuePartsLabel = column.recipe.type === 'combine'
     ? getCustomValuePartsDisplayLabel(column.recipe)
@@ -235,7 +235,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             headerDetails={(
               <div className="constructorModalHeaderPreview">
                 <strong>Vista previa:</strong>
-                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode) : customValuePreview}</span>
+                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
               </div>
             )}
             footer={(
@@ -1208,6 +1208,7 @@ export function buildCustomValuePreview(
   sampleInputValues?: Record<string, string>,
   modal = false,
   modeOverride?: CustomValueMode,
+  manualRangeRows: InputRow[] = [],
 ) {
   const mode = modeOverride ?? getCustomValueMode(recipe);
 
@@ -1238,6 +1239,10 @@ export function buildCustomValuePreview(
     return 'No se pudo calcular: valor no numérico.';
   }
 
+  if (recipeHasManualRange(recipe)) {
+    return buildManualRangeAwarePreview(recipe, manualRangeRows) ?? 'Sin vista previa para los rangos configurados';
+  }
+
   return buildCombinePreview(recipe, sampleInputValues) ?? 'Sin datos de ejemplo disponibles';
 }
 
@@ -1255,6 +1260,91 @@ export function buildCombinePreview(recipe: Extract<OutputRecipe, { type: 'combi
   };
   const [row] = buildProcessedRows([{ rowNumber: 1, values: sampleInputValues }], [previewColumn]);
   return row?.outputValues[previewColumn.id] ?? '';
+}
+
+export function buildManualRangeAwarePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const previewColumn: OutputColumn = {
+    id: 'constructor-preview',
+    label: 'Vista previa',
+    order: 0,
+    enabled: true,
+    recipe,
+  };
+
+  for (const row of rows) {
+    if (!rowHasManualRangePreviewValue(recipe, row)) {
+      continue;
+    }
+
+    const [processedRow] = buildProcessedRows([row], [previewColumn]);
+    const value = processedRow?.outputValues[previewColumn.id] ?? '';
+    if (value.trim() !== '') {
+      return `Fila ${row.rowNumber}: ${value}`;
+    }
+  }
+
+  return null;
+}
+
+function recipeHasManualRange(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return stepsHaveManualRange(recipe.steps ?? [])
+    || recipe.parts.some((part) => stepsHaveManualRange(part.steps ?? []));
+}
+
+function stepsHaveManualRange(steps: TransformStep[]): boolean {
+  return steps.some((step) => (
+    step.type === 'manualRange'
+    || stepsHaveManualRange(step.parts?.flatMap((part) => part.steps ?? []) ?? [])
+  ));
+}
+
+function rowHasManualRangePreviewValue(recipe: Extract<OutputRecipe, { type: 'combine' }>, row: InputRow) {
+  return stepsHaveManualRangePreviewValue(recipe.steps ?? [], row)
+    || recipe.parts.some((part) => stepsHaveManualRangePreviewValue(part.steps ?? [], row));
+}
+
+function stepsHaveManualRangePreviewValue(steps: TransformStep[], row: InputRow): boolean {
+  return steps.some((step) => {
+    if (step.type === 'manualRange' && resolveManualRangePreviewValue(row, step.ranges ?? [], step.manualRangeCondition).trim() !== '') {
+      return true;
+    }
+
+    return stepsHaveManualRangePreviewValue(step.parts?.flatMap((part) => part.steps ?? []) ?? [], row);
+  });
+}
+
+function resolveManualRangePreviewValue(row: InputRow, ranges: ManualRangeValue[], condition?: ManualRangeCondition) {
+  if (!matchesManualRangePreviewCondition(row, condition)) {
+    return '';
+  }
+
+  const range = ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber);
+  if (!range) {
+    return '';
+  }
+
+  if (range.valueSource?.type === 'fixedText') {
+    return range.valueSource.value;
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return range.valueSource.selectedText;
+  }
+
+  return range.value ?? '';
+}
+
+function matchesManualRangePreviewCondition(row: InputRow, condition?: ManualRangeCondition) {
+  if (!condition) {
+    return true;
+  }
+
+  const value = row.values[condition.inputColumnId] ?? '';
+  return condition.operator === 'isEmpty' ? value.trim() === '' : value.trim() !== '';
 }
 
 export function getPreviousStepPreviewValue(
