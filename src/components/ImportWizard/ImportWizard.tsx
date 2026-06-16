@@ -83,7 +83,12 @@ export function ImportWizard() {
     () => (showRawPreviewFromDataStart ? rows.slice(startRowIndex) : rows),
     [rows, showRawPreviewFromDataStart, startRowIndex],
   );
+  const rawPreviewRowNumbers = useMemo(
+    () => getRawPreviewRowNumbers(rowMetadata, startRowIndex, showRawPreviewFromDataStart),
+    [rowMetadata, startRowIndex, showRawPreviewFromDataStart],
+  );
   const rawPreviewRowNumberOffset = showRawPreviewFromDataStart ? startRowIndex : 0;
+  const visibleStartRowNumber = getExcelRowNumberForInternalIndex(rowMetadata, startRowIndex);
   const activeColumnIndexes = useMemo(
     () => columnAnalysis.filter((column) => !column.ignored).map((column) => column.columnIndex),
     [columnAnalysis],
@@ -99,8 +104,9 @@ export function ImportWizard() {
   const rowConfigurationError = headerRowIndex !== null && headerRowIndex >= startRowIndex
     ? 'La fila de encabezados debe estar antes de la primera fila de datos.'
     : '';
+  const rawPreviewStartRowNumber = rawPreviewRowNumbers?.[0] ?? startRowIndex + 1;
   const rawPreviewSummary = showRawPreviewFromDataStart
-    ? `Vista previa desde la fila ${startRowIndex + 1}. Se muestran hasta 30 filas.`
+    ? `Vista previa desde la fila ${rawPreviewStartRowNumber}. Se muestran hasta 30 filas.`
     : 'Vista previa de las primeras 30 filas.';
   const processedPipeline = useMemo(
     () =>
@@ -167,8 +173,8 @@ export function ImportWizard() {
       return;
     }
 
-    setStartRowInputValue(String(startRowIndex + 1));
-  }, [startRowIndex]);
+    setStartRowInputValue(String(visibleStartRowNumber));
+  }, [startRowIndex, visibleStartRowNumber]);
 
   useEffect(() => {
     if (showOutputModelDebug) {
@@ -410,10 +416,11 @@ export function ImportWizard() {
   };
 
   const applyStartRowIndex = (nextRowNumber: number) => {
-    if (nextRowNumber - 1 !== startRowIndex) {
+    const nextStartRowIndex = getInternalIndexForExcelRowNumber(rowMetadata, nextRowNumber);
+    if (nextStartRowIndex !== startRowIndex) {
       setIsConfigurationDirty(true);
       skipStartRowInputSyncRef.current = true;
-      setStartRowIndex(nextRowNumber - 1);
+      setStartRowIndex(nextStartRowIndex);
     }
   };
 
@@ -429,13 +436,15 @@ export function ImportWizard() {
 
   const commitStartRowInput = (value: string) => {
     const rowNumber = normalizeNumberInputOnBlur(value, {
-      fallback: startRowIndex + 1,
+      fallback: visibleStartRowNumber,
       min: 1,
       integer: true,
     });
+    const nextStartRowIndex = getInternalIndexForExcelRowNumber(rowMetadata, rowNumber);
+    const normalizedRowNumber = getExcelRowNumberForInternalIndex(rowMetadata, nextStartRowIndex);
 
     skipStartRowInputSyncRef.current = false;
-    setStartRowInputValue(String(rowNumber));
+    setStartRowInputValue(String(normalizedRowNumber));
     applyStartRowIndex(rowNumber);
   };
 
@@ -510,14 +519,19 @@ export function ImportWizard() {
             <Dropdown
               label="Fila de encabezados"
               labelInfo={<InfoTooltip content="Selecciona la fila que contiene los nombres de las columnas." />}
-              value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
+              value={headerRowIndex === null ? 'none' : String(getExcelRowNumberForInternalIndex(rowMetadata, headerRowIndex))}
               options={[
                 { value: 'none', label: 'Sin encabezados' },
-                ...rows.map((_, index) => ({ value: String(index + 1), label: `Fila ${index + 1}` })),
+                ...rows.map((_, index) => {
+                  const rowNumber = getExcelRowNumberForInternalIndex(rowMetadata, index);
+                  return { value: String(rowNumber), label: `Fila ${rowNumber}` };
+                }),
               ]}
               scrollStrategy="lock"
               onChange={(value) => {
-                const nextHeaderRowIndex = value === 'none' ? null : Math.max(0, Number(value) - 1);
+                const nextHeaderRowIndex = value === 'none'
+                  ? null
+                  : getInternalIndexForExcelRowNumber(rowMetadata, Number(value));
                 if (nextHeaderRowIndex !== headerRowIndex) {
                   setIsConfigurationDirty(true);
                   setHeaderRowIndex(nextHeaderRowIndex);
@@ -573,6 +587,7 @@ export function ImportWizard() {
             rows={rawPreviewRows}
             maxColumns={maxColumns}
             activeColumns={rawPreviewColumnIndexes}
+            rowNumbers={rawPreviewRowNumbers}
             rowNumberOffset={rawPreviewRowNumberOffset}
             showAllColumns={showAllRawPreviewColumns}
             showHiddenColumnsToggle={hasAutoHiddenColumns}
@@ -725,4 +740,33 @@ export function shouldProtectWizardState({
   const hasLoadedSourceState = hasLoadedFile || selectedSheet.trim() !== '' || rowCount > 0;
   const hasDetectedColumns = hasLoadedSourceState && columnAnalysisCount > 0;
   return isConfigurationDirty || hasLoadedSourceState || hasDetectedColumns;
+}
+
+export function getRawPreviewRowNumbers(
+  rowMetadata: SheetRowMetadata[],
+  startRowIndex: number,
+  showRawPreviewFromDataStart: boolean,
+) {
+  if (rowMetadata.length === 0) {
+    return undefined;
+  }
+
+  const visibleMetadata = showRawPreviewFromDataStart
+    ? rowMetadata.slice(startRowIndex)
+    : rowMetadata;
+
+  return visibleMetadata.map((metadata) => metadata.excelRowNumber);
+}
+
+export function getExcelRowNumberForInternalIndex(rowMetadata: SheetRowMetadata[], internalRowIndex: number) {
+  return rowMetadata[internalRowIndex]?.excelRowNumber ?? internalRowIndex + 1;
+}
+
+export function getInternalIndexForExcelRowNumber(rowMetadata: SheetRowMetadata[], excelRowNumber: number) {
+  if (rowMetadata.length === 0) {
+    return Math.max(0, excelRowNumber - 1);
+  }
+
+  const nextMetadata = rowMetadata.find((metadata) => metadata.excelRowNumber >= excelRowNumber);
+  return nextMetadata?.internalRowIndex ?? rowMetadata.length;
 }

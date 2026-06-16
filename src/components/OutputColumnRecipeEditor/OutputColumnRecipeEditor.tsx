@@ -21,6 +21,7 @@ type OutputColumnRecipeEditorProps = {
 };
 
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
+type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
   { value: 'direct', label: 'Directa desde entrada' },
@@ -38,15 +39,15 @@ export const recipeEditorDiscardChangesMessage = 'Hay cambios sin aplicar en est
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
 
-export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: CombineRecipe | null) {
-  return recipe.type === 'combine' ? draftRecipe ?? recipe : null;
+export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
+  return recipe.type === 'combine' || recipe.type === 'manualRange' ? draftRecipe ?? recipe : null;
 }
 
-export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: CombineRecipe | null): OutputColumn {
+export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: EditableCustomRecipe | null): OutputColumn {
   return draftRecipe ? { ...column, recipe: draftRecipe } : column;
 }
 
-export function hasRecipeEditorDraftChanges(originalRecipe: CombineRecipe, draftRecipe: CombineRecipe | null) {
+export function hasRecipeEditorDraftChanges(originalRecipe: EditableCustomRecipe, draftRecipe: EditableCustomRecipe | null) {
   return Boolean(draftRecipe) && JSON.stringify(originalRecipe) !== JSON.stringify(draftRecipe);
 }
 
@@ -54,18 +55,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
   const [isConstructorOpen, setIsConstructorOpen] = useState(false);
   const [isDiscardConfirmationOpen, setIsDiscardConfirmationOpen] = useState(false);
-  const [draftRecipe, setDraftRecipe] = useState<CombineRecipe | null>(null);
+  const [draftRecipe, setDraftRecipe] = useState<EditableCustomRecipe | null>(null);
   const [customValueMode, setCustomValueMode] = useState<CustomValueMode>('');
   const isApplyingConstructorRef = useRef(false);
   const modalRecipe = getRecipeEditorModalRecipe(column.recipe, draftRecipe);
-  const hasDraftChanges = column.recipe.type === 'combine'
+  const modalCombineRecipe = modalRecipe?.type === 'combine' ? modalRecipe : null;
+  const modalManualRangeRecipe = modalRecipe?.type === 'manualRange' ? modalRecipe : null;
+  const hasDraftChanges = column.recipe.type === 'combine' || column.recipe.type === 'manualRange'
     ? hasRecipeEditorDraftChanges(column.recipe, draftRecipe)
     : false;
   const effectiveCustomValueMode = column.recipe.type === 'combine'
     ? getCustomValueMode(column.recipe) || customValueMode
     : '';
-  const effectiveModalCustomValueMode = modalRecipe
-    ? getCustomValueMode(modalRecipe) || customValueMode
+  const effectiveModalCustomValueMode = modalCombineRecipe
+    ? getCustomValueMode(modalCombineRecipe) || customValueMode
     : '';
   const customValuePreview = column.recipe.type === 'combine'
     ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode)
@@ -86,7 +89,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
   const updateRecipe = (recipe: OutputRecipe) => {
     onChange({ ...column, recipe });
   };
-  const openConstructor = (recipe: CombineRecipe) => {
+  const openConstructor = (recipe: EditableCustomRecipe) => {
     isApplyingConstructorRef.current = false;
     setDraftRecipe(recipe);
     setIsConstructorOpen(true);
@@ -224,7 +227,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
             headerDetails={(
               <div className="constructorModalHeaderPreview">
                 <strong>Vista previa:</strong>
-                <span>{modalRecipe ? buildCustomValuePreview(modalRecipe, sampleInputValues, true, effectiveModalCustomValueMode) : customValuePreview}</span>
+                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode) : customValuePreview}</span>
               </div>
             )}
             footer={(
@@ -242,9 +245,9 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
             )}
           >
             <div className="constructorModalContent">
-              {modalRecipe ? (
+              {modalCombineRecipe ? (
                 <CustomValueEditor
-                  recipe={modalRecipe}
+                  recipe={modalCombineRecipe}
                   inputColumns={activeInputColumns}
                   sampleInputValues={sampleInputValues}
                   mode={effectiveModalCustomValueMode}
@@ -267,11 +270,57 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
       ) : null}
 
       {column.recipe.type === 'manualRange' ? (
-        <ManualRangeRecipeEditor
-          recipe={column.recipe}
-          inputColumns={activeInputColumns}
-          onChange={(recipe) => updateRecipe(recipe)}
-        />
+        <>
+          <ManualRangeSummary
+            recipe={column.recipe}
+            inputColumns={activeInputColumns}
+            onEdit={() => {
+              if (column.recipe.type === 'manualRange') {
+                openConstructor(column.recipe);
+              }
+            }}
+          />
+          <Modal
+            open={isConstructorOpen}
+            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
+            titleInfo="Configura como se arma este valor antes de aplicarlo."
+            size="xl"
+            onClose={requestCancelConstructor}
+            footer={(
+              <div className="constructorModalFooterContent">
+                <p>{recipeEditorModalPendingApplyText}</p>
+                <div className="constructorModalFooterActions">
+                  <ActionButton action="close" variant="secondary" onClick={requestCancelConstructor}>
+                    {recipeEditorModalCancelLabel}
+                  </ActionButton>
+                  <ActionButton action="done" onClick={applyConstructor}>
+                    {recipeEditorModalApplyLabel}
+                  </ActionButton>
+                </div>
+              </div>
+            )}
+          >
+            <div className="constructorModalContent">
+              {modalManualRangeRecipe ? (
+                <ManualRangeRecipeEditor
+                  recipe={modalManualRangeRecipe}
+                  inputColumns={activeInputColumns}
+                  onChange={setDraftRecipe}
+                />
+              ) : null}
+            </div>
+          </Modal>
+          <ConfirmDialog
+            open={isDiscardConfirmationOpen}
+            title={recipeEditorDiscardChangesTitle}
+            message={recipeEditorDiscardChangesMessage}
+            cancelLabel="Cancelar"
+            confirmLabel="Descartar"
+            variant="danger"
+            onCancel={cancelDiscardConstructor}
+            onConfirm={confirmDiscardConstructor}
+          />
+        </>
       ) : null}
     </div>
   );
@@ -393,6 +442,60 @@ function isValidManualRangeNumber(value: number) {
   return Number.isInteger(value) && value > 0;
 }
 
+function ManualRangeSummary({
+  recipe,
+  inputColumns,
+  onEdit,
+}: {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  inputColumns: InputColumn[];
+  onEdit: () => void;
+}) {
+  return (
+    <div className="recipeSubBlock constructorSummary manualRangeSummary">
+      <div>
+        <strong className="headingWithInfo">
+          <span>Trabajar con rangos</span>
+          <InfoTooltip content="Asigna valores segun rangos de filas reales del Excel." />
+        </strong>
+        <dl className="customValueSummaryList">
+          <div>
+            <dt>Tipo</dt>
+            <dd>Trabajar con rangos</dd>
+          </div>
+          <div>
+            <dt>Rangos</dt>
+            <dd>{getManualRangeCountLabel(recipe)}</dd>
+          </div>
+          <div>
+            <dt>Condición</dt>
+            <dd>{describeManualRangeCondition(recipe, inputColumns)}</dd>
+          </div>
+        </dl>
+      </div>
+      <button type="button" onClick={onEdit}>
+        Editar valor personalizado
+      </button>
+    </div>
+  );
+}
+
+export function getManualRangeCountLabel(recipe: Extract<OutputRecipe, { type: 'manualRange' }>) {
+  const count = recipe.ranges.length;
+  return `${count} ${count === 1 ? 'rango configurado' : 'rangos configurados'}`;
+}
+
+export function describeManualRangeCondition(recipe: Extract<OutputRecipe, { type: 'manualRange' }>, inputColumns: InputColumn[]) {
+  if (!recipe.condition) {
+    return 'Sin condición';
+  }
+
+  const inputColumn = inputColumns.find((column) => column.id === recipe.condition?.inputColumnId);
+  const columnLabel = inputColumn ? getInputColumnLabel(inputColumn) : 'Columna de entrada';
+  const operatorLabel = recipe.condition.operator === 'isEmpty' ? 'está vacía' : 'no está vacía';
+  return `${columnLabel} ${operatorLabel}`;
+}
+
 function ManualRangeRecipeEditor({
   recipe,
   inputColumns,
@@ -422,6 +525,15 @@ function ManualRangeRecipeEditor({
           Agregar rango
         </ActionButton>
       </div>
+
+      <Dropdown
+        className="compact"
+        label="Tipo de operación"
+        value="manualRange"
+        options={[{ value: 'manualRange', label: 'Trabajar con rangos' }]}
+        scrollStrategy="close"
+        onChange={() => undefined}
+      />
 
       <div className="manualRangeCondition">
         <strong>Aplicar sólo si</strong>

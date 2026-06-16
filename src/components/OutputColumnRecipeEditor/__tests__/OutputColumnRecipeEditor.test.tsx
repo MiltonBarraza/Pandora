@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
-import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeRowCount, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeValue, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeRowCount, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeValue, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -125,6 +125,35 @@ describe('constructor helpers', () => {
     });
   });
 
+  it('uses draft manual range recipe inside the modal and applies it on save', () => {
+    const manualRangeColumn: OutputColumn = {
+      id: 'output-comment',
+      label: 'Comentario',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'manualRange',
+        ranges: [
+          { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Original' },
+        ],
+      },
+    };
+    const draftRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [
+        { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Editado' },
+      ],
+      condition: { inputColumnId: 'input-code', operator: 'isNotEmpty' },
+    };
+
+    expect(getRecipeEditorModalRecipe(manualRangeColumn.recipe, null)).toBe(manualRangeColumn.recipe);
+    expect(getRecipeEditorModalRecipe(manualRangeColumn.recipe, draftRecipe)).toBe(draftRecipe);
+    expect(applyRecipeEditorDraft(manualRangeColumn, draftRecipe)).toEqual({
+      ...manualRangeColumn,
+      recipe: draftRecipe,
+    });
+  });
+
   it('detects draft changes before discarding the modal editor', () => {
     const originalRecipe = combineColumn.recipe as Extract<OutputRecipe, { type: 'combine' }>;
     const sameDraft = structuredClone(originalRecipe);
@@ -206,6 +235,20 @@ describe('constructor helpers', () => {
     expect(getManualRangeRowCount(edited.ranges[0])).toBe('6');
     expect(getManualRangeRowCount({ startRowNumber: 13, endRowNumber: 8 })).toBe('');
     expect(removeManualRangeValue(edited, rangeId).ranges).toEqual([]);
+  });
+
+  it('builds compact manual range summary labels', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [
+        { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+      ],
+      condition: { inputColumnId: 'input-code', operator: 'isNotEmpty' },
+    };
+
+    expect(getManualRangeCountLabel(recipe)).toBe('1 rango configurado');
+    expect(describeManualRangeCondition(recipe, inputColumns)).toBe('A no está vacía');
+    expect(describeManualRangeCondition({ type: 'manualRange', ranges: [] }, inputColumns)).toBe('Sin condición');
   });
 
   it('configures and clears manual range conditions', () => {
