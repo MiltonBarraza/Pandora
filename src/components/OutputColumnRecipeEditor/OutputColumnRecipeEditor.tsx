@@ -1060,7 +1060,7 @@ export function getConstructorAdjustmentLabels(
 function getConstructorAdjustmentDescriptions(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
   return [
     ...recipe.parts.flatMap((part) => describePartAdjustments(part, inputColumns)),
-    ...describeStepAdjustments(recipe.steps ?? []),
+    ...describeStepAdjustments(recipe.steps ?? [], inputColumns),
   ];
 }
 
@@ -1117,13 +1117,13 @@ function describePartAdjustments(part: RecipePart, inputColumns: InputColumn[]) 
     : inputColumns.find((column) => column.id === part.inputColumnId)
       ? getInputColumnSummary(inputColumns.find((column) => column.id === part.inputColumnId)!)
       : 'Columna de entrada';
-  const stepAdjustments = describeStepAdjustments(part.steps ?? []).map((adjustment) => `${adjustment} en ${partLabel}`);
+  const stepAdjustments = describeStepAdjustments(part.steps ?? [], inputColumns).map((adjustment) => `${adjustment} en ${partLabel}`);
   const separatorAdjustment = part.separatorAfter ? [`separador "${part.separatorAfter}" en ${partLabel}`] : [];
 
   return [...stepAdjustments, ...separatorAdjustment];
 }
 
-function describeStepAdjustments(steps: TransformStep[]) {
+function describeStepAdjustments(steps: TransformStep[], inputColumns: InputColumn[] = []) {
   return steps.flatMap((step) => {
     if (step.type === 'numericOperation') {
       return [
@@ -1132,11 +1132,11 @@ function describeStepAdjustments(steps: TransformStep[]) {
       ];
     }
 
-    return describeSimpleStep(step);
+    return describeSimpleStep(step, inputColumns);
   }).filter(Boolean);
 }
 
-function describeSimpleStep(step: TransformStep) {
+function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = []) {
   if (step.type === 'trim') {
     return ['limpiar espacios'];
   }
@@ -1182,7 +1182,7 @@ function describeSimpleStep(step: TransformStep) {
   }
 
   if (step.type === 'manualRange') {
-    return ['trabajar con rangos'];
+    return [describeManualRangeStepSummary(step, inputColumns)];
   }
 
   if (step.type === 'concat') {
@@ -1230,13 +1230,83 @@ function describeRounding(rounding: TransformStep['rounding']) {
   return `${rounding ?? 2} decimales`;
 }
 
-function getStepSummary(step: TransformStep) {
+function getStepSummary(step: TransformStep, inputColumns: InputColumn[] = []) {
   if (step.type === 'numericOperation') {
     return describeNumericOperation(step);
   }
 
-  const [summary] = describeSimpleStep(step);
+  const [summary] = describeSimpleStep(step, inputColumns);
   return summary;
+}
+
+export function describeManualRangeStepSummary(step: TransformStep, inputColumns: InputColumn[] = []) {
+  const ranges = step.ranges ?? [];
+  const count = ranges.length;
+  const parts = [`${count} ${count === 1 ? 'rango' : 'rangos'}`];
+  const conditionSummary = describeManualRangeStepCondition(step.manualRangeCondition, inputColumns);
+  const valueSummary = describeManualRangeStepValueSource(ranges, inputColumns);
+  const rangesSummary = describeManualRangeRanges(ranges);
+
+  if (conditionSummary) {
+    parts.push(conditionSummary);
+  }
+
+  if (valueSummary) {
+    parts.push(valueSummary);
+  }
+
+  if (rangesSummary) {
+    parts.push(rangesSummary);
+  }
+
+  return parts.join(' · ');
+}
+
+function describeManualRangeStepCondition(condition: ManualRangeCondition | undefined, inputColumns: InputColumn[]) {
+  if (!condition) {
+    return '';
+  }
+
+  const inputColumn = inputColumns.find((column) => column.id === condition.inputColumnId);
+  const columnLabel = inputColumn ? getInputColumnLabel(inputColumn) : 'Columna de entrada';
+  const operatorLabel = condition.operator === 'isEmpty' ? 'está vacía' : 'no está vacía';
+  return `${columnLabel} ${operatorLabel}`;
+}
+
+function describeManualRangeStepValueSource(ranges: ManualRangeValue[], inputColumns: InputColumn[]) {
+  if (ranges.length === 0) {
+    return '';
+  }
+
+  const sourceKinds = new Set(ranges.map((range) => range.valueSource?.type ?? 'fixedText'));
+  if (sourceKinds.size > 1) {
+    return 'valores mixtos';
+  }
+
+  const [sourceKind] = Array.from(sourceKinds);
+  if (sourceKind === 'rangeText') {
+    const inputColumnIds = new Set(ranges.map((range) => (
+      range.valueSource?.type === 'rangeText' ? range.valueSource.inputColumnId : ''
+    )));
+    if (inputColumnIds.size !== 1) {
+      return 'valores mixtos';
+    }
+
+    const [inputColumnId] = Array.from(inputColumnIds);
+    const inputColumn = inputColumns.find((column) => column.id === inputColumnId);
+    return `valores desde ${inputColumn ? getInputColumnLabel(inputColumn) : 'Columna de entrada'}`;
+  }
+
+  return 'texto fijo';
+}
+
+function describeManualRangeRanges(ranges: ManualRangeValue[]) {
+  if (ranges.length === 0) {
+    return '';
+  }
+
+  const visibleRanges = ranges.slice(0, 3).map((range) => `${range.startRowNumber}-${range.endRowNumber}`);
+  return `${visibleRanges.join(', ')}${ranges.length > visibleRanges.length ? '…' : ''}`;
 }
 
 export function buildCustomValuePreview(
@@ -1606,7 +1676,7 @@ function SimpleStepBlock({
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
 }) {
-  const summary = getStepSummary(step);
+  const summary = getStepSummary(step, inputColumns);
   const stepMode = getStepMode(step, defaultStepMode);
   const isManualRangeStep = step.type === 'manualRange';
   const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
@@ -1726,7 +1796,7 @@ function StepsWorkspace({
           ) : (
             <div className="stepsList">
               {steps.map((step, index) => {
-                const summary = getStepSummary(step);
+                const summary = getStepSummary(step, inputColumns);
 
                 return (
                   <button
@@ -1786,7 +1856,7 @@ function StepDetailPanel({
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
 }) {
-  const summary = getStepSummary(step);
+  const summary = getStepSummary(step, inputColumns);
   const stepMode = getStepMode(step);
   const isManualRangeStep = step.type === 'manualRange';
   return (
@@ -3303,6 +3373,12 @@ function omitSeparatorBefore(part: ConcatPart): ConcatPart {
 }
 
 export function describeConcatPartSource(part: ConcatPart, inputColumns: InputColumn[]) {
+  const manualRangeStep = findManualRangeStep(part.steps ?? []);
+
+  if (manualRangeStep) {
+    return describeManualRangeStepSummary(manualRangeStep, inputColumns);
+  }
+
   const { source } = part;
 
   if (source.type === 'previousResult') {
@@ -3320,6 +3396,27 @@ export function describeConcatPartSource(part: ConcatPart, inputColumns: InputCo
   }
 
   return 'Columna de entrada';
+}
+
+function findManualRangeStep(steps: TransformStep[]): TransformStep | undefined {
+  for (const step of steps) {
+    if (step.type === 'manualRange') {
+      return step;
+    }
+
+    if (step.type === 'concat') {
+      const nestedStep = (step.parts ?? []).reduce<TransformStep | undefined>(
+        (foundStep, part) => foundStep ?? findManualRangeStep(part.steps ?? []),
+        undefined,
+      );
+
+      if (nestedStep) {
+        return nestedStep;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 export function getVisibleConcatPartPrimaryStep(steps: TransformStep[]) {
