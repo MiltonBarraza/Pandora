@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
+import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, formatDateValue, parseDateValue, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
@@ -27,6 +27,8 @@ export const recipeEditorModalCancelLabel = 'Cancelar';
 export const recipeEditorModalApplyLabel = 'Aplicar';
 export const recipeEditorDiscardChangesTitle = 'Descartar';
 export const recipeEditorDiscardChangesMessage = 'Hay cambios sin aplicar en esta receta. Si cerrás el editor, se perderán.';
+export const recipeEditorDiscardChangesCancelLabel = 'Seguir editando';
+export const recipeEditorDiscardChangesConfirmLabel = 'Descartar cambios';
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
 
@@ -254,8 +256,8 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
             open={isDiscardConfirmationOpen}
             title={recipeEditorDiscardChangesTitle}
             message={recipeEditorDiscardChangesMessage}
-            cancelLabel="Cancelar"
-            confirmLabel="Descartar"
+            cancelLabel={recipeEditorDiscardChangesCancelLabel}
+            confirmLabel={recipeEditorDiscardChangesConfirmLabel}
             variant="danger"
             onCancel={cancelDiscardConstructor}
             onConfirm={confirmDiscardConstructor}
@@ -1125,6 +1127,8 @@ function StepSourceFields({
   inputColumns,
   allowPreviousResult,
   previousResultPreviewValue,
+  fixedTextInputType = 'text',
+  fixedTextDateInputFormat = defaultDateInputFormat,
   onChange,
 }: {
   label?: string;
@@ -1132,6 +1136,8 @@ function StepSourceFields({
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
+  fixedTextInputType?: 'text' | 'date';
+  fixedTextDateInputFormat?: DateInputFormat;
   onChange: (source: StepSource) => void;
 }) {
   const safeSource = !allowPreviousResult && source.type === 'previousResult'
@@ -1166,14 +1172,28 @@ function StepSourceFields({
       {safeSource.type === 'fixedText' ? (
         <label className="field compact">
           <span className="labelWithInfo">
-            <span>Texto fijo</span>
-            <InfoTooltip content="Valor manual usado en este paso." />
+            <span>{fixedTextInputType === 'date' ? 'Fecha fija' : 'Texto fijo'}</span>
+            <InfoTooltip content={fixedTextInputType === 'date' ? 'Fecha manual usada en este paso.' : 'Valor manual usado en este paso.'} />
           </span>
-          <input value={safeSource.value} onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })} />
+          <input
+            type={fixedTextInputType}
+            value={fixedTextInputType === 'date' ? getDatePickerValue(safeSource.value, fixedTextDateInputFormat) : safeSource.value}
+            onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })}
+          />
         </label>
       ) : null}
     </>
   );
+}
+
+export function getDatePickerValue(value: string, inputFormat: DateInputFormat = defaultDateInputFormat) {
+  const parsedAsIso = parseDateValue(value, 'YYYY-MM-DD');
+  if (parsedAsIso) {
+    return formatDateValue(parsedAsIso, 'YYYY-MM-DD');
+  }
+
+  const parsedWithInputFormat = parseDateValue(value, inputFormat);
+  return parsedWithInputFormat ? formatDateValue(parsedWithInputFormat, 'YYYY-MM-DD') : '';
 }
 
 export function getStepSourceDropdownValue(source: StepSource) {
@@ -1852,6 +1872,18 @@ function StepFields({
   onChange: (patch: Partial<TransformStep>) => void;
 }) {
   const canUsePreviousResultSource = allowPreviousResultSource ?? stepIndex > 0;
+  const usesFixedDateSource = step.type === 'formatDate' && stepSource.type === 'fixedText';
+  const updateSource = (source: StepSource) => {
+    if (step.type === 'formatDate' && source.type === 'fixedText') {
+      onChange({
+        source: { type: 'fixedText', value: getDatePickerValue(source.value, step.dateInputFormat ?? defaultDateInputFormat) },
+        dateInputFormat: 'YYYY-MM-DD',
+      });
+      return;
+    }
+
+    onSourceChange(source);
+  };
   const sourceFields = showSourceFields && shouldShowTextSourceFields(step.type) ? (
     <StepSourceFields
       label="Desde donde toma el valor"
@@ -1859,7 +1891,9 @@ function StepFields({
       inputColumns={inputColumns}
       allowPreviousResult={canUsePreviousResultSource}
       previousResultPreviewValue={previousResultPreviewValue}
-      onChange={onSourceChange}
+      fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}
+      fixedTextDateInputFormat={step.dateInputFormat ?? defaultDateInputFormat}
+      onChange={updateSource}
     />
   ) : null;
 
@@ -1976,14 +2010,16 @@ function StepFields({
     return (
       <>
         {sourceFields}
-        <Dropdown<DateInputFormat>
-          className="compact"
-          label="Formato de entrada"
-          value={step.dateInputFormat ?? defaultDateInputFormat}
-          options={dateInputFormatOptions}
-          scrollStrategy="close"
-          onChange={(dateInputFormat) => onChange({ dateInputFormat })}
-        />
+        {usesFixedDateSource ? null : (
+          <Dropdown<DateInputFormat>
+            className="compact"
+            label="Formato de entrada"
+            value={step.dateInputFormat ?? defaultDateInputFormat}
+            options={dateInputFormatOptions}
+            scrollStrategy="close"
+            onChange={(dateInputFormat) => onChange({ dateInputFormat })}
+          />
+        )}
         <Dropdown<DateOutputFormat>
           className="compact"
           label="Formato de salida"

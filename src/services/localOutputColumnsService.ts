@@ -61,6 +61,9 @@ function normalizeOutputColumn(column: Partial<OutputColumn>): OutputColumn | nu
     label: column.label,
     order: column.order ?? 0,
     enabled: true,
+    ...(typeof column.generatedFromInputColumnId === 'string'
+      ? { generatedFromInputColumnId: column.generatedFromInputColumnId }
+      : {}),
     recipe: normalizeRecipe(column.recipe),
   };
 }

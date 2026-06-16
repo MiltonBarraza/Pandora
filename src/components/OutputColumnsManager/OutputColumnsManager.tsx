@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createOutputColumnsFromActiveInputColumns } from '../../domain/import/createOutputColumnsFromActiveInputColumns';
+import { createOutputColumnsFromActiveInputColumns, hasGeneratedOutputColumnManualChanges } from '../../domain/import/createOutputColumnsFromActiveInputColumns';
 import { duplicateOutputColumn } from '../../domain/import/duplicateOutputColumn';
 import { showInfoToast, showSuccessToast } from '../../services/toastService';
 import type { InputColumn, OutputColumn } from '../../types/import';
@@ -7,6 +7,7 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type OutputColumnsManagerProps = {
@@ -24,6 +25,7 @@ export function OutputColumnsManager({
 }: OutputColumnsManagerProps) {
   const [newColumnName, setNewColumnName] = useState('');
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  const [isRegenerateConfirmationOpen, setIsRegenerateConfirmationOpen] = useState(false);
   const ordered = [...outputColumns].sort((a, b) => a.order - b.order);
   const selectedColumn = ordered.find((column) => column.id === selectedColumnId) ?? ordered[0];
 
@@ -52,6 +54,15 @@ export function OutputColumnsManager({
   };
 
   const createFromActiveColumns = () => {
+    if (hasGeneratedOutputColumnManualChanges(inputColumns, ordered)) {
+      setIsRegenerateConfirmationOpen(true);
+      return;
+    }
+
+    regenerateFromActiveColumns();
+  };
+
+  const regenerateFromActiveColumns = () => {
     const result = createOutputColumnsFromActiveInputColumns(inputColumns, ordered);
 
     if (result.activeCount === 0) {
@@ -59,20 +70,20 @@ export function OutputColumnsManager({
       return;
     }
 
-    if (result.createdCount === 0) {
-      showInfoToast('No hay columnas nuevas para crear.');
-      return;
-    }
-
     onChange(result.columns);
-    setSelectedColumnId(result.columns[result.columns.length - result.createdCount]?.id ?? null);
+    setSelectedColumnId(result.columns[result.columns.length - result.createdCount]?.id ?? result.columns[0]?.id ?? null);
 
-    if (result.skippedExistingCount > 0) {
-      showSuccessToast(`Se crearon ${result.createdCount} columnas. ${result.skippedExistingCount} ya existian y se omitieron.`);
+    if (result.removedObsoleteCount > 0) {
+      showSuccessToast(`Se regeneraron ${result.createdCount} columnas. ${result.removedObsoleteCount} obsoletas se quitaron.`);
       return;
     }
 
-    showSuccessToast(`Se crearon ${result.createdCount} columnas.`);
+    showSuccessToast(`Se regeneraron ${result.createdCount} columnas.`);
+  };
+
+  const confirmRegenerateFromActiveColumns = () => {
+    setIsRegenerateConfirmationOpen(false);
+    regenerateFromActiveColumns();
   };
 
   const reorderColumns = (items: OutputColumn[]) => {
@@ -111,19 +122,41 @@ export function OutputColumnsManager({
 
   return (
     <div className="manager">
+      <ConfirmDialog
+        open={isRegenerateConfirmationOpen}
+        title="Regenerar columnas de salida"
+        message="Se perderán los cambios manuales hechos sobre columnas generadas automáticamente."
+        cancelLabel="Seguir editando"
+        confirmLabel="Regenerar columnas"
+        variant="danger"
+        onCancel={() => setIsRegenerateConfirmationOpen(false)}
+        onConfirm={confirmRegenerateFromActiveColumns}
+      />
       <div className="sectionHeader">
         <p>Define las columnas finales del archivo y como se llena cada una.</p>
         <div className="outputColumnsHeaderActions">
           <div className="inlineForm">
-            <input value={newColumnName} onChange={(event) => setNewColumnName(event.target.value)} placeholder="Nueva columna" />
+            <input
+              value={newColumnName}
+              onChange={(event) => setNewColumnName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') {
+                  return;
+                }
+
+                event.preventDefault();
+                addColumn();
+              }}
+              placeholder="Nueva columna"
+            />
             <InfoTooltip content="Agrega una columna nueva al archivo final.">
               <ActionButton type="button" action="add" onClick={addColumn}>Agregar</ActionButton>
             </InfoTooltip>
           </div>
           <ButtonGroup>
-            <InfoTooltip content="Crea columnas de salida desde las columnas activas.">
+            <InfoTooltip content="Regenera columnas de salida desde las columnas activas.">
               <ActionButton action="duplicate" variant="secondary" onClick={createFromActiveColumns}>
-                Crear columnas activas
+                Agregar columnas activas
               </ActionButton>
             </InfoTooltip>
           </ButtonGroup>

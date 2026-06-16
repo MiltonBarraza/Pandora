@@ -28,12 +28,39 @@ button.infoTooltipTrigger {
   min-height: 22px;
   padding: 0;
   width: 22px;
+  cursor: default;
 }
 
-button.infoTooltipTrigger:hover:not(:disabled),
-button.infoTooltipTrigger:focus-visible {
-  background: var(--color-action-icon-bg);
+button.infoTooltipTrigger:hover:not(:disabled) {
+  background: var(--color-action-secondary-bg-hover);
+  border-color: var(--color-border-control);
   color: var(--color-text-secondary);
+}
+
+.field:hover button.infoTooltipTrigger:not(:hover):not(:focus-visible),
+.labelWithInfo:hover button.infoTooltipTrigger:not(:hover):not(:focus-visible),
+.headingWithInfo:hover button.infoTooltipTrigger:not(:hover):not(:focus-visible) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+.field:hover .infoTooltip:not(:hover) > button.infoTooltipTrigger:not(:focus-visible),
+.labelWithInfo:hover .infoTooltip:not(:hover) > button.infoTooltipTrigger:not(:focus-visible),
+.headingWithInfo:hover .infoTooltip:not(:hover) > button.infoTooltipTrigger:not(:focus-visible) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+button.infoTooltipTrigger:focus-visible {
+  background: var(--color-action-secondary-bg-hover);
+  border-color: var(--color-focus-border);
+  color: var(--color-text-secondary);
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .modalDialogXl .constructorModalContent button.infoTooltipTrigger,
@@ -45,11 +72,8 @@ button.infoTooltipTrigger:focus-visible {
   width: 22px;
 }
 
-.modalDialogXl .constructorModalContent button.infoTooltipTrigger:hover:not(:disabled),
 .modalDialogXl .constructorModalContent button.infoTooltipTrigger:focus-visible,
-.modalDialogXl .modalFooter button.infoTooltipTrigger:hover:not(:disabled),
 .modalDialogXl .modalFooter button.infoTooltipTrigger:focus-visible {
-  background: var(--color-action-icon-bg);
   color: var(--color-text-secondary);
 }
 
@@ -73,10 +97,10 @@ button.infoTooltipTrigger .infoTooltipIcon {
 }
 
 .infoTooltipBubble {
-  background: var(--color-text-primary);
+  background: var(--color-tooltip-bg);
   border-radius: 6px;
   box-shadow: var(--shadow-dropdown);
-  color: var(--color-bg-surface);
+  color: var(--color-tooltip-text);
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.35;
@@ -132,7 +156,7 @@ button.infoTooltipTrigger .infoTooltipIcon {
 
 .field .infoTooltipBubble,
 .dropdownLabel .infoTooltipBubble {
-  color: var(--color-bg-surface);
+  color: var(--color-tooltip-text);
   font-size: 0.82rem;
   font-weight: 600;
 }

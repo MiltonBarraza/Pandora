@@ -6,40 +6,69 @@ type RawPreviewProps = {
   rows: RawRow[];
   maxColumns: number;
   activeColumns?: number[];
+  dataColumns?: number[];
   rowNumberOffset?: number;
   showAllColumns?: boolean;
+  showDataColumns?: boolean;
   showHiddenColumnsToggle?: boolean;
+  showDataColumnsToggle?: boolean;
   onShowAllColumnsChange?: (showAllColumns: boolean) => void;
+  onShowDataColumnsChange?: (showDataColumns: boolean) => void;
 };
 
 export function RawPreview({
   rows,
   maxColumns,
   activeColumns,
+  dataColumns,
   rowNumberOffset = 0,
   showAllColumns = false,
+  showDataColumns = false,
   showHiddenColumnsToggle = false,
+  showDataColumnsToggle = false,
   onShowAllColumnsChange,
+  onShowDataColumnsChange,
 }: RawPreviewProps) {
-  const columns = showAllColumns || !activeColumns?.length ? Array.from({ length: maxColumns }, (_, index) => index) : activeColumns;
+  const columns = getRawPreviewColumns({
+    maxColumns,
+    activeColumns,
+    dataColumns,
+    showAllColumns,
+    showDataColumns,
+  });
   const previewRows = rows.slice(0, 30);
 
   return (
     <>
-      {showHiddenColumnsToggle ? (
+      {showHiddenColumnsToggle || showDataColumnsToggle ? (
         <div className="rawPreviewOptions">
-          <label className="checkboxField">
-            <input
-              type="checkbox"
-              checked={showAllColumns}
-              onChange={(event) => onShowAllColumnsChange?.(event.target.checked)}
-            />
-            <span className="labelWithInfo">
-              <span>Mostrar columnas ocultadas automáticamente</span>
-              <InfoTooltip content="Muestra columnas que fueron sugeridas como no utiles." />
-            </span>
-          </label>
-          <p className="muted">Algunas columnas pueden ocultarse automáticamente porque no están vacías, no tienen ancho o tienen pocos datos.</p>
+          {showHiddenColumnsToggle ? (
+            <label className="checkboxField">
+              <input
+                type="checkbox"
+                checked={showAllColumns}
+                onChange={(event) => onShowAllColumnsChange?.(event.target.checked)}
+              />
+              <span className="labelWithInfo">
+                <span>Mostrar columnas ocultas por detección</span>
+                <InfoTooltip content="Incluye columnas ocultas por estar vacías, tener pocos datos o ancho muy reducido." />
+              </span>
+            </label>
+          ) : null}
+          {showDataColumnsToggle ? (
+            <label className="checkboxField">
+              <input
+                type="checkbox"
+                checked={showDataColumns}
+                onChange={(event) => onShowDataColumnsChange?.(event.target.checked)}
+              />
+              <span className="labelWithInfo">
+                <span>Mostrar columnas con datos</span>
+                <InfoTooltip content="Muestra columnas con al menos un valor, aunque la detección las haya ocultado." />
+              </span>
+            </label>
+          ) : null}
+          <p className="muted">La detección puede ocultar columnas vacías, con pocos datos o de ancho muy reducido.</p>
         </div>
       ) : null}
       <div className="tableWrap rawPreviewTableWrap">
@@ -66,4 +95,28 @@ export function RawPreview({
       </div>
     </>
   );
+}
+
+export function getRawPreviewColumns({
+  maxColumns,
+  activeColumns,
+  dataColumns,
+  showAllColumns,
+  showDataColumns,
+}: {
+  maxColumns: number;
+  activeColumns?: number[];
+  dataColumns?: number[];
+  showAllColumns?: boolean;
+  showDataColumns?: boolean;
+}) {
+  if (showAllColumns) {
+    return Array.from({ length: maxColumns }, (_, index) => index);
+  }
+
+  if (showDataColumns) {
+    return dataColumns ?? [];
+  }
+
+  return activeColumns?.length ? activeColumns : Array.from({ length: maxColumns }, (_, index) => index);
 }

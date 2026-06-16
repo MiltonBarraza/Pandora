@@ -98,7 +98,7 @@ export function downloadImportSettingsFile(settings: ExportedImportSettings) {
 function buildMissingConfigError(fieldName: string): ParseImportSettingsResult {
   return {
     ok: false,
-    error: `El archivo de settings no contiene config.${fieldName} válido.`,
+    error: `El archivo de configuración no contiene config.${fieldName} válido.`,
   };
 }
 

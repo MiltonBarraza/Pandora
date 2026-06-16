@@ -100,8 +100,8 @@ button.dropdownOption.isActive {
 }
 
 button.dropdownOption.isSelected {
-  background: var(--color-accent-bg);
-  color: var(--color-text-primary);
+  background: var(--color-selected-bg);
+  color: var(--color-selected-text);
   font-weight: 600;
 }
 

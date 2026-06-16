@@ -825,6 +825,27 @@ describe('outputModel date steps', () => {
     expect(row.outputValues.date).toBe('01-06-2024');
   });
 
+  it('formats an ISO fixed text date source from the date picker', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2024-06-01' },
+            dateInputFormat: 'YYYY-MM-DD',
+            dateOutputFormat: 'DD/MM/YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('01/06/2024');
+  });
+
   it('formats the previous result from an earlier step', () => {
     const row = buildRow([
       outputColumn({

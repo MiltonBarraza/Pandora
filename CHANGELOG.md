@@ -5,6 +5,29 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-06-12
+
+### Added
+
+- Control de preview para mostrar columnas con datos en configuracion de filas, sin afectar settings ni exportacion.
+- Prompt previo a descargar Excel para guardar configuracion solo cuando hay cambios relevantes contra la configuracion cargada o guardada.
+- Date picker para valores fijos de fecha en el editor de recetas, guardando el valor como `YYYY-MM-DD`.
+
+### Changed
+
+- Checkboxes migrados visualmente al estilo compacto global con estados hover, focus, checked, unchecked y disabled.
+- Filtros sugeridos de columnas detectadas reorganizados como Vacias sugeridas, Ocultas sugeridas, Activar todas y Restaurar filtros sugeridos.
+- Estado "Filtros aplicados" ahora muestra multiples tags simultaneos y distingue cambios manuales.
+- "Agregar columnas activas" ahora regenera columnas generadas desde las columnas activas actuales, evitando duplicados y obsoletas.
+- Textos de guards destructivos ajustados a "Seguir editando" y "Descartar cambios" para evitar ambiguedad.
+
+### Fixed
+
+- Columnas angostas ahora cuentan dentro de "Ocultas sugeridas" para evitar falsos estados personalizados.
+- Cambios manuales en filtros detectan tanto columnas activadas como ignoradas manualmente.
+- Regeneracion de columnas de salida muestra confirmacion si hay ediciones manuales sobre columnas generadas.
+- Fecha fija en recetas oculta el formato de entrada incompatible y exporta correctamente segun el formato de salida elegido.
+
 ## [0.2.5] - 2026-06-12
 
 ### Added
@@ -14,6 +37,8 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Dialogo visual reusable `ConfirmDialog` para confirmaciones internas sin depender de `window.confirm`.
 - Guard visual hibrido para perdida de cambios: modal custom en acciones internas y atajos de recarga interceptables, manteniendo `beforeunload` nativo como fallback para salidas reales.
 - Tooltips custom para acciones de duplicar y eliminar columnas de salida, manteniendo `aria-label` y evitando `title` nativo.
+- Infraestructura de apariencia Light/Dark con toolbar superior, persistencia en `localStorage` y aplicacion de `data-theme` en el documento.
+- Tokens dark Pandora para fondos, superficies, texto, bordes, estados semanticos, hero, tablas, selected states, tooltips, toasts y toolbar.
 
 ### Changed
 
@@ -21,6 +46,8 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - El modal/editor de recetas reemplaza confirmaciones nativas por `ConfirmDialog` al descartar cambios sin aplicar.
 - Los botones "Agregar" del editor de recetas usan estilos scoped con mejor contraste y jerarquia visual sin cambiar la paleta global.
 - La lista de columnas de salida mejora el espaciado del nombre, truncado de nombres largos, tooltips de nombres completos y alineacion de acciones icon-only.
+- La toolbar de apariencia muestra solo las opciones visibles Claro y Oscuro, manteniendo soporte interno seguro para la preferencia `system`.
+- Hero, dropdowns, tablas, selected states, tooltips y toasts pasan a usar tokens preparados para Light/Dark sin cambiar la experiencia del modo claro.
 
 ### Fixed
 

@@ -1,7 +1,7 @@
 ﻿import { useRef, useState } from 'react';
 import { compareSettingsToCurrentSnapshot } from '../../domain/import/settingsCompatibility';
-import { createSourceSnapshot, exportSettingsFromWizardState } from '../../domain/import/settingsSnapshot';
-import { downloadImportSettingsFile, parseImportSettingsJson } from '../../services/settingsFileService';
+import { createSourceSnapshot } from '../../domain/import/settingsSnapshot';
+import { parseImportSettingsJson } from '../../services/settingsFileService';
 import { showErrorToast, showInfoToast, showSuccessToast } from '../../services/toastService';
 import type {
   ColumnAnalysis,
@@ -32,6 +32,7 @@ type SettingsActionsProps = {
   outputColumns: OutputColumn[];
   outputIgnoreRules: IgnoreRule[];
   fileNameSettings: FileNameSettings;
+  onSaveSettings: () => { ok: true } | { ok: false; error: string };
   onApplySettings: (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => { ok: true } | { ok: false; error: string };
   onSettingsImported?: () => void;
 };
@@ -63,6 +64,7 @@ export function SettingsActions({
   outputColumns,
   outputIgnoreRules,
   fileNameSettings,
+  onSaveSettings,
   onApplySettings,
   onSettingsImported,
 }: SettingsActionsProps) {
@@ -82,42 +84,20 @@ export function SettingsActions({
     columnAnalysis,
   });
   const canCompareSettings = Boolean(currentSnapshot);
+  const visibleSuccessMessage = normalizeSettingsActionsSuccessMessage(successMessage);
 
   const exportSettings = () => {
     setError('');
     setSuccessMessage('');
 
-    if (!currentSnapshot || fileType === '') {
-      const message = 'Primero carga un Excel y selecciona una hoja para guardar configuraciones.';
-      setError(message);
-      showErrorToast(message);
+    const result = onSaveSettings();
+    if (!result.ok) {
+      setError(result.error);
+      showErrorToast(result.error);
       return;
     }
 
-    try {
-      downloadImportSettingsFile(exportSettingsFromWizardState({
-        name: selectedSheet || undefined,
-        fileType,
-        selectedSheet,
-        sheetNames,
-        rows,
-        headerRowIndex,
-        startRowIndex,
-        showRawPreviewFromDataStart,
-        showAllRawPreviewColumns,
-        columnAnalysis,
-        inputColumnAliases,
-        inputIgnoreRules,
-        outputColumns,
-        outputIgnoreRules,
-        fileNameSettings,
-      }));
-      showSuccessToast('Configuración guardada correctamente.');
-    } catch {
-      const message = 'No se pudo guardar la configuración.';
-      setError(message);
-      showErrorToast(message);
-    }
+    showSuccessToast('Configuración guardada correctamente.');
   };
 
   const importSettingsFile = async (file: File | undefined) => {
@@ -153,7 +133,7 @@ export function SettingsActions({
       onSettingsImported?.();
       showImportedSettingsToast(compatibility.status);
     } catch {
-      const message = 'No se pudo leer el archivo de settings.';
+      const message = 'No se pudo leer el archivo de configuración.';
       setError(message);
       showErrorToast(message);
     } finally {
@@ -170,7 +150,7 @@ export function SettingsActions({
 
     const { compatibility, settings } = importResult;
     if (compatibility.status === 'needsRemap') {
-      const message = 'Estos settings necesitan remapeo de columnas antes de aplicarse.';
+      const message = 'Esta configuración necesita remapeo de columnas antes de aplicarse.';
       setError(message);
       showInfoToast(message);
       return;
@@ -200,7 +180,7 @@ export function SettingsActions({
     }
 
     setError('');
-    setSuccessMessage('Settings aplicados correctamente.');
+    setSuccessMessage('Configuración aplicada correctamente.');
     showSuccessToast(compatibility.status === 'warning' ? 'Configuración aplicada con advertencias.' : 'Configuración aplicada.');
   };
 
@@ -218,8 +198,8 @@ export function SettingsActions({
     <div className="settingsActions">
       <ConfirmDialog
         open={pendingWarningApply}
-        title="Aplicar settings con advertencias"
-        message="Estos settings tienen advertencias. Revisá el resumen antes de aplicarlos."
+        title="Aplicar configuración con advertencias"
+        message="Esta configuración tiene advertencias. Revisá el resumen antes de aplicarla."
         cancelLabel="Cancelar"
         confirmLabel="Aplicar igual"
         variant="primary"
@@ -235,10 +215,10 @@ export function SettingsActions({
           <p>Ahorra tiempo guardando o cargando una configuración para usarla nuevamente en archivos similares.</p>
         </div>
         <ButtonGroup className="actions compactActions">
-          <InfoTooltip content="Guarda la configuracion actual en un archivo JSON.">
+          <InfoTooltip content="Guarda la configuración actual en un archivo JSON.">
             <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
           </InfoTooltip>
-          <InfoTooltip content="Carga una configuracion guardada y valida si coincide.">
+          <InfoTooltip content="Carga una configuración guardada y valida si coincide.">
             <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Cargar</ActionButton>
           </InfoTooltip>
           {importResult || error ? (
@@ -269,7 +249,7 @@ export function SettingsActions({
         <p className="muted">Primero carga un Excel y selecciona una hoja para validar configuraciones importadas.</p>
       ) : null}
       {error ? <p className="errorText">{error}</p> : null}
-      {successMessage ? <p className="successText">{successMessage}</p> : null}
+      {visibleSuccessMessage ? <p className="successText">{visibleSuccessMessage}</p> : null}
       {importResult ? (
         <>
           <SettingsCompatibilitySummary result={importResult.compatibility} />
@@ -279,19 +259,24 @@ export function SettingsActions({
     </div>
   );
 }
+
+function normalizeSettingsActionsSuccessMessage(message: string) {
+  return message.replace('Settings aplicados correctamente.', 'Configuración aplicada correctamente.');
+}
+
 function showImportedSettingsToast(status: SettingsCompatibilityResult['status']) {
   if (status === 'compatible') {
-    showSuccessToast('Settings importados correctamente.');
+    showSuccessToast('Configuración importada correctamente.');
     return;
   }
 
   if (status === 'warning') {
-    showInfoToast('Settings importados con advertencias.');
+    showInfoToast('Configuración importada con advertencias.');
     return;
   }
 
   if (status === 'needsRemap') {
-    showInfoToast('Settings importados. Se requiere revisar el mapeo de columnas.');
+    showInfoToast('Configuración importada. Se requiere revisar el mapeo de columnas.');
     return;
   }
 
@@ -334,7 +319,7 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
   if (status === 'compatible') {
     return (
       <div className="actions">
-        <ActionButton action="done" onClick={onApply}>Aplicar settings</ActionButton>
+        <ActionButton action="done" onClick={onApply}>Aplicar configuración</ActionButton>
       </div>
     );
   }
@@ -342,16 +327,16 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
   if (status === 'warning') {
     return (
       <div className="actions">
-        <ActionButton action="warning" onClick={onApply}>Aplicar settings con advertencias</ActionButton>
+        <ActionButton action="warning" onClick={onApply}>Aplicar configuración con advertencias</ActionButton>
       </div>
     );
   }
 
   if (status === 'needsRemap') {
-    return <p className="muted">Estos settings necesitan remapeo de columnas antes de aplicarse.</p>;
+    return <p className="muted">Esta configuración necesita remapeo de columnas antes de aplicarse.</p>;
   }
 
-  return <p className="muted">Estos settings no se pueden aplicar a este archivo.</p>;
+  return <p className="muted">Esta configuración no se puede aplicar a este archivo.</p>;
 }
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
