@@ -447,6 +447,42 @@ export function addManualRangeValue(recipe: Extract<OutputRecipe, { type: 'manua
   };
 }
 
+export function duplicateManualRangeValue(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  const rangeIndex = recipe.ranges.findIndex((range) => range.id === rangeId);
+  if (rangeIndex < 0) {
+    return recipe;
+  }
+
+  const range = recipe.ranges[rangeIndex];
+  const duplicatedRange: ManualRangeValue = {
+    ...range,
+    id: crypto.randomUUID(),
+    valueSource: range.valueSource ? { ...range.valueSource } : undefined,
+  };
+
+  return {
+    ...recipe,
+    ranges: [
+      ...recipe.ranges.slice(0, rangeIndex + 1),
+      duplicatedRange,
+      ...recipe.ranges.slice(rangeIndex + 1),
+    ],
+  };
+}
+
+export function sortManualRangesByStart(recipe: Extract<OutputRecipe, { type: 'manualRange' }>): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: [...recipe.ranges].sort((left, right) => (
+      left.startRowNumber - right.startRowNumber
+      || left.endRowNumber - right.endRowNumber
+    )),
+  };
+}
+
 export function updateManualRangeValue(
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
   rangeId: string,
@@ -732,9 +768,14 @@ function ManualRangeRecipeEditor({
           <strong>Valores por rangos</strong>
           <p className="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>
         </div>
-        <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe))}>
-          Agregar rango
-        </ActionButton>
+        <div className="manualRangeHeaderActions">
+          <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe))}>
+            Agregar rango
+          </ActionButton>
+          <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
+            Ordenar por inicio
+          </button>
+        </div>
       </div>
 
 
@@ -773,30 +814,22 @@ function ManualRangeRecipeEditor({
           {hasOverlappingRanges ? (
             <p className="manualRangeWarning">Hay rangos superpuestos. En filas repetidas se usará el primer rango configurado.</p>
           ) : null}
-          <div className="tableWrap manualRangeTable">
-            <table>
-              <thead>
-                <tr>
-                  <th>Inicio</th>
-                  <th>Fin</th>
-                  <th>Filas</th>
-                  <th>Valor</th>
-                  <th aria-label="Acciones" />
-                </tr>
-              </thead>
-              <tbody>
-                {recipe.ranges.map((range) => (
-                  <ManualRangeTableRow
-                    key={range.id}
-                    recipe={recipe}
-                    range={range}
-                    inputColumns={inputColumns}
-                    manualRangeRows={manualRangeRows}
-                    onChange={onChange}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="manualRangeList">
+            {recipe.ranges.map((range) => (
+              <ManualRangeTableRow
+                key={range.id}
+                recipe={recipe}
+                range={range}
+                inputColumns={inputColumns}
+                manualRangeRows={manualRangeRows}
+                onChange={onChange}
+              />
+            ))}
+          </div>
+          <div className="manualRangeFooterActions">
+            <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe))}>
+              Agregar rango
+            </ActionButton>
           </div>
         </>
       )}
@@ -849,87 +882,90 @@ function ManualRangeTableRow({
   };
 
   return (
-    <tr>
-      <td>
-        <label className="field compact manualRangeCellField">
-          <span>Inicio</span>
-          <input
-            aria-label="Inicio"
-            type="number"
-            min="1"
-            value={startRowInput}
-            onChange={(event) => updateStartRowInput(event.target.value)}
+    <div className="manualRangeRangeItem">
+      <label className="field compact manualRangeCellField">
+        <span>Inicio</span>
+        <input
+          aria-label="Inicio"
+          type="number"
+          min="1"
+          value={startRowInput}
+          onChange={(event) => updateStartRowInput(event.target.value)}
+        />
+      </label>
+      <label className="field compact manualRangeCellField">
+        <span>Fin</span>
+        <input
+          aria-label="Fin"
+          type="number"
+          min="1"
+          value={endRowInput}
+          onChange={(event) => updateEndRowInput(event.target.value)}
+        />
+      </label>
+      <div className="field compact manualRangeCellField manualRangeRowCountField">
+        <span>Filas</span>
+        <strong>{rowCount || '-'}</strong>
+      </div>
+      <div className="manualRangeValueFields">
+        <Dropdown<ManualRangeValueSourceType>
+          className="compact"
+          label="Valor"
+          value={getManualRangeValueSourceType(range)}
+          options={manualRangeValueSourceOptions}
+          scrollStrategy="close"
+          onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
+        />
+        {getManualRangeValueSourceType(range) === 'rangeText' ? (
+          <>
+            <Dropdown
+              className="compact"
+              label="Buscar textos en"
+              value={rangeTextSource.inputColumnId}
+              options={inputColumns.length === 0
+                ? [{ value: '', label: 'Sin columnas activas' }]
+                : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+              scrollStrategy="close"
+              onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))}
+            />
+            <Dropdown
+              className="compact"
+              label="Texto encontrado"
+              value={rangeTextSource.selectedText}
+              options={selectedTextOptions.length === 0
+                ? [{ value: '', label: 'Sin textos encontrados', disabled: true }]
+                : selectedTextOptions.map((text) => ({ value: text, label: text }))}
+              disabled={selectedTextOptions.length === 0}
+              scrollStrategy="close"
+              onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
+            />
+            {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
+          </>
+        ) : (
+          <label className="field compact">
+            <span>Texto fijo</span>
+            <input
+              value={getManualRangeFixedTextValue(range)}
+              onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))}
+            />
+          </label>
+        )}
+      </div>
+      <div className="manualRangeActionsField">
+        <span>Acciones</span>
+        <div className="manualRangeRowActions">
+          <ActionButton
+            action="duplicate"
+            variant="secondary"
+            size="sm"
+            title="Duplicar rango"
+            aria-label="Duplicar rango"
+            onClick={() => onChange(duplicateManualRangeValue(recipe, range.id))}
           />
-        </label>
-      </td>
-      <td>
-        <label className="field compact manualRangeCellField">
-          <span>Fin</span>
-          <input
-            aria-label="Fin"
-            type="number"
-            min="1"
-            value={endRowInput}
-            onChange={(event) => updateEndRowInput(event.target.value)}
-          />
-        </label>
-      </td>
-      <td>
-        <div className="field compact manualRangeCellField manualRangeRowCountField">
-          <span>Filas</span>
-          <strong>{rowCount || '-'}</strong>
+          <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
         </div>
-      </td>
-      <td>
-        <div className="manualRangeValueFields">
-          <Dropdown<ManualRangeValueSourceType>
-            className="compact"
-            label="Valor"
-            value={getManualRangeValueSourceType(range)}
-            options={manualRangeValueSourceOptions}
-            scrollStrategy="close"
-            onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
-          />
-          {getManualRangeValueSourceType(range) === 'rangeText' ? (
-            <>
-              <Dropdown
-                className="compact"
-                label="Buscar textos en"
-                value={rangeTextSource.inputColumnId}
-                options={inputColumns.length === 0
-                  ? [{ value: '', label: 'Sin columnas activas' }]
-                  : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
-                scrollStrategy="close"
-                onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))}
-              />
-              <Dropdown
-                className="compact"
-                label="Texto encontrado"
-                value={rangeTextSource.selectedText}
-                options={selectedTextOptions.length === 0
-                  ? [{ value: '', label: 'Sin textos encontrados', disabled: true }]
-                  : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-                disabled={selectedTextOptions.length === 0}
-                scrollStrategy="close"
-                onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
-              />
-              {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
-            </>
-          ) : (
-            <label className="field compact">
-              <span>Texto fijo</span>
-              <input
-                value={getManualRangeFixedTextValue(range)}
-                onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))}
-              />
-            </label>
-          )}
-        </div>
-      </td>
-      <td>
-        <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 

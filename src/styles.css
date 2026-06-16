@@ -886,8 +886,8 @@ tbody tr:hover {
 .modalDialogXl {
   height: 90vh;
   max-height: 90vh;
-  max-width: min(1280px, 95vw);
-  width: 95vw;
+  max-width: min(1500px, 96vw);
+  width: 96vw;
 }
 
 .modalDialog::backdrop {
@@ -1664,48 +1664,65 @@ tbody tr:hover {
   padding: 8px 10px;
 }
 
-.manualRangeTable table {
-  min-width: 900px;
+.manualRangeHeaderActions,
+.manualRangeFooterActions,
+.manualRangeRowActions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.manualRangeHeaderActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.manualRangeFooterActions {
+  justify-content: flex-start;
+}
+
+.manualRangeRowActions {
+  justify-content: flex-end;
+}
+
+.manualRangeList {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
   width: 100%;
 }
 
-.manualRangeTable th:nth-child(1),
-.manualRangeTable td:nth-child(1),
-.manualRangeTable th:nth-child(2),
-.manualRangeTable td:nth-child(2),
-.manualRangeTable th:nth-child(3),
-.manualRangeTable td:nth-child(3) {
-  min-width: 84px;
-  width: 84px;
+.manualRangeRangeItem {
+  align-items: end;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns:
+    minmax(72px, 0.42fr)
+    minmax(72px, 0.42fr)
+    minmax(64px, 0.34fr)
+    minmax(360px, 3fr)
+    minmax(82px, auto);
+  min-width: 0;
+  padding: 10px;
 }
 
-.manualRangeTable th:nth-child(5),
-.manualRangeTable td:nth-child(5) {
-  min-width: 44px;
-  width: 44px;
-}
-
-.manualRangeTable td {
-  vertical-align: top;
-}
-
-.manualRangeTable td:nth-child(4) {
-  min-width: 420px;
-  white-space: normal;
-}
-
-.manualRangeTable input[type='number'] {
-  width: 100%;
-}
-
-.manualRangeCellField {
+.manualRangeCellField,
+.manualRangeActionsField {
   gap: 5px;
 }
 
-.manualRangeCellField span {
+.manualRangeCellField span,
+.manualRangeActionsField > span {
   color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.manualRangeCellField input[type='number'] {
+  width: 100%;
 }
 
 .manualRangeRowCountField strong {
@@ -1724,8 +1741,12 @@ tbody tr:hover {
 
 .manualRangeValueFields > .dropdownField,
 .manualRangeValueFields > .field {
-  flex: 1 1 190px;
-  min-width: 180px;
+  flex: 1 1 170px;
+  min-width: min(100%, 170px);
+}
+
+.manualRangeValueFields > .dropdownField:nth-of-type(3) {
+  flex-basis: 100%;
 }
 
 .manualRangeValueHelp {
@@ -1734,6 +1755,11 @@ tbody tr:hover {
   font-size: 0.85rem;
   line-height: 1.25;
   margin: 0;
+}
+
+.manualRangeActionsField {
+  display: grid;
+  min-width: 0;
 }
 
 .transformStepHeader {
@@ -2209,6 +2235,7 @@ tbody tr:hover {
   .stepsWorkspace,
   .stepTypeFieldGroup,
   .constructorPartMainGrid,
+  .manualRangeRangeItem,
   .transformStepRow,
   .outputColumnsWorkspace,
   .outputColumnHeader,
