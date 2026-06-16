@@ -623,6 +623,7 @@ export function ImportWizard() {
         <Step title="6. Columnas de salida" info="Define las columnas que tendra el archivo final.">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
+            manualRangeRows={processedPipeline.inputRows}
             sampleInputValues={processedPipeline.includedInputRows[0]?.values ?? processedPipeline.inputRows[0]?.values}
             outputColumns={outputColumns}
             onChange={updateOutputColumns}

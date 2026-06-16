@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createOutputColumnsFromActiveInputColumns } from '../../domain/import/createOutputColumnsFromActiveInputColumns';
 import { duplicateOutputColumn } from '../../domain/import/duplicateOutputColumn';
 import { showInfoToast, showSuccessToast } from '../../services/toastService';
-import type { InputColumn, OutputColumn } from '../../types/import';
+import type { InputColumn, InputRow, OutputColumn } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
@@ -11,6 +11,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
+  manualRangeRows?: InputRow[];
   sampleInputValues?: Record<string, string>;
   outputColumns: OutputColumn[];
   onChange: (columns: OutputColumn[]) => void;
@@ -18,6 +19,7 @@ type OutputColumnsManagerProps = {
 
 export function OutputColumnsManager({
   inputColumns = [],
+  manualRangeRows = [],
   sampleInputValues,
   outputColumns,
   onChange,
@@ -188,6 +190,7 @@ export function OutputColumnsManager({
                   <OutputColumnRecipeEditor
                     column={selectedColumn}
                     inputColumns={inputColumns}
+                    manualRangeRows={manualRangeRows}
                     sampleInputValues={sampleInputValues}
                     onChange={(nextColumn) => updateOutputColumn(selectedColumn.id, nextColumn)}
                   />

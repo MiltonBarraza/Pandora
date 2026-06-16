@@ -1629,6 +1629,54 @@ tbody tr:hover {
   padding: 8px 10px;
 }
 
+.manualRangeTable table {
+  min-width: 760px;
+  width: 100%;
+}
+
+.manualRangeTable th:nth-child(1),
+.manualRangeTable td:nth-child(1),
+.manualRangeTable th:nth-child(2),
+.manualRangeTable td:nth-child(2),
+.manualRangeTable th:nth-child(3),
+.manualRangeTable td:nth-child(3) {
+  min-width: 84px;
+  width: 84px;
+}
+
+.manualRangeTable th:nth-child(5),
+.manualRangeTable td:nth-child(5) {
+  min-width: 44px;
+  width: 44px;
+}
+
+.manualRangeTable td {
+  vertical-align: top;
+}
+
+.manualRangeTable td:nth-child(4) {
+  min-width: 260px;
+  white-space: normal;
+}
+
+.manualRangeTable input[type='number'] {
+  width: 100%;
+}
+
+.manualRangeValueFields {
+  display: grid;
+  gap: 8px;
+  max-width: 320px;
+  min-width: 220px;
+}
+
+.manualRangeValueHelp {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  line-height: 1.25;
+  margin: 0;
+}
+
 .transformStepHeader {
   align-items: center;
   display: grid;

@@ -75,16 +75,25 @@ function remapOutputRecipe(recipe: OutputRecipe, remap: InputColumnRemap): Outpu
   }
 
   if (recipe.type === 'manualRange') {
-    if (!recipe.condition) {
-      return recipe;
-    }
-
     return {
       ...recipe,
-      condition: {
+      ranges: recipe.ranges.map((range) => {
+        if (range.valueSource?.type !== 'rangeText') {
+          return range;
+        }
+
+        return {
+          ...range,
+          valueSource: {
+            ...range.valueSource,
+            inputColumnId: remapInputColumnId(range.valueSource.inputColumnId, remap),
+          },
+        };
+      }),
+      ...(recipe.condition ? { condition: {
         ...recipe.condition,
         inputColumnId: remapInputColumnId(recipe.condition.inputColumnId, remap),
-      },
+      } } : {}),
     };
   }
 

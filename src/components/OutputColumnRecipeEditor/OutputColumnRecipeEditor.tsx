@@ -4,7 +4,7 @@ import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, ManualRangeCondition, ManualRangeValue, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeCondition, ManualRangeValue, ManualRangeValueSource, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -16,6 +16,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 type OutputColumnRecipeEditorProps = {
   column: OutputColumn;
   inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
   sampleInputValues?: Record<string, string>;
   onChange: (column: OutputColumn) => void;
 };
@@ -39,6 +40,13 @@ export const recipeEditorDiscardChangesMessage = 'Hay cambios sin aplicar en est
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
 
+type ManualRangeValueSourceType = ManualRangeValueSource['type'];
+
+export const manualRangeValueSourceOptions: Array<{ value: ManualRangeValueSourceType; label: string }> = [
+  { value: 'fixedText', label: 'Texto fijo' },
+  { value: 'rangeText', label: 'Texto encontrado en el rango' },
+];
+
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
   return recipe.type === 'combine' || recipe.type === 'manualRange' ? draftRecipe ?? recipe : null;
 }
@@ -51,7 +59,7 @@ export function hasRecipeEditorDraftChanges(originalRecipe: EditableCustomRecipe
   return Boolean(draftRecipe) && JSON.stringify(originalRecipe) !== JSON.stringify(draftRecipe);
 }
 
-export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
+export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows = [], sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
   const [isConstructorOpen, setIsConstructorOpen] = useState(false);
   const [isDiscardConfirmationOpen, setIsDiscardConfirmationOpen] = useState(false);
@@ -305,6 +313,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, sampleInputValu
                 <ManualRangeRecipeEditor
                   recipe={modalManualRangeRecipe}
                   inputColumns={activeInputColumns}
+                  manualRangeRows={manualRangeRows}
                   onChange={setDraftRecipe}
                 />
               ) : null}
@@ -367,7 +376,7 @@ export function createDefaultManualRangeValue(index: number): ManualRangeValue {
     id: crypto.randomUUID(),
     startRowNumber: rowNumber,
     endRowNumber: rowNumber,
-    value: '',
+    valueSource: { type: 'fixedText', value: '' },
   };
 }
 
@@ -417,6 +426,155 @@ export function updateManualRangeValue(
     ...recipe,
     ranges: recipe.ranges.map((range) => (range.id === rangeId ? { ...range, ...sanitizeManualRangePatch(patch) } : range)),
   };
+}
+
+export function getManualRangeFixedTextValue(range: ManualRangeValue) {
+  if (range.valueSource?.type === 'fixedText') {
+    return range.valueSource.value;
+  }
+
+  return range.value ?? '';
+}
+
+export function getManualRangeValueSourceType(range: ManualRangeValue): ManualRangeValueSourceType {
+  return range.valueSource?.type ?? 'fixedText';
+}
+
+export function getManualRangeRangeTextSource(range: ManualRangeValue): Extract<ManualRangeValueSource, { type: 'rangeText' }> {
+  return range.valueSource?.type === 'rangeText'
+    ? range.valueSource
+    : { type: 'rangeText', inputColumnId: '', selectedText: '' };
+}
+
+export function updateManualRangeValueSourceType(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  type: ManualRangeValueSourceType,
+  inputColumns: InputColumn[] = [],
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: recipe.ranges.map((range) => {
+      if (range.id !== rangeId) {
+        return range;
+      }
+
+      const { value: _legacyValue, ...nextRange } = range;
+      if (type === 'rangeText') {
+        const rangeTextSource = getManualRangeRangeTextSource(range);
+        return {
+          ...nextRange,
+          valueSource: {
+            type: 'rangeText' as const,
+            inputColumnId: rangeTextSource.inputColumnId || inputColumns[0]?.id || '',
+            selectedText: rangeTextSource.selectedText,
+          },
+        };
+      }
+
+      return {
+        ...nextRange,
+        valueSource: { type: 'fixedText' as const, value: getManualRangeFixedTextValue(range) },
+      };
+    }),
+  };
+}
+
+export function updateManualRangeFixedTextValue(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  value: string,
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: recipe.ranges.map((range) => {
+      if (range.id !== rangeId) {
+        return range;
+      }
+
+      const { value: _legacyValue, ...nextRange } = range;
+      return {
+        ...nextRange,
+        valueSource: { type: 'fixedText' as const, value },
+      };
+    }),
+  };
+}
+
+export function updateManualRangeRangeTextValue(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  patch: Partial<Extract<ManualRangeValueSource, { type: 'rangeText' }>>,
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: recipe.ranges.map((range) => {
+      if (range.id !== rangeId) {
+        return range;
+      }
+
+      const { value: _legacyValue, ...nextRange } = range;
+      const rangeTextSource = getManualRangeRangeTextSource(range);
+      return {
+        ...nextRange,
+        valueSource: {
+          ...rangeTextSource,
+          ...patch,
+          type: 'rangeText' as const,
+        },
+      };
+    }),
+  };
+}
+
+export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>, inputColumnId: string) {
+  if (!inputColumnId) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const options: string[] = [];
+  rows.forEach((row) => {
+    if (row.rowNumber < range.startRowNumber || row.rowNumber > range.endRowNumber) {
+      return;
+    }
+
+    const value = String(row.values[inputColumnId] ?? '').trim();
+    if (!value || seen.has(value)) {
+      return;
+    }
+
+    seen.add(value);
+    options.push(value);
+  });
+
+  return options;
+}
+
+export function getManualRangeSelectedTextOptions(
+  rows: InputRow[],
+  range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+  source: Extract<ManualRangeValueSource, { type: 'rangeText' }>,
+) {
+  const options = getManualRangeTextOptions(rows, range, source.inputColumnId);
+  const selectedText = source.selectedText.trim();
+  return selectedText && !options.includes(selectedText) ? [selectedText, ...options] : options;
+}
+
+export function getManualRangeRangeTextHelpText(
+  rows: InputRow[],
+  range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+  source: Extract<ManualRangeValueSource, { type: 'rangeText' }>,
+) {
+  if (!source.inputColumnId) {
+    return 'Elegí una columna para buscar textos.';
+  }
+
+  if (getManualRangeTextOptions(rows, range, source.inputColumnId).length === 0) {
+    return 'No se encontraron textos en este rango.';
+  }
+
+  return '';
 }
 
 export function removeManualRangeValue(
@@ -517,10 +675,12 @@ export function describeManualRangeCondition(recipe: Extract<OutputRecipe, { typ
 function ManualRangeRecipeEditor({
   recipe,
   inputColumns,
+  manualRangeRows,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
   inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const conditionMode = recipe.condition ? recipe.condition.operator : '';
@@ -545,14 +705,6 @@ function ManualRangeRecipeEditor({
         </ActionButton>
       </div>
 
-      <Dropdown
-        className="compact"
-        label="Tipo de operación"
-        value="manualRange"
-        options={[{ value: 'manualRange', label: 'Trabajar con rangos' }]}
-        scrollStrategy="close"
-        onChange={() => undefined}
-      />
 
       <div className="manualRangeCondition">
         <strong>Aplicar sólo si</strong>
@@ -601,7 +753,12 @@ function ManualRangeRecipeEditor({
                 </tr>
               </thead>
               <tbody>
-                {recipe.ranges.map((range) => (
+                {recipe.ranges.map((range) => {
+                  const rangeTextSource = getManualRangeRangeTextSource(range);
+                  const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
+                  const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
+
+                  return (
                   <tr key={range.id}>
                     <td>
                       <input
@@ -633,17 +790,57 @@ function ManualRangeRecipeEditor({
                     </td>
                     <td>{getManualRangeRowCount(range) || '-'}</td>
                     <td>
-                      <input
-                        aria-label="Valor"
-                        value={range.value}
-                        onChange={(event) => onChange(updateManualRangeValue(recipe, range.id, { value: event.target.value }))}
-                      />
+                      <div className="manualRangeValueFields">
+                        <Dropdown<ManualRangeValueSourceType>
+                          className="compact"
+                          label="Valor"
+                          value={getManualRangeValueSourceType(range)}
+                          options={manualRangeValueSourceOptions}
+                          scrollStrategy="close"
+                          onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
+                        />
+                        {getManualRangeValueSourceType(range) === 'rangeText' ? (
+                          <>
+                            <Dropdown
+                              className="compact"
+                              label="Buscar textos en"
+                              value={rangeTextSource.inputColumnId}
+                              options={inputColumns.length === 0
+                                ? [{ value: '', label: 'Sin columnas activas' }]
+                                : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+                              scrollStrategy="close"
+                              onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))}
+                            />
+                            <Dropdown
+                              className="compact"
+                              label="Texto encontrado"
+                              value={rangeTextSource.selectedText}
+                              options={selectedTextOptions.length === 0
+                                ? [{ value: '', label: 'Sin textos encontrados', disabled: true }]
+                                : selectedTextOptions.map((text) => ({ value: text, label: text }))}
+                              disabled={selectedTextOptions.length === 0}
+                              scrollStrategy="close"
+                              onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
+                            />
+                            {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
+                          </>
+                        ) : (
+                          <label className="field compact">
+                            <span>Texto fijo</span>
+                            <input
+                              value={getManualRangeFixedTextValue(range)}
+                              onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

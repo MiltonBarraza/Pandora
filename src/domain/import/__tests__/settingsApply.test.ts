@@ -166,7 +166,80 @@ describe('settingsApply', () => {
     });
   });
 
-  it('preserves manual range recipes in the apply payload', () => {
+  it('preserves manual range valueSource recipes in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        {
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueSource: { type: 'fixedText' as const, value: 'Cerda china mango amarillo' },
+        },
+      ],
+      condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' as const },
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+  });
+
+  it('preserves manual range rangeText sources in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        {
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueSource: { type: 'rangeText' as const, inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+        },
+      ],
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+  });
+
+  it('preserves legacy manual range values in the apply payload', () => {
     const manualRangeRecipe = {
       type: 'manualRange' as const,
       ranges: [

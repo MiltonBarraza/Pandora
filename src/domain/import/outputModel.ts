@@ -159,7 +159,20 @@ function resolveManualRangeValue(row: InputRow, recipe: Extract<OutputColumn['re
     return '';
   }
 
-  return recipe.ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)?.value ?? '';
+  const range = recipe.ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber);
+  if (!range) {
+    return '';
+  }
+
+  if (range.valueSource?.type === 'fixedText') {
+    return range.valueSource.value;
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return range.valueSource.selectedText ?? '';
+  }
+
+  return range.value ?? '';
 }
 
 function matchesManualRangeCondition(row: InputRow, recipe: Extract<OutputColumn['recipe'], { type: 'manualRange' }>) {

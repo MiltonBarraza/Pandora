@@ -306,7 +306,7 @@ describe('settingsRemap', () => {
     expect(summary.outputColumnIds).toContain('output-direct');
   });
 
-  it('remaps manual range conditions without changing row numbers or fixed values', () => {
+  it('remaps manual range conditions and range text value sources without changing row numbers or fixed values', () => {
     const currentSettings = buildSettings();
     currentSettings.config.outputColumns = [
       {
@@ -317,7 +317,12 @@ describe('settingsRemap', () => {
         recipe: {
           type: 'manualRange',
           ranges: [
-            { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-manual-value', selectedText: 'Sinteplast' },
+            },
           ],
           condition: { inputColumnId: 'input-manual-condition', operator: 'isNotEmpty' },
         },
@@ -339,6 +344,7 @@ describe('settingsRemap', () => {
 
     const result = applyInputColumnRemapToSettings(currentSettings, {
       'input-manual-condition': 'input-200',
+      'input-manual-value': 'input-201',
     });
     const manualRangeRecipe = result.settings.config.outputColumns[0].recipe;
     const unconditionalRecipe = result.settings.config.outputColumns[1].recipe;
@@ -349,16 +355,27 @@ describe('settingsRemap', () => {
 
     expect(manualRangeRecipe.condition?.inputColumnId).toBe('input-200');
     expect(manualRangeRecipe.ranges).toEqual([
-      { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+      {
+        id: 'range-8-13',
+        startRowNumber: 8,
+        endRowNumber: 13,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-201', selectedText: 'Sinteplast' },
+      },
     ]);
     expect(unconditionalRecipe).toEqual(currentSettings.config.outputColumns[1].recipe);
-    expect(result.changedReferences).toEqual([
+    expect(result.changedReferences).toEqual(expect.arrayContaining([
       expect.objectContaining({
         columnId: 'input-manual-condition',
         kind: 'condition',
         path: 'config.outputColumns[0].recipe.condition',
       }),
-    ]);
+      expect.objectContaining({
+        columnId: 'input-manual-value',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueSource.inputColumnId',
+      }),
+    ]));
+    expect(result.changedReferences).toHaveLength(2);
     expect(result.unresolvedReferences).toEqual([]);
   });
 

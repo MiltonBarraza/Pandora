@@ -271,6 +271,36 @@ describe('settingsReferences', () => {
     expect(summary.inputColumnIds).toEqual(['input-code', 'input-filter']);
   });
 
+  it('collects manual range value source input references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-brand',
+        target: 'input',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueSource.inputColumnId',
+        outputColumnId: 'output-comment',
+      }),
+    ]));
+    expect(summary.inputColumnIds).toEqual(['input-brand', 'input-filter']);
+  });
+
   it('does not collect manual range input references when there is no condition', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({

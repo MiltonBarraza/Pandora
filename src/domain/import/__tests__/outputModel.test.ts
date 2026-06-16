@@ -157,7 +157,7 @@ describe('outputModel recipes', () => {
 });
 
 describe('outputModel manual range recipes', () => {
-  it('assigns fixed text to rows inside the configured range and empty text outside it', () => {
+  it('assigns fixed text from valueSource to rows inside the configured range and empty text outside it', () => {
     const rows = buildProcessedRows([
       { rowNumber: 7, values: { 'input-code': 'A7' } },
       { rowNumber: 8, values: { 'input-code': 'A8' } },
@@ -168,7 +168,14 @@ describe('outputModel manual range recipes', () => {
         id: 'comment',
         recipe: {
           type: 'manualRange',
-          ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' }],
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueSource: { type: 'fixedText', value: 'Cerda china mango amarillo' },
+            },
+          ],
         },
       }),
     ]);
@@ -179,6 +186,53 @@ describe('outputModel manual range recipes', () => {
       'Cerda china mango amarillo',
       '',
     ]);
+  });
+
+  it('keeps legacy manual range values working', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 14, values: { 'input-code': 'A14' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Legacy' }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Legacy', '']);
+  });
+
+  it('assigns selected text from rangeText value sources', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 9, values: { 'input-code': 'A9' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-8',
+              startRowNumber: 8,
+              endRowNumber: 8,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'Sinteplast' },
+            },
+            {
+              id: 'range-9-9',
+              startRowNumber: 9,
+              endRowNumber: 9,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: '' },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Sinteplast', '']);
   });
 
   it('uses real Excel row numbers from metadata, not internal row indexes', () => {

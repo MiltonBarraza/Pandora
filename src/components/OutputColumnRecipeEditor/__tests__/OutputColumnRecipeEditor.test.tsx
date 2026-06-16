@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
-import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeRowCount, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeValue, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
+import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { hasInvalidManualRange, hasOverlappingManualRanges } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
@@ -221,21 +221,105 @@ describe('constructor helpers', () => {
     const emptyRecipe = createManualRangeRecipe();
     const withRange = addManualRangeValue(emptyRecipe);
     const rangeId = withRange.ranges[0].id;
-    const edited = updateManualRangeValue(withRange, rangeId, {
+    const withRows = updateManualRangeValue(withRange, rangeId, {
       startRowNumber: 8,
       endRowNumber: 13,
-      value: 'Cerda china mango amarillo',
     });
+    const edited = updateManualRangeFixedTextValue(withRows, rangeId, 'Cerda china mango amarillo');
 
     expect(emptyRecipe).toEqual({ type: 'manualRange', ranges: [] });
     expect(edited.ranges[0]).toMatchObject({
       startRowNumber: 8,
       endRowNumber: 13,
-      value: 'Cerda china mango amarillo',
+      valueSource: { type: 'fixedText', value: 'Cerda china mango amarillo' },
     });
+    expect(getManualRangeFixedTextValue(edited.ranges[0])).toBe('Cerda china mango amarillo');
+    expect(getManualRangeFixedTextValue({ id: 'legacy', startRowNumber: 1, endRowNumber: 1, value: 'Legacy' })).toBe('Legacy');
     expect(getManualRangeRowCount(edited.ranges[0])).toBe('6');
     expect(getManualRangeRowCount({ startRowNumber: 13, endRowNumber: 8 })).toBe('');
     expect(removeManualRangeValue(edited, rangeId).ranges).toEqual([]);
+  });
+
+  it('configures manual range text sources', () => {
+    const emptyRecipe = createManualRangeRecipe();
+    const withRange = addManualRangeValue(emptyRecipe);
+    const rangeId = withRange.ranges[0].id;
+    const rangeTextRecipe = updateManualRangeValueSourceType(withRange, rangeId, 'rangeText', inputColumns);
+    const configured = updateManualRangeRangeTextValue(rangeTextRecipe, rangeId, {
+      inputColumnId: 'input-name',
+      selectedText: 'Sinteplast',
+    });
+
+    expect(manualRangeValueSourceOptions).toContainEqual({ value: 'rangeText', label: 'Texto encontrado en el rango' });
+    expect(getManualRangeValueSourceType(configured.ranges[0])).toBe('rangeText');
+    expect(getManualRangeRangeTextSource(configured.ranges[0])).toEqual({
+      type: 'rangeText',
+      inputColumnId: 'input-name',
+      selectedText: 'Sinteplast',
+    });
+    expect(configured.ranges[0]).not.toHaveProperty('value');
+  });
+
+  it('builds manual range text options from real row numbers', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 2, values: { 'input-name': 'Fuera' } },
+      { rowNumber: 8, values: { 'input-name': '  Sinteplast  ' } },
+      { rowNumber: 9, values: { 'input-name': '' } },
+      { rowNumber: 10, values: { 'input-name': 'Alba' } },
+      { rowNumber: 11, values: { 'input-name': 'Sinteplast' } },
+      { rowNumber: 20, values: { 'input-name': 'Fuera final' } },
+    ];
+
+    expect(getManualRangeTextOptions(rows, { startRowNumber: 8, endRowNumber: 11 }, 'input-name')).toEqual([
+      'Sinteplast',
+      'Alba',
+    ]);
+  });
+
+  it('keeps the selected range text option when it is not in current rows', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'Alba' } },
+    ];
+    const source = { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: 'Sinteplast' };
+
+    expect(getManualRangeSelectedTextOptions(rows, { startRowNumber: 8, endRowNumber: 8 }, source)).toEqual([
+      'Sinteplast',
+      'Alba',
+    ]);
+  });
+
+  it('describes missing range text setup states', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': '' } },
+    ];
+
+    expect(getManualRangeRangeTextHelpText(
+      rows,
+      { startRowNumber: 8, endRowNumber: 8 },
+      { type: 'rangeText', inputColumnId: '', selectedText: '' },
+    )).toBe('Elegí una columna para buscar textos.');
+    expect(getManualRangeRangeTextHelpText(
+      rows,
+      { startRowNumber: 8, endRowNumber: 8 },
+      { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' },
+    )).toBe('No se encontraron textos en este rango.');
+  });
+
+  it('shows legacy manual range values as fixed text when editing source type', () => {
+    const legacyRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [
+        { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Legacy' },
+      ],
+    };
+    const fixedTextRecipe = updateManualRangeValueSourceType(legacyRecipe, 'range-8-13', 'fixedText');
+
+    expect(getManualRangeValueSourceType(legacyRecipe.ranges[0])).toBe('fixedText');
+    expect(getManualRangeFixedTextValue(legacyRecipe.ranges[0])).toBe('Legacy');
+    expect(fixedTextRecipe.ranges[0]).toMatchObject({
+      valueSource: { type: 'fixedText', value: 'Legacy' },
+    });
+    expect(fixedTextRecipe.ranges[0]).not.toHaveProperty('value');
   });
 
   it('builds compact manual range summary labels', () => {

@@ -4,6 +4,8 @@ import type {
   DateInputFormat,
   DateInvalidFallback,
   DateOutputFormat,
+  ManualRangeCondition,
+  ManualRangeValue,
   OutputColumn,
   OutputRecipe,
   RecipePart,
@@ -99,7 +101,71 @@ function normalizeRecipe(recipe?: Partial<OutputRecipe>): OutputRecipe {
     };
   }
 
+  if (recipe?.type === 'manualRange') {
+    const condition = recipe.condition ? normalizeManualRangeCondition(recipe.condition) : undefined;
+    return {
+      type: 'manualRange',
+      ranges: normalizeManualRanges(recipe.ranges),
+      ...(condition ? { condition } : {}),
+    };
+  }
+
   return { type: 'empty' };
+}
+
+function normalizeManualRanges(ranges?: Partial<ManualRangeValue>[]): ManualRangeValue[] {
+  return (ranges ?? [])
+    .map(normalizeManualRange)
+    .filter((range): range is ManualRangeValue => Boolean(range));
+}
+
+function normalizeManualRange(range: Partial<ManualRangeValue>): ManualRangeValue | null {
+  const startRowNumber = normalizeManualRangeNumber(range.startRowNumber);
+  const endRowNumber = normalizeManualRangeNumber(range.endRowNumber);
+  if (!startRowNumber || !endRowNumber) {
+    return null;
+  }
+
+  if (range.valueSource?.type === 'fixedText') {
+    return {
+      id: range.id ?? crypto.randomUUID(),
+      startRowNumber,
+      endRowNumber,
+      valueSource: { type: 'fixedText', value: range.valueSource.value ?? '' },
+    };
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return {
+      id: range.id ?? crypto.randomUUID(),
+      startRowNumber,
+      endRowNumber,
+      valueSource: {
+        type: 'rangeText',
+        inputColumnId: range.valueSource.inputColumnId ?? '',
+        selectedText: range.valueSource.selectedText ?? '',
+      },
+    };
+  }
+
+  return {
+    id: range.id ?? crypto.randomUUID(),
+    startRowNumber,
+    endRowNumber,
+    value: range.value ?? '',
+  };
+}
+
+function normalizeManualRangeNumber(value: number | undefined) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function normalizeManualRangeCondition(condition: ManualRangeCondition): ManualRangeCondition | undefined {
+  if (!condition.inputColumnId || (condition.operator !== 'isEmpty' && condition.operator !== 'isNotEmpty')) {
+    return undefined;
+  }
+
+  return condition;
 }
 
 function normalizeCustomValueMode(mode: Partial<Extract<OutputRecipe, { type: 'combine' }>>['customMode']) {

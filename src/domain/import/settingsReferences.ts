@@ -102,6 +102,7 @@ function collectOutputRecipeReferences(
   }
 
   if (recipe.type === 'manualRange') {
+    collectManualRangeValueSourceReferences(recipe, path, context);
     collectManualRangeConditionReference(recipe.condition, {
       ...context,
       path: `${path}.condition`,
@@ -115,6 +116,24 @@ function collectOutputRecipeReferences(
 
   recipe.parts.forEach((part, partIndex) => {
     collectRecipePartReferences(part, `${path}.parts[${partIndex}]`, context);
+  });
+}
+
+function collectManualRangeValueSourceReferences(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  path: string,
+  context: ReferenceCollectorContext,
+) {
+  recipe.ranges.forEach((range, rangeIndex) => {
+    if (range.valueSource?.type !== 'rangeText') {
+      return;
+    }
+
+    addInputReference(context, range.valueSource.inputColumnId, {
+      kind: 'manualRangeValueSource',
+      path: `${path}.ranges[${rangeIndex}].valueSource.inputColumnId`,
+      outputColumnId: context.outputColumnId,
+    });
   });
 }
 

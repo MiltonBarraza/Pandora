@@ -153,11 +153,23 @@ export type ManualRangeCondition = {
   operator: 'isEmpty' | 'isNotEmpty';
 };
 
+export type ManualRangeValueSource =
+  | {
+      type: 'fixedText';
+      value: string;
+    }
+  | {
+      type: 'rangeText';
+      inputColumnId: string;
+      selectedText: string;
+    };
+
 export type ManualRangeValue = {
   id: string;
   startRowNumber: number;
   endRowNumber: number;
-  value: string;
+  valueSource?: ManualRangeValueSource;
+  value?: string;
 };
 
 export type OutputRecipe =
@@ -405,6 +417,7 @@ export type SettingsReferenceKind =
   | 'transformStepOperand'
   | 'concatPartSource'
   | 'concatPartTransform'
+  | 'manualRangeValueSource'
   | 'condition'
   | 'inputIgnoreRule'
   | 'outputIgnoreRule';
