@@ -74,6 +74,20 @@ function remapOutputRecipe(recipe: OutputRecipe, remap: InputColumnRemap): Outpu
     };
   }
 
+  if (recipe.type === 'manualRange') {
+    if (!recipe.condition) {
+      return recipe;
+    }
+
+    return {
+      ...recipe,
+      condition: {
+        ...recipe.condition,
+        inputColumnId: remapInputColumnId(recipe.condition.inputColumnId, remap),
+      },
+    };
+  }
+
   return recipe;
 }
 

@@ -306,6 +306,62 @@ describe('settingsRemap', () => {
     expect(summary.outputColumnIds).toContain('output-direct');
   });
 
+  it('remaps manual range conditions without changing row numbers or fixed values', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+          ],
+          condition: { inputColumnId: 'input-manual-condition', operator: 'isNotEmpty' },
+        },
+      },
+      {
+        id: 'output-comment-unconditional',
+        label: 'Comentario sin condicion',
+        order: 1,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            { id: 'range-20-21', startRowNumber: 20, endRowNumber: 21, value: 'Texto fijo' },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-manual-condition': 'input-200',
+    });
+    const manualRangeRecipe = result.settings.config.outputColumns[0].recipe;
+    const unconditionalRecipe = result.settings.config.outputColumns[1].recipe;
+
+    if (manualRangeRecipe.type !== 'manualRange' || unconditionalRecipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipes');
+    }
+
+    expect(manualRangeRecipe.condition?.inputColumnId).toBe('input-200');
+    expect(manualRangeRecipe.ranges).toEqual([
+      { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+    ]);
+    expect(unconditionalRecipe).toEqual(currentSettings.config.outputColumns[1].recipe);
+    expect(result.changedReferences).toEqual([
+      expect.objectContaining({
+        columnId: 'input-manual-condition',
+        kind: 'condition',
+        path: 'config.outputColumns[0].recipe.condition',
+      }),
+    ]);
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
   it('remaps simple ids and detects whether a remap has entries', () => {
     expect(remapInputColumnId('input-a', { 'input-a': 'input-b' })).toBe('input-b');
     expect(remapInputColumnId('input-a', {})).toBe('input-a');

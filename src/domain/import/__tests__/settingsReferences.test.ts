@@ -245,6 +245,53 @@ describe('settingsReferences', () => {
     ]));
   });
 
+  it('collects manual range condition input references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+          ],
+          condition: { inputColumnId: 'input-code', operator: 'isNotEmpty' },
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-code',
+        target: 'input',
+        kind: 'condition',
+        path: 'config.outputColumns[0].recipe.condition',
+        outputColumnId: 'output-comment',
+      }),
+    ]));
+    expect(summary.inputColumnIds).toEqual(['input-code', 'input-filter']);
+  });
+
+  it('does not collect manual range input references when there is no condition', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.inputColumnIds).toEqual(['input-filter']);
+    expect(summary.references).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        path: 'config.outputColumns[0].recipe.condition',
+      }),
+    ]));
+  });
+
   it('groups references by column id and keeps deterministic unique ids', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({

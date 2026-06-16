@@ -75,6 +75,36 @@ describe('settingsFileService', () => {
     });
   });
 
+  it('serializes and parses manual range recipes without changing them', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'manualRange',
+              ranges: [
+                { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+              ],
+              condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
   it('returns a controlled error for invalid JSON', () => {
     const result = parseImportSettingsJson('{invalid');
 

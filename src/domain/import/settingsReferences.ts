@@ -101,12 +101,37 @@ function collectOutputRecipeReferences(
     collectTransformSteps(recipe.steps ?? [], `${path}.steps`, context);
   }
 
+  if (recipe.type === 'manualRange') {
+    collectManualRangeConditionReference(recipe.condition, {
+      ...context,
+      path: `${path}.condition`,
+    });
+    return;
+  }
+
   if (recipe.type !== 'combine') {
     return;
   }
 
   recipe.parts.forEach((part, partIndex) => {
     collectRecipePartReferences(part, `${path}.parts[${partIndex}]`, context);
+  });
+}
+
+function collectManualRangeConditionReference(
+  condition: Extract<OutputRecipe, { type: 'manualRange' }>['condition'],
+  options: ReferenceCollectorContext & {
+    path: string;
+  },
+) {
+  if (!condition?.inputColumnId) {
+    return;
+  }
+
+  addInputReference(options, condition.inputColumnId, {
+    kind: 'condition',
+    path: options.path,
+    outputColumnId: options.outputColumnId,
   });
 }
 
