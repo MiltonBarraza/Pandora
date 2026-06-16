@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeRowCount, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeValue, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { hasInvalidManualRange, hasOverlappingManualRanges } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -249,6 +250,22 @@ describe('constructor helpers', () => {
     expect(getManualRangeCountLabel(recipe)).toBe('1 rango configurado');
     expect(describeManualRangeCondition(recipe, inputColumns)).toBe('A no está vacía');
     expect(describeManualRangeCondition({ type: 'manualRange', ranges: [] }, inputColumns)).toBe('Sin condición');
+  });
+
+  it('handles manual range edge labels and warnings', () => {
+    expect(getManualRangeCountLabel({ type: 'manualRange', ranges: [] })).toBe('0 rangos configurados');
+    expect(getManualRangeRowCount({ startRowNumber: 0, endRowNumber: 8 })).toBe('');
+    expect(getManualRangeRowCount({ startRowNumber: 8, endRowNumber: 7 })).toBe('');
+    expect(hasInvalidManualRange({ startRowNumber: 8, endRowNumber: 7 })).toBe(true);
+    expect(hasOverlappingManualRanges([
+      { id: 'first', startRowNumber: 8, endRowNumber: 13, value: 'Primero' },
+      { id: 'second', startRowNumber: 12, endRowNumber: 15, value: 'Segundo' },
+    ])).toBe(true);
+    expect(hasOverlappingManualRanges([
+      { id: 'first', startRowNumber: 8, endRowNumber: 13, value: 'Primero' },
+      { id: 'second', startRowNumber: 14, endRowNumber: 15, value: 'Segundo' },
+      { id: 'invalid', startRowNumber: 20, endRowNumber: 19, value: 'Revisar' },
+    ])).toBe(false);
   });
 
   it('configures and clears manual range conditions', () => {

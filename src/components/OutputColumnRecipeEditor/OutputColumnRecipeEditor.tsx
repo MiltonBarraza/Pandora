@@ -383,6 +383,24 @@ export function getManualRangeRowCount(range: Pick<ManualRangeValue, 'startRowNu
   return String(range.endRowNumber - range.startRowNumber + 1);
 }
 
+export function hasInvalidManualRange(range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>) {
+  return getManualRangeRowCount(range) === '';
+}
+
+export function hasOverlappingManualRanges(ranges: ManualRangeValue[]) {
+  return ranges.some((range, index) => {
+    if (hasInvalidManualRange(range)) {
+      return false;
+    }
+
+    return ranges.slice(0, index).some((previousRange) => (
+      !hasInvalidManualRange(previousRange) &&
+      range.startRowNumber <= previousRange.endRowNumber &&
+      previousRange.startRowNumber <= range.endRowNumber
+    ));
+  });
+}
+
 export function addManualRangeValue(recipe: Extract<OutputRecipe, { type: 'manualRange' }>): Extract<OutputRecipe, { type: 'manualRange' }> {
   return {
     ...recipe,
@@ -507,6 +525,7 @@ function ManualRangeRecipeEditor({
 }) {
   const conditionMode = recipe.condition ? recipe.condition.operator : '';
   const conditionInputColumnId = recipe.condition?.inputColumnId ?? inputColumns[0]?.id ?? '';
+  const hasOverlappingRanges = hasOverlappingManualRanges(recipe.ranges);
   const updateCondition = (operator: '' | ManualRangeCondition['operator'], inputColumnId = conditionInputColumnId) => {
     onChange(updateManualRangeCondition(
       recipe,
@@ -566,64 +585,69 @@ function ManualRangeRecipeEditor({
       {recipe.ranges.length === 0 ? (
         <p className="muted">No hay rangos configurados.</p>
       ) : (
-        <div className="tableWrap manualRangeTable">
-          <table>
-            <thead>
-              <tr>
-                <th>Inicio</th>
-                <th>Fin</th>
-                <th>Filas</th>
-                <th>Valor</th>
-                <th aria-label="Acciones" />
-              </tr>
-            </thead>
-            <tbody>
-              {recipe.ranges.map((range) => (
-                <tr key={range.id}>
-                  <td>
-                    <input
-                      aria-label="Inicio"
-                      type="number"
-                      min="1"
-                      value={range.startRowNumber}
-                      onChange={(event) => {
-                        const value = parseOptionalNumberInput(event.target.value);
-                        if (value !== undefined) {
-                          onChange(updateManualRangeValue(recipe, range.id, { startRowNumber: value }));
-                        }
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      aria-label="Fin"
-                      type="number"
-                      min="1"
-                      value={range.endRowNumber}
-                      onChange={(event) => {
-                        const value = parseOptionalNumberInput(event.target.value);
-                        if (value !== undefined) {
-                          onChange(updateManualRangeValue(recipe, range.id, { endRowNumber: value }));
-                        }
-                      }}
-                    />
-                  </td>
-                  <td>{getManualRangeRowCount(range) || '-'}</td>
-                  <td>
-                    <input
-                      aria-label="Valor"
-                      value={range.value}
-                      onChange={(event) => onChange(updateManualRangeValue(recipe, range.id, { value: event.target.value }))}
-                    />
-                  </td>
-                  <td>
-                    <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
-                  </td>
+        <>
+          {hasOverlappingRanges ? (
+            <p className="manualRangeWarning">Hay rangos superpuestos. En filas repetidas se usará el primer rango configurado.</p>
+          ) : null}
+          <div className="tableWrap manualRangeTable">
+            <table>
+              <thead>
+                <tr>
+                  <th>Inicio</th>
+                  <th>Fin</th>
+                  <th>Filas</th>
+                  <th>Valor</th>
+                  <th aria-label="Acciones" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recipe.ranges.map((range) => (
+                  <tr key={range.id}>
+                    <td>
+                      <input
+                        aria-label="Inicio"
+                        type="number"
+                        min="1"
+                        value={range.startRowNumber}
+                        onChange={(event) => {
+                          const value = parseOptionalNumberInput(event.target.value);
+                          if (value !== undefined) {
+                            onChange(updateManualRangeValue(recipe, range.id, { startRowNumber: value }));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        aria-label="Fin"
+                        type="number"
+                        min="1"
+                        value={range.endRowNumber}
+                        onChange={(event) => {
+                          const value = parseOptionalNumberInput(event.target.value);
+                          if (value !== undefined) {
+                            onChange(updateManualRangeValue(recipe, range.id, { endRowNumber: value }));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>{getManualRangeRowCount(range) || '-'}</td>
+                    <td>
+                      <input
+                        aria-label="Valor"
+                        value={range.value}
+                        onChange={(event) => onChange(updateManualRangeValue(recipe, range.id, { value: event.target.value }))}
+                      />
+                    </td>
+                    <td>
+                      <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
