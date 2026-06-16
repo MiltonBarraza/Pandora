@@ -14,7 +14,7 @@ import type {
 } from '../../types/import';
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
 import { applyFormatDateStep } from './dateOperations';
-import { evaluateTransformCondition } from './evaluateCondition';
+import { evaluateTextCondition, evaluateTransformCondition } from './evaluateCondition';
 import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
 
@@ -140,13 +140,34 @@ function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: R
       value: finalResult.value,
       warnings: [...result.warnings, ...finalResult.warnings],
     };
+  } else if (column.recipe.type === 'manualRange') {
+    return {
+      value: resolveManualRangeValue(row, column.recipe),
+      warnings: [],
+    };
   }
 
   return applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
 }
 
 function getRecipeSteps(recipe: OutputColumn['recipe']) {
-  return recipe.type === 'empty' ? [] : recipe.steps ?? [];
+  return 'steps' in recipe ? recipe.steps ?? [] : [];
+}
+
+function resolveManualRangeValue(row: InputRow, recipe: Extract<OutputColumn['recipe'], { type: 'manualRange' }>) {
+  if (!matchesManualRangeCondition(row, recipe)) {
+    return '';
+  }
+
+  return recipe.ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)?.value ?? '';
+}
+
+function matchesManualRangeCondition(row: InputRow, recipe: Extract<OutputColumn['recipe'], { type: 'manualRange' }>) {
+  if (!recipe.condition) {
+    return true;
+  }
+
+  return evaluateTextCondition(row.values[recipe.condition.inputColumnId] ?? '', recipe.condition.operator);
 }
 
 function resolveCombinedValue(

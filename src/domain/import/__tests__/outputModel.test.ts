@@ -156,6 +156,120 @@ describe('outputModel recipes', () => {
   });
 });
 
+describe('outputModel manual range recipes', () => {
+  it('assigns fixed text to rows inside the configured range and empty text outside it', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 7, values: { 'input-code': 'A7' } },
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 13, values: { 'input-code': 'A13' } },
+      { rowNumber: 14, values: { 'input-code': 'A14' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual([
+      '',
+      'Cerda china mango amarillo',
+      'Cerda china mango amarillo',
+      '',
+    ]);
+  });
+
+  it('uses real Excel row numbers from metadata, not internal row indexes', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A13'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 13 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns: [
+        outputColumn({
+          id: 'comment',
+          recipe: {
+            type: 'manualRange',
+            ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Dentro' }],
+          },
+        }),
+      ],
+    });
+
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      comment: row.outputValues.comment,
+    }))).toEqual([
+      { rowNumber: 8, comment: 'Dentro' },
+      { rowNumber: 13, comment: 'Dentro' },
+    ]);
+  });
+
+  it('respects an input condition such as column B is not empty', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-0': 'A8', 'input-1': 'B8' } },
+      { rowNumber: 9, values: { 'input-0': 'A9', 'input-1': '' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Con codigo' }],
+          condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Con codigo', '']);
+  });
+
+  it('applies to every row in range when no condition is configured', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-0': 'A8', 'input-1': '' } },
+      { rowNumber: 9, values: { 'input-0': 'A9', 'input-1': 'B9' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Sin condicion' }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Sin condicion', 'Sin condicion']);
+  });
+
+  it('uses the first configured range when ranges overlap', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 10, values: { 'input-0': 'A10' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            { id: 'first', startRowNumber: 8, endRowNumber: 12, value: 'Primero' },
+            { id: 'second', startRowNumber: 10, endRowNumber: 13, value: 'Segundo' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.comment).toBe('Primero');
+  });
+});
+
 describe('outputModel input filters', () => {
   it('filters input rows before building processed rows', () => {
     const columns: ColumnAnalysis[] = [

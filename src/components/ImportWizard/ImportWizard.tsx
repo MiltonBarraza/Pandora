@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
-import { getSheetRows } from '../../domain/import/getSheetRows';
+import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
@@ -15,7 +15,7 @@ import { defaultFileNameSettings, loadFileNameSettings, normalizeFileNameSetting
 import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from '../../services/localOutputColumnsService';
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { showInfoToast } from '../../services/toastService';
-import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -39,6 +39,7 @@ export function ImportWizard() {
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
   const [selectedSheet, setSelectedSheet] = useState('');
   const [rows, setRows] = useState<RawRow[]>([]);
+  const [rowMetadata, setRowMetadata] = useState<SheetRowMetadata[]>([]);
   const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
   const [startRowIndex, setStartRowIndex] = useState(0);
   const [startRowInputValue, setStartRowInputValue] = useState('1');
@@ -109,8 +110,9 @@ export function ImportWizard() {
         startRowIndex,
         outputColumns,
         inputIgnoreRules,
+        rowMetadata,
       }),
-    [rows, columnAnalysis, startRowIndex, outputColumns, inputIgnoreRules],
+    [rows, columnAnalysis, startRowIndex, outputColumns, inputIgnoreRules, rowMetadata],
   );
   const outputFilteredRows = useMemo(
     () =>
@@ -179,7 +181,9 @@ export function ImportWizard() {
       return;
     }
 
-    setRows(getSheetRows(workbook, selectedSheet));
+    const sheetRows = getSheetRowsWithMetadata(workbook, selectedSheet);
+    setRows(sheetRows.rows);
+    setRowMetadata(sheetRows.rowMetadata);
   }, [workbook, selectedSheet, fileType]);
 
   useEffect(() => {
@@ -253,6 +257,7 @@ export function ImportWizard() {
     setWorkbook(null);
     setSelectedSheet('');
     setRows([]);
+    setRowMetadata([]);
     setReadError('');
   };
 
@@ -293,6 +298,7 @@ export function ImportWizard() {
         setWorkbook(null);
         setSelectedSheet('');
         setRows(csvRows);
+        setRowMetadata([]);
         setFileType('csv');
         return;
       }
@@ -304,7 +310,11 @@ export function ImportWizard() {
       setFileName(file.name);
       setWorkbook(nextWorkbook);
       setSelectedSheet(nextWorkbook.SheetNames[0] ?? '');
-      setRows(nextWorkbook.SheetNames[0] ? getSheetRows(nextWorkbook, nextWorkbook.SheetNames[0]) : []);
+      const sheetRows = nextWorkbook.SheetNames[0]
+        ? getSheetRowsWithMetadata(nextWorkbook, nextWorkbook.SheetNames[0])
+        : { rows: [], rowMetadata: [] };
+      setRows(sheetRows.rows);
+      setRowMetadata(sheetRows.rowMetadata);
       setFileType('spreadsheet');
     } catch {
       setReadError('No se pudo leer el archivo. Revisa que sea .xlsx, .xls, .xlsm o .csv.');
@@ -386,7 +396,9 @@ export function ImportWizard() {
       notifyConfigurationDiscarded();
       resetWizardConfiguration();
       setSelectedSheet(sheetName);
-      setRows(workbook ? getSheetRows(workbook, sheetName) : []);
+      const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
+      setRows(sheetRows.rows);
+      setRowMetadata(sheetRows.rowMetadata);
     };
 
     if (isConfigurationDirty) {

@@ -148,6 +148,18 @@ export type RecipePart =
 
 export type CustomValueMode = 'number' | 'text' | 'concat';
 
+export type ManualRangeCondition = {
+  inputColumnId: string;
+  operator: 'isEmpty' | 'isNotEmpty';
+};
+
+export type ManualRangeValue = {
+  id: string;
+  startRowNumber: number;
+  endRowNumber: number;
+  value: string;
+};
+
 export type OutputRecipe =
   | {
       type: 'direct';
@@ -168,6 +180,11 @@ export type OutputRecipe =
       separator?: string;
       steps?: TransformStep[];
       customMode?: CustomValueMode;
+    }
+  | {
+      type: 'manualRange';
+      ranges: ManualRangeValue[];
+      condition?: ManualRangeCondition;
     };
 
 export type OutputColumn = {
