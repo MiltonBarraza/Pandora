@@ -1430,6 +1430,41 @@ tbody tr:hover {
   grid-column: 1 / -1;
 }
 
+.manualRangeStepGrid {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manualRangeStepFields,
+.manualRangeStepCondition {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+.manualRangeStepFields .manualRangeEditor {
+  margin: 0;
+  width: 100%;
+}
+
+.manualRangeStepFields .sectionHeader {
+  align-items: center;
+}
+
+.manualRangeStepFields .manualRangeCondition {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.manualRangeStepCondition {
+  border-top: 1px solid var(--color-magic-border);
+  padding-top: 10px;
+}
+
 .concatStepTopRow {
   align-items: end;
   display: grid;

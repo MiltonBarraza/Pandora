@@ -48,6 +48,7 @@ export type TransformStepType =
   | 'toNumber'
   | 'toText'
   | 'formatDate'
+  | 'manualRange'
   | 'numericOperation';
 
 export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date';
@@ -116,6 +117,8 @@ export type TransformStep = {
   dateOutputFormat?: DateOutputFormat;
   dateInvalidFallback?: DateInvalidFallback;
   dateInvalidFallbackText?: string;
+  ranges?: ManualRangeValue[];
+  manualRangeCondition?: ManualRangeCondition;
   condition?: TransformCondition;
   applyToEmptyValues?: boolean;
 };

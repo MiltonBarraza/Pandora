@@ -301,6 +301,54 @@ describe('settingsReferences', () => {
     expect(summary.inputColumnIds).toEqual(['input-brand', 'input-filter']);
   });
 
+  it('collects manual range step value source and condition input references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'combine',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'range-step',
+              type: 'manualRange',
+              ranges: [
+                {
+                  id: 'range-8-13',
+                  startRowNumber: 8,
+                  endRowNumber: 13,
+                  valueSource: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+                },
+              ],
+              manualRangeCondition: { inputColumnId: 'input-code', operator: 'isNotEmpty' },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-brand',
+        target: 'input',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.steps[0].ranges[0].valueSource.inputColumnId',
+        outputColumnId: 'output-comment',
+        stepId: 'range-step',
+      }),
+      expect.objectContaining({
+        columnId: 'input-code',
+        target: 'input',
+        kind: 'condition',
+        path: 'config.outputColumns[0].recipe.steps[0].manualRangeCondition',
+        outputColumnId: 'output-comment',
+        stepId: 'range-step',
+      }),
+    ]));
+    expect(summary.inputColumnIds).toEqual(['input-brand', 'input-code', 'input-filter']);
+  });
+
   it('does not collect manual range input references when there is no condition', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({

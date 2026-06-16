@@ -53,6 +53,12 @@ function cloneStepsWithNewIds(steps?: TransformStep[]): TransformStep[] | undefi
     leftOperand: step.leftOperand ? { ...step.leftOperand } : undefined,
     rightOperand: step.rightOperand ? { ...step.rightOperand } : undefined,
     parts: cloneConcatPartsWithNewIds(step.parts),
+    ranges: step.ranges?.map((range) => ({
+      ...range,
+      id: crypto.randomUUID(),
+      valueSource: range.valueSource ? { ...range.valueSource } : undefined,
+    })),
+    manualRangeCondition: step.manualRangeCondition ? { ...step.manualRangeCondition } : undefined,
     condition: step.condition ? { ...step.condition } : undefined,
   }));
 }

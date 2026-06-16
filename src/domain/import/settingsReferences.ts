@@ -122,7 +122,7 @@ function collectOutputRecipeReferences(
 function collectManualRangeValueSourceReferences(
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
   path: string,
-  context: ReferenceCollectorContext,
+  context: ReferenceCollectorContext & { stepId?: string },
 ) {
   recipe.ranges.forEach((range, rangeIndex) => {
     if (range.valueSource?.type !== 'rangeText') {
@@ -133,6 +133,7 @@ function collectManualRangeValueSourceReferences(
       kind: 'manualRangeValueSource',
       path: `${path}.ranges[${rangeIndex}].valueSource.inputColumnId`,
       outputColumnId: context.outputColumnId,
+      stepId: context.stepId,
     });
   });
 }
@@ -141,6 +142,7 @@ function collectManualRangeConditionReference(
   condition: Extract<OutputRecipe, { type: 'manualRange' }>['condition'],
   options: ReferenceCollectorContext & {
     path: string;
+    stepId?: string;
   },
 ) {
   if (!condition?.inputColumnId) {
@@ -151,6 +153,7 @@ function collectManualRangeConditionReference(
     kind: 'condition',
     path: options.path,
     outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
   });
 }
 
@@ -199,6 +202,19 @@ function collectTransformStepReferences(step: TransformStep, path: string, conte
     path: `${path}.condition`,
     stepId: step.id,
   });
+
+  if (step.type === 'manualRange') {
+    collectManualRangeValueSourceReferences(
+      { type: 'manualRange', ranges: step.ranges ?? [], ...(step.manualRangeCondition ? { condition: step.manualRangeCondition } : {}) },
+      path,
+      { ...context, stepId: step.id },
+    );
+    collectManualRangeConditionReference(step.manualRangeCondition, {
+      ...context,
+      path: `${path}.manualRangeCondition`,
+      stepId: step.id,
+    });
+  }
 
   step.parts?.forEach((part, partIndex) => {
     collectConcatPartReferences(part, `${path}.parts[${partIndex}]`, {

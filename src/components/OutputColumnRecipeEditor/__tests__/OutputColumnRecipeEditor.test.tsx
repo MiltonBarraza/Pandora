@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
-import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, parseManualRangeRowInput, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, parseManualRangeRowInput, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { hasInvalidManualRange, hasOverlappingManualRanges } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
@@ -276,6 +276,53 @@ describe('constructor helpers', () => {
     ]);
   });
 
+  it('builds the same range text options for a direct manual range step', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 7, values: { 'input-code': 'Fuera' } },
+      { rowNumber: 8, values: { 'input-code': 'PINCELES SERIE 304' } },
+      { rowNumber: 9, values: { 'input-code': 'Cerda china mango amarillo' } },
+      { rowNumber: 13, values: { 'input-code': 'PINCELES SERIE 304' } },
+      { rowNumber: 14, values: { 'input-code': 'Fuera final' } },
+    ];
+    const step = {
+      id: 'range-step',
+      type: 'manualRange' as const,
+      ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13 }],
+    };
+    const range = manualRangeStepToRecipe(step).ranges[0];
+
+    expect(getManualRangeTextOptions(rows, range, 'input-code')).toEqual([
+      'PINCELES SERIE 304',
+      'Cerda china mango amarillo',
+    ]);
+  });
+
+  it('builds the same range text options for a manual range step inside a concat part', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 7, values: { 'input-code': 'Fuera' } },
+      { rowNumber: 8, values: { 'input-code': 'PINCELES SERIE 304' } },
+      { rowNumber: 9, values: { 'input-code': 'Cerda china mango amarillo' } },
+      { rowNumber: 13, values: { 'input-code': 'PINCELES SERIE 304' } },
+      { rowNumber: 14, values: { 'input-code': 'Fuera final' } },
+    ];
+    const concatPart = {
+      id: 'range-part',
+      source: { type: 'previousResult' as const },
+      steps: [{
+        id: 'nested-range-step',
+        type: 'manualRange' as const,
+        ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13 }],
+      }],
+    };
+    const rangeStep = getVisibleConcatPartPrimaryStep(concatPart.steps);
+    const range = manualRangeStepToRecipe(rangeStep).ranges[0];
+
+    expect(getManualRangeTextOptions(rows, range, 'input-code')).toEqual([
+      'PINCELES SERIE 304',
+      'Cerda china mango amarillo',
+    ]);
+  });
+
   it('keeps the selected range text option when it is not in current rows', () => {
     const rows: InputRow[] = [
       { rowNumber: 8, values: { 'input-name': 'Alba' } },
@@ -350,6 +397,28 @@ describe('constructor helpers', () => {
       { id: 'second', startRowNumber: 14, endRowNumber: 15, value: 'Segundo' },
       { id: 'invalid', startRowNumber: 20, endRowNumber: 19, value: 'Revisar' },
     ])).toBe(false);
+  });
+
+  it('treats manual range as a step payload for the normal custom value editor', () => {
+    const step = {
+      id: 'range-step',
+      type: 'manualRange' as const,
+      mode: 'text' as const,
+      ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Promo' }],
+      manualRangeCondition: { inputColumnId: 'input-name', operator: 'isNotEmpty' as const },
+    };
+
+    const recipe = manualRangeStepToRecipe(step);
+
+    expect(recipe).toEqual({
+      type: 'manualRange',
+      ranges: step.ranges,
+      condition: step.manualRangeCondition,
+    });
+    expect(manualRangeRecipeToStepPatch(recipe)).toEqual({
+      ranges: step.ranges,
+      manualRangeCondition: step.manualRangeCondition,
+    });
   });
 
   it('keeps manual range row inputs invalid while editing empty or invalid values', () => {
@@ -582,6 +651,7 @@ describe('constructor helpers', () => {
   it('filters step options by step mode', () => {
     expect(getStepTypesForMode('text').find((stepType) => stepType.value === 'noop')?.label).toBe('Usar valor tal cual');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('addSuffix');
+    expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('manualRange');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('concat');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).not.toContain('numericOperation');
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).toContain('numericOperation');

@@ -205,6 +205,95 @@ describe('outputModel manual range recipes', () => {
     expect(rows.map((row) => row.outputValues.comment)).toEqual(['Legacy', '']);
   });
 
+  it('uses manual range as a normal custom value step before later transformations', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+      { rowNumber: 14, values: { 'input-code': 'A14', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'range',
+              type: 'manualRange',
+              mode: 'text',
+              ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: '  promo ' }],
+            },
+            { id: 'trim', type: 'trim', mode: 'text' },
+            { id: 'suffix', type: 'addSuffix', mode: 'text', value: '-OK' },
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                { id: 'previous', source: { type: 'previousResult' } },
+                { id: 'brand', source: { type: 'input', inputColumnId: 'input-brand' }, separatorBefore: '-' },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['promo-OK-Marca', '-Marca']);
+  });
+
+  it('uses selected range text from a manual range step inside a concat part', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+      { rowNumber: 14, values: { 'input-code': 'A14', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                {
+                  id: 'range-part',
+                  source: { type: 'previousResult' },
+                  steps: [{
+                    id: 'nested-range',
+                    type: 'manualRange',
+                    mode: 'text',
+                    ranges: [{
+                      id: 'range-8-13',
+                      startRowNumber: 8,
+                      endRowNumber: 13,
+                      valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'PINCELES SERIE 304' },
+                    }],
+                  }],
+                },
+                {
+                  id: 'brand-part',
+                  source: { type: 'input', inputColumnId: 'input-brand' },
+                  separatorBefore: ' - ',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual([
+      'PINCELES SERIE 304 - Marca',
+      ' - Marca',
+    ]);
+  });
+
   it('assigns selected text from rangeText value sources', () => {
     const rows = buildProcessedRows([
       { rowNumber: 8, values: { 'input-code': 'A8' } },

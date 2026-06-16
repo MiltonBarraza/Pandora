@@ -379,6 +379,73 @@ describe('settingsRemap', () => {
     expect(result.unresolvedReferences).toEqual([]);
   });
 
+  it('remaps manual range steps inside custom value recipes', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'combine',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'range-step',
+              type: 'manualRange',
+              ranges: [
+                {
+                  id: 'range-8-13',
+                  startRowNumber: 8,
+                  endRowNumber: 13,
+                  valueSource: { type: 'rangeText', inputColumnId: 'input-manual-value', selectedText: 'Sinteplast' },
+                },
+              ],
+              manualRangeCondition: { inputColumnId: 'input-manual-condition', operator: 'isNotEmpty' },
+            },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-manual-condition': 'input-200',
+      'input-manual-value': 'input-201',
+    });
+    const recipe = result.settings.config.outputColumns[0].recipe;
+
+    if (recipe.type !== 'combine') {
+      throw new Error('Expected combine recipe');
+    }
+
+    expect(recipe.steps?.[0]).toMatchObject({
+      manualRangeCondition: { inputColumnId: 'input-200', operator: 'isNotEmpty' },
+      ranges: [
+        {
+          valueSource: { type: 'rangeText', inputColumnId: 'input-201', selectedText: 'Sinteplast' },
+        },
+      ],
+    });
+    expect(result.changedReferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-manual-condition',
+        kind: 'condition',
+        path: 'config.outputColumns[0].recipe.steps[0].manualRangeCondition',
+        stepId: 'range-step',
+      }),
+      expect.objectContaining({
+        columnId: 'input-manual-value',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.steps[0].ranges[0].valueSource.inputColumnId',
+        stepId: 'range-step',
+      }),
+    ]));
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
   it('remaps simple ids and detects whether a remap has entries', () => {
     expect(remapInputColumnId('input-a', { 'input-a': 'input-b' })).toBe('input-b');
     expect(remapInputColumnId('input-a', {})).toBe('input-a');

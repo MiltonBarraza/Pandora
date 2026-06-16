@@ -135,7 +135,7 @@ function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: R
   } else if (column.recipe.type === 'combine') {
     const result = resolveCombinedValue(row, column.recipe.parts, column.recipe.separator, outputValues, column.id);
     value = result.value;
-    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row, outputValues, column.id);
     return {
       value: finalResult.value,
       warnings: [...result.warnings, ...finalResult.warnings],
@@ -147,14 +147,14 @@ function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: R
     };
   }
 
-  return applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+  return applyTransformSteps(value, getRecipeSteps(column.recipe), row, outputValues, column.id);
 }
 
 function getRecipeSteps(recipe: OutputColumn['recipe']) {
   return 'steps' in recipe ? recipe.steps ?? [] : [];
 }
 
-function resolveManualRangeValue(row: InputRow, recipe: Extract<OutputColumn['recipe'], { type: 'manualRange' }>) {
+function resolveManualRangeValue(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'ranges' | 'condition'>) {
   if (!matchesManualRangeCondition(row, recipe)) {
     return '';
   }
@@ -175,7 +175,7 @@ function resolveManualRangeValue(row: InputRow, recipe: Extract<OutputColumn['re
   return range.value ?? '';
 }
 
-function matchesManualRangeCondition(row: InputRow, recipe: Extract<OutputColumn['recipe'], { type: 'manualRange' }>) {
+function matchesManualRangeCondition(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'condition'>) {
   if (!recipe.condition) {
     return true;
   }
@@ -193,7 +193,7 @@ function resolveCombinedValue(
   const warnings: string[] = [];
   const values = parts.map((part) => {
     const baseValue = part.type === 'input' ? row.values[part.inputColumnId] ?? '' : part.value;
-    const result = applyTransformSteps(baseValue, part.steps ?? [], row.values, outputValues, currentOutputColumnId);
+    const result = applyTransformSteps(baseValue, part.steps ?? [], row, outputValues, currentOutputColumnId);
     warnings.push(...result.warnings);
     return result.value;
   });
@@ -229,7 +229,7 @@ function getPartSeparator(part: RecipePart, globalSeparator?: string) {
 function applyTransformSteps(
   value: string,
   steps: TransformStep[],
-  inputValues: Record<string, string>,
+  row: InputRow,
   outputValues: Record<string, string>,
   currentOutputColumnId: string,
 ): TransformResult {
@@ -240,7 +240,7 @@ function applyTransformSteps(
         [currentOutputColumnId]: currentResult.value,
       };
       const conditionResult = evaluateTransformCondition({
-        inputValues,
+        inputValues: row.values,
         outputValues: nextOutputValues,
         condition: step.condition,
       });
@@ -255,7 +255,8 @@ function applyTransformSteps(
       }
 
       const nextResult = applyTransformStep(currentResult.value, step, {
-        inputValues,
+        inputValues: row.values,
+        row,
         outputValues: nextOutputValues,
         currentOutputColumnId,
         stepIndex,
@@ -271,6 +272,7 @@ function applyTransformSteps(
 
 type TransformStepContext = {
   inputValues: Record<string, string>;
+  row: InputRow;
   outputValues: Record<string, string>;
   currentOutputColumnId: string;
   stepIndex: number;
@@ -340,6 +342,16 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
     return { value: applyFormatDateStep(value, step), warnings: [] };
   }
 
+  if (step.type === 'manualRange') {
+    return {
+      value: resolveManualRangeValue(context.row, {
+        ranges: step.ranges ?? [],
+        condition: step.manualRangeCondition,
+      }),
+      warnings: [],
+    };
+  }
+
   if (step.type === 'concat') {
     return applyConcatTransformStep(step, {
       ...context,
@@ -397,7 +409,7 @@ function applyConcatTransformStep(step: TransformStep, context: StepValueContext
     const result = applyTransformSteps(
       baseValue,
       part.steps ?? [],
-      context.inputValues,
+      context.row,
       context.outputValues,
       context.currentOutputColumnId,
     );

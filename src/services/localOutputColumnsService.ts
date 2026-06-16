@@ -236,6 +236,8 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     dateOutputFormat: normalizeDateOutputFormat(step.dateOutputFormat) ?? defaultDateOutputFormat,
     dateInvalidFallback: normalizeDateInvalidFallback(step.dateInvalidFallback) ?? defaultDateInvalidFallback,
     dateInvalidFallbackText: step.dateInvalidFallbackText ?? '',
+    ...(type === 'manualRange' ? { ranges: normalizeManualRanges(step.ranges) } : {}),
+    ...(type === 'manualRange' && step.manualRangeCondition ? { manualRangeCondition: normalizeManualRangeCondition(step.manualRangeCondition) } : {}),
     condition: normalizeCondition(step.condition),
     applyToEmptyValues: step.applyToEmptyValues ?? false,
   };
@@ -256,6 +258,7 @@ function normalizeStepType(type?: string): TransformStepType | null {
     'toNumber',
     'toText',
     'formatDate',
+    'manualRange',
     'numericOperation',
   ].includes(type ?? '')
     ? type as TransformStepType

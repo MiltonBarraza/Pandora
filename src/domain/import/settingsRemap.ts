@@ -126,8 +126,37 @@ function remapTransformStep(step: TransformStep, remap: InputColumnRemap): Trans
     leftOperand: remapStepOperand(step.leftOperand, remap),
     rightOperand: remapStepOperand(step.rightOperand, remap),
     condition: remapCondition(step.condition, remap),
+    ranges: remapManualRanges(step.ranges, remap),
+    manualRangeCondition: remapManualRangeCondition(step.manualRangeCondition, remap),
     parts: step.parts?.map((part) => remapConcatPart(part, remap)),
   };
+}
+
+function remapManualRanges<TManualRanges extends TransformStep['ranges']>(ranges: TManualRanges, remap: InputColumnRemap): TManualRanges {
+  return ranges?.map((range) => {
+    if (range.valueSource?.type !== 'rangeText') {
+      return range;
+    }
+
+    return {
+      ...range,
+      valueSource: {
+        ...range.valueSource,
+        inputColumnId: remapInputColumnId(range.valueSource.inputColumnId, remap),
+      },
+    };
+  }) as TManualRanges;
+}
+
+function remapManualRangeCondition<TCondition extends TransformStep['manualRangeCondition']>(condition: TCondition, remap: InputColumnRemap): TCondition {
+  if (!condition) {
+    return condition;
+  }
+
+  return {
+    ...condition,
+    inputColumnId: remapInputColumnId(condition.inputColumnId, remap),
+  } as TCondition;
 }
 
 function remapConcatPart(part: ConcatPart, remap: InputColumnRemap): ConcatPart {

@@ -257,6 +257,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
                 <CustomValueEditor
                   recipe={modalCombineRecipe}
                   inputColumns={activeInputColumns}
+                  manualRangeRows={manualRangeRows}
                   sampleInputValues={sampleInputValues}
                   mode={effectiveModalCustomValueMode}
                   onChange={setDraftRecipe}
@@ -367,6 +368,21 @@ export function createManualRangeRecipe(): Extract<OutputRecipe, { type: 'manual
   return {
     type: 'manualRange',
     ranges: [],
+  };
+}
+
+export function manualRangeStepToRecipe(step: TransformStep): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    type: 'manualRange',
+    ranges: step.ranges ?? [],
+    ...(step.manualRangeCondition ? { condition: step.manualRangeCondition } : {}),
+  };
+}
+
+export function manualRangeRecipeToStepPatch(recipe: Extract<OutputRecipe, { type: 'manualRange' }>): Partial<TransformStep> {
+  return {
+    ranges: recipe.ranges,
+    manualRangeCondition: recipe.condition,
   };
 }
 
@@ -690,11 +706,13 @@ function ManualRangeRecipeEditor({
   recipe,
   inputColumns,
   manualRangeRows,
+  conditionTitle = 'Aplicar sólo si',
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  conditionTitle?: string;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const conditionMode = recipe.condition ? recipe.condition.operator : '';
@@ -721,7 +739,7 @@ function ManualRangeRecipeEditor({
 
 
       <div className="manualRangeCondition">
-        <strong>Aplicar sólo si</strong>
+        <strong>{conditionTitle}</strong>
         <div className="twoColumns">
           <Dropdown
             className="compact"
@@ -1127,6 +1145,10 @@ function describeSimpleStep(step: TransformStep) {
     return ['formatear fecha'];
   }
 
+  if (step.type === 'manualRange') {
+    return ['trabajar con rangos'];
+  }
+
   if (step.type === 'concat') {
     return ['concatenar'];
   }
@@ -1200,7 +1222,7 @@ export function buildCustomValuePreview(
     return 'Selecciona una columna numérica.';
   }
 
-  if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe)) {
+  if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasConfiguredManualRangeStep(recipe)) {
     return 'Selecciona una columna de texto.';
   }
 
@@ -1267,12 +1289,14 @@ export const stepModeOptions: Array<{ value: TransformStepMode; label: string }>
 function CustomValueEditor({
   recipe,
   inputColumns,
+  manualRangeRows,
   sampleInputValues,
   mode,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'combine' }>;
   inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   mode: CustomValueMode;
   onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
@@ -1292,6 +1316,7 @@ function CustomValueEditor({
     <div className="recipeSubBlock customValueEditor">
       <StepBlocksEditor
         inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
         defaultStepMode={defaultStepMode}
         baseInputColumnId={baseInputPart.inputColumnId}
         steps={visibleSteps}
@@ -1366,6 +1391,7 @@ function SimpleTextValueEditor({
 
 function StepBlocksEditor({
   inputColumns,
+  manualRangeRows = [],
   defaultStepMode,
   baseInputColumnId,
   steps,
@@ -1375,6 +1401,7 @@ function StepBlocksEditor({
   onStepsChange,
 }: {
   inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
   defaultStepMode: TransformStepMode;
   baseInputColumnId: string;
   steps: TransformStep[];
@@ -1407,6 +1434,7 @@ function StepBlocksEditor({
               step={step}
               index={index}
               inputColumns={inputColumns}
+              manualRangeRows={manualRangeRows}
               defaultStepMode={defaultStepMode}
               baseInputColumnId={baseInputColumnId}
               canDelete={!requireAtLeastOne || steps.length > 1}
@@ -1431,6 +1459,7 @@ function SimpleStepBlock({
   step,
   index,
   inputColumns,
+  manualRangeRows,
   defaultStepMode,
   baseInputColumnId,
   canDelete,
@@ -1442,6 +1471,7 @@ function SimpleStepBlock({
   step: TransformStep;
   index: number;
   inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
   defaultStepMode: TransformStepMode;
   baseInputColumnId: string;
   canDelete: boolean;
@@ -1452,6 +1482,7 @@ function SimpleStepBlock({
 }) {
   const summary = getStepSummary(step);
   const stepMode = getStepMode(step, defaultStepMode);
+  const isManualRangeStep = step.type === 'manualRange';
   const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
   const updateStepSource = (source: StepSource) => {
     if (index === 0 && source.type === 'input') {
@@ -1469,8 +1500,8 @@ function SimpleStepBlock({
         </strong>
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
       </div>
-      <div className="simpleCustomValueGrid">
-        {step.type === 'concat' ? (
+      <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
+        {step.type === 'concat' || isManualRangeStep ? (
           <div className="concatStepTopRow">
             <div className="concatStepTopControls">
               <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
@@ -1496,6 +1527,7 @@ function SimpleStepBlock({
           stepIndex={index}
           stepSource={stepSource}
           inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
           labels="workflow"
           previousResultPreviewValue={previousResultPreviewValue}
           onSourceChange={updateStepSource}
@@ -1503,6 +1535,10 @@ function SimpleStepBlock({
         />
         {step.type === 'concat' ? (
           <div className="concatStepCondition">
+            <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+          </div>
+        ) : isManualRangeStep ? (
+          <div className="manualRangeStepCondition">
             <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
           </div>
         ) : (
@@ -1515,11 +1551,13 @@ function SimpleStepBlock({
 
 function StepsWorkspace({
   inputColumns,
+  manualRangeRows = [],
   steps,
   requireAtLeastOne = false,
   onStepsChange,
 }: {
   inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
   steps: TransformStep[];
   requireAtLeastOne?: boolean;
   onStepsChange: (steps: TransformStep[]) => void;
@@ -1584,6 +1622,7 @@ function StepsWorkspace({
             step={selectedStep}
             index={safeSelectedStepIndex}
             inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
             canDelete={!requireAtLeastOne || steps.length > 1}
             onChange={(patch) => onStepsChange(updateStep(steps, selectedStep.id, patch))}
             onDelete={deleteSelectedStep}
@@ -1598,6 +1637,7 @@ function StepDetailPanel({
   step,
   index,
   inputColumns,
+  manualRangeRows = [],
   canDelete,
   allowConcat = true,
   stepSource = step.source ?? { type: 'previousResult' },
@@ -1610,6 +1650,7 @@ function StepDetailPanel({
   step: TransformStep;
   index: number;
   inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
   canDelete: boolean;
   allowConcat?: boolean;
   stepSource?: StepSource;
@@ -1621,6 +1662,7 @@ function StepDetailPanel({
 }) {
   const summary = getStepSummary(step);
   const stepMode = getStepMode(step);
+  const isManualRangeStep = step.type === 'manualRange';
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
@@ -1629,8 +1671,8 @@ function StepDetailPanel({
         </strong>
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
       </div>
-      <div className="simpleCustomValueGrid">
-        {step.type === 'concat' ? (
+      <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
+        {step.type === 'concat' || isManualRangeStep ? (
           <div className="concatStepTopRow">
             <div className="concatStepTopControls">
               <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
@@ -1658,6 +1700,7 @@ function StepDetailPanel({
           stepIndex={index}
           stepSource={stepSource}
           inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
           labels="workflow"
           allowPreviousResultSource={allowPreviousResultSource}
           previousResultPreviewValue={previousResultPreviewValue}
@@ -1666,6 +1709,10 @@ function StepDetailPanel({
         />
         {step.type === 'concat' ? (
           <div className="concatStepCondition">
+            <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+          </div>
+        ) : isManualRangeStep ? (
+          <div className="manualRangeStepCondition">
             <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
           </div>
         ) : (
@@ -1951,10 +1998,12 @@ function InputColumnSelect({
 function CombineRecipeFields({
   recipe,
   inputColumns,
+  manualRangeRows = [],
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'combine' }>;
   inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
   onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
 }) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(recipe.parts[0]?.id ?? null);
@@ -2048,6 +2097,7 @@ function CombineRecipeFields({
               </div>
               <StepsWorkspace
                 inputColumns={inputColumns}
+                manualRangeRows={manualRangeRows}
                 steps={selectedPart.steps ?? []}
                 onStepsChange={(steps) => updateSelectedPart({ ...selectedPart, steps })}
               />
@@ -2161,12 +2211,14 @@ function ConcatPartFields({
 function ConcatStepFields({
   parts,
   inputColumns,
+  manualRangeRows,
   allowPreviousResult,
   previousResultPreviewValue,
   onChange,
 }: {
   parts: ConcatPart[];
   inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
   onChange: (parts: ConcatPart[]) => void;
@@ -2248,6 +2300,7 @@ function ConcatStepFields({
               </div>
               <ConcatPartStepsEditor
                 inputColumns={inputColumns}
+                manualRangeRows={manualRangeRows}
                 steps={selectedPart.steps ?? []}
                 baseSource={selectedPart.source}
                 separatorFields={selectedPartIndex > 0 ? (
@@ -2285,6 +2338,7 @@ function ConcatStepFields({
 
 function ConcatPartStepsEditor({
   inputColumns,
+  manualRangeRows,
   steps,
   baseSource,
   separatorFields,
@@ -2293,6 +2347,7 @@ function ConcatPartStepsEditor({
   onChange,
 }: {
   inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
   steps: TransformStep[];
   baseSource: StepSource;
   separatorFields?: ReactNode;
@@ -2333,6 +2388,7 @@ function ConcatPartStepsEditor({
         step={primaryStep}
         index={0}
         inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
         canDelete={false}
         allowConcat={false}
         stepSource={primaryStep.source ?? baseSource}
@@ -2355,6 +2411,7 @@ function ConcatPartStepsEditor({
                   step={step}
                   index={transformIndex}
                   inputColumns={inputColumns}
+                  manualRangeRows={manualRangeRows}
                   canDelete
                   allowConcat={false}
                   allowPreviousResultSource
@@ -2394,6 +2451,7 @@ const stepTypes: Array<{ value: TransformStepType; label: string }> = [
   { value: 'addSuffix', label: 'Agregar sufijo' },
   { value: 'removeText', label: 'Quitar texto' },
   { value: 'replaceText', label: 'Reemplazar texto' },
+  { value: 'manualRange', label: 'Trabajar con rangos' },
   { value: 'concat', label: 'Concatenar' },
   { value: 'extractNumber', label: 'Extraer número del texto' },
   { value: 'toNumber', label: 'Convertir a número' },
@@ -2411,6 +2469,7 @@ const textStepTypes = stepTypes.filter((stepType) => [
   'addSuffix',
   'removeText',
   'replaceText',
+  'manualRange',
   'concat',
 ].includes(stepType.value));
 
@@ -2458,6 +2517,7 @@ function StepFields({
   stepIndex = 0,
   stepSource,
   inputColumns,
+  manualRangeRows = [],
   labels = 'default',
   showSourceFields = true,
   allowPreviousResultSource,
@@ -2469,6 +2529,7 @@ function StepFields({
   stepIndex?: number;
   stepSource: StepSource;
   inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
   labels?: StepFieldLabels;
   showSourceFields?: boolean;
   allowPreviousResultSource?: boolean;
@@ -2490,6 +2551,20 @@ function StepFields({
 
   if (step.type === 'noop') {
     return sourceFields;
+  }
+
+  if (step.type === 'manualRange') {
+    return (
+      <div className="manualRangeStepFields">
+        <ManualRangeRecipeEditor
+          recipe={manualRangeStepToRecipe(step)}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+          conditionTitle="Condición interna del rango"
+          onChange={(recipe) => onChange(manualRangeRecipeToStepPatch(recipe))}
+        />
+      </div>
+    );
   }
 
   if (step.type === 'addPrefix') {
@@ -2590,6 +2665,7 @@ function StepFields({
       <ConcatStepFields
         parts={step.parts ?? []}
         inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
         allowPreviousResult={canUsePreviousResultSource}
         previousResultPreviewValue={previousResultPreviewValue}
         onChange={(parts) => onChange({ parts })}
@@ -2913,7 +2989,7 @@ function isCustomValueConfigured(recipe: Extract<OutputRecipe, { type: 'combine'
   }
 
   if (mode === 'number' || mode === 'text') {
-    const hasBaseSource = Boolean(getSimpleInputPart(recipe).inputColumnId || getFirstStepSource(recipe));
+    const hasBaseSource = Boolean(getSimpleInputPart(recipe).inputColumnId || getFirstStepSource(recipe) || hasConfiguredManualRangeStep(recipe));
     return Boolean(recipe.steps?.[0] && (hasBaseSource || (mode === 'number' && hasConfiguredNumericStepOperands(recipe))));
   }
 
@@ -2933,6 +3009,10 @@ function hasConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine'
 
 function hasConfiguredNumericStepOperands(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
   return (recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand));
+}
+
+function hasConfiguredManualRangeStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  return (recipe.steps ?? []).some((step) => step.type === 'manualRange' && (step.ranges ?? []).length > 0);
 }
 
 function canPreviewNumericValue(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
@@ -3277,6 +3357,10 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
     };
   }
 
+  if (type === 'manualRange') {
+    return createManualRangeStep(condition);
+  }
+
   return {
     id: crypto.randomUUID(),
     mode: inferStepModeFromType(type),
@@ -3284,6 +3368,17 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
     value: '',
     searchValue: '',
     replaceValue: '',
+    condition,
+    applyToEmptyValues: false,
+  };
+}
+
+function createManualRangeStep(condition?: TransformCondition): TransformStep {
+  return {
+    id: crypto.randomUUID(),
+    mode: 'text',
+    type: 'manualRange',
+    ranges: [],
     condition,
     applyToEmptyValues: false,
   };
@@ -3309,6 +3404,15 @@ function replaceStepType(
       id: step.id,
       mode,
       condition: step.condition,
+      applyToEmptyValues: step.applyToEmptyValues,
+    };
+  }
+
+  if (type === 'manualRange') {
+    return {
+      ...createManualRangeStep(step.condition),
+      id: step.id,
+      mode,
       applyToEmptyValues: step.applyToEmptyValues,
     };
   }
