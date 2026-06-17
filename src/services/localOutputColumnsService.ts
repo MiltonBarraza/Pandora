@@ -8,6 +8,7 @@ import type {
   ManualRangeValue,
   OutputColumn,
   OutputRecipe,
+  RangeValueRecipe,
   RecipePart,
   StepOperand,
   StepSource,
@@ -126,20 +127,24 @@ function normalizeManualRange(range: Partial<ManualRangeValue>): ManualRangeValu
     return null;
   }
 
+  const valueRecipe = normalizeRangeValueRecipe(range.valueRecipe);
+  const baseRange = {
+    id: range.id ?? crypto.randomUUID(),
+    startRowNumber,
+    endRowNumber,
+    ...(valueRecipe ? { valueRecipe } : {}),
+  };
+
   if (range.valueSource?.type === 'fixedText') {
     return {
-      id: range.id ?? crypto.randomUUID(),
-      startRowNumber,
-      endRowNumber,
+      ...baseRange,
       valueSource: { type: 'fixedText', value: range.valueSource.value ?? '' },
     };
   }
 
   if (range.valueSource?.type === 'rangeText') {
     return {
-      id: range.id ?? crypto.randomUUID(),
-      startRowNumber,
-      endRowNumber,
+      ...baseRange,
       valueSource: {
         type: 'rangeText',
         inputColumnId: range.valueSource.inputColumnId ?? '',
@@ -149,11 +154,33 @@ function normalizeManualRange(range: Partial<ManualRangeValue>): ManualRangeValu
   }
 
   return {
-    id: range.id ?? crypto.randomUUID(),
-    startRowNumber,
-    endRowNumber,
+    ...baseRange,
     value: range.value ?? '',
   };
+}
+
+function normalizeRangeValueRecipe(recipe?: Partial<RangeValueRecipe>): RangeValueRecipe | undefined {
+  const source = normalizeRangeValueSource(recipe?.source);
+  if (!source) {
+    return undefined;
+  }
+
+  return {
+    source,
+    ...(Array.isArray(recipe?.steps) ? { steps: normalizeSteps(recipe.steps) } : {}),
+  };
+}
+
+function normalizeRangeValueSource(source?: Partial<RangeValueRecipe['source']>): RangeValueRecipe['source'] | undefined {
+  if (source?.type === 'rangeText') {
+    return {
+      type: 'rangeText',
+      inputColumnId: source.inputColumnId ?? '',
+      selectedText: source.selectedText ?? '',
+    };
+  }
+
+  return normalizeStepSource(source as Partial<StepSource> | undefined);
 }
 
 function normalizeManualRangeNumber(value: number | undefined) {

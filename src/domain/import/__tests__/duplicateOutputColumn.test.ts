@@ -98,4 +98,61 @@ describe('duplicateOutputColumn', () => {
     expect(copy.recipe.steps?.[0].id).not.toBe(original.recipe.steps?.[0].id);
     expect(original.label).toBe('Precio +10%');
   });
+
+  it('deep clones manual range value recipes with concat parts', () => {
+    const original: OutputColumn = {
+      id: 'output-comment',
+      label: 'Comentario',
+      order: 1,
+      enabled: true,
+      recipe: {
+        type: 'manualRange',
+        ranges: [{
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueRecipe: {
+            source: { type: 'input', inputColumnId: 'input-name' },
+            steps: [{
+              id: 'concat-step',
+              type: 'concat',
+              parts: [
+                { id: 'name-part', source: { type: 'input', inputColumnId: 'input-name' } },
+                { id: 'fixed-part', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+              ],
+            }],
+          },
+        }],
+      },
+    };
+
+    const copy = duplicateOutputColumn(original);
+
+    if (copy.recipe.type !== 'manualRange' || original.recipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipes');
+    }
+
+    const originalRange = original.recipe.ranges[0];
+    const copyRange = copy.recipe.ranges[0];
+
+    expect(copyRange.id).not.toBe(originalRange.id);
+    expect(copyRange.valueRecipe).toMatchObject({
+      source: { type: 'input', inputColumnId: 'input-name' },
+      steps: [{
+        type: 'concat',
+        parts: [
+          { source: { type: 'input', inputColumnId: 'input-name' } },
+          { source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+        ],
+      }],
+    });
+    expect(copyRange.valueRecipe).not.toBe(originalRange.valueRecipe);
+    expect(copyRange.valueRecipe?.source).not.toBe(originalRange.valueRecipe?.source);
+    expect(copyRange.valueRecipe?.steps?.[0].id).not.toBe(originalRange.valueRecipe?.steps?.[0].id);
+    expect(copyRange.valueRecipe?.steps?.[0].parts?.[0].id).not.toBe(originalRange.valueRecipe?.steps?.[0].parts?.[0].id);
+    expect(copyRange.valueRecipe?.steps?.[0].parts?.[0].source).not.toBe(originalRange.valueRecipe?.steps?.[0].parts?.[0].source);
+
+    copyRange.valueRecipe!.steps![0].parts![0].source = { type: 'fixedText', value: 'Mutado' };
+    expect(originalRange.valueRecipe?.steps?.[0].parts?.[0].source).toEqual({ type: 'input', inputColumnId: 'input-name' });
+  });
 });

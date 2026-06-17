@@ -297,6 +297,44 @@ describe('settingsSnapshot', () => {
     expect(settings.config.outputColumns[0]).toEqual(manualRangeColumn);
   });
 
+  it('exports manual range value recipes intact', () => {
+    const manualRangeColumn: OutputColumn = {
+      id: 'output-comment',
+      label: 'Comentario',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'manualRange',
+        ranges: [
+          {
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'input', inputColumnId: 'input-name' },
+              steps: [{ id: 'upper', type: 'uppercase' }],
+            },
+          },
+        ],
+      },
+    };
+    const settings = exportSettingsFromWizardState({
+      fileType: 'spreadsheet',
+      selectedSheet: 'Hoja 1',
+      rows,
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      columnAnalysis,
+      inputColumnAliases: {},
+      inputIgnoreRules: [],
+      outputColumns: [manualRangeColumn],
+      outputIgnoreRules: [],
+      fileNameSettings,
+    });
+
+    expect(settings.config.outputColumns[0]).toEqual(manualRangeColumn);
+  });
+
   it('does not mutate or share configurable arrays with the exported settings', () => {
     const inputRules: IgnoreRule[] = [{ ...inputIgnoreRules[0] }];
     const columns: OutputColumn[] = JSON.parse(JSON.stringify(outputColumns)) as OutputColumn[];

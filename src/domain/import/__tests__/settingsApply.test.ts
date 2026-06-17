@@ -239,6 +239,53 @@ describe('settingsApply', () => {
     expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
   });
 
+  it('preserves manual range value recipes in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        {
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueRecipe: {
+            source: { type: 'input' as const, inputColumnId: 'input-brand' },
+            steps: [{
+              id: 'concat',
+              type: 'concat' as const,
+              parts: [
+                { id: 'brand', source: { type: 'input' as const, inputColumnId: 'input-brand' } },
+                { id: 'fixed', source: { type: 'fixedText' as const, value: 'OK' }, separatorBefore: ' - ' },
+              ],
+            }],
+          },
+        },
+      ],
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+    expect(result.payload.outputColumns[0].recipe).not.toBe(manualRangeRecipe);
+  });
+
   it('preserves legacy manual range values in the apply payload', () => {
     const manualRangeRecipe = {
       type: 'manualRange' as const,

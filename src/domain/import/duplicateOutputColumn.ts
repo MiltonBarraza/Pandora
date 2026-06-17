@@ -1,4 +1,4 @@
-import type { ConcatPart, OutputColumn, OutputRecipe, RecipePart, TransformStep } from '../../types/import';
+import type { ConcatPart, OutputColumn, OutputRecipe, RangeValueRecipe, RecipePart, TransformStep } from '../../types/import';
 
 export function duplicateOutputColumn(column: OutputColumn): OutputColumn {
   return {
@@ -16,6 +16,14 @@ function cloneRecipeWithNewIds(recipe: OutputRecipe): OutputRecipe {
       ...recipe,
       parts: recipe.parts.map(clonePartWithNewIds),
       steps: cloneStepsWithNewIds(recipe.steps),
+    };
+  }
+
+  if (recipe.type === 'manualRange') {
+    return {
+      ...recipe,
+      ranges: cloneManualRangesWithNewIds(recipe.ranges),
+      condition: recipe.condition ? { ...recipe.condition } : undefined,
     };
   }
 
@@ -45,6 +53,15 @@ function clonePartWithNewIds(part: RecipePart): RecipePart {
   };
 }
 
+function cloneManualRangesWithNewIds(ranges: Extract<OutputRecipe, { type: 'manualRange' }>['ranges']) {
+  return ranges.map((range) => ({
+    ...range,
+    id: crypto.randomUUID(),
+    valueRecipe: cloneRangeValueRecipeWithNewIds(range.valueRecipe),
+    valueSource: range.valueSource ? { ...range.valueSource } : undefined,
+  }));
+}
+
 function cloneStepsWithNewIds(steps?: TransformStep[]): TransformStep[] | undefined {
   return steps?.map((step) => ({
     ...step,
@@ -53,14 +70,21 @@ function cloneStepsWithNewIds(steps?: TransformStep[]): TransformStep[] | undefi
     leftOperand: step.leftOperand ? { ...step.leftOperand } : undefined,
     rightOperand: step.rightOperand ? { ...step.rightOperand } : undefined,
     parts: cloneConcatPartsWithNewIds(step.parts),
-    ranges: step.ranges?.map((range) => ({
-      ...range,
-      id: crypto.randomUUID(),
-      valueSource: range.valueSource ? { ...range.valueSource } : undefined,
-    })),
+    ranges: step.ranges ? cloneManualRangesWithNewIds(step.ranges) : undefined,
     manualRangeCondition: step.manualRangeCondition ? { ...step.manualRangeCondition } : undefined,
     condition: step.condition ? { ...step.condition } : undefined,
   }));
+}
+
+function cloneRangeValueRecipeWithNewIds(recipe?: RangeValueRecipe): RangeValueRecipe | undefined {
+  if (!recipe) {
+    return undefined;
+  }
+
+  return {
+    source: { ...recipe.source },
+    steps: cloneStepsWithNewIds(recipe.steps),
+  };
 }
 
 function cloneConcatPartsWithNewIds(parts?: ConcatPart[]): ConcatPart[] | undefined {

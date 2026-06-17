@@ -308,6 +308,98 @@ describe('localOutputColumnsService', () => {
     });
   });
 
+  it('preserves manual range value recipes in top-level recipes and manual range steps', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'manual-range',
+          label: 'Manual range',
+          recipe: {
+            type: 'manualRange',
+            ranges: [{
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'input', inputColumnId: 'input-name' },
+                steps: [{ id: 'upper', type: 'uppercase', mode: 'text' }],
+              },
+            }],
+          },
+        },
+        {
+          id: 'combined',
+          label: 'Combinada',
+          recipe: {
+            type: 'combine',
+            customMode: 'text',
+            parts: [],
+            steps: [{
+              id: 'range-step',
+              type: 'manualRange',
+              mode: 'manualRange',
+              ranges: [{
+                id: 'range-20-22',
+                startRowNumber: 20,
+                endRowNumber: 22,
+                valueRecipe: {
+                  source: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+                  steps: [{
+                    id: 'concat',
+                    type: 'concat',
+                    mode: 'text',
+                    parts: [
+                      { id: 'previous', source: { type: 'previousResult' } },
+                      { id: 'suffix', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+                    ],
+                  }],
+                },
+              }],
+            }],
+          },
+        },
+      ]),
+    );
+
+    const columns = loadOutputColumns();
+
+    expect(columns[0].recipe).toMatchObject({
+      type: 'manualRange',
+      ranges: [{
+        id: 'range-8-13',
+        valueRecipe: {
+          source: { type: 'input', inputColumnId: 'input-name' },
+          steps: [{ id: 'upper', type: 'uppercase', mode: 'text' }],
+        },
+      }],
+    });
+    expect(columns[1].recipe).toMatchObject({
+      type: 'combine',
+      steps: [{
+        id: 'range-step',
+        type: 'manualRange',
+        mode: 'manualRange',
+        ranges: [{
+          id: 'range-20-22',
+          valueRecipe: {
+            source: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+            steps: [{
+              id: 'concat',
+              type: 'concat',
+              parts: [
+                { id: 'previous', source: { type: 'previousResult' } },
+                { id: 'suffix', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+              ],
+            }],
+          },
+        }],
+      }],
+    });
+  });
+
   it('preserves step sources, operands and concat step parts when loading saved columns', async () => {
     const { loadOutputColumns } = await import('../localOutputColumnsService');
 

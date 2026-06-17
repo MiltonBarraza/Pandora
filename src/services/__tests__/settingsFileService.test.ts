@@ -144,6 +144,43 @@ describe('settingsFileService', () => {
     });
   });
 
+  it('serializes and parses manual range value recipes without changing them', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'manualRange',
+              ranges: [
+                {
+                  id: 'range-8-13',
+                  startRowNumber: 8,
+                  endRowNumber: 13,
+                  valueRecipe: {
+                    source: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+                    steps: [{ id: 'upper', type: 'uppercase' }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
   it('serializes and parses legacy manual range values without changing them', () => {
     const settings = buildSettings({
       config: {
