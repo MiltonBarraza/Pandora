@@ -4,7 +4,7 @@ import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeCondition, ManualRangeValue, ManualRangeValueSource, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeCondition, ManualRangeValue, ManualRangeValueSource, OutputColumn, OutputRecipe, RangeValueRecipe, RangeValueSource, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -406,6 +406,7 @@ export function createDefaultManualRangeValue(index: number): ManualRangeValue {
     id: crypto.randomUUID(),
     startRowNumber: rowNumber,
     endRowNumber: rowNumber,
+    valueRecipe: { source: { type: 'fixedText', value: '' }, steps: [] },
     valueSource: { type: 'fixedText', value: '' },
   };
 }
@@ -474,6 +475,7 @@ export function duplicateManualRangeValue(
   const duplicatedRange: ManualRangeValue = {
     ...range,
     id: crypto.randomUUID(),
+    valueRecipe: cloneRangeValueRecipe(range.valueRecipe),
     valueSource: range.valueSource ? { ...range.valueSource } : undefined,
   };
 
@@ -509,6 +511,10 @@ export function updateManualRangeValue(
 }
 
 export function getManualRangeFixedTextValue(range: ManualRangeValue) {
+  if (range.valueRecipe?.source.type === 'fixedText') {
+    return range.valueRecipe.source.value;
+  }
+
   if (range.valueSource?.type === 'fixedText') {
     return range.valueSource.value;
   }
@@ -517,10 +523,18 @@ export function getManualRangeFixedTextValue(range: ManualRangeValue) {
 }
 
 export function getManualRangeValueSourceType(range: ManualRangeValue): ManualRangeValueSourceType {
+  if (range.valueRecipe?.source.type === 'fixedText' || range.valueRecipe?.source.type === 'rangeText') {
+    return range.valueRecipe.source.type;
+  }
+
   return range.valueSource?.type ?? 'fixedText';
 }
 
 export function getManualRangeRangeTextSource(range: ManualRangeValue): Extract<ManualRangeValueSource, { type: 'rangeText' }> {
+  if (range.valueRecipe?.source.type === 'rangeText') {
+    return range.valueRecipe.source;
+  }
+
   return range.valueSource?.type === 'rangeText'
     ? range.valueSource
     : { type: 'rangeText', inputColumnId: '', selectedText: '' };
@@ -542,19 +556,23 @@ export function updateManualRangeValueSourceType(
       const { value: _legacyValue, ...nextRange } = range;
       if (type === 'rangeText') {
         const rangeTextSource = getManualRangeRangeTextSource(range);
+        const source = {
+          type: 'rangeText' as const,
+          inputColumnId: rangeTextSource.inputColumnId || inputColumns[0]?.id || '',
+          selectedText: rangeTextSource.selectedText,
+        };
         return {
           ...nextRange,
-          valueSource: {
-            type: 'rangeText' as const,
-            inputColumnId: rangeTextSource.inputColumnId || inputColumns[0]?.id || '',
-            selectedText: rangeTextSource.selectedText,
-          },
+          valueRecipe: { source, steps: [] },
+          valueSource: source,
         };
       }
 
+      const source = { type: 'fixedText' as const, value: getManualRangeFixedTextValue(range) };
       return {
         ...nextRange,
-        valueSource: { type: 'fixedText' as const, value: getManualRangeFixedTextValue(range) },
+        valueRecipe: { source, steps: [] },
+        valueSource: source,
       };
     }),
   };
@@ -573,9 +591,11 @@ export function updateManualRangeFixedTextValue(
       }
 
       const { value: _legacyValue, ...nextRange } = range;
+      const source = { type: 'fixedText' as const, value };
       return {
         ...nextRange,
-        valueSource: { type: 'fixedText' as const, value },
+        valueRecipe: { source, steps: [] },
+        valueSource: source,
       };
     }),
   };
@@ -595,13 +615,15 @@ export function updateManualRangeRangeTextValue(
 
       const { value: _legacyValue, ...nextRange } = range;
       const rangeTextSource = getManualRangeRangeTextSource(range);
+      const source = {
+        ...rangeTextSource,
+        ...patch,
+        type: 'rangeText' as const,
+      };
       return {
         ...nextRange,
-        valueSource: {
-          ...rangeTextSource,
-          ...patch,
-          type: 'rangeText' as const,
-        },
+        valueRecipe: { source, steps: [] },
+        valueSource: source,
       };
     }),
   };
@@ -657,6 +679,14 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       id: idFactory(),
       startRowNumber: row.rowNumber,
       endRowNumber: rangeEndRowNumber,
+      valueRecipe: {
+        source: {
+          type: 'rangeText',
+          inputColumnId,
+          selectedText: row.text,
+        },
+        steps: [],
+      },
       valueSource: {
         type: 'rangeText',
         inputColumnId,
@@ -727,6 +757,10 @@ function sanitizeManualRangePatch(patch: Partial<ManualRangeValue>): Partial<Man
 
 function sanitizeManualRangeNumber(value: number) {
   return Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : 1;
+}
+
+function cloneRangeValueRecipe(recipe: RangeValueRecipe | undefined) {
+  return recipe ? JSON.parse(JSON.stringify(recipe)) as RangeValueRecipe : undefined;
 }
 
 function isValidManualRangeNumber(value: number) {
@@ -984,7 +1018,7 @@ function ManualRangeTextGenerator({
         <div className="manualRangeGeneratorPreview" aria-label="Vista previa de rangos generados">
           {generatedRanges.slice(0, 6).map((range, index) => (
             <span key={`${range.startRowNumber}-${range.endRowNumber}-${index}`}>
-              {range.startRowNumber}-{range.endRowNumber}: {range.valueSource?.type === 'rangeText' ? range.valueSource.selectedText : ''}
+              {range.startRowNumber}-{range.endRowNumber}: {getManualRangeRangeTextSource(range).selectedText}
             </span>
           ))}
           {generatedRanges.length > 6 ? <span>{generatedRanges.length - 6} rangos más…</span> : null}
@@ -1435,7 +1469,7 @@ function describeManualRangeStepValueSource(ranges: ManualRangeValue[], inputCol
     return '';
   }
 
-  const sourceKinds = new Set(ranges.map((range) => range.valueSource?.type ?? 'fixedText'));
+  const sourceKinds = new Set(ranges.map(getManualRangeValueSourceType));
   if (sourceKinds.size > 1) {
     return 'valores mixtos';
   }
@@ -1443,7 +1477,7 @@ function describeManualRangeStepValueSource(ranges: ManualRangeValue[], inputCol
   const [sourceKind] = Array.from(sourceKinds);
   if (sourceKind === 'rangeText') {
     const inputColumnIds = new Set(ranges.map((range) => (
-      range.valueSource?.type === 'rangeText' ? range.valueSource.inputColumnId : ''
+      getManualRangeRangeTextSource(range).inputColumnId
     )));
     if (inputColumnIds.size !== 1) {
       return 'valores mixtos';
@@ -1590,6 +1624,10 @@ function resolveManualRangePreviewValue(row: InputRow, ranges: ManualRangeValue[
     return '';
   }
 
+  if (range.valueRecipe) {
+    return resolveManualRangePreviewSource(row, range.valueRecipe.source);
+  }
+
   if (range.valueSource?.type === 'fixedText') {
     return range.valueSource.value;
   }
@@ -1599,6 +1637,22 @@ function resolveManualRangePreviewValue(row: InputRow, ranges: ManualRangeValue[
   }
 
   return range.value ?? '';
+}
+
+function resolveManualRangePreviewSource(row: InputRow, source: RangeValueSource) {
+  if (source.type === 'fixedText') {
+    return source.value;
+  }
+
+  if (source.type === 'rangeText') {
+    return source.selectedText;
+  }
+
+  if (source.type === 'input') {
+    return row.values[source.inputColumnId] ?? '';
+  }
+
+  return '';
 }
 
 function matchesManualRangePreviewCondition(row: InputRow, condition?: ManualRangeCondition) {

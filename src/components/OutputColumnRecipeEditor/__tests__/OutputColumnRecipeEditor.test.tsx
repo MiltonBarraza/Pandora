@@ -59,6 +59,13 @@ const combineColumn: OutputColumn = {
   },
 };
 
+function expectedRangeTextValueRecipe(inputColumnId: string, selectedText: string) {
+  return {
+    source: { type: 'rangeText' as const, inputColumnId, selectedText },
+    steps: [],
+  };
+}
+
 describe('buildRecipeForSelectedType', () => {
   it('drops hidden steps when switching from combine to direct', () => {
     expect(buildRecipeForSelectedType('direct', combineColumn, inputColumns)).toEqual({
@@ -231,16 +238,61 @@ describe('constructor helpers', () => {
         id: 'generated-1',
         startRowNumber: 42,
         endRowNumber: 43,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO SIMIL LANA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
       },
       {
         id: 'generated-2',
         startRowNumber: 44,
         endRowNumber: 44,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO ANTIGOTA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
       },
     ]);
     expect(processedRow.outputValues['output-title']).toBe('RODILLO SIMIL LANA - 12');
+  });
+
+  it('preserves manual range valueRecipe when applying a concat part edit', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        parts: [{
+          id: 'range-part',
+          source: { type: 'previousResult' },
+          steps: [{ id: 'range-step', type: 'manualRange', ranges: [] }],
+        }],
+      }],
+    };
+    const rangeRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range-8-13',
+        startRowNumber: 8,
+        endRowNumber: 13,
+        valueRecipe: { source: { type: 'fixedText', value: 'Promo' }, steps: [] },
+        valueSource: { type: 'fixedText', value: 'Promo' },
+      }],
+    };
+    const concatStep = recipe.steps?.[0];
+    const rangePart = concatStep?.parts?.[0];
+
+    if (!concatStep || !rangePart) {
+      throw new Error('Expected concat range part');
+    }
+
+    const nextRangeSteps = updateConcatPartPrimaryStep(rangePart.steps ?? [], manualRangeRecipeToStepPatch(rangeRecipe));
+    const nextParts = updateConcatPartSteps(concatStep.parts ?? [], rangePart.id, nextRangeSteps);
+    const nextRecipe = {
+      ...recipe,
+      steps: updateStep(recipe.steps ?? [], concatStep.id, { parts: nextParts }),
+    };
+
+    expect(nextRecipe.steps?.[0].parts?.[0].steps?.[0].ranges?.[0]).toEqual(rangeRecipe.ranges[0]);
   });
 
   it('detects draft changes before discarding the modal editor', () => {
@@ -319,6 +371,7 @@ describe('constructor helpers', () => {
     expect(edited.ranges[0]).toMatchObject({
       startRowNumber: 8,
       endRowNumber: 13,
+      valueRecipe: { source: { type: 'fixedText', value: 'Cerda china mango amarillo' }, steps: [] },
       valueSource: { type: 'fixedText', value: 'Cerda china mango amarillo' },
     });
     expect(getManualRangeFixedTextValue(edited.ranges[0])).toBe('Cerda china mango amarillo');
@@ -326,6 +379,40 @@ describe('constructor helpers', () => {
     expect(getManualRangeRowCount(edited.ranges[0])).toBe('6');
     expect(getManualRangeRowCount({ startRowNumber: 13, endRowNumber: 8 })).toBe('');
     expect(removeManualRangeValue(edited, rangeId).ranges).toEqual([]);
+  });
+
+  it('reads manual range fixed text from valueRecipe before legacy sources', () => {
+    const range = {
+      id: 'range-8-13',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueRecipe: { source: { type: 'fixedText' as const, value: 'Nuevo' }, steps: [] },
+      valueSource: { type: 'fixedText' as const, value: 'Viejo' },
+      value: 'Legacy',
+    };
+
+    expect(getManualRangeValueSourceType(range)).toBe('fixedText');
+    expect(getManualRangeFixedTextValue(range)).toBe('Nuevo');
+  });
+
+  it('reads manual range range text from valueRecipe before legacy sources', () => {
+    const range = {
+      id: 'range-8-13',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueRecipe: {
+        source: { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: 'Sinteplast' },
+        steps: [],
+      },
+      valueSource: { type: 'fixedText' as const, value: 'Viejo' },
+    };
+
+    expect(getManualRangeValueSourceType(range)).toBe('rangeText');
+    expect(getManualRangeRangeTextSource(range)).toEqual({
+      type: 'rangeText',
+      inputColumnId: 'input-name',
+      selectedText: 'Sinteplast',
+    });
   });
 
   it('configures manual range text sources', () => {
@@ -345,7 +432,31 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       selectedText: 'Sinteplast',
     });
+    expect(configured.ranges[0].valueRecipe).toEqual({
+      source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Sinteplast' },
+      steps: [],
+    });
+    expect(configured.ranges[0].valueSource).toEqual({
+      type: 'rangeText',
+      inputColumnId: 'input-name',
+      selectedText: 'Sinteplast',
+    });
     expect(configured.ranges[0]).not.toHaveProperty('value');
+  });
+
+  it('falls back to old manual range value sources while rendering helpers', () => {
+    expect(getManualRangeFixedTextValue({
+      id: 'fixed',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueSource: { type: 'fixedText', value: 'Fallback fijo' },
+    })).toBe('Fallback fijo');
+    expect(getManualRangeRangeTextSource({
+      id: 'range-text',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Fallback rango' },
+    })).toEqual({ type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Fallback rango' });
   });
 
   it('duplicates fixed text manual ranges with a new id', () => {
@@ -459,18 +570,21 @@ describe('constructor helpers', () => {
         id: 'generated-1',
         startRowNumber: 42,
         endRowNumber: 43,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO SIMIL LANA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
       },
       {
         id: 'generated-2',
         startRowNumber: 44,
         endRowNumber: 45,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO ANTIGOTA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
       },
       {
         id: 'generated-3',
         startRowNumber: 46,
         endRowNumber: 50,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLOS PARA EPOXI'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLOS PARA EPOXI' },
       },
     ]);
@@ -494,12 +608,14 @@ describe('constructor helpers', () => {
         id: 'generated-1',
         startRowNumber: 42,
         endRowNumber: 42,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO SIMIL LANA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
       },
       {
         id: 'generated-2',
         startRowNumber: 44,
         endRowNumber: 44,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO ANTIGOTA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
       },
     ]);
@@ -546,12 +662,14 @@ describe('constructor helpers', () => {
         id: 'generated-1',
         startRowNumber: 42,
         endRowNumber: 43,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO SIMIL LANA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
       },
       {
         id: 'generated-2',
         startRowNumber: 44,
         endRowNumber: 50,
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO ANTIGOTA'),
         valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
       },
     ]);
