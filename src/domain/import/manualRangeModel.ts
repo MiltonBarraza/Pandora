@@ -197,6 +197,18 @@ export function getManualRangeRangeTextSource(range: ManualRangeValue): Extract<
     : { type: 'rangeText', inputColumnId: '', selectedText: '' };
 }
 
+export function getManualRangeValueRecipeSource(range: ManualRangeValue): RangeValueSource {
+  if (range.valueRecipe?.source) {
+    return range.valueRecipe.source;
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return range.valueSource;
+  }
+
+  return { type: 'fixedText', value: getManualRangeFixedTextValue(range) };
+}
+
 export function updateManualRangeValueSourceType(
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
   rangeId: string,
@@ -245,6 +257,47 @@ export function updateManualRangeValueSourceType(
       };
     }),
   };
+}
+
+export function updateManualRangeValueRecipeSteps(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  steps: TransformStep[],
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return {
+    ...recipe,
+    ranges: recipe.ranges.map((range) => {
+      if (range.id !== rangeId) {
+        return range;
+      }
+
+      return {
+        ...range,
+        valueRecipe: {
+          source: getManualRangeValueRecipeSource(range),
+          steps: sanitizeRangeValueRecipeSteps(steps),
+        },
+      };
+    }),
+  };
+}
+
+function sanitizeRangeValueRecipeSteps(steps: TransformStep[]): TransformStep[] {
+  return steps
+    .filter((step) => step.type !== 'manualRange')
+    .map((step) => {
+      if (step.type !== 'concat') {
+        return step;
+      }
+
+      return {
+        ...step,
+        parts: (step.parts ?? []).map((part) => ({
+          ...part,
+          steps: (part.steps ?? []).filter((partStep) => partStep.type !== 'manualRange' && partStep.type !== 'concat'),
+        })),
+      };
+    });
 }
 
 export function updateManualRangeInputValue(
@@ -493,6 +546,11 @@ function describeManualRangeStepCondition(condition: ManualRangeCondition | unde
 function describeManualRangeStepValueSource(ranges: ManualRangeValue[], inputColumns: InputColumn[]) {
   if (ranges.length === 0) {
     return '';
+  }
+
+  const hasTransforms = ranges.some((range) => (range.valueRecipe?.steps ?? []).length > 0);
+  if (hasTransforms) {
+    return 'valor personalizado';
   }
 
   const sourceKinds = new Set(ranges.map(getManualRangeValueSourceType));
