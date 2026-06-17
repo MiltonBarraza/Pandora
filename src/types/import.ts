@@ -167,10 +167,18 @@ export type ManualRangeValueSource =
       selectedText: string;
     };
 
+export type RangeValueSource = StepSource | Extract<ManualRangeValueSource, { type: 'rangeText' }>;
+
+export type RangeValueRecipe = {
+  source: RangeValueSource;
+  steps?: TransformStep[];
+};
+
 export type ManualRangeValue = {
   id: string;
   startRowNumber: number;
   endRowNumber: number;
+  valueRecipe?: RangeValueRecipe;
   valueSource?: ManualRangeValueSource;
   value?: string;
 };

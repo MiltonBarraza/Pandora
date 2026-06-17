@@ -5,6 +5,7 @@ import type {
   InputRow,
   OutputColumn,
   ProcessedRow,
+  RangeValueRecipe,
   RawRow,
   RecipePart,
   SheetRowMetadata,
@@ -164,6 +165,14 @@ function resolveManualRangeValue(row: InputRow, recipe: Pick<Extract<OutputColum
     return '';
   }
 
+  if (range.valueRecipe) {
+    return resolveRangeValueRecipe(row, range.valueRecipe);
+  }
+
+  return resolveLegacyManualRangeValue(range);
+}
+
+function resolveLegacyManualRangeValue(range: Extract<OutputColumn['recipe'], { type: 'manualRange' }>['ranges'][number]) {
   if (range.valueSource?.type === 'fixedText') {
     return range.valueSource.value;
   }
@@ -173,6 +182,28 @@ function resolveManualRangeValue(row: InputRow, recipe: Pick<Extract<OutputColum
   }
 
   return range.value ?? '';
+}
+
+function resolveRangeValueRecipe(row: InputRow, recipe: RangeValueRecipe) {
+  const initialValue = resolveRangeValueSource(row, recipe.source);
+  const safeSteps = (recipe.steps ?? []).filter((step) => step.type !== 'manualRange');
+  return applyTransformSteps(initialValue, safeSteps, row, {}, '').value;
+}
+
+function resolveRangeValueSource(row: InputRow, source: RangeValueRecipe['source']) {
+  if (source.type === 'input') {
+    return row.values[source.inputColumnId] ?? '';
+  }
+
+  if (source.type === 'fixedText') {
+    return source.value;
+  }
+
+  if (source.type === 'rangeText') {
+    return source.selectedText ?? '';
+  }
+
+  return '';
 }
 
 function matchesManualRangeCondition(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'condition'>) {

@@ -157,6 +157,166 @@ describe('outputModel recipes', () => {
 });
 
 describe('outputModel manual range recipes', () => {
+  it('assigns fixed text from valueRecipe source to rows inside the configured range', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 14, values: { 'input-code': 'A14' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'fixedText', value: 'Promo' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Promo', '']);
+  });
+
+  it('assigns current row input values from valueRecipe source columns', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 9, values: { 'input-code': 'A9' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'input', inputColumnId: 'input-code' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['A8', 'A9']);
+  });
+
+  it('assigns selected text from valueRecipe rangeText sources', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'Sinteplast' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Sinteplast');
+  });
+
+  it('applies valueRecipe steps over the initial range value', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': '  promo  ' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'input', inputColumnId: 'input-code' },
+              steps: [
+                { id: 'trim', type: 'trim' },
+                { id: 'upper', type: 'uppercase' },
+              ],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('PROMO');
+  });
+
+  it('applies concat valueRecipe steps using the current real row', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+      { rowNumber: 9, values: { 'input-code': 'A9', 'input-brand': 'Otra' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: '' },
+              steps: [{
+                id: 'concat',
+                type: 'concat',
+                parts: [
+                  { id: 'code', source: { type: 'input', inputColumnId: 'input-code' } },
+                  { id: 'brand', source: { type: 'input', inputColumnId: 'input-brand' }, separatorBefore: ' - ' },
+                ],
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['A8 - Marca', 'A9 - Otra']);
+  });
+
+  it('ignores nested manualRange steps inside valueRecipe without recursing or failing', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: 'Base' },
+              steps: [
+                {
+                  id: 'nested-range',
+                  type: 'manualRange',
+                  ranges: [{
+                    id: 'nested',
+                    startRowNumber: 8,
+                    endRowNumber: 8,
+                    valueSource: { type: 'fixedText', value: 'Nested' },
+                  }],
+                },
+                { id: 'suffix', type: 'addSuffix', value: '-OK' },
+              ],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Base-OK');
+  });
+
   it('assigns fixed text from valueSource to rows inside the configured range and empty text outside it', () => {
     const rows = buildProcessedRows([
       { rowNumber: 7, values: { 'input-code': 'A7' } },
