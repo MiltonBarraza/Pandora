@@ -379,6 +379,222 @@ describe('settingsRemap', () => {
     expect(result.unresolvedReferences).toEqual([]);
   });
 
+  it('remaps manual range value recipe input sources', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'input', inputColumnId: 'input-range-source' },
+              },
+            },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-range-source': 'input-200',
+    });
+    const recipe = result.settings.config.outputColumns[0].recipe;
+
+    if (recipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipe');
+    }
+
+    expect(recipe.ranges[0].valueRecipe?.source).toEqual({ type: 'input', inputColumnId: 'input-200' });
+    expect(result.changedReferences).toEqual([
+      expect.objectContaining({
+        columnId: 'input-range-source',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.source.inputColumnId',
+      }),
+    ]);
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
+  it('remaps manual range value recipe range text sources', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'rangeText', inputColumnId: 'input-range-text', selectedText: 'Sinteplast' },
+              },
+            },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-range-text': 'input-201',
+    });
+    const recipe = result.settings.config.outputColumns[0].recipe;
+
+    if (recipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipe');
+    }
+
+    expect(recipe.ranges[0].valueRecipe?.source).toEqual({
+      type: 'rangeText',
+      inputColumnId: 'input-201',
+      selectedText: 'Sinteplast',
+    });
+    expect(result.changedReferences).toEqual([
+      expect.objectContaining({
+        columnId: 'input-range-text',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.source.inputColumnId',
+      }),
+    ]);
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
+  it('remaps manual range value recipe transform steps', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'fixedText', value: 'Base' },
+                steps: [
+                  {
+                    id: 'range-value-step',
+                    type: 'numericOperation',
+                    source: { type: 'input', inputColumnId: 'input-step-source' },
+                    leftOperand: { type: 'input', inputColumnId: 'input-left' },
+                    rightOperand: { type: 'input', inputColumnId: 'input-right' },
+                    condition: { target: 'input', columnId: 'input-condition', operator: 'isNotEmpty' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-step-source': 'input-202',
+      'input-left': 'input-203',
+      'input-right': 'input-204',
+      'input-condition': 'input-205',
+    });
+    const recipe = result.settings.config.outputColumns[0].recipe;
+
+    if (recipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipe');
+    }
+
+    const step = recipe.ranges[0].valueRecipe?.steps?.[0];
+    expect(step?.source).toEqual({ type: 'input', inputColumnId: 'input-202' });
+    expect(step?.leftOperand).toEqual({ type: 'input', inputColumnId: 'input-203' });
+    expect(step?.rightOperand).toEqual({ type: 'input', inputColumnId: 'input-204' });
+    expect(step?.condition?.columnId).toBe('input-205');
+    expect(result.changedReferences.map((reference) => reference.columnId)).toEqual([
+      'input-step-source',
+      'input-left',
+      'input-right',
+      'input-condition',
+    ]);
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
+  it('remaps manual range value recipe concat part references', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'fixedText', value: 'Base' },
+                steps: [
+                  {
+                    id: 'range-concat-step',
+                    type: 'concat',
+                    parts: [
+                      {
+                        id: 'range-concat-part',
+                        source: { type: 'input', inputColumnId: 'input-pack' },
+                        steps: [
+                          {
+                            id: 'range-concat-part-step',
+                            type: 'addPrefix',
+                            source: { type: 'input', inputColumnId: 'input-prefix' },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-pack': 'input-206',
+      'input-prefix': 'input-207',
+    });
+    const recipe = result.settings.config.outputColumns[0].recipe;
+
+    if (recipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipe');
+    }
+
+    const concatStep = recipe.ranges[0].valueRecipe?.steps?.[0];
+    expect(concatStep?.parts?.[0].source).toEqual({ type: 'input', inputColumnId: 'input-206' });
+    expect(concatStep?.parts?.[0].steps?.[0].source).toEqual({ type: 'input', inputColumnId: 'input-207' });
+    expect(result.changedReferences.map((reference) => reference.columnId)).toEqual(['input-pack', 'input-prefix']);
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
   it('remaps manual range steps inside custom value recipes', () => {
     const currentSettings = buildSettings();
     currentSettings.config.outputColumns = [

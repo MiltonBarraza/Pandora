@@ -301,6 +301,170 @@ describe('settingsReferences', () => {
     expect(summary.inputColumnIds).toEqual(['input-brand', 'input-filter']);
   });
 
+  it('collects manual range value recipe input source references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'input', inputColumnId: 'input-description' },
+              },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-description',
+        target: 'input',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.source.inputColumnId',
+        outputColumnId: 'output-comment',
+      }),
+    ]));
+    expect(summary.inputColumnIds).toEqual(['input-description', 'input-filter']);
+  });
+
+  it('collects manual range value recipe range text source references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+              },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-brand',
+        target: 'input',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.source.inputColumnId',
+        outputColumnId: 'output-comment',
+      }),
+    ]));
+    expect(summary.inputColumnIds).toEqual(['input-brand', 'input-filter']);
+  });
+
+  it('collects manual range value recipe transform step references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'fixedText', value: 'Base' },
+                steps: [
+                  {
+                    id: 'range-value-step',
+                    type: 'addSuffix',
+                    source: { type: 'input', inputColumnId: 'input-suffix' },
+                    condition: { target: 'input', columnId: 'input-condition', operator: 'isNotEmpty' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-suffix',
+        kind: 'transformStepSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.steps[0].source',
+        stepId: 'range-value-step',
+      }),
+      expect.objectContaining({
+        columnId: 'input-condition',
+        kind: 'condition',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.steps[0].condition',
+        stepId: 'range-value-step',
+      }),
+    ]));
+  });
+
+  it('collects manual range value recipe concat part references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueRecipe: {
+                source: { type: 'fixedText', value: 'Base' },
+                steps: [
+                  {
+                    id: 'range-concat-step',
+                    type: 'concat',
+                    parts: [
+                      {
+                        id: 'range-concat-part',
+                        source: { type: 'input', inputColumnId: 'input-pack' },
+                        steps: [
+                          {
+                            id: 'range-concat-part-step',
+                            type: 'addPrefix',
+                            source: { type: 'input', inputColumnId: 'input-prefix' },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-pack',
+        kind: 'concatPartSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.steps[0].parts[0].source',
+        stepId: 'range-concat-step',
+        partId: 'range-concat-part',
+      }),
+      expect.objectContaining({
+        columnId: 'input-prefix',
+        kind: 'transformStepSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.steps[0].parts[0].steps[0].source',
+        stepId: 'range-concat-part-step',
+      }),
+    ]));
+  });
+
   it('collects manual range step value source and condition input references', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({
