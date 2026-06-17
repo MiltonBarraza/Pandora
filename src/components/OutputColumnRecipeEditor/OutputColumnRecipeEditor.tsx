@@ -791,25 +791,15 @@ function ManualRangeRecipeEditor({
   recipe,
   inputColumns,
   manualRangeRows,
-  conditionTitle = 'Aplicar sólo si',
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
-  conditionTitle?: string;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const [showGenerator, setShowGenerator] = useState(false);
-  const conditionMode = recipe.condition ? recipe.condition.operator : '';
-  const conditionInputColumnId = recipe.condition?.inputColumnId ?? inputColumns[0]?.id ?? '';
   const hasOverlappingRanges = hasOverlappingManualRanges(recipe.ranges);
-  const updateCondition = (operator: '' | ManualRangeCondition['operator'], inputColumnId = conditionInputColumnId) => {
-    onChange(updateManualRangeCondition(
-      recipe,
-      operator && inputColumnId ? { inputColumnId, operator } : null,
-    ));
-  };
 
   return (
     <div className="recipeSubBlock manualRangeEditor">
@@ -840,33 +830,11 @@ function ManualRangeRecipeEditor({
         />
       ) : null}
 
-      <div className="manualRangeCondition">
-        <strong>{conditionTitle}</strong>
-        <div className="twoColumns">
-          <Dropdown
-            className="compact"
-            label="Condición"
-            value={conditionMode}
-            options={[
-              { value: '', label: 'Sin condición' },
-              { value: 'isEmpty', label: 'está vacía' },
-              { value: 'isNotEmpty', label: 'no está vacía' },
-            ]}
-            scrollStrategy="close"
-            onChange={(operator) => updateCondition(operator as '' | ManualRangeCondition['operator'])}
-          />
-          <Dropdown
-            className="compact"
-            label="Columna de entrada"
-            value={conditionInputColumnId}
-            options={inputColumns.length === 0
-              ? [{ value: '', label: 'Sin columnas activas' }]
-              : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
-            scrollStrategy="close"
-            onChange={(inputColumnId) => updateCondition(conditionMode, inputColumnId)}
-          />
-        </div>
-      </div>
+      {recipe.condition ? (
+        <p className="manualRangeWarning">
+          Esta configuración conserva una condición interna heredada: {describeManualRangeCondition(recipe, inputColumns)}. Para nuevas condiciones usá la condición general del paso.
+        </p>
+      ) : null}
 
       {recipe.ranges.length === 0 ? (
         <p className="muted">No hay rangos configurados.</p>
@@ -1669,6 +1637,7 @@ export const stepModeOptions: Array<{ value: TransformStepMode; label: string }>
   { value: 'number', label: 'Trabajar con número' },
   { value: 'conversion', label: 'Conversión' },
   { value: 'date', label: 'Trabajar con fechas' },
+  { value: 'manualRange', label: 'Trabajar con rangos' },
 ];
 
 function CustomValueEditor({
@@ -1868,6 +1837,7 @@ function SimpleStepBlock({
   const summary = getStepSummary(step, inputColumns);
   const stepMode = getStepMode(step, defaultStepMode);
   const isManualRangeStep = step.type === 'manualRange';
+  const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
   const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
   const updateStepSource = (source: StepSource) => {
     if (index === 0 && source.type === 'input') {
@@ -1890,11 +1860,13 @@ function SimpleStepBlock({
           <div className="concatStepTopRow">
             <div className="concatStepTopControls">
               <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-              <StepTypeSelect
-                step={step}
-                mode={stepMode}
-                onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-              />
+              {showStepTypeSelect ? (
+                <StepTypeSelect
+                  step={step}
+                  mode={stepMode}
+                  onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+                />
+              ) : null}
             </div>
           </div>
         ) : (
@@ -2048,6 +2020,7 @@ function StepDetailPanel({
   const summary = getStepSummary(step, inputColumns);
   const stepMode = getStepMode(step);
   const isManualRangeStep = step.type === 'manualRange';
+  const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
@@ -2061,12 +2034,14 @@ function StepDetailPanel({
           <div className="concatStepTopRow">
             <div className="concatStepTopControls">
               <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-              <StepTypeSelect
-                step={step}
-                mode={stepMode}
-                allowConcat={allowConcat}
-                onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-              />
+              {showStepTypeSelect ? (
+                <StepTypeSelect
+                  step={step}
+                  mode={stepMode}
+                  allowConcat={allowConcat}
+                  onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+                />
+              ) : null}
             </div>
           </div>
         ) : (
@@ -2160,6 +2135,10 @@ function StepTypeSelect({
       {action}
     </div>
   );
+}
+
+export function shouldShowStepTypeSelectForStep(step: TransformStep) {
+  return step.type !== 'manualRange';
 }
 
 function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange: (mode: TransformStepMode) => void }) {
@@ -2854,7 +2833,6 @@ const textStepTypes = stepTypes.filter((stepType) => [
   'addSuffix',
   'removeText',
   'replaceText',
-  'manualRange',
   'concat',
 ].includes(stepType.value));
 
@@ -2880,6 +2858,10 @@ function getStepTypeOptions({ allowConcat = true }: { allowConcat?: boolean } = 
 }
 
 export function getStepTypesForMode(mode: TransformStepMode, { allowConcat = true }: { allowConcat?: boolean } = {}) {
+  if (mode === 'manualRange') {
+    return stepTypes.filter((stepType) => stepType.value === 'manualRange');
+  }
+
   if (mode === 'number') {
     return numberStepTypes;
   }
@@ -2945,7 +2927,6 @@ function StepFields({
           recipe={manualRangeStepToRecipe(step)}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          conditionTitle="Condición interna del rango"
           onChange={(recipe) => onChange(manualRangeRecipeToStepPatch(recipe))}
         />
       </div>
@@ -3792,7 +3773,7 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
 function createManualRangeStep(condition?: TransformCondition): TransformStep {
   return {
     id: crypto.randomUUID(),
-    mode: 'text',
+    mode: 'manualRange',
     type: 'manualRange',
     ranges: [],
     condition,
@@ -3951,6 +3932,18 @@ export function getTextStepSourceLabel(type: TransformStepType) {
 }
 
 export function changeStepMode(step: TransformStep, mode: TransformStepMode): Partial<TransformStep> {
+  if (mode === 'manualRange') {
+    if (step.type === 'manualRange') {
+      return { mode };
+    }
+
+    return {
+      ...createManualRangeStep(step.condition),
+      id: step.id,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
   return isStepAllowedForMode(step.type, mode) ? { mode } : createNoopStepFromStep(step, mode);
 }
 
@@ -3969,10 +3962,14 @@ export function getStepMode(step: TransformStep, fallbackMode: TransformStepMode
 }
 
 function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' ? mode : undefined;
+  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' || mode === 'manualRange' ? mode : undefined;
 }
 
 export function inferStepModeFromType(type: TransformStepType): TransformStepMode {
+  if (type === 'manualRange') {
+    return 'manualRange';
+  }
+
   if (type === 'numericOperation') {
     return 'number';
   }

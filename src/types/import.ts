@@ -51,7 +51,7 @@ export type TransformStepType =
   | 'manualRange'
   | 'numericOperation';
 
-export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date';
+export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date' | 'manualRange';
 
 export type DateInputFormat =
   | 'DD/MM/YYYY'

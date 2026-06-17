@@ -266,10 +266,14 @@ function normalizeStepType(type?: string): TransformStepType | null {
 }
 
 function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' ? mode : undefined;
+  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' || mode === 'manualRange' ? mode : undefined;
 }
 
 function inferStepModeFromType(type: TransformStepType): TransformStepMode {
+  if (type === 'manualRange') {
+    return 'manualRange';
+  }
+
   if (type === 'numericOperation') {
     return 'number';
   }

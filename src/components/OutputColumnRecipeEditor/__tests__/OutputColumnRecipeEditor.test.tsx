@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
-import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, parseManualRangeRowInput, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, sortManualRangesByStart, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, parseManualRangeRowInput, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, sortManualRangesByStart, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { hasInvalidManualRange, hasOverlappingManualRanges } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
@@ -1069,8 +1069,9 @@ describe('constructor helpers', () => {
   it('keeps value construction options separate from step modes', () => {
     expect(valueConstructionOptions.map((option) => option.value)).toEqual(['steps', 'concat']);
     expect(valueConstructionOptions.map((option) => option.value)).not.toContain('conversion');
-    expect(stepModeOptions.map((option) => option.value)).toEqual(['text', 'number', 'conversion', 'date']);
+    expect(stepModeOptions.map((option) => option.value)).toEqual(['text', 'number', 'conversion', 'date', 'manualRange']);
     expect(stepModeOptions.find((option) => option.value === 'date')?.label).toBe('Trabajar con fechas');
+    expect(stepModeOptions.find((option) => option.value === 'manualRange')?.label).toBe('Trabajar con rangos');
     expect(stepModeOptions.map((option) => option.value)).not.toContain('concat');
   });
 
@@ -1137,14 +1138,35 @@ describe('constructor helpers', () => {
   it('filters step options by step mode', () => {
     expect(getStepTypesForMode('text').find((stepType) => stepType.value === 'noop')?.label).toBe('Usar valor tal cual');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('addSuffix');
-    expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('manualRange');
+    expect(getStepTypesForMode('text').map((stepType) => stepType.value)).not.toContain('manualRange');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).toContain('concat');
     expect(getStepTypesForMode('text').map((stepType) => stepType.value)).not.toContain('numericOperation');
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).toContain('numericOperation');
     expect(getStepTypesForMode('number').map((stepType) => stepType.value)).not.toContain('addSuffix');
     expect(getStepTypesForMode('conversion').map((stepType) => stepType.value)).toEqual(['noop', 'extractNumber', 'toNumber', 'toText']);
     expect(getStepTypesForMode('date').map((stepType) => stepType.value)).toEqual(['noop', 'formatDate']);
+    expect(getStepTypesForMode('manualRange').map((stepType) => stepType.value)).toEqual(['manualRange']);
     expect(getStepTypesForMode('date').find((stepType) => stepType.value === 'formatDate')?.label).toBe('Formatear fecha');
+  });
+
+  it('shows manual range as an operation mode instead of a text action', () => {
+    expect(stepModeOptions).toContainEqual({ value: 'manualRange', label: 'Trabajar con rangos' });
+    expect(shouldShowStepTypeSelectForStep({ id: 'range-step', type: 'manualRange', ranges: [] })).toBe(false);
+    expect(shouldShowStepTypeSelectForStep({ id: 'text-step', type: 'addSuffix', value: 'lts' })).toBe(true);
+  });
+
+  it('creates a manual range step when selecting the manual range operation mode', () => {
+    expect(changeStepMode({ id: 'step-1', type: 'noop', mode: 'text' }, 'manualRange')).toMatchObject({
+      id: 'step-1',
+      mode: 'manualRange',
+      type: 'manualRange',
+      ranges: [],
+    });
+  });
+
+  it('renders existing manual range steps as the manual range operation mode', () => {
+    expect(getStepMode({ id: 'range-step', type: 'manualRange', ranges: [] })).toBe('manualRange');
+    expect(inferStepModeFromType('manualRange')).toBe('manualRange');
   });
 
   it('exposes date input formats for real spreadsheet display values', () => {
