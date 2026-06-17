@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
-import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, parseManualRangeRowInput, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, sortManualRangesByStart, stepModeOptions, updateConcatPartPrimaryStep, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { addManualRangeValue, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createManualRangeRecipe, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, parseManualRangeRowInput, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, removeManualRangeValue, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowTextSourceFields, sortManualRangesByStart, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { hasInvalidManualRange, hasOverlappingManualRanges } from '../OutputColumnRecipeEditor';
 
 const inputColumns: InputColumn[] = [
@@ -153,6 +154,93 @@ describe('constructor helpers', () => {
       ...manualRangeColumn,
       recipe: draftRecipe,
     });
+  });
+
+  it('applies generated manual ranges from a concat part into the final recipe', () => {
+    let nextId = 1;
+    const column: OutputColumn = {
+      id: 'output-title',
+      label: 'Titulo',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'concat',
+        parts: [],
+        separator: '',
+        steps: [{
+          id: 'concat-step',
+          type: 'concat',
+          parts: [
+            {
+              id: 'range-part',
+              source: { type: 'fixedText', value: '' },
+              steps: [{ id: 'range-step', type: 'manualRange', ranges: [] }],
+            },
+            {
+              id: 'pack-part',
+              source: { type: 'input', inputColumnId: 'input-pack' },
+              separatorBefore: ' - ',
+            },
+          ],
+        }],
+      },
+    };
+    const rows: InputRow[] = [
+      { rowNumber: 42, values: { 'input-name': 'RODILLO SIMIL LANA', 'input-pack': '12' } },
+      { rowNumber: 43, values: { 'input-name': '', 'input-pack': '13' } },
+      { rowNumber: 44, values: { 'input-name': 'RODILLO ANTIGOTA', 'input-pack': '14' } },
+    ];
+    const generatedRanges = generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 42,
+      endRowNumber: 44,
+      mode: 'untilNextText',
+      idFactory: () => `generated-${nextId++}`,
+    });
+
+    if (column.recipe.type !== 'combine' || column.recipe.steps?.[0]?.type !== 'concat') {
+      throw new Error('Expected concat step recipe');
+    }
+
+    const concatStep = column.recipe.steps[0];
+    const rangePart = concatStep.parts?.[0];
+    if (!rangePart) {
+      throw new Error('Expected range part');
+    }
+
+    const nextRangeSteps = updateConcatPartPrimaryStep(rangePart.steps ?? [], manualRangeRecipeToStepPatch({
+      type: 'manualRange',
+      ranges: generatedRanges,
+    }));
+    const nextParts = updateConcatPartSteps(concatStep.parts ?? [], rangePart.id, nextRangeSteps);
+    const draftRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      ...column.recipe,
+      steps: updateStep(column.recipe.steps ?? [], concatStep.id, { parts: nextParts }),
+    };
+    const appliedColumn = applyRecipeEditorDraft(column, draftRecipe);
+    const [processedRow] = buildProcessedRows([rows[0]], [appliedColumn]);
+
+    if (appliedColumn.recipe.type !== 'combine') {
+      throw new Error('Expected applied combine recipe');
+    }
+
+    const appliedRanges = appliedColumn.recipe.steps?.[0]?.parts?.[0]?.steps?.[0]?.ranges ?? [];
+    expect(appliedRanges).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 42,
+        endRowNumber: 43,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 44,
+        endRowNumber: 44,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
+      },
+    ]);
+    expect(processedRow.outputValues['output-title']).toBe('RODILLO SIMIL LANA - 12');
   });
 
   it('detects draft changes before discarding the modal editor', () => {
@@ -347,6 +435,146 @@ describe('constructor helpers', () => {
     expect(fromBottomButton.ranges).toHaveLength(1);
     expect(fromTopButton.ranges[0]).toMatchObject({ startRowNumber: 1, endRowNumber: 1 });
     expect(fromBottomButton.ranges[0]).toMatchObject({ startRowNumber: 1, endRowNumber: 1 });
+  });
+
+  it('generates manual ranges from found texts using real row numbers', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 12, values: { 'input-name': 'Fuera' } },
+      { rowNumber: 42, values: { 'input-name': 'RODILLO SIMIL LANA' } },
+      { rowNumber: 43, values: { 'input-name': '' } },
+      { rowNumber: 44, values: { 'input-name': 'RODILLO ANTIGOTA' } },
+      { rowNumber: 46, values: { 'input-name': 'RODILLOS PARA EPOXI' } },
+      { rowNumber: 60, values: { 'input-name': 'Fuera final' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 42,
+      endRowNumber: 50,
+      mode: 'untilNextText',
+      idFactory: () => `generated-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 42,
+        endRowNumber: 43,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 44,
+        endRowNumber: 45,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
+      },
+      {
+        id: 'generated-3',
+        startRowNumber: 46,
+        endRowNumber: 50,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLOS PARA EPOXI' },
+      },
+    ]);
+  });
+
+  it('generates manual ranges in single row mode', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 42, values: { 'input-name': 'RODILLO SIMIL LANA' } },
+      { rowNumber: 44, values: { 'input-name': 'RODILLO ANTIGOTA' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 40,
+      endRowNumber: 50,
+      mode: 'singleRow',
+      idFactory: () => `generated-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 42,
+        endRowNumber: 42,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 44,
+        endRowNumber: 44,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
+      },
+    ]);
+  });
+
+  it('does not generate manual ranges when no texts are found', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 42, values: { 'input-name': '' } },
+      { rowNumber: 43, values: { 'input-name': '   ' } },
+      { rowNumber: 44, values: { 'input-name': 'Fuera' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 42,
+      endRowNumber: 43,
+      mode: 'untilNextText',
+    })).toEqual([]);
+  });
+
+  it('adds generated manual ranges without deleting existing ranges', () => {
+    let nextId = 1;
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [
+        { id: 'existing', startRowNumber: 8, endRowNumber: 13, valueSource: { type: 'fixedText', value: 'Existente' } },
+      ],
+    };
+    const generatedRanges = generateManualRangesFromTexts([
+      { rowNumber: 42, values: { 'input-name': 'RODILLO SIMIL LANA' } },
+      { rowNumber: 44, values: { 'input-name': 'RODILLO ANTIGOTA' } },
+    ], {
+      inputColumnId: 'input-name',
+      startRowNumber: 40,
+      endRowNumber: 50,
+      mode: 'untilNextText',
+      idFactory: () => `generated-${nextId++}`,
+    });
+    const nextRecipe = { ...recipe, ranges: [...recipe.ranges, ...generatedRanges] };
+
+    expect(nextRecipe.ranges).toEqual([
+      { id: 'existing', startRowNumber: 8, endRowNumber: 13, valueSource: { type: 'fixedText', value: 'Existente' } },
+      {
+        id: 'generated-1',
+        startRowNumber: 42,
+        endRowNumber: 43,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 44,
+        endRowNumber: 50,
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
+      },
+    ]);
+  });
+
+  it('generates unique ids and rangeText sources for the selected column', () => {
+    let nextId = 1;
+    const generatedRanges = generateManualRangesFromTexts([
+      { rowNumber: 42, values: { 'input-code': 'Ignorar', 'input-name': 'RODILLO SIMIL LANA' } },
+      { rowNumber: 44, values: { 'input-code': 'Ignorar', 'input-name': 'RODILLO ANTIGOTA' } },
+    ], {
+      inputColumnId: 'input-name',
+      startRowNumber: 40,
+      endRowNumber: 50,
+      mode: 'singleRow',
+      idFactory: () => `generated-${nextId++}`,
+    });
+
+    expect(new Set(generatedRanges.map((range) => range.id)).size).toBe(generatedRanges.length);
+    expect(generatedRanges.map((range) => range.valueSource)).toEqual([
+      { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
+      { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
+    ]);
   });
 
   it('builds manual range text options from real row numbers', () => {

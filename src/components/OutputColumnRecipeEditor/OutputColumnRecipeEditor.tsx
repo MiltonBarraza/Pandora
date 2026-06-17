@@ -23,6 +23,15 @@ type OutputColumnRecipeEditorProps = {
 
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
 type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
+type ManualRangeGenerationMode = 'untilNextText' | 'singleRow';
+
+type ManualRangeGenerationConfig = {
+  inputColumnId: string;
+  startRowNumber: number;
+  endRowNumber: number;
+  mode: ManualRangeGenerationMode;
+  idFactory?: () => string;
+};
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
   { value: 'direct', label: 'Directa desde entrada' },
@@ -45,6 +54,11 @@ type ManualRangeValueSourceType = ManualRangeValueSource['type'];
 export const manualRangeValueSourceOptions: Array<{ value: ManualRangeValueSourceType; label: string }> = [
   { value: 'fixedText', label: 'Texto fijo' },
   { value: 'rangeText', label: 'Texto encontrado en el rango' },
+];
+
+const manualRangeGenerationModeOptions: Array<{ value: ManualRangeGenerationMode; label: string }> = [
+  { value: 'untilNextText', label: 'Cada texto aplica hasta el próximo texto' },
+  { value: 'singleRow', label: 'Cada texto aplica sólo a su fila' },
 ];
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
@@ -617,6 +631,41 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
   return options;
 }
 
+export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
+  const { inputColumnId, startRowNumber, endRowNumber, mode, idFactory = () => crypto.randomUUID() } = config;
+
+  if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
+    return [];
+  }
+
+  const foundTexts = rows
+    .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
+    .map((row) => ({
+      rowNumber: row.rowNumber,
+      text: String(row.values[inputColumnId] ?? '').trim(),
+    }))
+    .filter((row) => row.text)
+    .sort((left, right) => left.rowNumber - right.rowNumber);
+
+  return foundTexts.map((row, index) => {
+    const nextTextRowNumber = foundTexts[index + 1]?.rowNumber;
+    const rangeEndRowNumber = mode === 'singleRow'
+      ? row.rowNumber
+      : Math.min(endRowNumber, nextTextRowNumber ? nextTextRowNumber - 1 : endRowNumber);
+
+    return {
+      id: idFactory(),
+      startRowNumber: row.rowNumber,
+      endRowNumber: rangeEndRowNumber,
+      valueSource: {
+        type: 'rangeText',
+        inputColumnId,
+        selectedText: row.text,
+      },
+    };
+  });
+}
+
 export function getManualRangeSelectedTextOptions(
   rows: InputRow[],
   range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
@@ -751,6 +800,7 @@ function ManualRangeRecipeEditor({
   conditionTitle?: string;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
+  const [showGenerator, setShowGenerator] = useState(false);
   const conditionMode = recipe.condition ? recipe.condition.operator : '';
   const conditionInputColumnId = recipe.condition?.inputColumnId ?? inputColumns[0]?.id ?? '';
   const hasOverlappingRanges = hasOverlappingManualRanges(recipe.ranges);
@@ -775,9 +825,20 @@ function ManualRangeRecipeEditor({
           <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
             Ordenar por inicio
           </button>
+          <button type="button" className="secondary" onClick={() => setShowGenerator((current) => !current)}>
+            Generar desde textos
+          </button>
         </div>
       </div>
 
+      {showGenerator ? (
+        <ManualRangeTextGenerator
+          recipe={recipe}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+          onChange={onChange}
+        />
+      ) : null}
 
       <div className="manualRangeCondition">
         <strong>{conditionTitle}</strong>
@@ -832,6 +893,134 @@ function ManualRangeRecipeEditor({
             </ActionButton>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function ManualRangeTextGenerator({
+  recipe,
+  inputColumns,
+  manualRangeRows,
+  onChange,
+}: {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
+}) {
+  const [inputColumnId, setInputColumnId] = useState(inputColumns[0]?.id ?? '');
+  const [startRowInput, setStartRowInput] = useState('');
+  const [endRowInput, setEndRowInput] = useState('');
+  const [mode, setMode] = useState<ManualRangeGenerationMode>('untilNextText');
+  const startRowNumber = parseManualRangeRowInput(startRowInput);
+  const endRowNumber = parseManualRangeRowInput(endRowInput);
+  const canPreview = Boolean(inputColumnId && startRowNumber !== undefined && endRowNumber !== undefined && endRowNumber >= startRowNumber);
+  const generatedRanges = canPreview
+    ? generateManualRangesFromTexts(manualRangeRows, {
+      inputColumnId,
+      startRowNumber: startRowNumber!,
+      endRowNumber: endRowNumber!,
+      mode,
+    })
+    : [];
+  const previewMessage = !inputColumnId
+    ? 'Elegí una columna para buscar textos.'
+    : !canPreview
+      ? 'Definí un rango de filas válido.'
+      : generatedRanges.length === 0
+        ? 'No se encontraron textos en la zona definida.'
+        : '';
+
+  const confirmGeneratedRanges = () => {
+    if (!canPreview) {
+      return;
+    }
+
+    const nextRanges = generateManualRangesFromTexts(manualRangeRows, {
+      inputColumnId,
+      startRowNumber: startRowNumber!,
+      endRowNumber: endRowNumber!,
+      mode,
+    });
+
+    if (nextRanges.length === 0) {
+      return;
+    }
+
+    onChange({
+      ...recipe,
+      ranges: [...recipe.ranges, ...nextRanges],
+    });
+  };
+
+  return (
+    <div className="manualRangeGenerator">
+      <div className="manualRangeGeneratorHeader">
+        <div>
+          <strong>Generar desde textos</strong>
+          <p className="muted">Buscá títulos no vacíos dentro de una zona acotada y agregalos como rangos editables.</p>
+        </div>
+        <ActionButton
+          action="add"
+          variant="secondary"
+          disabled={generatedRanges.length === 0}
+          onClick={confirmGeneratedRanges}
+        >
+          Agregar rangos generados
+        </ActionButton>
+      </div>
+      <div className="manualRangeGeneratorControls">
+        <Dropdown
+          className="compact"
+          label="Buscar textos en"
+          value={inputColumnId}
+          options={inputColumns.length === 0
+            ? [{ value: '', label: 'Sin columnas activas' }]
+            : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+          scrollStrategy="close"
+          onChange={setInputColumnId}
+        />
+        <label className="field compact">
+          <span>Desde fila</span>
+          <input
+            type="number"
+            min="1"
+            placeholder="42"
+            value={startRowInput}
+            onChange={(event) => setStartRowInput(event.target.value)}
+          />
+        </label>
+        <label className="field compact">
+          <span>Hasta fila</span>
+          <input
+            type="number"
+            min="1"
+            placeholder="50"
+            value={endRowInput}
+            onChange={(event) => setEndRowInput(event.target.value)}
+          />
+        </label>
+        <Dropdown<ManualRangeGenerationMode>
+          className="compact"
+          label="Modo"
+          value={mode}
+          options={manualRangeGenerationModeOptions}
+          scrollStrategy="close"
+          onChange={setMode}
+        />
+      </div>
+      {previewMessage ? (
+        <p className="manualRangeValueHelp">{previewMessage}</p>
+      ) : (
+        <div className="manualRangeGeneratorPreview" aria-label="Vista previa de rangos generados">
+          {generatedRanges.slice(0, 6).map((range, index) => (
+            <span key={`${range.startRowNumber}-${range.endRowNumber}-${index}`}>
+              {range.startRowNumber}-{range.endRowNumber}: {range.valueSource?.type === 'rangeText' ? range.valueSource.selectedText : ''}
+            </span>
+          ))}
+          {generatedRanges.length > 6 ? <span>{generatedRanges.length - 6} rangos más…</span> : null}
+        </div>
       )}
     </div>
   );
@@ -2522,7 +2711,7 @@ function ConcatStepFields({
                     ...(nextSteps ? { steps: nextSteps } : {}),
                   },
                 )}
-                onChange={(steps) => updatePart(selectedPart.id, { ...selectedPart, steps })}
+                onChange={(steps) => onChange(updateConcatPartSteps(parts, selectedPart.id, steps))}
               />
             </div>
           ) : null}
@@ -3115,7 +3304,7 @@ function isNumericConditionOperator(operator: ConditionOperator) {
   ].includes(operator);
 }
 
-function updateStep(steps: TransformStep[], id: string, patch: Partial<TransformStep>) {
+export function updateStep(steps: TransformStep[], id: string, patch: Partial<TransformStep>) {
   return steps.map((step) => (step.id === id ? { ...step, ...patch } : step));
 }
 
@@ -3365,6 +3554,10 @@ export function normalizeConcatPartsAfterReorder(parts: ConcatPart[]) {
     { ...secondPart, separatorBefore: firstPart.separatorBefore },
     ...restParts,
   ];
+}
+
+export function updateConcatPartSteps(parts: ConcatPart[], partId: string, steps: TransformStep[]) {
+  return parts.map((part) => (part.id === partId ? { ...part, steps } : part));
 }
 
 function omitSeparatorBefore(part: ConcatPart): ConcatPart {
