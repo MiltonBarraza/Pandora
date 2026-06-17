@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, type ManualRangeGenerationMode, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, type ManualRangeGenerationMode } from '../../domain/import/manualRangeModel';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
@@ -13,6 +13,7 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { RangeValueEditor } from './RangeValueEditor';
 
 type OutputColumnRecipeEditorProps = {
   column: OutputColumn;
@@ -623,11 +624,6 @@ function ManualRangeTableRow({
 }) {
   const [startRowInput, setStartRowInput] = useState(String(range.startRowNumber));
   const [endRowInput, setEndRowInput] = useState(String(range.endRowNumber));
-  const valueSourceType = getManualRangeValueSourceType(range);
-  const inputSource = getManualRangeInputSource(range);
-  const rangeTextSource = getManualRangeRangeTextSource(range);
-  const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
-  const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
   const rowCount = getManualRangeRowCountFromInputs(startRowInput, endRowInput);
 
   useEffect(() => {
@@ -680,61 +676,15 @@ function ManualRangeTableRow({
         <span>Filas</span>
         <strong>{rowCount || '-'}</strong>
       </div>
-      <div className="manualRangeValueFields">
-        <Dropdown<ManualRangeValueSourceType>
-          className="compact"
-          label="Valor"
-          value={valueSourceType}
-          options={manualRangeValueSourceOptions}
-          scrollStrategy="close"
-          onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
-        />
-        {valueSourceType === 'input' ? (
-          <Dropdown
-            className="compact"
-            label="Columna de entrada"
-            value={inputSource.inputColumnId}
-            options={inputColumns.length === 0
-              ? [{ value: '', label: 'Sin columnas activas' }]
-              : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
-            scrollStrategy="close"
-            onChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
-          />
-        ) : valueSourceType === 'rangeText' ? (
-          <>
-            <Dropdown
-              className="compact"
-              label="Buscar textos en"
-              value={rangeTextSource.inputColumnId}
-              options={inputColumns.length === 0
-                ? [{ value: '', label: 'Sin columnas activas' }]
-                : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
-              scrollStrategy="close"
-              onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))}
-            />
-            <Dropdown
-              className="compact"
-              label="Texto encontrado"
-              value={rangeTextSource.selectedText}
-              options={selectedTextOptions.length === 0
-                ? [{ value: '', label: 'Sin textos encontrados', disabled: true }]
-                : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-              disabled={selectedTextOptions.length === 0}
-              scrollStrategy="close"
-              onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
-            />
-            {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
-          </>
-        ) : (
-          <label className="field compact">
-            <span>Texto fijo</span>
-            <input
-              value={getManualRangeFixedTextValue(range)}
-              onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))}
-            />
-          </label>
-        )}
-      </div>
+      <RangeValueEditor
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onValueSourceTypeChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
+        onFixedTextChange={(value) => onChange(updateManualRangeFixedTextValue(recipe, range.id, value))}
+        onInputColumnChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
+        onRangeTextChange={(patch) => onChange(updateManualRangeRangeTextValue(recipe, range.id, patch))}
+      />
       <div className="manualRangeActionsField">
         <span>Acciones</span>
         <div className="manualRangeRowActions">
