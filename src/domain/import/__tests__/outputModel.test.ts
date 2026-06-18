@@ -156,6 +156,455 @@ describe('outputModel recipes', () => {
   });
 });
 
+describe('outputModel manual range recipes', () => {
+  it('assigns fixed text from valueRecipe source to rows inside the configured range', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 14, values: { 'input-code': 'A14' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'fixedText', value: 'Promo' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Promo', '']);
+  });
+
+  it('assigns current row input values from valueRecipe source columns', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 9, values: { 'input-code': 'A9' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'input', inputColumnId: 'input-code' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['A8', 'A9']);
+  });
+
+  it('assigns selected text from valueRecipe rangeText sources', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'Sinteplast' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Sinteplast');
+  });
+
+  it('applies valueRecipe steps over the initial range value', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': '  promo  ' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'input', inputColumnId: 'input-code' },
+              steps: [
+                { id: 'trim', type: 'trim' },
+                { id: 'upper', type: 'uppercase' },
+              ],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('PROMO');
+  });
+
+  it('applies concat valueRecipe steps using the current real row', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+      { rowNumber: 9, values: { 'input-code': 'A9', 'input-brand': 'Otra' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: '' },
+              steps: [{
+                id: 'concat',
+                type: 'concat',
+                parts: [
+                  { id: 'code', source: { type: 'input', inputColumnId: 'input-code' } },
+                  { id: 'brand', source: { type: 'input', inputColumnId: 'input-brand' }, separatorBefore: ' - ' },
+                ],
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['A8 - Marca', 'A9 - Otra']);
+  });
+
+  it('ignores nested manualRange steps inside valueRecipe without recursing or failing', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: 'Base' },
+              steps: [
+                {
+                  id: 'nested-range',
+                  type: 'manualRange',
+                  ranges: [{
+                    id: 'nested',
+                    startRowNumber: 8,
+                    endRowNumber: 8,
+                    valueSource: { type: 'fixedText', value: 'Nested' },
+                  }],
+                },
+                { id: 'suffix', type: 'addSuffix', value: '-OK' },
+              ],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Base-OK');
+  });
+
+  it('assigns fixed text from valueSource to rows inside the configured range and empty text outside it', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 7, values: { 'input-code': 'A7' } },
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 13, values: { 'input-code': 'A13' } },
+      { rowNumber: 14, values: { 'input-code': 'A14' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueSource: { type: 'fixedText', value: 'Cerda china mango amarillo' },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual([
+      '',
+      'Cerda china mango amarillo',
+      'Cerda china mango amarillo',
+      '',
+    ]);
+  });
+
+  it('keeps legacy manual range values working', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 14, values: { 'input-code': 'A14' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Legacy' }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Legacy', '']);
+  });
+
+  it('uses manual range as a normal custom value step before later transformations', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+      { rowNumber: 14, values: { 'input-code': 'A14', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'range',
+              type: 'manualRange',
+              mode: 'text',
+              ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: '  promo ' }],
+            },
+            { id: 'trim', type: 'trim', mode: 'text' },
+            { id: 'suffix', type: 'addSuffix', mode: 'text', value: '-OK' },
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                { id: 'previous', source: { type: 'previousResult' } },
+                { id: 'brand', source: { type: 'input', inputColumnId: 'input-brand' }, separatorBefore: '-' },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['promo-OK-Marca', '-Marca']);
+  });
+
+  it('uses selected range text from a manual range step inside a concat part', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+      { rowNumber: 14, values: { 'input-code': 'A14', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'combine',
+          customMode: 'concat',
+          parts: [],
+          separator: '',
+          steps: [
+            {
+              id: 'concat',
+              type: 'concat',
+              mode: 'text',
+              parts: [
+                {
+                  id: 'range-part',
+                  source: { type: 'previousResult' },
+                  steps: [{
+                    id: 'nested-range',
+                    type: 'manualRange',
+                    mode: 'text',
+                    ranges: [{
+                      id: 'range-8-13',
+                      startRowNumber: 8,
+                      endRowNumber: 13,
+                      valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'PINCELES SERIE 304' },
+                    }],
+                  }],
+                },
+                {
+                  id: 'brand-part',
+                  source: { type: 'input', inputColumnId: 'input-brand' },
+                  separatorBefore: ' - ',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual([
+      'PINCELES SERIE 304 - Marca',
+      ' - Marca',
+    ]);
+  });
+
+  it('uses selected range text as a concat part source inside a range value recipe', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: '' },
+              steps: [{
+                id: 'concat',
+                type: 'concat',
+                mode: 'text',
+                parts: [
+                  { id: 'range-text', source: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'PINCELES SERIE 304' } },
+                  { id: 'brand', source: { type: 'input', inputColumnId: 'input-brand' }, separatorBefore: ' - ' },
+                ],
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('PINCELES SERIE 304 - Marca');
+  });
+
+  it('assigns selected text from rangeText value sources', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+      { rowNumber: 9, values: { 'input-code': 'A9' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-8',
+              startRowNumber: 8,
+              endRowNumber: 8,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'Sinteplast' },
+            },
+            {
+              id: 'range-9-9',
+              startRowNumber: 9,
+              endRowNumber: 9,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: '' },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Sinteplast', '']);
+  });
+
+  it('uses real Excel row numbers from metadata, not internal row indexes', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A13'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 13 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns: [
+        outputColumn({
+          id: 'comment',
+          recipe: {
+            type: 'manualRange',
+            ranges: [{ id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Dentro' }],
+          },
+        }),
+      ],
+    });
+
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      comment: row.outputValues.comment,
+    }))).toEqual([
+      { rowNumber: 8, comment: 'Dentro' },
+      { rowNumber: 13, comment: 'Dentro' },
+    ]);
+  });
+
+  it('respects an input condition such as column B is not empty', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-0': 'A8', 'input-1': 'B8' } },
+      { rowNumber: 9, values: { 'input-0': 'A9', 'input-1': '' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Con codigo' }],
+          condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Con codigo', '']);
+  });
+
+  it('applies to every row in range when no condition is configured', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-0': 'A8', 'input-1': '' } },
+      { rowNumber: 9, values: { 'input-0': 'A9', 'input-1': 'B9' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Sin condicion' }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues.comment)).toEqual(['Sin condicion', 'Sin condicion']);
+  });
+
+  it('uses the first configured range when ranges overlap', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 10, values: { 'input-0': 'A10' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            { id: 'first', startRowNumber: 8, endRowNumber: 12, value: 'Primero' },
+            { id: 'second', startRowNumber: 10, endRowNumber: 13, value: 'Segundo' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.comment).toBe('Primero');
+  });
+});
+
 describe('outputModel input filters', () => {
   it('filters input rows before building processed rows', () => {
     const columns: ColumnAnalysis[] = [
@@ -186,6 +635,66 @@ describe('outputModel input filters', () => {
         inputValues: { 'input-0': 'A2', 'input-1': 'BORRAR' },
         ignoredReason: 'Ignorada por regla: B - Estado es igual a "BORRAR"',
       },
+    ]);
+  });
+
+  it('keeps index-based row numbers when metadata is not provided', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A1'],
+        ['A2'],
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns: [
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.rowNumber)).toEqual([1, 2]);
+    expect(pipeline.processedRows.map((row) => row.rowNumber)).toEqual([1, 2]);
+  });
+
+  it('uses Excel row numbers from metadata while keeping filters and recipes working', () => {
+    const columns: ColumnAnalysis[] = [
+      columnAnalysis(0, 'A', 'Codigo'),
+      columnAnalysis(1, 'B', 'Estado'),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A1', 'ACTIVO'],
+        ['A2', 'BORRAR'],
+        ['A3', 'ACTIVO'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 1 },
+        { internalRowIndex: 1, excelRowNumber: 3 },
+        { internalRowIndex: 2, excelRowNumber: 5 },
+      ],
+      columnAnalysis: columns,
+      startRowIndex: 0,
+      inputIgnoreRules: [
+        { id: 'remove-deleted', target: 'input', columnId: 'input-1', operator: 'equals', value: 'BORRAR' },
+      ],
+      outputColumns: [
+        outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      ],
+    });
+
+    expect(pipeline.inputRows.map((row) => row.rowNumber)).toEqual([1, 3, 5]);
+    expect(pipeline.ignoredInputRows).toEqual([
+      {
+        rowNumber: 3,
+        inputValues: { 'input-0': 'A2', 'input-1': 'BORRAR' },
+        ignoredReason: 'Ignorada por regla: B - Estado es igual a "BORRAR"',
+      },
+    ]);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      code: row.outputValues.code,
+    }))).toEqual([
+      { rowNumber: 1, code: 'A1' },
+      { rowNumber: 5, code: 'A3' },
     ]);
   });
 });

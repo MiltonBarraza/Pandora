@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type * as XLSX from 'xlsx';
-import { getSheetRows } from '../getSheetRows';
+import { getSheetRows, getSheetRowsWithMetadata } from '../getSheetRows';
 
 describe('getSheetRows', () => {
   it('formats date cells as local day/month/year instead of SheetJS default m/d/yy text', () => {
@@ -46,6 +46,63 @@ describe('getSheetRows', () => {
     expect(getSheetRows(workbook, 'Hoja 1')).toEqual([
       ['Texto'],
       ['6/1/24'],
+    ]);
+  });
+
+  it('keeps metadata aligned with rows when there are no empty rows', () => {
+    const workbook = workbookWithSheet({
+      A1: { t: 's', v: 'Codigo' },
+      A2: { t: 's', v: 'A-1' },
+      A3: { t: 's', v: 'A-2' },
+      '!ref': 'A1:A3',
+    });
+
+    expect(getSheetRowsWithMetadata(workbook, 'Hoja 1')).toEqual({
+      rows: [
+        ['Codigo'],
+        ['A-1'],
+        ['A-2'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 1 },
+        { internalRowIndex: 1, excelRowNumber: 2 },
+        { internalRowIndex: 2, excelRowNumber: 3 },
+      ],
+    });
+  });
+
+  it('keeps real Excel row numbers when empty rows are discarded', () => {
+    const workbook = workbookWithSheet({
+      A1: { t: 's', v: 'Codigo' },
+      A3: { t: 's', v: 'A-1' },
+      A5: { t: 's', v: 'A-2' },
+      '!ref': 'A1:A5',
+    });
+
+    expect(getSheetRowsWithMetadata(workbook, 'Hoja 1')).toEqual({
+      rows: [
+        ['Codigo'],
+        ['A-1'],
+        ['A-2'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 1 },
+        { internalRowIndex: 1, excelRowNumber: 3 },
+        { internalRowIndex: 2, excelRowNumber: 5 },
+      ],
+    });
+  });
+
+  it('keeps getSheetRows compatible by returning rows only', () => {
+    const workbook = workbookWithSheet({
+      A1: { t: 's', v: 'Codigo' },
+      A3: { t: 's', v: 'A-1' },
+      '!ref': 'A1:A3',
+    });
+
+    expect(getSheetRows(workbook, 'Hoja 1')).toEqual([
+      ['Codigo'],
+      ['A-1'],
     ]);
   });
 });

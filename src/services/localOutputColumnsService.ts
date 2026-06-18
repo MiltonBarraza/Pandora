@@ -4,8 +4,11 @@ import type {
   DateInputFormat,
   DateInvalidFallback,
   DateOutputFormat,
+  ManualRangeCondition,
+  ManualRangeValue,
   OutputColumn,
   OutputRecipe,
+  RangeValueRecipe,
   RecipePart,
   StepOperand,
   StepSource,
@@ -102,7 +105,97 @@ function normalizeRecipe(recipe?: Partial<OutputRecipe>): OutputRecipe {
     };
   }
 
+  if (recipe?.type === 'manualRange') {
+    const condition = recipe.condition ? normalizeManualRangeCondition(recipe.condition) : undefined;
+    return {
+      type: 'manualRange',
+      ranges: normalizeManualRanges(recipe.ranges),
+      ...(condition ? { condition } : {}),
+    };
+  }
+
   return { type: 'empty' };
+}
+
+function normalizeManualRanges(ranges?: Partial<ManualRangeValue>[]): ManualRangeValue[] {
+  return (ranges ?? [])
+    .map(normalizeManualRange)
+    .filter((range): range is ManualRangeValue => Boolean(range));
+}
+
+function normalizeManualRange(range: Partial<ManualRangeValue>): ManualRangeValue | null {
+  const startRowNumber = normalizeManualRangeNumber(range.startRowNumber);
+  const endRowNumber = normalizeManualRangeNumber(range.endRowNumber);
+  if (!startRowNumber || !endRowNumber) {
+    return null;
+  }
+
+  const valueRecipe = normalizeRangeValueRecipe(range.valueRecipe);
+  const baseRange = {
+    id: range.id ?? crypto.randomUUID(),
+    startRowNumber,
+    endRowNumber,
+    ...(valueRecipe ? { valueRecipe } : {}),
+  };
+
+  if (range.valueSource?.type === 'fixedText') {
+    return {
+      ...baseRange,
+      valueSource: { type: 'fixedText', value: range.valueSource.value ?? '' },
+    };
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return {
+      ...baseRange,
+      valueSource: {
+        type: 'rangeText',
+        inputColumnId: range.valueSource.inputColumnId ?? '',
+        selectedText: range.valueSource.selectedText ?? '',
+      },
+    };
+  }
+
+  return {
+    ...baseRange,
+    value: range.value ?? '',
+  };
+}
+
+function normalizeRangeValueRecipe(recipe?: Partial<RangeValueRecipe>): RangeValueRecipe | undefined {
+  const source = normalizeRangeValueSource(recipe?.source);
+  if (!source) {
+    return undefined;
+  }
+
+  return {
+    source,
+    ...(Array.isArray(recipe?.steps) ? { steps: normalizeSteps(recipe.steps) } : {}),
+  };
+}
+
+function normalizeRangeValueSource(source?: Partial<RangeValueRecipe['source']>): RangeValueRecipe['source'] | undefined {
+  if (source?.type === 'rangeText') {
+    return {
+      type: 'rangeText',
+      inputColumnId: source.inputColumnId ?? '',
+      selectedText: source.selectedText ?? '',
+    };
+  }
+
+  return normalizeStepSource(source as Partial<StepSource> | undefined);
+}
+
+function normalizeManualRangeNumber(value: number | undefined) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function normalizeManualRangeCondition(condition: ManualRangeCondition): ManualRangeCondition | undefined {
+  if (!condition.inputColumnId || (condition.operator !== 'isEmpty' && condition.operator !== 'isNotEmpty')) {
+    return undefined;
+  }
+
+  return condition;
 }
 
 function normalizeCustomValueMode(mode: Partial<Extract<OutputRecipe, { type: 'combine' }>>['customMode']) {
@@ -173,6 +266,8 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     dateOutputFormat: normalizeDateOutputFormat(step.dateOutputFormat) ?? defaultDateOutputFormat,
     dateInvalidFallback: normalizeDateInvalidFallback(step.dateInvalidFallback) ?? defaultDateInvalidFallback,
     dateInvalidFallbackText: step.dateInvalidFallbackText ?? '',
+    ...(type === 'manualRange' ? { ranges: normalizeManualRanges(step.ranges) } : {}),
+    ...(type === 'manualRange' && step.manualRangeCondition ? { manualRangeCondition: normalizeManualRangeCondition(step.manualRangeCondition) } : {}),
     condition: normalizeCondition(step.condition),
     applyToEmptyValues: step.applyToEmptyValues ?? false,
   };
@@ -193,6 +288,7 @@ function normalizeStepType(type?: string): TransformStepType | null {
     'toNumber',
     'toText',
     'formatDate',
+    'manualRange',
     'numericOperation',
   ].includes(type ?? '')
     ? type as TransformStepType
@@ -200,10 +296,14 @@ function normalizeStepType(type?: string): TransformStepType | null {
 }
 
 function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' ? mode : undefined;
+  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' || mode === 'manualRange' ? mode : undefined;
 }
 
 function inferStepModeFromType(type: TransformStepType): TransformStepMode {
+  if (type === 'manualRange') {
+    return 'manualRange';
+  }
+
   if (type === 'numericOperation') {
     return 'number';
   }

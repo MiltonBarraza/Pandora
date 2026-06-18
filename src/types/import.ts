@@ -1,5 +1,15 @@
 export type RawRow = unknown[];
 
+export type SheetRowMetadata = {
+  internalRowIndex: number;
+  excelRowNumber: number;
+};
+
+export type SheetRowsWithMetadata = {
+  rows: RawRow[];
+  rowMetadata: SheetRowMetadata[];
+};
+
 export type InputColumn = {
   id: string;
   columnIndex: number;
@@ -38,9 +48,10 @@ export type TransformStepType =
   | 'toNumber'
   | 'toText'
   | 'formatDate'
+  | 'manualRange'
   | 'numericOperation';
 
-export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date';
+export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date' | 'manualRange';
 
 export type DateInputFormat =
   | 'DD/MM/YYYY'
@@ -71,6 +82,11 @@ export type StepSource =
   | {
       type: 'input';
       inputColumnId: string;
+    }
+  | {
+      type: 'rangeText';
+      inputColumnId: string;
+      selectedText: string;
     }
   | {
       type: 'fixedText';
@@ -106,6 +122,8 @@ export type TransformStep = {
   dateOutputFormat?: DateOutputFormat;
   dateInvalidFallback?: DateInvalidFallback;
   dateInvalidFallbackText?: string;
+  ranges?: ManualRangeValue[];
+  manualRangeCondition?: ManualRangeCondition;
   condition?: TransformCondition;
   applyToEmptyValues?: boolean;
 };
@@ -138,6 +156,38 @@ export type RecipePart =
 
 export type CustomValueMode = 'number' | 'text' | 'concat';
 
+export type ManualRangeCondition = {
+  inputColumnId: string;
+  operator: 'isEmpty' | 'isNotEmpty';
+};
+
+export type ManualRangeValueSource =
+  | {
+      type: 'fixedText';
+      value: string;
+    }
+  | {
+      type: 'rangeText';
+      inputColumnId: string;
+      selectedText: string;
+    };
+
+export type RangeValueSource = StepSource;
+
+export type RangeValueRecipe = {
+  source: RangeValueSource;
+  steps?: TransformStep[];
+};
+
+export type ManualRangeValue = {
+  id: string;
+  startRowNumber: number;
+  endRowNumber: number;
+  valueRecipe?: RangeValueRecipe;
+  valueSource?: ManualRangeValueSource;
+  value?: string;
+};
+
 export type OutputRecipe =
   | {
       type: 'direct';
@@ -158,6 +208,11 @@ export type OutputRecipe =
       separator?: string;
       steps?: TransformStep[];
       customMode?: CustomValueMode;
+    }
+  | {
+      type: 'manualRange';
+      ranges: ManualRangeValue[];
+      condition?: ManualRangeCondition;
     };
 
 export type OutputColumn = {
@@ -379,6 +434,7 @@ export type SettingsReferenceKind =
   | 'transformStepOperand'
   | 'concatPartSource'
   | 'concatPartTransform'
+  | 'manualRangeValueSource'
   | 'condition'
   | 'inputIgnoreRule'
   | 'outputIgnoreRule';

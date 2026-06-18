@@ -5,15 +5,17 @@ import type {
   InputRow,
   OutputColumn,
   ProcessedRow,
+  RangeValueRecipe,
   RawRow,
   RecipePart,
+  SheetRowMetadata,
   StepOperand,
   StepSource,
   TransformStep,
 } from '../../types/import';
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
 import { applyFormatDateStep } from './dateOperations';
-import { evaluateTransformCondition } from './evaluateCondition';
+import { evaluateTextCondition, evaluateTransformCondition } from './evaluateCondition';
 import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
 
@@ -32,11 +34,17 @@ export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]):
   }));
 }
 
-export function buildInputRows(rows: RawRow[], inputColumns: InputColumn[], startRowIndex = 0): InputRow[] {
+export function buildInputRows(
+  rows: RawRow[],
+  inputColumns: InputColumn[],
+  startRowIndex = 0,
+  rowMetadata: SheetRowMetadata[] = [],
+): InputRow[] {
   const activeColumns = inputColumns.filter((column) => column.active);
+  const rowMetadataByInternalIndex = new Map(rowMetadata.map((metadata) => [metadata.internalRowIndex, metadata]));
 
   return rows.slice(startRowIndex).map((row, offset) => ({
-    rowNumber: startRowIndex + offset + 1,
+    rowNumber: rowMetadataByInternalIndex.get(startRowIndex + offset)?.excelRowNumber ?? startRowIndex + offset + 1,
     values: Object.fromEntries(
       activeColumns.map((column) => [column.id, toText(row[column.columnIndex])]),
     ),
@@ -70,15 +78,17 @@ export function buildProcessedRowsPipeline({
   startRowIndex,
   outputColumns,
   inputIgnoreRules = [],
+  rowMetadata = [],
 }: {
   rawRows: RawRow[];
   columnAnalysis: ColumnAnalysis[];
   startRowIndex: number;
   outputColumns: OutputColumn[];
   inputIgnoreRules?: IgnoreRule[];
+  rowMetadata?: SheetRowMetadata[];
 }) {
   const inputColumns = buildInputColumnsFromAnalysis(columnAnalysis);
-  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex);
+  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex, rowMetadata);
   const { includedInputRows, ignoredInputRows } = applyInputIgnoreRulesToInputRows({
     inputRows,
     inputIgnoreRules,
@@ -126,18 +136,82 @@ function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: R
   } else if (column.recipe.type === 'combine') {
     const result = resolveCombinedValue(row, column.recipe.parts, column.recipe.separator, outputValues, column.id);
     value = result.value;
-    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row, outputValues, column.id);
     return {
       value: finalResult.value,
       warnings: [...result.warnings, ...finalResult.warnings],
     };
+  } else if (column.recipe.type === 'manualRange') {
+    return {
+      value: resolveManualRangeValue(row, column.recipe),
+      warnings: [],
+    };
   }
 
-  return applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+  return applyTransformSteps(value, getRecipeSteps(column.recipe), row, outputValues, column.id);
 }
 
 function getRecipeSteps(recipe: OutputColumn['recipe']) {
-  return recipe.type === 'empty' ? [] : recipe.steps ?? [];
+  return 'steps' in recipe ? recipe.steps ?? [] : [];
+}
+
+function resolveManualRangeValue(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'ranges' | 'condition'>) {
+  if (!matchesManualRangeCondition(row, recipe)) {
+    return '';
+  }
+
+  const range = recipe.ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber);
+  if (!range) {
+    return '';
+  }
+
+  if (range.valueRecipe) {
+    return resolveRangeValueRecipe(row, range.valueRecipe);
+  }
+
+  return resolveLegacyManualRangeValue(range);
+}
+
+function resolveLegacyManualRangeValue(range: Extract<OutputColumn['recipe'], { type: 'manualRange' }>['ranges'][number]) {
+  if (range.valueSource?.type === 'fixedText') {
+    return range.valueSource.value;
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return range.valueSource.selectedText ?? '';
+  }
+
+  return range.value ?? '';
+}
+
+function resolveRangeValueRecipe(row: InputRow, recipe: RangeValueRecipe) {
+  const initialValue = resolveRangeValueSource(row, recipe.source);
+  const safeSteps = (recipe.steps ?? []).filter((step) => step.type !== 'manualRange');
+  return applyTransformSteps(initialValue, safeSteps, row, {}, '').value;
+}
+
+function resolveRangeValueSource(row: InputRow, source: RangeValueRecipe['source']) {
+  if (source.type === 'input') {
+    return row.values[source.inputColumnId] ?? '';
+  }
+
+  if (source.type === 'fixedText') {
+    return source.value;
+  }
+
+  if (source.type === 'rangeText') {
+    return source.selectedText ?? '';
+  }
+
+  return '';
+}
+
+function matchesManualRangeCondition(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'condition'>) {
+  if (!recipe.condition) {
+    return true;
+  }
+
+  return evaluateTextCondition(row.values[recipe.condition.inputColumnId] ?? '', recipe.condition.operator);
 }
 
 function resolveCombinedValue(
@@ -150,7 +224,7 @@ function resolveCombinedValue(
   const warnings: string[] = [];
   const values = parts.map((part) => {
     const baseValue = part.type === 'input' ? row.values[part.inputColumnId] ?? '' : part.value;
-    const result = applyTransformSteps(baseValue, part.steps ?? [], row.values, outputValues, currentOutputColumnId);
+    const result = applyTransformSteps(baseValue, part.steps ?? [], row, outputValues, currentOutputColumnId);
     warnings.push(...result.warnings);
     return result.value;
   });
@@ -186,7 +260,7 @@ function getPartSeparator(part: RecipePart, globalSeparator?: string) {
 function applyTransformSteps(
   value: string,
   steps: TransformStep[],
-  inputValues: Record<string, string>,
+  row: InputRow,
   outputValues: Record<string, string>,
   currentOutputColumnId: string,
 ): TransformResult {
@@ -197,7 +271,7 @@ function applyTransformSteps(
         [currentOutputColumnId]: currentResult.value,
       };
       const conditionResult = evaluateTransformCondition({
-        inputValues,
+        inputValues: row.values,
         outputValues: nextOutputValues,
         condition: step.condition,
       });
@@ -212,7 +286,8 @@ function applyTransformSteps(
       }
 
       const nextResult = applyTransformStep(currentResult.value, step, {
-        inputValues,
+        inputValues: row.values,
+        row,
         outputValues: nextOutputValues,
         currentOutputColumnId,
         stepIndex,
@@ -228,6 +303,7 @@ function applyTransformSteps(
 
 type TransformStepContext = {
   inputValues: Record<string, string>;
+  row: InputRow;
   outputValues: Record<string, string>;
   currentOutputColumnId: string;
   stepIndex: number;
@@ -297,6 +373,16 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
     return { value: applyFormatDateStep(value, step), warnings: [] };
   }
 
+  if (step.type === 'manualRange') {
+    return {
+      value: resolveManualRangeValue(context.row, {
+        ranges: step.ranges ?? [],
+        condition: step.manualRangeCondition,
+      }),
+      warnings: [],
+    };
+  }
+
   if (step.type === 'concat') {
     return applyConcatTransformStep(step, {
       ...context,
@@ -322,6 +408,10 @@ function resolveStepSource(source: StepSource | undefined, context: StepValueCon
 
   if (source.type === 'input') {
     return context.inputValues[source.inputColumnId] ?? '';
+  }
+
+  if (source.type === 'rangeText') {
+    return source.selectedText ?? '';
   }
 
   return source.value;
@@ -354,7 +444,7 @@ function applyConcatTransformStep(step: TransformStep, context: StepValueContext
     const result = applyTransformSteps(
       baseValue,
       part.steps ?? [],
-      context.inputValues,
+      context.row,
       context.outputValues,
       context.currentOutputColumnId,
     );

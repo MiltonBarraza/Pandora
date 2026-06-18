@@ -1110,8 +1110,8 @@ tbody tr:hover {
 .modalDialogXl {
   height: 90vh;
   max-height: 90vh;
-  max-width: min(1280px, 95vw);
-  width: 95vw;
+  max-width: min(1500px, 96vw);
+  width: 96vw;
 }
 
 .modalDialog::backdrop {
@@ -1413,7 +1413,20 @@ tbody tr:hover {
 }
 
 .concatAddPartButton {
-  justify-self: stretch;
+  justify-self: end;
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.modalDialogXl .constructorModalContent .rangeValueOperationPanel .concatAddPartButton {
+  background: var(--color-action-secondary-bg);
+  border-color: transparent;
+  color: var(--color-action-secondary-text);
+}
+
+.modalDialogXl .constructorModalContent .rangeValueOperationPanel .concatAddPartButton:hover:not(:disabled) {
+  background: var(--color-action-secondary-bg-hover);
+  color: var(--color-action-secondary-text);
 }
 
 .concatPartListItem {
@@ -1512,6 +1525,15 @@ tbody tr:hover {
   display: grid;
   gap: 8px;
   min-width: 0;
+}
+
+.rangeValueConcatWorkspace {
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  width: 100%;
+}
+
+.rangeValueConcatWorkspace .concatPartListItem {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .concatPartStepsActions {
@@ -1652,6 +1674,41 @@ tbody tr:hover {
 
 .simpleCustomValueGrid .transformConditionBlock {
   grid-column: 1 / -1;
+}
+
+.manualRangeStepGrid {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manualRangeStepFields,
+.manualRangeStepCondition {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+.manualRangeStepFields .manualRangeEditor {
+  margin: 0;
+  width: 100%;
+}
+
+.manualRangeStepFields .sectionHeader {
+  align-items: center;
+}
+
+.manualRangeStepFields .manualRangeCondition {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.manualRangeStepCondition {
+  border-top: 1px solid var(--color-magic-border);
+  padding-top: 10px;
 }
 
 .concatStepTopRow {
@@ -1842,6 +1899,182 @@ tbody tr:hover {
   color: var(--color-warning-text);
   grid-column: 1 / -1;
   padding: 8px 10px;
+}
+
+.manualRangeWarning {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  color: var(--color-warning-text);
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.manualRangeHeaderActions,
+.manualRangeFooterActions,
+.manualRangeRowActions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.manualRangeHeaderActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.manualRangeFooterActions {
+  justify-content: flex-start;
+}
+
+.manualRangeRowActions {
+  justify-content: flex-end;
+}
+
+.manualRangeGenerator {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.manualRangeGeneratorHeader {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.manualRangeGeneratorControls {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(96px, 0.55fr)) minmax(220px, 1.2fr);
+  min-width: 0;
+}
+
+.manualRangeGeneratorPreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manualRangeGeneratorPreview span {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.86rem;
+  line-height: 1.25;
+  max-width: 100%;
+  padding: 6px 8px;
+  overflow-wrap: anywhere;
+}
+
+.manualRangeList {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.manualRangeRangeItem {
+  align-items: start;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns:
+    minmax(72px, 0.42fr)
+    minmax(72px, 0.42fr)
+    minmax(64px, 0.34fr)
+    minmax(360px, 3fr)
+    minmax(82px, auto);
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeCellField,
+.manualRangeActionsField {
+  gap: 5px;
+}
+
+.manualRangeCellField span,
+.manualRangeActionsField > span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.manualRangeCellField input[type='number'] {
+  width: 100%;
+}
+
+.manualRangeRowCountField strong {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
+}
+
+.manualRangeValueFields {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manualRangeValueHelp {
+  color: var(--color-muted);
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.manualRangeActionsField {
+  display: grid;
+  min-width: 0;
+}
+
+.manualRangeActionsField .manualRangeRowActions {
+  align-self: start;
+}
+
+.rangeValueTransforms {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rangeValueOperationPanel {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.rangeValueOperationPanel .manualRangeValueHelp,
+.rangeValueOperationPanel .concatPartStepsBlock,
+.rangeValueOperationPanel .rangeValueConcatWorkspace,
+.stepDetailPanel .rangeValueConcatWorkspace {
+  grid-column: 1 / -1;
+}
+
+.rangeValueOperationPanel.hasSourceDetails .manualRangeValueSourceField {
+  grid-column: 1;
+}
+
+.rangeValueAdditionalHeader {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 8px;
 }
 
 .transformStepHeader {
@@ -2337,6 +2570,8 @@ tbody tr:hover {
   .stepsWorkspace,
   .stepTypeFieldGroup,
   .constructorPartMainGrid,
+  .manualRangeGeneratorControls,
+  .manualRangeRangeItem,
   .transformStepRow,
   .outputColumnsWorkspace,
   .outputColumnHeader,
@@ -2347,6 +2582,11 @@ tbody tr:hover {
 
   .outputColumnHeader .iconButton {
     justify-self: start;
+  }
+
+  .manualRangeGeneratorHeader {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .customValueSummaryList > div {
