@@ -179,6 +179,28 @@ describe('outputModel manual range recipes', () => {
     expect(rows.map((row) => row.outputValues.comment)).toEqual(['Promo', '']);
   });
 
+  it('does not use suggested manual range reference text as the output value', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            suggestedFromText: 'PINCELES SERIE 304',
+            valueRecipe: { source: { type: 'fixedText', value: '' } },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('');
+  });
+
   it('assigns current row input values from valueRecipe source columns', () => {
     const rows = buildProcessedRows([
       { rowNumber: 8, values: { 'input-code': 'A8' } },

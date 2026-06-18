@@ -631,7 +631,7 @@ export function ManualRangeTextGenerator({
   );
 }
 
-function ManualRangeTableRow({
+export function ManualRangeTableRow({
   recipe,
   range,
   inputColumns,
@@ -647,6 +647,7 @@ function ManualRangeTableRow({
   const [startRowInput, setStartRowInput] = useState(String(range.startRowNumber));
   const [endRowInput, setEndRowInput] = useState(String(range.endRowNumber));
   const rowCount = getManualRangeRowCountFromInputs(startRowInput, endRowInput);
+  const suggestedFromText = range.suggestedFromText?.trim();
 
   useEffect(() => {
     setStartRowInput(String(range.startRowNumber));
@@ -673,7 +674,7 @@ function ManualRangeTableRow({
   };
 
   return (
-    <div className="manualRangeRangeItem">
+    <div className={`manualRangeRangeItem${suggestedFromText ? ' hasSuggestedReference' : ''}`}>
       <label className="field compact manualRangeCellField">
         <span>Inicio</span>
         <input
@@ -698,6 +699,12 @@ function ManualRangeTableRow({
         <span>Filas</span>
         <strong>{rowCount || '-'}</strong>
       </div>
+      {suggestedFromText ? (
+        <div className="field compact manualRangeReferenceField">
+          <span>Referencia</span>
+          <strong>{suggestedFromText}</strong>
+        </div>
+      ) : null}
       <RangeValueEditor
         range={range}
         inputColumns={inputColumns}

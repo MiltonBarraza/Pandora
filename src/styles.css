@@ -1999,12 +1999,24 @@ tbody tr:hover {
   padding: 10px;
 }
 
+.manualRangeRangeItem.hasSuggestedReference {
+  grid-template-columns:
+    minmax(72px, 0.42fr)
+    minmax(72px, 0.42fr)
+    minmax(64px, 0.34fr)
+    minmax(180px, 1.1fr)
+    minmax(320px, 2.4fr)
+    minmax(82px, auto);
+}
+
 .manualRangeCellField,
+.manualRangeReferenceField,
 .manualRangeActionsField {
   gap: 5px;
 }
 
 .manualRangeCellField span,
+.manualRangeReferenceField span,
 .manualRangeActionsField > span {
   color: var(--color-text-muted);
   font-size: 0.82rem;
@@ -2019,6 +2031,13 @@ tbody tr:hover {
   align-items: center;
   display: flex;
   min-height: 40px;
+}
+
+.manualRangeReferenceField strong {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
+  overflow-wrap: anywhere;
 }
 
 .manualRangeValueFields {

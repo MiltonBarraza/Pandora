@@ -435,6 +435,7 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       id: idFactory(),
       startRowNumber: row.rowNumber,
       endRowNumber: rangeEndRowNumber,
+      suggestedFromText: row.text,
       valueRecipe: {
         source,
         steps: [],

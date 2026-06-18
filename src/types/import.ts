@@ -183,6 +183,7 @@ export type ManualRangeValue = {
   id: string;
   startRowNumber: number;
   endRowNumber: number;
+  suggestedFromText?: string;
   valueRecipe?: RangeValueRecipe;
   valueSource?: ManualRangeValueSource;
   value?: string;
