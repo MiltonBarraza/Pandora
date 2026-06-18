@@ -220,6 +220,7 @@ export type OutputColumn = {
   label: string;
   order: number;
   enabled: boolean;
+  generatedFromInputColumnId?: string;
   recipe: OutputRecipe;
 };
 

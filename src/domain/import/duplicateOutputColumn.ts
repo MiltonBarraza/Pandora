@@ -2,9 +2,9 @@ import type { ConcatPart, OutputColumn, OutputRecipe, RangeValueRecipe, RecipePa
 
 export function duplicateOutputColumn(column: OutputColumn): OutputColumn {
   return {
-    ...column,
     id: crypto.randomUUID(),
     label: `${column.label || 'Sin nombre'} copia`,
+    order: column.order,
     enabled: true,
     recipe: cloneRecipeWithNewIds(column.recipe),
   };

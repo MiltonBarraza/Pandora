@@ -204,19 +204,19 @@ export function calculateColumnSimilarity(a: string, b: string) {
 
 function validateSettings(settings: Partial<ExportedImportSettings>) {
   if (settings.app !== 'excel-sanitizer') {
-    return 'El archivo de settings no pertenece a excel-sanitizer.';
+    return 'El archivo de configuración no pertenece a excel-sanitizer.';
   }
 
   if (settings.schemaVersion !== 1) {
-    return 'La versión del archivo de settings no es compatible.';
+    return 'La versión del archivo de configuración no es compatible.';
   }
 
   if (!settings.sourceSnapshot) {
-    return 'El archivo de settings no contiene snapshot de origen.';
+    return 'El archivo de configuración no contiene snapshot de origen.';
   }
 
   if (!settings.config) {
-    return 'El archivo de settings no contiene configuración.';
+    return 'El archivo de configuración no contiene configuración.';
   }
 
   return '';

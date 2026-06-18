@@ -155,4 +155,20 @@ describe('duplicateOutputColumn', () => {
     copyRange.valueRecipe!.steps![0].parts![0].source = { type: 'fixedText', value: 'Mutado' };
     expect(originalRange.valueRecipe?.steps?.[0].parts?.[0].source).toEqual({ type: 'input', inputColumnId: 'input-name' });
   });
+
+  it('does not preserve the generated column marker when duplicating', () => {
+    const original: OutputColumn = {
+      id: 'generated-name',
+      label: 'Nombre',
+      order: 1,
+      enabled: true,
+      generatedFromInputColumnId: 'input-name',
+      recipe: { type: 'direct', inputColumnId: 'input-name' },
+    };
+
+    const copy = duplicateOutputColumn(original);
+
+    expect(copy.generatedFromInputColumnId).toBeUndefined();
+    expect(copy.recipe).toEqual({ type: 'direct', inputColumnId: 'input-name' });
+  });
 });

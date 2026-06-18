@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import React from 'react';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { OutputColumnRecipeEditor, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
@@ -96,6 +97,15 @@ function expectedRangeTextValueRecipe(inputColumnId: string, selectedText: strin
   };
 }
 
+function renderRecipeEditorMarkup(column: OutputColumn) {
+  vi.stubGlobal('document', { body: {} });
+  return renderToStaticMarkup(React.createElement(OutputColumnRecipeEditor, {
+    column,
+    inputColumns,
+    onChange: () => undefined,
+  }));
+}
+
 describe('buildRecipeForSelectedType', () => {
   it('drops hidden steps when switching from combine to direct', () => {
     expect(buildRecipeForSelectedType('direct', combineColumn, inputColumns)).toEqual({
@@ -142,6 +152,65 @@ describe('constructor helpers', () => {
   it('shows existing manual range recipes as custom values in the main selector', () => {
     expect(getOutputRecipeTypeSelectorValue({ type: 'manualRange', ranges: [] })).toBe('combine');
     expect(stepModeOptions).toContainEqual({ value: 'manualRange', label: 'Trabajar con rangos' });
+  });
+
+  it('renders a date picker for fixed text used by a date step', () => {
+    const column: OutputColumn = {
+      id: 'date-output',
+      label: 'Fecha',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        parts: [{ id: 'part-date', type: 'input', inputColumnId: 'input-code' }],
+        steps: [{
+          id: 'date-step',
+          mode: 'date',
+          type: 'formatDate',
+          source: { type: 'fixedText', value: '2024-06-01' },
+          dateInputFormat: 'YYYY-MM-DD',
+          dateOutputFormat: 'YYYY-MM-DD',
+        }],
+      },
+    };
+
+    const markup = renderRecipeEditorMarkup(column);
+
+    expect(markup).toContain('type="date"');
+    expect(markup).toContain('value="2024-06-01"');
+    expect(markup).not.toContain('Formato de entrada');
+  });
+
+  it('keeps a normal text input for non-date fixed text sources', () => {
+    const column: OutputColumn = {
+      id: 'text-output',
+      label: 'Texto',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        parts: [{ id: 'part-text', type: 'input', inputColumnId: 'input-code' }],
+        steps: [{
+          id: 'text-step',
+          mode: 'text',
+          type: 'addPrefix',
+          source: { type: 'fixedText', value: 'ABC' },
+          value: 'PRE-',
+        }],
+      },
+    };
+
+    const markup = renderRecipeEditorMarkup(column);
+
+    expect(markup).toContain('type="text"');
+    expect(markup).toContain('value="ABC"');
+    expect(markup).not.toContain('type="date"');
+  });
+
+  it('normalizes date picker values to ISO or an empty safe value', () => {
+    expect(getDatePickerValue('2024-06-01')).toBe('2024-06-01');
+    expect(getDatePickerValue('01/06/2024', 'DD/MM/YYYY')).toBe('2024-06-01');
+    expect(getDatePickerValue('no es fecha', 'DD/MM/YYYY')).toBe('');
   });
 
   it('uses confirm/cancel modal copy without auto-apply semantics', () => {

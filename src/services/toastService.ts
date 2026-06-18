@@ -11,6 +11,12 @@ export const appToasterProps: ToasterProps = {
   },
   toastOptions: {
     duration: 3500,
+    style: {
+      background: 'var(--color-toast-bg)',
+      border: '1px solid var(--color-toast-border)',
+      boxShadow: 'var(--shadow-toast)',
+      color: 'var(--color-toast-text)',
+    },
     success: {
       duration: 4500,
     },
