@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
 import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
-import { rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
+import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -47,6 +48,34 @@ const inputColumns: InputColumn[] = [
     nonEmptyCount: 1,
   },
 ];
+
+const manualRangeRows: InputRow[] = [
+  { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': '20L' } },
+  { rowNumber: 9, values: { 'input-name': '', 'input-pack': '10L' } },
+  { rowNumber: 10, values: { 'input-name': 'RODILLO SIMIL LANA', 'input-pack': '5L' } },
+];
+
+function renderRangeValueEditor(range: Parameters<typeof RangeValueEditor>[0]['range']) {
+  vi.stubGlobal('document', { body: {} });
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+  try {
+    return renderToStaticMarkup(
+      <RangeValueEditor
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onValueSourceTypeChange={() => undefined}
+        onFixedTextChange={() => undefined}
+        onInputColumnChange={() => undefined}
+        onRangeTextChange={() => undefined}
+        onStepsChange={() => undefined}
+      />,
+    );
+  } finally {
+    consoleError.mockRestore();
+  }
+}
 
 const combineColumn: OutputColumn = {
   id: 'output-code',
@@ -646,6 +675,152 @@ describe('constructor helpers', () => {
     expect(rangeValueModeOptions.map((option) => option.value)).not.toContain('manualRange');
     expect(Object.values(rangeValueStepTypes).flat().map((option) => option.value)).not.toContain('manualRange');
     expect(rangeValueStepTypes.text.map((option) => option.value)).toContain('concat');
+  });
+
+  it('renders range values as a mini operation editor instead of separate value and transformations blocks', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-13',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueRecipe: { source: { type: 'input', inputColumnId: 'input-name' }, steps: [] },
+    });
+
+    expect(markup).not.toContain('Valor del rango');
+    expect(markup).toContain('Tipo de operación');
+    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Desde donde toma el valor');
+    expect(markup).toContain('D - Nombre');
+    expect(markup).not.toMatch(/<span id="[^"]+">Columna de entrada<\/span>/);
+    expect(markup).not.toMatch(/<span>Texto<\/span>/);
+    expect(markup).not.toContain('Transformaciones del valor');
+    expect(markup).not.toMatch(/>Valor<\/span>/);
+  });
+
+  it('builds a single range value source dropdown with base sources and input columns', () => {
+    expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
+      'Texto fijo',
+      'Texto encontrado en el rango',
+      'A',
+      'D - Nombre',
+      'F - Presentacion',
+      'AN - Precio',
+    ]);
+    expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.value)).toEqual([
+      'fixedText',
+      'rangeText',
+      'input:input-code',
+      'input:input-name',
+      'input:input-pack',
+      'input:input-price',
+    ]);
+  });
+
+  it('maps range value source dropdown column selections to input sources', () => {
+    expect(getRangeValueSourceSelection('input:input-name')).toEqual({
+      type: 'inputColumn',
+      inputColumnId: 'input-name',
+    });
+    expect(getRangeValueSourceSelection('fixedText')).toEqual({
+      type: 'valueSourceType',
+      value: 'fixedText',
+    });
+    expect(getRangeValueSourceSelection('rangeText')).toEqual({
+      type: 'valueSourceType',
+      value: 'rangeText',
+    });
+  });
+
+  it('renders range text sources inside the range value operation editor', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-9',
+      startRowNumber: 8,
+      endRowNumber: 9,
+      valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' }, steps: [] },
+    });
+
+    expect(markup).toContain('Desde donde toma el valor');
+    expect(markup).toContain('Texto encontrado en el rango');
+    expect(markup).toContain('Buscar textos en');
+    expect(markup).toContain('Texto encontrado');
+    expect(markup).toContain('PINCELES SERIE 304');
+  });
+
+  it('renders fixed text sources inside the range value operation editor', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-13',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueRecipe: { source: { type: 'fixedText', value: 'Promo especial' }, steps: [] },
+    });
+
+    expect(markup).toContain('Desde donde toma el valor');
+    expect(markup).toContain('Texto fijo');
+    expect(markup).toContain('Texto');
+    expect(markup).toContain('Promo especial');
+  });
+
+  it('renders concat as the primary range value operation with its parts', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-13',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueRecipe: {
+        source: { type: 'input', inputColumnId: 'input-name' },
+        steps: [{
+          id: 'range-concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [
+            { id: 'previous', source: { type: 'previousResult' } },
+            { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' }, separatorBefore: ' - ' },
+            { id: 'fixed', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' ' },
+          ],
+        }],
+      },
+    });
+
+    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Concatenar');
+    expect(markup).toContain('concatPartsWorkspace');
+    expect(markup).toContain('concatPartsSidebar');
+    expect(markup).toContain('concatPartSelectButton');
+    expect(markup).toContain('Parte 1');
+    expect(markup).toContain('Resultado anterior');
+    expect(markup).toContain('F - Presentacion');
+    expect(markup).toContain('OK');
+    expect(markup).toContain('Desde donde toma el valor');
+    expect(markup).not.toMatch(/<span id="[^"]+">Fuente<\/span>/);
+  });
+
+  it('builds concat part source options for range values without the old source field label', () => {
+    expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
+      'Resultado anterior',
+      'Texto fijo',
+      'A',
+      'D - Nombre',
+      'F - Presentacion',
+      'AN - Precio',
+    ]);
+  });
+
+  it('renders legacy manual range value fallbacks in the mini operation editor', () => {
+    const fixedMarkup = renderRangeValueEditor({
+      id: 'legacy-fixed',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      value: 'Legacy promo',
+    });
+    const rangeTextMarkup = renderRangeValueEditor({
+      id: 'legacy-range-text',
+      startRowNumber: 8,
+      endRowNumber: 9,
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+    });
+
+    expect(fixedMarkup).toContain('Texto fijo');
+    expect(fixedMarkup).toContain('Legacy promo');
+    expect(rangeTextMarkup).toContain('Texto encontrado en el rango');
+    expect(rangeTextMarkup).toContain('PINCELES SERIE 304');
   });
 
   it('switches fixed text manual ranges to input sources without contradictory fallback state', () => {

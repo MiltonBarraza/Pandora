@@ -10,6 +10,7 @@ import {
   manualRangeValueSourceOptions,
   type ManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
+import { useState, type ReactNode } from 'react';
 import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, NumericOperation, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
@@ -24,6 +25,13 @@ type RangeValueEditorProps = {
   onRangeTextChange: (patch: { inputColumnId?: string; selectedText?: string }) => void;
   onStepsChange: (steps: TransformStep[]) => void;
 };
+
+export type RangeValueSourceDropdownValue = ManualRangeValueSourceType | `input:${string}`;
+export type RangeValueConcatPartSourceDropdownValue = 'previousResult' | 'fixedText' | `input:${string}`;
+
+export type RangeValueSourceSelection =
+  | { type: 'valueSourceType'; value: ManualRangeValueSourceType }
+  | { type: 'inputColumn'; inputColumnId: string };
 
 export const rangeValueModeOptions: Array<{ value: Exclude<TransformStepMode, 'manualRange'>; label: string }> = [
   { value: 'text', label: 'Trabajar con texto' },
@@ -70,6 +78,8 @@ const numericOperationOptions: Array<{ value: NumericOperation; label: string }>
   { value: 'removeIncludedPercentage', label: 'Quitar porcentaje incluido' },
 ];
 
+const rangeValuePrimaryStepId = 'range-value-primary-step';
+
 export function RangeValueEditor({
   range,
   inputColumns,
@@ -88,32 +98,36 @@ export function RangeValueEditor({
   const inputColumnOptions = inputColumns.length === 0
     ? [{ value: '', label: 'Sin columnas activas' }]
     : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
+  const sourceDropdownValue = valueSourceType === 'input' && inputSource.inputColumnId
+    ? `input:${inputSource.inputColumnId}` as const
+    : valueSourceType;
+  const sourceDropdownOptions = getRangeValueSourceDropdownOptions(inputColumns);
+  const hasSourceDetails = valueSourceType !== 'input';
 
   const steps = range.valueRecipe?.steps ?? [];
 
-  return (
-    <div className="manualRangeValueFields">
-      <Dropdown<ManualRangeValueSourceType>
-        className="compact"
-        label="Valor"
-        value={valueSourceType}
-        options={manualRangeValueSourceOptions}
+  const sourceFields = (
+    <>
+      <Dropdown<RangeValueSourceDropdownValue>
+        className="compact manualRangeValueSourceField"
+        label="Desde donde toma el valor"
+        value={sourceDropdownValue}
+        options={sourceDropdownOptions}
         scrollStrategy="close"
-        onChange={onValueSourceTypeChange}
+        onChange={(value) => {
+          const selection = getRangeValueSourceSelection(value);
+          if (selection.type === 'inputColumn') {
+            onInputColumnChange(selection.inputColumnId);
+            return;
+          }
+
+          onValueSourceTypeChange(selection.value);
+        }}
       />
-      {valueSourceType === 'input' ? (
-        <Dropdown
-          className="compact"
-          label="Columna de entrada"
-          value={inputSource.inputColumnId}
-          options={inputColumnOptions}
-          scrollStrategy="close"
-          onChange={onInputColumnChange}
-        />
-      ) : valueSourceType === 'rangeText' ? (
+      {valueSourceType === 'rangeText' ? (
         <>
           <Dropdown
-            className="compact"
+            className="compact manualRangeValueDetailField"
             label="Buscar textos en"
             value={rangeTextSource.inputColumnId}
             options={inputColumnOptions}
@@ -121,7 +135,7 @@ export function RangeValueEditor({
             onChange={(inputColumnId) => onRangeTextChange({ inputColumnId })}
           />
           <Dropdown
-            className="compact"
+            className="compact manualRangeValueDetailField"
             label="Texto encontrado"
             value={rangeTextSource.selectedText}
             options={selectedTextOptions.length === 0
@@ -133,35 +147,75 @@ export function RangeValueEditor({
           />
           {rangeTextHelpText ? <p className="manualRangeValueHelp">{rangeTextHelpText}</p> : null}
         </>
-      ) : (
-        <label className="field compact">
-          <span>Texto fijo</span>
+      ) : valueSourceType === 'fixedText' ? (
+        <label className="field compact manualRangeValueDetailField">
+          <span>Texto</span>
           <input
             value={getManualRangeFixedTextValue(range)}
             onChange={(event) => onFixedTextChange(event.target.value)}
           />
         </label>
-      )}
-      <RangeValueStepsEditor steps={steps} inputColumns={inputColumns} onChange={onStepsChange} />
+      ) : null}
+    </>
+  );
+
+  return (
+    <div className="manualRangeValueFields">
+      <RangeValueStepsEditor
+        steps={steps}
+        inputColumns={inputColumns}
+        sourceFields={sourceFields}
+        hasSourceDetails={hasSourceDetails}
+        onChange={onStepsChange}
+      />
     </div>
   );
+}
+
+export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
+  return [
+    ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input'),
+    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
+  ];
+}
+
+export function getRangeValueSourceSelection(value: RangeValueSourceDropdownValue): RangeValueSourceSelection {
+  if (value === 'fixedText' || value === 'rangeText' || value === 'input') {
+    return { type: 'valueSourceType', value };
+  }
+
+  return { type: 'inputColumn', inputColumnId: value.slice('input:'.length) };
 }
 
 function RangeValueStepsEditor({
   steps,
   inputColumns,
+  sourceFields,
+  hasSourceDetails = false,
   allowConcat = true,
   onChange,
 }: {
   steps: TransformStep[];
   inputColumns: InputColumn[];
+  sourceFields?: ReactNode;
+  hasSourceDetails?: boolean;
   allowConcat?: boolean;
   onChange: (steps: TransformStep[]) => void;
 }) {
   const safeSteps = steps
     .filter((step) => step.type !== 'manualRange' && (allowConcat || step.type !== 'concat'))
     .map((step) => normalizeRangeValueStep(step, allowConcat));
-  const addStep = () => onChange([...safeSteps, createRangeValueStep()]);
+  const primaryStep = safeSteps[0] ?? { id: rangeValuePrimaryStepId, mode: 'text' as const, type: 'noop' as const };
+  const additionalSteps = safeSteps.slice(1);
+  const updatePrimaryStep = (step: TransformStep) => {
+    const normalizedStep = normalizeRangeValueStep(step, allowConcat);
+    const shouldKeepImplicitNoop = safeSteps.length === 0 && normalizedStep.mode === 'text' && normalizedStep.type === 'noop';
+
+    onChange(shouldKeepImplicitNoop ? [] : [normalizedStep, ...additionalSteps]);
+  };
+  const addStep = () => onChange(safeSteps.length === 0
+    ? [createRangeValueStep(), createRangeValueStep()]
+    : [...safeSteps, createRangeValueStep()]);
   const updateStep = (stepId: string, patch: Partial<TransformStep>) => {
     onChange(safeSteps.map((step) => (step.id === stepId ? normalizeRangeValueStep({ ...step, ...patch }, allowConcat) : step)));
   };
@@ -169,19 +223,35 @@ function RangeValueStepsEditor({
 
   return (
     <div className="rangeValueTransforms">
-      <div className="sectionHeader compact">
+      <div className={`rangeValueOperationPanel${hasSourceDetails ? ' hasSourceDetails' : ''}`}>
+        <div className="simpleCustomValueGrid">
+          <RangeValueStepControls
+            step={primaryStep}
+            allowConcat={allowConcat}
+            onChange={updatePrimaryStep}
+          />
+          {sourceFields}
+          <RangeValueStepFields
+            step={primaryStep}
+            inputColumns={inputColumns}
+            onChange={(patch) => updatePrimaryStep({ ...primaryStep, ...patch })}
+          />
+        </div>
+      </div>
+
+      <div className="sectionHeader compact rangeValueAdditionalHeader">
         <div>
-          <strong>Transformaciones del valor</strong>
-          <p className="muted">{safeSteps.length === 0 ? 'Sin transformaciones configuradas.' : `${safeSteps.length} configurada${safeSteps.length === 1 ? '' : 's'}.`}</p>
+          <strong>Pasos adicionales</strong>
+          <p className="muted">{additionalSteps.length === 0 ? 'Sin pasos adicionales.' : `${additionalSteps.length} configurado${additionalSteps.length === 1 ? '' : 's'}.`}</p>
         </div>
         <button type="button" className="secondary" onClick={addStep}>
-          Agregar transformación
+          Agregar paso
         </button>
       </div>
 
-      {safeSteps.length > 0 ? (
+      {additionalSteps.length > 0 ? (
         <div className="concatPartTransformList">
-          {safeSteps.map((step, index) => (
+          {additionalSteps.map((step, index) => (
             <RangeValueStepEditor
               key={step.id}
               step={step}
@@ -195,6 +265,41 @@ function RangeValueStepsEditor({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function RangeValueStepControls({
+  step,
+  allowConcat,
+  onChange,
+}: {
+  step: TransformStep;
+  allowConcat: boolean;
+  onChange: (step: TransformStep) => void;
+}) {
+  const mode = getRangeValueStepMode(step);
+  const stepTypeOptions = allowConcat ? rangeValueStepTypes[mode] : rangeValueStepTypes[mode].filter((option) => option.value !== 'concat');
+  const safeType = stepTypeOptions.some((option) => option.value === step.type) ? step.type : stepTypeOptions[0].value;
+
+  return (
+    <>
+      <Dropdown<Exclude<TransformStepMode, 'manualRange'>>
+        className="compact"
+        label="Tipo de operación"
+        value={mode}
+        options={rangeValueModeOptions}
+        scrollStrategy="close"
+        onChange={(nextMode) => onChange(createRangeValueStep(nextMode, step.id === rangeValuePrimaryStepId ? crypto.randomUUID() : step.id))}
+      />
+      <Dropdown<TransformStepType>
+        className="compact"
+        label="Qué quiero hacer"
+        value={safeType}
+        options={stepTypeOptions}
+        scrollStrategy="close"
+        onChange={(type) => onChange(createRangeValueStep(mode, step.id === rangeValuePrimaryStepId ? crypto.randomUUID() : step.id, type))}
+      />
+    </>
   );
 }
 
@@ -220,8 +325,8 @@ function RangeValueStepEditor({
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
-        <strong>Transformación {index + 1}</strong>
-        <DeleteButton title="Eliminar transformación" onClick={onDelete} />
+        <strong>Paso adicional {index + 1}</strong>
+        <DeleteButton title="Eliminar paso" onClick={onDelete} />
       </div>
       <div className="simpleCustomValueGrid">
         <Dropdown<Exclude<TransformStepMode, 'manualRange'>>
@@ -344,56 +449,84 @@ function RangeValueConcatEditor({
   onChange: (parts: ConcatPart[]) => void;
 }) {
   const safeParts = parts.length > 0 ? parts : createDefaultRangeValueConcatParts();
+  const [selectedPartId, setSelectedPartId] = useState(safeParts[0]?.id ?? '');
+  const safeSelectedPartId = safeParts.some((part) => part.id === selectedPartId) ? selectedPartId : safeParts[0]?.id ?? '';
+  const selectedPart = safeParts.find((part) => part.id === safeSelectedPartId);
+  const selectedPartIndex = selectedPart ? safeParts.findIndex((part) => part.id === selectedPart.id) : -1;
   const updatePart = (partId: string, patch: Partial<ConcatPart>) => {
     onChange(safeParts.map((part) => (part.id === partId ? { ...part, ...patch } : part)));
   };
   const addPart = () => {
+    const nextPart = { id: crypto.randomUUID(), source: { type: 'input' as const, inputColumnId: inputColumns[0]?.id ?? '' }, separatorBefore: '' };
+    setSelectedPartId(nextPart.id);
     onChange([
       ...safeParts,
-      { id: crypto.randomUUID(), source: { type: 'input', inputColumnId: inputColumns[0]?.id ?? '' }, separatorBefore: '' },
+      nextPart,
     ]);
   };
   const deletePart = (partId: string) => {
-    onChange(safeParts.length <= 1 ? safeParts : safeParts.filter((part) => part.id !== partId));
+    if (safeParts.length <= 1) {
+      return;
+    }
+
+    const nextParts = safeParts.filter((part) => part.id !== partId);
+    setSelectedPartId(nextParts[Math.max(0, safeParts.findIndex((part) => part.id === partId) - 1)]?.id ?? nextParts[0]?.id ?? '');
+    onChange(nextParts);
   };
 
   return (
-    <div className="concatPartStepsBlock">
-      {safeParts.map((part, index) => (
-        <div className="concatPartDetailPanel" key={part.id}>
+    <div className="concatPartsWorkspace rangeValueConcatWorkspace">
+      <div className="concatPartsSidebar">
+        {safeParts.map((part, index) => (
+          <div className={`concatPartListItem${part.id === safeSelectedPartId ? ' selected' : ''}`} key={part.id}>
+            <button
+              type="button"
+              className="concatPartSelectButton"
+              onClick={() => setSelectedPartId(part.id)}
+            >
+              <strong>Parte {index + 1}</strong>
+              <span>{describeRangeValueConcatPartSource(part, inputColumns)}</span>
+            </button>
+          </div>
+        ))}
+        <button type="button" className="secondary concatAddPartButton" onClick={addPart}>
+          Agregar parte
+        </button>
+      </div>
+      {selectedPart ? (
+        <div className="concatPartDetailPanel">
           <div className="concatPartHeader">
-            <strong>Parte {index + 1}</strong>
-            {safeParts.length > 1 ? <DeleteButton title="Eliminar parte" onClick={() => deletePart(part.id)} /> : null}
+            <strong>Parte {selectedPartIndex + 1}</strong>
+            {safeParts.length > 1 ? <DeleteButton title="Eliminar parte" onClick={() => deletePart(selectedPart.id)} /> : null}
           </div>
-          <div className="concatPartFields">
-            {index > 0 ? (
+          {selectedPartIndex > 0 ? (
+            <div className="concatPartFields">
               <label className="field compact">
-                <span>Separador antes</span>
-                <input value={part.separatorBefore ?? ''} onChange={(event) => updatePart(part.id, { separatorBefore: event.target.value })} />
+                <span>Separador antes de esta parte</span>
+                <input value={selectedPart.separatorBefore ?? ''} onChange={(event) => updatePart(selectedPart.id, { separatorBefore: event.target.value })} />
               </label>
-            ) : null}
-            <RangeValueConcatPartSourceField
-              source={part.source}
-              inputColumns={inputColumns}
-              onChange={(source) => updatePart(part.id, { source })}
-            />
-          </div>
+            </div>
+          ) : null}
           <RangeValueStepsEditor
-            steps={part.steps ?? []}
+            steps={selectedPart.steps ?? []}
             inputColumns={inputColumns}
+            sourceFields={(
+              <RangeValueConcatPartSourceFields
+                source={selectedPart.source}
+                inputColumns={inputColumns}
+                onChange={(source) => updatePart(selectedPart.id, { source })}
+              />
+            )}
             allowConcat={false}
-            onChange={(steps) => updatePart(part.id, { steps })}
+            onChange={(steps) => updatePart(selectedPart.id, { steps })}
           />
         </div>
-      ))}
-      <button type="button" className="secondary concatAddPartButton" onClick={addPart}>
-        Agregar parte
-      </button>
+      ) : null}
     </div>
   );
 }
 
-function RangeValueConcatPartSourceField({
+function RangeValueConcatPartSourceFields({
   source,
   inputColumns,
   onChange,
@@ -406,26 +539,45 @@ function RangeValueConcatPartSourceField({
 
   return (
     <>
-      <Dropdown
-        className="compact"
-        label="Fuente"
+      <Dropdown<RangeValueConcatPartSourceDropdownValue>
+        className="compact manualRangeValueSourceField"
+        label="Desde donde toma el valor"
         value={sourceValue}
-        options={[
-          { value: 'previousResult', label: 'Resultado anterior' },
-          { value: 'fixedText', label: 'Texto fijo' },
-          ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
-        ]}
+        options={getRangeValueConcatPartSourceDropdownOptions(inputColumns)}
         scrollStrategy="close"
         onChange={(value) => onChange(getConcatPartSourceFromDropdownValue(value, source))}
       />
       {source.type === 'fixedText' ? (
-        <label className="field compact">
-          <span>Texto fijo</span>
+        <label className="field compact manualRangeValueDetailField">
+          <span>Texto</span>
           <input value={source.value} onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })} />
         </label>
       ) : null}
     </>
   );
+}
+
+export function getRangeValueConcatPartSourceDropdownOptions(inputColumns: InputColumn[]) {
+  return [
+    { value: 'previousResult' as const, label: 'Resultado anterior' },
+    { value: 'fixedText' as const, label: 'Texto fijo' },
+    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
+  ];
+}
+
+function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: InputColumn[]) {
+  const { source } = part;
+
+  if (source.type === 'previousResult') {
+    return 'Resultado anterior';
+  }
+
+  if (source.type === 'fixedText') {
+    return `Texto fijo "${source.value || ''}"`;
+  }
+
+  const inputColumn = inputColumns.find((column) => column.id === source.inputColumnId);
+  return inputColumn ? getInputColumnLabel(inputColumn) : 'Columna de entrada';
 }
 
 function createRangeValueStep(
@@ -495,7 +647,7 @@ function createDefaultRangeValueConcatParts(): ConcatPart[] {
   ];
 }
 
-function getConcatPartSourceDropdownValue(source: StepSource) {
+function getConcatPartSourceDropdownValue(source: StepSource): RangeValueConcatPartSourceDropdownValue | '' {
   if (source.type === 'previousResult') {
     return 'previousResult';
   }

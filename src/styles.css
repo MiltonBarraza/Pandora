@@ -1189,7 +1189,20 @@ tbody tr:hover {
 }
 
 .concatAddPartButton {
-  justify-self: stretch;
+  justify-self: end;
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.modalDialogXl .constructorModalContent .rangeValueOperationPanel .concatAddPartButton {
+  background: var(--color-action-secondary-bg);
+  border-color: transparent;
+  color: var(--color-action-secondary-text);
+}
+
+.modalDialogXl .constructorModalContent .rangeValueOperationPanel .concatAddPartButton:hover:not(:disabled) {
+  background: var(--color-action-secondary-bg-hover);
+  color: var(--color-action-secondary-text);
 }
 
 .concatPartListItem {
@@ -1288,6 +1301,15 @@ tbody tr:hover {
   display: grid;
   gap: 8px;
   min-width: 0;
+}
+
+.rangeValueConcatWorkspace {
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  width: 100%;
+}
+
+.rangeValueConcatWorkspace .concatPartListItem {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .concatPartStepsActions {
@@ -1737,7 +1759,7 @@ tbody tr:hover {
 }
 
 .manualRangeRangeItem {
-  align-items: end;
+  align-items: start;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
@@ -1776,26 +1798,15 @@ tbody tr:hover {
 }
 
 .manualRangeValueFields {
-  align-items: end;
-  display: flex;
-  flex-wrap: wrap;
+  align-items: stretch;
+  display: grid;
   gap: 8px;
   min-width: 0;
 }
 
-.manualRangeValueFields > .dropdownField,
-.manualRangeValueFields > .field {
-  flex: 1 1 170px;
-  min-width: min(100%, 170px);
-}
-
-.manualRangeValueFields > .dropdownField:nth-of-type(3) {
-  flex-basis: 100%;
-}
-
 .manualRangeValueHelp {
   color: var(--color-muted);
-  flex: 1 0 100%;
+  grid-column: 1 / -1;
   font-size: 0.85rem;
   line-height: 1.25;
   margin: 0;
@@ -1804,6 +1815,42 @@ tbody tr:hover {
 .manualRangeActionsField {
   display: grid;
   min-width: 0;
+}
+
+.manualRangeActionsField .manualRangeRowActions {
+  align-self: start;
+}
+
+.rangeValueTransforms {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rangeValueOperationPanel {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.rangeValueOperationPanel .manualRangeValueHelp,
+.rangeValueOperationPanel .concatPartStepsBlock,
+.rangeValueOperationPanel .rangeValueConcatWorkspace,
+.stepDetailPanel .rangeValueConcatWorkspace {
+  grid-column: 1 / -1;
+}
+
+.rangeValueOperationPanel.hasSourceDetails .manualRangeValueSourceField {
+  grid-column: 1;
+}
+
+.rangeValueAdditionalHeader {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 8px;
 }
 
 .transformStepHeader {
