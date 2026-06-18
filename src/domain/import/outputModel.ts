@@ -410,6 +410,10 @@ function resolveStepSource(source: StepSource | undefined, context: StepValueCon
     return context.inputValues[source.inputColumnId] ?? '';
   }
 
+  if (source.type === 'rangeText') {
+    return source.selectedText ?? '';
+  }
+
   return source.value;
 }
 

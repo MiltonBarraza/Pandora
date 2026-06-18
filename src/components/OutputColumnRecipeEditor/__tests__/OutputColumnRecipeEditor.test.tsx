@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
@@ -134,11 +134,14 @@ describe('buildRecipeForSelectedType', () => {
 });
 
 describe('constructor helpers', () => {
-  it('exposes a work with ranges recipe option', () => {
-    expect(outputRecipeTypeOptions).toContainEqual({
-      value: 'manualRange',
-      label: 'Trabajar con rangos',
-    });
+  it('keeps work with ranges out of the main recipe type selector', () => {
+    expect(outputRecipeTypeOptions.map((option) => option.value)).toEqual(['direct', 'empty', 'fixedText', 'combine']);
+    expect(outputRecipeTypeOptions.map((option) => option.label)).not.toContain('Trabajar con rangos');
+  });
+
+  it('shows existing manual range recipes as custom values in the main selector', () => {
+    expect(getOutputRecipeTypeSelectorValue({ type: 'manualRange', ranges: [] })).toBe('combine');
+    expect(stepModeOptions).toContainEqual({ value: 'manualRange', label: 'Trabajar con rangos' });
   });
 
   it('uses confirm/cancel modal copy without auto-apply semantics', () => {
@@ -191,6 +194,81 @@ describe('constructor helpers', () => {
       ...manualRangeColumn,
       recipe: draftRecipe,
     });
+  });
+
+  it('previews manual range modal draft recipes before applying them', () => {
+    const originalRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range-8-13',
+        startRowNumber: 8,
+        endRowNumber: 13,
+        valueRecipe: { source: { type: 'fixedText', value: 'Original' }, steps: [] },
+      }],
+    };
+    const draftRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range-8-13',
+        startRowNumber: 8,
+        endRowNumber: 13,
+        valueRecipe: {
+          source: { type: 'fixedText', value: '' },
+          steps: [{
+            id: 'concat',
+            mode: 'text',
+            type: 'concat',
+            parts: [
+              { id: 'range-text', source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' } },
+              { id: 'separator', source: { type: 'fixedText', value: ' - ' } },
+              { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' } },
+            ],
+          }],
+        },
+      }],
+    };
+
+    expect(getRecipeEditorModalRecipe(originalRecipe, draftRecipe)).toBe(draftRecipe);
+    expect(buildManualRangeRecipePreview(originalRecipe, manualRangeRows)).toBe('Fila 8: Original');
+    expect(buildManualRangeRecipePreview(draftRecipe, manualRangeRows)).toBe('Fila 8: PINCELES SERIE 304 - 20L');
+    expect(applyRecipeEditorDraft({
+      id: 'output-comment',
+      label: 'Comentario',
+      order: 0,
+      enabled: true,
+      recipe: originalRecipe,
+    }, null).recipe).toBe(originalRecipe);
+  });
+
+  it('previews manual range drafts using real row numbers instead of internal row indexes', () => {
+    const draftRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range-8-13',
+        startRowNumber: 8,
+        endRowNumber: 13,
+        valueRecipe: {
+          source: { type: 'fixedText', value: '' },
+          steps: [{
+            id: 'concat',
+            mode: 'text',
+            type: 'concat',
+            parts: [
+              { id: 'range-text', source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' } },
+              { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' } },
+            ],
+          }],
+        },
+      }],
+    };
+    const rowsWithRealNumbers: InputRow[] = [
+      { rowNumber: 1, values: { 'input-name': 'Fuera', 'input-pack': 'NO' } },
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': 'VIR 1' } },
+    ];
+
+    expect(buildManualRangeRecipePreview(draftRecipe, rowsWithRealNumbers)).toBe('Fila 8: PINCELES SERIE 304VIR 1');
+    expect(buildManualRangeRecipePreview(draftRecipe, [{ rowNumber: 1, values: { 'input-name': 'Fuera', 'input-pack': 'NO' } }])).toBeNull();
+    expect(buildManualRangeRecipePreview(draftRecipe, [], { 'input-name': 'PINCELES SERIE 304', 'input-pack': 'VIR 1' })).toBe('Fila 8: PINCELES SERIE 304VIR 1');
   });
 
   it('applies generated manual ranges from a concat part into the final recipe', () => {
@@ -789,6 +867,8 @@ describe('constructor helpers', () => {
     expect(markup).toContain('F - Presentacion');
     expect(markup).toContain('OK');
     expect(markup).toContain('Desde donde toma el valor');
+    expect(markup).not.toContain('Buscar textos en');
+    expect(markup).not.toContain('Texto encontrado</span>');
     expect(markup).not.toMatch(/<span id="[^"]+">Fuente<\/span>/);
   });
 
@@ -796,11 +876,38 @@ describe('constructor helpers', () => {
     expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
       'Resultado anterior',
       'Texto fijo',
+      'Texto encontrado en el rango',
       'A',
       'D - Nombre',
       'F - Presentacion',
       'AN - Precio',
     ]);
+  });
+
+  it('renders range text configuration inside concat range value parts', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-9',
+      startRowNumber: 8,
+      endRowNumber: 9,
+      valueRecipe: {
+        source: { type: 'fixedText', value: '' },
+        steps: [{
+          id: 'range-concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [
+            { id: 'range-text-part', source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' } },
+            { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' }, separatorBefore: ' - ' },
+          ],
+        }],
+      },
+    });
+
+    expect(markup).toContain('Texto encontrado en el rango');
+    expect(markup).toContain('Buscar textos en');
+    expect(markup).toContain('Texto encontrado');
+    expect(markup).toContain('PINCELES SERIE 304');
+    expect(markup).not.toMatch(/<span id="[^"]+">Columna de entrada<\/span>/);
   });
 
   it('renders legacy manual range value fallbacks in the mini operation editor', () => {
@@ -1595,6 +1702,42 @@ describe('constructor helpers', () => {
     expect(buildCustomValuePreview(recipe, undefined, true, 'text', [
       { rowNumber: 8, values: { 'input-pack': '12' } },
     ])).toBe('Fila 8: PINCELES SERIE 304 12');
+  });
+
+  it('previews manual range concat value recipes even when the base source is empty', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'range',
+        type: 'manualRange',
+        mode: 'text',
+        ranges: [{
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueRecipe: {
+            source: { type: 'fixedText', value: '' },
+            steps: [{
+              id: 'concat-step',
+              mode: 'text',
+              type: 'concat',
+              parts: [
+                { id: 'range-text', source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' } },
+                { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' } },
+              ],
+            }],
+          },
+        }],
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { 'input-name': 'Fuera', 'input-pack': 'NO' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-name': 'Fuera', 'input-pack': 'NO' } },
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': 'VIR 1' } },
+    ])).toBe('Fila 8: PINCELES SERIE 304VIR 1');
   });
 
   it('previews a manual range nested inside concat using a real row inside the range', () => {

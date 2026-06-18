@@ -454,6 +454,38 @@ describe('outputModel manual range recipes', () => {
     ]);
   });
 
+  it('uses selected range text as a concat part source inside a range value recipe', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: '' },
+              steps: [{
+                id: 'concat',
+                type: 'concat',
+                mode: 'text',
+                parts: [
+                  { id: 'range-text', source: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'PINCELES SERIE 304' } },
+                  { id: 'brand', source: { type: 'input', inputColumnId: 'input-brand' }, separatorBefore: ' - ' },
+                ],
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('PINCELES SERIE 304 - Marca');
+  });
+
   it('assigns selected text from rangeText value sources', () => {
     const rows = buildProcessedRows([
       { rowNumber: 8, values: { 'input-code': 'A8' } },

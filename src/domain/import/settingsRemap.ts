@@ -195,7 +195,7 @@ function remapConcatPart(part: ConcatPart, remap: InputColumnRemap): ConcatPart 
 }
 
 function remapStepSource<TSource extends StepSource | undefined>(source: TSource, remap: InputColumnRemap): TSource {
-  if (source?.type !== 'input') {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
     return source;
   }
 

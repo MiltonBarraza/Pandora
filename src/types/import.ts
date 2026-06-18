@@ -84,6 +84,11 @@ export type StepSource =
       inputColumnId: string;
     }
   | {
+      type: 'rangeText';
+      inputColumnId: string;
+      selectedText: string;
+    }
+  | {
       type: 'fixedText';
       value: string;
     };
@@ -167,7 +172,7 @@ export type ManualRangeValueSource =
       selectedText: string;
     };
 
-export type RangeValueSource = StepSource | Extract<ManualRangeValueSource, { type: 'rangeText' }>;
+export type RangeValueSource = StepSource;
 
 export type RangeValueRecipe = {
   source: RangeValueSource;

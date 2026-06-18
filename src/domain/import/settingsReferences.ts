@@ -283,7 +283,7 @@ function collectStepSourceReference(
     partId?: string;
   },
 ) {
-  if (source?.type !== 'input') {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
     return;
   }
 

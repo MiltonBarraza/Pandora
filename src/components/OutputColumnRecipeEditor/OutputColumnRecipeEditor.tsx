@@ -31,7 +31,6 @@ export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label
   { value: 'empty', label: 'Columna vacia' },
   { value: 'fixedText', label: 'Texto fijo' },
   { value: 'combine', label: 'Crear valor personalizado' },
-  { value: 'manualRange', label: 'Trabajar con rangos' },
 ];
 
 export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
@@ -57,6 +56,10 @@ export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: Editab
 
 export function hasRecipeEditorDraftChanges(originalRecipe: EditableCustomRecipe, draftRecipe: EditableCustomRecipe | null) {
   return Boolean(draftRecipe) && JSON.stringify(originalRecipe) !== JSON.stringify(draftRecipe);
+}
+
+export function getOutputRecipeTypeSelectorValue(recipe: OutputRecipe): Exclude<OutputRecipe['type'], 'manualRange'> {
+  return recipe.type === 'manualRange' ? 'combine' : recipe.type;
 }
 
 export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows = [], sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
@@ -147,7 +150,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           label="Tipo de operación"
           labelInfo={<InfoTooltip content="Define como se va a llenar esta columna." />}
           scrollStrategy="close"
-          value={column.recipe.type}
+          value={getOutputRecipeTypeSelectorValue(column.recipe)}
           options={outputRecipeTypeOptions}
           onChange={(nextType) => {
             if (nextType === 'combine') {
@@ -295,6 +298,12 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             titleInfo="Configura como se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
+            headerDetails={(
+              <div className="constructorModalHeaderPreview">
+                <strong>Vista previa:</strong>
+                <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
+              </div>
+            )}
             footer={(
               <div className="constructorModalFooterContent">
                 <p>{recipeEditorModalPendingApplyText}</p>
@@ -1034,7 +1043,9 @@ export function buildCombinePreview(recipe: Extract<OutputRecipe, { type: 'combi
 }
 
 export function buildManualRangeAwarePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
-  if (rows.length === 0) {
+  const previewRows = getManualRangeAwarePreviewRows(recipe, rows);
+
+  if (previewRows.length === 0) {
     return null;
   }
 
@@ -1046,11 +1057,7 @@ export function buildManualRangeAwarePreview(recipe: Extract<OutputRecipe, { typ
     recipe,
   };
 
-  for (const row of rows) {
-    if (!rowHasManualRangePreviewValue(recipe, row)) {
-      continue;
-    }
-
+  for (const row of previewRows) {
     const [processedRow] = buildProcessedRows([row], [previewColumn]);
     const value = processedRow?.outputValues[previewColumn.id] ?? '';
     if (value.trim() !== '') {
@@ -1059,6 +1066,74 @@ export function buildManualRangeAwarePreview(recipe: Extract<OutputRecipe, { typ
   }
 
   return null;
+}
+
+export function buildManualRangeRecipePreview(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rows: InputRow[],
+  sampleInputValues?: Record<string, string>,
+) {
+  const previewRows = getManualRangePreviewRows(recipe, rows, sampleInputValues);
+  if (previewRows.length === 0) {
+    return null;
+  }
+
+  const previewColumn: OutputColumn = {
+    id: 'manual-range-preview',
+    label: 'Vista previa',
+    order: 0,
+    enabled: true,
+    recipe,
+  };
+
+  for (const row of previewRows) {
+    const [processedRow] = buildProcessedRows([row], [previewColumn]);
+    const value = processedRow?.outputValues[previewColumn.id] ?? '';
+    if (value.trim() !== '') {
+      return `Fila ${row.rowNumber}: ${value}`;
+    }
+  }
+
+  return null;
+}
+
+function getManualRangeAwarePreviewRows(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
+  const manualRangeSteps = collectManualRangeSteps(recipe.steps ?? []);
+  recipe.parts.forEach((part) => {
+    manualRangeSteps.push(...collectManualRangeSteps(part.steps ?? []));
+  });
+
+  if (manualRangeSteps.length === 0) {
+    return [];
+  }
+
+  return rows.filter((row) => manualRangeSteps.some((step) => (
+    (step.ranges ?? []).some((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)
+  )));
+}
+
+function collectManualRangeSteps(steps: TransformStep[]): TransformStep[] {
+  return steps.flatMap((step) => {
+    const nestedSteps = step.parts?.flatMap((part) => part.steps ?? []) ?? [];
+    const nestedManualRangeSteps = collectManualRangeSteps(nestedSteps);
+    return step.type === 'manualRange' ? [step, ...nestedManualRangeSteps] : nestedManualRangeSteps;
+  });
+}
+
+function getManualRangePreviewRows(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rows: InputRow[],
+  sampleInputValues?: Record<string, string>,
+) {
+  const rowsInRange = rows.filter((row) => recipe.ranges.some((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber));
+  if (rowsInRange.length > 0 || !sampleInputValues) {
+    return rowsInRange;
+  }
+
+  return recipe.ranges.map((range) => ({
+    rowNumber: range.startRowNumber,
+    values: sampleInputValues,
+  }));
 }
 
 function recipeHasManualRange(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
@@ -1071,71 +1146,6 @@ function stepsHaveManualRange(steps: TransformStep[]): boolean {
     step.type === 'manualRange'
     || stepsHaveManualRange(step.parts?.flatMap((part) => part.steps ?? []) ?? [])
   ));
-}
-
-function rowHasManualRangePreviewValue(recipe: Extract<OutputRecipe, { type: 'combine' }>, row: InputRow) {
-  return stepsHaveManualRangePreviewValue(recipe.steps ?? [], row)
-    || recipe.parts.some((part) => stepsHaveManualRangePreviewValue(part.steps ?? [], row));
-}
-
-function stepsHaveManualRangePreviewValue(steps: TransformStep[], row: InputRow): boolean {
-  return steps.some((step) => {
-    if (step.type === 'manualRange' && resolveManualRangePreviewValue(row, step.ranges ?? [], step.manualRangeCondition).trim() !== '') {
-      return true;
-    }
-
-    return stepsHaveManualRangePreviewValue(step.parts?.flatMap((part) => part.steps ?? []) ?? [], row);
-  });
-}
-
-function resolveManualRangePreviewValue(row: InputRow, ranges: ManualRangeValue[], condition?: ManualRangeCondition) {
-  if (!matchesManualRangePreviewCondition(row, condition)) {
-    return '';
-  }
-
-  const range = ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber);
-  if (!range) {
-    return '';
-  }
-
-  if (range.valueRecipe) {
-    return resolveManualRangePreviewSource(row, range.valueRecipe.source);
-  }
-
-  if (range.valueSource?.type === 'fixedText') {
-    return range.valueSource.value;
-  }
-
-  if (range.valueSource?.type === 'rangeText') {
-    return range.valueSource.selectedText;
-  }
-
-  return range.value ?? '';
-}
-
-function resolveManualRangePreviewSource(row: InputRow, source: RangeValueSource) {
-  if (source.type === 'fixedText') {
-    return source.value;
-  }
-
-  if (source.type === 'rangeText') {
-    return source.selectedText;
-  }
-
-  if (source.type === 'input') {
-    return row.values[source.inputColumnId] ?? '';
-  }
-
-  return '';
-}
-
-function matchesManualRangePreviewCondition(row: InputRow, condition?: ManualRangeCondition) {
-  if (!condition) {
-    return true;
-  }
-
-  const value = row.values[condition.inputColumnId] ?? '';
-  return condition.operator === 'isEmpty' ? value.trim() === '' : value.trim() !== '';
 }
 
 export function getPreviousStepPreviewValue(
@@ -3405,6 +3415,15 @@ function stepSourceToOperand(source: StepSource): StepOperand {
 
   if (source.type === 'input') {
     return { type: 'input', inputColumnId: source.inputColumnId };
+  }
+
+  if (source.type === 'rangeText') {
+    return {
+      type: 'rangeText',
+      inputColumnId: source.inputColumnId,
+      selectedText: source.selectedText,
+      numericFallback: Number(source.selectedText),
+    };
   }
 
   return {
