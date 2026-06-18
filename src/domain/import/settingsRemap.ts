@@ -2,7 +2,10 @@ import type {
   ConcatPart,
   ExportedImportSettings,
   InputColumnRemap,
+  ManualRangeValue,
   OutputRecipe,
+  RangeValueRecipe,
+  RangeValueSource,
   RecipePart,
   SettingsRemapResult,
   StepOperand,
@@ -74,6 +77,17 @@ function remapOutputRecipe(recipe: OutputRecipe, remap: InputColumnRemap): Outpu
     };
   }
 
+  if (recipe.type === 'manualRange') {
+    return {
+      ...recipe,
+      ranges: recipe.ranges.map((range) => remapManualRangeValue(range, remap)),
+      ...(recipe.condition ? { condition: {
+        ...recipe.condition,
+        inputColumnId: remapInputColumnId(recipe.condition.inputColumnId, remap),
+      } } : {}),
+    };
+  }
+
   return recipe;
 }
 
@@ -103,8 +117,73 @@ function remapTransformStep(step: TransformStep, remap: InputColumnRemap): Trans
     leftOperand: remapStepOperand(step.leftOperand, remap),
     rightOperand: remapStepOperand(step.rightOperand, remap),
     condition: remapCondition(step.condition, remap),
+    ranges: remapManualRanges(step.ranges, remap),
+    manualRangeCondition: remapManualRangeCondition(step.manualRangeCondition, remap),
     parts: step.parts?.map((part) => remapConcatPart(part, remap)),
   };
+}
+
+function remapManualRanges<TManualRanges extends TransformStep['ranges']>(ranges: TManualRanges, remap: InputColumnRemap): TManualRanges {
+  return ranges?.map((range) => remapManualRangeValue(range, remap)) as TManualRanges;
+}
+
+function remapManualRangeValue(range: ManualRangeValue, remap: InputColumnRemap): ManualRangeValue {
+  const valueSource = remapManualRangeValueSource(range.valueSource, remap);
+  const valueRecipe = remapRangeValueRecipe(range.valueRecipe, remap);
+
+  return {
+    ...range,
+    ...(valueSource ? { valueSource } : {}),
+    ...(valueRecipe ? { valueRecipe } : {}),
+  };
+}
+
+function remapManualRangeValueSource<TValueSource extends ManualRangeValue['valueSource']>(
+  valueSource: TValueSource,
+  remap: InputColumnRemap,
+): TValueSource {
+  if (valueSource?.type !== 'rangeText') {
+    return valueSource;
+  }
+
+  return {
+    ...valueSource,
+    inputColumnId: remapInputColumnId(valueSource.inputColumnId, remap),
+  } as TValueSource;
+}
+
+function remapRangeValueRecipe<TRecipe extends RangeValueRecipe | undefined>(valueRecipe: TRecipe, remap: InputColumnRemap): TRecipe {
+  if (!valueRecipe) {
+    return valueRecipe;
+  }
+
+  return {
+    ...valueRecipe,
+    source: remapRangeValueSource(valueRecipe.source, remap),
+    steps: remapTransformSteps(valueRecipe.steps, remap),
+  } as TRecipe;
+}
+
+function remapRangeValueSource<TSource extends RangeValueSource>(source: TSource, remap: InputColumnRemap): TSource {
+  if (source.type !== 'input' && source.type !== 'rangeText') {
+    return source;
+  }
+
+  return {
+    ...source,
+    inputColumnId: remapInputColumnId(source.inputColumnId, remap),
+  } as TSource;
+}
+
+function remapManualRangeCondition<TCondition extends TransformStep['manualRangeCondition']>(condition: TCondition, remap: InputColumnRemap): TCondition {
+  if (!condition) {
+    return condition;
+  }
+
+  return {
+    ...condition,
+    inputColumnId: remapInputColumnId(condition.inputColumnId, remap),
+  } as TCondition;
 }
 
 function remapConcatPart(part: ConcatPart, remap: InputColumnRemap): ConcatPart {
@@ -116,7 +195,7 @@ function remapConcatPart(part: ConcatPart, remap: InputColumnRemap): ConcatPart 
 }
 
 function remapStepSource<TSource extends StepSource | undefined>(source: TSource, remap: InputColumnRemap): TSource {
-  if (source?.type !== 'input') {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
     return source;
   }
 

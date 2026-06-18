@@ -75,6 +75,142 @@ describe('settingsFileService', () => {
     });
   });
 
+  it('serializes and parses manual range valueSource recipes without changing them', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'manualRange',
+              ranges: [
+                {
+                  id: 'range-8-13',
+                  startRowNumber: 8,
+                  endRowNumber: 13,
+                  valueSource: { type: 'fixedText', value: 'Cerda china mango amarillo' },
+                },
+              ],
+              condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
+  it('serializes and parses manual range rangeText sources without changing them', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'manualRange',
+              ranges: [
+                {
+                  id: 'range-8-13',
+                  startRowNumber: 8,
+                  endRowNumber: 13,
+                  valueSource: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
+  it('serializes and parses manual range value recipes without changing them', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'manualRange',
+              ranges: [
+                {
+                  id: 'range-8-13',
+                  startRowNumber: 8,
+                  endRowNumber: 13,
+                  valueRecipe: {
+                    source: { type: 'rangeText', inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+                    steps: [{ id: 'upper', type: 'uppercase' }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
+  it('serializes and parses legacy manual range values without changing them', () => {
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: {
+              type: 'manualRange',
+              ranges: [
+                { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+              ],
+              condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = parseImportSettingsJson(serializeImportSettings(settings));
+
+    expect(result).toEqual({
+      ok: true,
+      settings,
+    });
+  });
+
   it('returns a controlled error for invalid JSON', () => {
     const result = parseImportSettingsJson('{invalid');
 

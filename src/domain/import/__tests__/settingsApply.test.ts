@@ -166,6 +166,158 @@ describe('settingsApply', () => {
     });
   });
 
+  it('preserves manual range valueSource recipes in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        {
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueSource: { type: 'fixedText' as const, value: 'Cerda china mango amarillo' },
+        },
+      ],
+      condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' as const },
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+  });
+
+  it('preserves manual range rangeText sources in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        {
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueSource: { type: 'rangeText' as const, inputColumnId: 'input-brand', selectedText: 'Sinteplast' },
+        },
+      ],
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+  });
+
+  it('preserves manual range value recipes in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        {
+          id: 'range-8-13',
+          startRowNumber: 8,
+          endRowNumber: 13,
+          valueRecipe: {
+            source: { type: 'input' as const, inputColumnId: 'input-brand' },
+            steps: [{
+              id: 'concat',
+              type: 'concat' as const,
+              parts: [
+                { id: 'brand', source: { type: 'input' as const, inputColumnId: 'input-brand' } },
+                { id: 'fixed', source: { type: 'fixedText' as const, value: 'OK' }, separatorBefore: ' - ' },
+              ],
+            }],
+          },
+        },
+      ],
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+    expect(result.payload.outputColumns[0].recipe).not.toBe(manualRangeRecipe);
+  });
+
+  it('preserves legacy manual range values in the apply payload', () => {
+    const manualRangeRecipe = {
+      type: 'manualRange' as const,
+      ranges: [
+        { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Cerda china mango amarillo' },
+      ],
+      condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' as const },
+    };
+    const settings = buildSettings({
+      config: {
+        ...buildSettings().config,
+        outputColumns: [
+          {
+            id: 'output-comment',
+            label: 'Comentario',
+            order: 0,
+            enabled: true,
+            recipe: manualRangeRecipe,
+          },
+        ],
+      },
+    });
+
+    const result = createApplyPayloadFromSettings(settings);
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    expect(result.payload.outputColumns[0].recipe).toEqual(manualRangeRecipe);
+  });
+
   it('does not mutate settings and clones arrays and objects defensively', () => {
     const settings = buildSettings();
     const before = JSON.stringify(settings);

@@ -1,8 +1,10 @@
 import type {
   ConcatPart,
   ExportedImportSettings,
+  ManualRangeValue,
   OutputColumn,
   OutputRecipe,
+  RangeValueSource,
   RecipePart,
   SettingsColumnReference,
   SettingsReferencesSummary,
@@ -101,12 +103,94 @@ function collectOutputRecipeReferences(
     collectTransformSteps(recipe.steps ?? [], `${path}.steps`, context);
   }
 
+  if (recipe.type === 'manualRange') {
+    collectManualRangeValueSourceReferences(recipe, path, context);
+    collectManualRangeConditionReference(recipe.condition, {
+      ...context,
+      path: `${path}.condition`,
+    });
+    return;
+  }
+
   if (recipe.type !== 'combine') {
     return;
   }
 
   recipe.parts.forEach((part, partIndex) => {
     collectRecipePartReferences(part, `${path}.parts[${partIndex}]`, context);
+  });
+}
+
+function collectManualRangeValueSourceReferences(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  path: string,
+  context: ReferenceCollectorContext & { stepId?: string },
+) {
+  recipe.ranges.forEach((range, rangeIndex) => {
+    collectManualRangeValueReferences(range, `${path}.ranges[${rangeIndex}]`, context);
+  });
+}
+
+function collectManualRangeValueReferences(
+  range: ManualRangeValue,
+  path: string,
+  context: ReferenceCollectorContext & { stepId?: string },
+) {
+  if (range.valueSource?.type === 'rangeText') {
+    addInputReference(context, range.valueSource.inputColumnId, {
+      kind: 'manualRangeValueSource',
+      path: `${path}.valueSource.inputColumnId`,
+      outputColumnId: context.outputColumnId,
+      stepId: context.stepId,
+    });
+  }
+
+  if (!range.valueRecipe) {
+    return;
+  }
+
+  collectRangeValueSourceReference(range.valueRecipe.source, {
+    ...context,
+    path: `${path}.valueRecipe.source`,
+  });
+  collectTransformSteps(range.valueRecipe.steps ?? [], `${path}.valueRecipe.steps`, context);
+}
+
+function collectRangeValueSourceReference(
+  source: RangeValueSource | undefined,
+  options: ReferenceCollectorContext & {
+    path: string;
+    stepId?: string;
+  },
+) {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
+    return;
+  }
+
+  addInputReference(options, source.inputColumnId, {
+    kind: 'manualRangeValueSource',
+    path: `${options.path}.inputColumnId`,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
+  });
+}
+
+function collectManualRangeConditionReference(
+  condition: Extract<OutputRecipe, { type: 'manualRange' }>['condition'],
+  options: ReferenceCollectorContext & {
+    path: string;
+    stepId?: string;
+  },
+) {
+  if (!condition?.inputColumnId) {
+    return;
+  }
+
+  addInputReference(options, condition.inputColumnId, {
+    kind: 'condition',
+    path: options.path,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
   });
 }
 
@@ -156,6 +240,19 @@ function collectTransformStepReferences(step: TransformStep, path: string, conte
     stepId: step.id,
   });
 
+  if (step.type === 'manualRange') {
+    collectManualRangeValueSourceReferences(
+      { type: 'manualRange', ranges: step.ranges ?? [], ...(step.manualRangeCondition ? { condition: step.manualRangeCondition } : {}) },
+      path,
+      { ...context, stepId: step.id },
+    );
+    collectManualRangeConditionReference(step.manualRangeCondition, {
+      ...context,
+      path: `${path}.manualRangeCondition`,
+      stepId: step.id,
+    });
+  }
+
   step.parts?.forEach((part, partIndex) => {
     collectConcatPartReferences(part, `${path}.parts[${partIndex}]`, {
       ...context,
@@ -186,7 +283,7 @@ function collectStepSourceReference(
     partId?: string;
   },
 ) {
-  if (source?.type !== 'input') {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
     return;
   }
 

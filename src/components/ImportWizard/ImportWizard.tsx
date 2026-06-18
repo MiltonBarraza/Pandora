@@ -3,7 +3,7 @@ import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
 import { getColumnIndexesWithData } from '../../domain/import/columnData';
-import { getSheetRows } from '../../domain/import/getSheetRows';
+import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { readCsv } from '../../domain/import/readCsv';
@@ -19,7 +19,7 @@ import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { downloadImportSettingsFile } from '../../services/settingsFileService';
 import { showInfoToast } from '../../services/toastService';
-import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
 import { ColumnVisibilityManager } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -43,6 +43,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
   const [selectedSheet, setSelectedSheet] = useState('');
   const [rows, setRows] = useState<RawRow[]>([]);
+  const [rowMetadata, setRowMetadata] = useState<SheetRowMetadata[]>([]);
   const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
   const [startRowIndex, setStartRowIndex] = useState(0);
   const [startRowInputValue, setStartRowInputValue] = useState('1');
@@ -89,7 +90,12 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     () => (showRawPreviewFromDataStart ? rows.slice(startRowIndex) : rows),
     [rows, showRawPreviewFromDataStart, startRowIndex],
   );
+  const rawPreviewRowNumbers = useMemo(
+    () => getRawPreviewRowNumbers(rowMetadata, startRowIndex, showRawPreviewFromDataStart),
+    [rowMetadata, startRowIndex, showRawPreviewFromDataStart],
+  );
   const rawPreviewRowNumberOffset = showRawPreviewFromDataStart ? startRowIndex : 0;
+  const visibleStartRowNumber = getExcelRowNumberForInternalIndex(rowMetadata, startRowIndex);
   const activeColumnIndexes = useMemo(
     () => columnAnalysis.filter((column) => !column.ignored).map((column) => column.columnIndex),
     [columnAnalysis],
@@ -151,8 +157,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   const rowConfigurationError = headerRowIndex !== null && headerRowIndex >= startRowIndex
     ? 'La fila de encabezados debe estar antes de la primera fila de datos.'
     : '';
+  const rawPreviewStartRowNumber = rawPreviewRowNumbers?.[0] ?? startRowIndex + 1;
   const rawPreviewSummary = showRawPreviewFromDataStart
-    ? `Vista previa desde la fila ${startRowIndex + 1}. Se muestran hasta 30 filas.`
+    ? `Vista previa desde la fila ${rawPreviewStartRowNumber}. Se muestran hasta 30 filas.`
     : 'Vista previa de las primeras 30 filas.';
   const processedPipeline = useMemo(
     () =>
@@ -162,8 +169,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
         startRowIndex,
         outputColumns,
         inputIgnoreRules,
+        rowMetadata,
       }),
-    [rows, columnAnalysis, startRowIndex, outputColumns, inputIgnoreRules],
+    [rows, columnAnalysis, startRowIndex, outputColumns, inputIgnoreRules, rowMetadata],
   );
   const outputFilteredRows = useMemo(
     () =>
@@ -218,8 +226,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       return;
     }
 
-    setStartRowInputValue(String(startRowIndex + 1));
-  }, [startRowIndex]);
+    setStartRowInputValue(String(visibleStartRowNumber));
+  }, [startRowIndex, visibleStartRowNumber]);
 
   useEffect(() => {
     if (showOutputModelDebug) {
@@ -241,7 +249,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       return;
     }
 
-    setRows(getSheetRows(workbook, selectedSheet));
+    const sheetRows = getSheetRowsWithMetadata(workbook, selectedSheet);
+    setRows(sheetRows.rows);
+    setRowMetadata(sheetRows.rowMetadata);
   }, [workbook, selectedSheet, fileType]);
 
   useEffect(() => {
@@ -317,6 +327,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     setWorkbook(null);
     setSelectedSheet('');
     setRows([]);
+    setRowMetadata([]);
     setReadError('');
   };
 
@@ -357,6 +368,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
         setWorkbook(null);
         setSelectedSheet('');
         setRows(csvRows);
+        setRowMetadata([]);
         setFileType('csv');
         return;
       }
@@ -368,7 +380,11 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       setFileName(file.name);
       setWorkbook(nextWorkbook);
       setSelectedSheet(nextWorkbook.SheetNames[0] ?? '');
-      setRows(nextWorkbook.SheetNames[0] ? getSheetRows(nextWorkbook, nextWorkbook.SheetNames[0]) : []);
+      const sheetRows = nextWorkbook.SheetNames[0]
+        ? getSheetRowsWithMetadata(nextWorkbook, nextWorkbook.SheetNames[0])
+        : { rows: [], rowMetadata: [] };
+      setRows(sheetRows.rows);
+      setRowMetadata(sheetRows.rowMetadata);
       setFileType('spreadsheet');
     } catch {
       setReadError('No se pudo leer el archivo. Revisa que sea .xlsx, .xls, .xlsm o .csv.');
@@ -465,7 +481,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       notifyConfigurationDiscarded();
       resetWizardConfiguration();
       setSelectedSheet(sheetName);
-      setRows(workbook ? getSheetRows(workbook, sheetName) : []);
+      const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
+      setRows(sheetRows.rows);
+      setRowMetadata(sheetRows.rowMetadata);
     };
 
     if (isConfigurationDirty) {
@@ -477,10 +495,11 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const applyStartRowIndex = (nextRowNumber: number) => {
-    if (nextRowNumber - 1 !== startRowIndex) {
+    const nextStartRowIndex = getInternalIndexForExcelRowNumber(rowMetadata, nextRowNumber);
+    if (nextStartRowIndex !== startRowIndex) {
       setIsConfigurationDirty(true);
       skipStartRowInputSyncRef.current = true;
-      setStartRowIndex(nextRowNumber - 1);
+      setStartRowIndex(nextStartRowIndex);
     }
   };
 
@@ -496,13 +515,15 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
   const commitStartRowInput = (value: string) => {
     const rowNumber = normalizeNumberInputOnBlur(value, {
-      fallback: startRowIndex + 1,
+      fallback: visibleStartRowNumber,
       min: 1,
       integer: true,
     });
+    const nextStartRowIndex = getInternalIndexForExcelRowNumber(rowMetadata, rowNumber);
+    const normalizedRowNumber = getExcelRowNumberForInternalIndex(rowMetadata, nextStartRowIndex);
 
     skipStartRowInputSyncRef.current = false;
-    setStartRowInputValue(String(rowNumber));
+    setStartRowInputValue(String(normalizedRowNumber));
     applyStartRowIndex(rowNumber);
   };
 
@@ -579,14 +600,19 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             <Dropdown
               label="Fila de encabezados"
               labelInfo={<InfoTooltip content="Selecciona la fila que contiene los nombres de las columnas." />}
-              value={headerRowIndex === null ? 'none' : String(headerRowIndex + 1)}
+              value={headerRowIndex === null ? 'none' : String(getExcelRowNumberForInternalIndex(rowMetadata, headerRowIndex))}
               options={[
                 { value: 'none', label: 'Sin encabezados' },
-                ...rows.map((_, index) => ({ value: String(index + 1), label: `Fila ${index + 1}` })),
+                ...rows.map((_, index) => {
+                  const rowNumber = getExcelRowNumberForInternalIndex(rowMetadata, index);
+                  return { value: String(rowNumber), label: `Fila ${rowNumber}` };
+                }),
               ]}
               scrollStrategy="lock"
               onChange={(value) => {
-                const nextHeaderRowIndex = value === 'none' ? null : Math.max(0, Number(value) - 1);
+                const nextHeaderRowIndex = value === 'none'
+                  ? null
+                  : getInternalIndexForExcelRowNumber(rowMetadata, Number(value));
                 if (nextHeaderRowIndex !== headerRowIndex) {
                   setIsConfigurationDirty(true);
                   setHeaderRowIndex(nextHeaderRowIndex);
@@ -642,6 +668,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             rows={rawPreviewRows}
             maxColumns={maxColumns}
             activeColumns={rawPreviewColumnIndexes}
+            rowNumbers={rawPreviewRowNumbers}
             dataColumns={rawPreviewDataColumnIndexes}
             rowNumberOffset={rawPreviewRowNumberOffset}
             showAllColumns={showAllRawPreviewColumns}
@@ -681,6 +708,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
         <Step title="6. Columnas de salida" info="Define las columnas que tendra el archivo final.">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
+            manualRangeRows={processedPipeline.inputRows}
             sampleInputValues={processedPipeline.includedInputRows[0]?.values ?? processedPipeline.inputRows[0]?.values}
             outputColumns={outputColumns}
             onChange={updateOutputColumns}
@@ -863,4 +891,33 @@ export function shouldProtectWizardState({
   const hasLoadedSourceState = hasLoadedFile || selectedSheet.trim() !== '' || rowCount > 0;
   const hasDetectedColumns = hasLoadedSourceState && columnAnalysisCount > 0;
   return isConfigurationDirty || hasLoadedSourceState || hasDetectedColumns;
+}
+
+export function getRawPreviewRowNumbers(
+  rowMetadata: SheetRowMetadata[],
+  startRowIndex: number,
+  showRawPreviewFromDataStart: boolean,
+) {
+  if (rowMetadata.length === 0) {
+    return undefined;
+  }
+
+  const visibleMetadata = showRawPreviewFromDataStart
+    ? rowMetadata.slice(startRowIndex)
+    : rowMetadata;
+
+  return visibleMetadata.map((metadata) => metadata.excelRowNumber);
+}
+
+export function getExcelRowNumberForInternalIndex(rowMetadata: SheetRowMetadata[], internalRowIndex: number) {
+  return rowMetadata[internalRowIndex]?.excelRowNumber ?? internalRowIndex + 1;
+}
+
+export function getInternalIndexForExcelRowNumber(rowMetadata: SheetRowMetadata[], excelRowNumber: number) {
+  if (rowMetadata.length === 0) {
+    return Math.max(0, excelRowNumber - 1);
+  }
+
+  const nextMetadata = rowMetadata.find((metadata) => metadata.excelRowNumber >= excelRowNumber);
+  return nextMetadata?.internalRowIndex ?? rowMetadata.length;
 }
