@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, formatDateValue, parseDateValue, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeGenerationMode } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode } from '../../domain/import/manualRangeModel';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
@@ -43,9 +43,9 @@ export const recipeEditorDiscardChangesConfirmLabel = 'Descartar cambios';
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
 
-const manualRangeGenerationModeOptions: Array<{ value: ManualRangeGenerationMode; label: string }> = [
-  { value: 'untilNextText', label: 'Cada texto aplica hasta el próximo texto' },
-  { value: 'singleRow', label: 'Cada texto aplica sólo a su fila' },
+const manualRangeInitialValueModeOptions: Array<{ value: ManualRangeInitialValueMode; label: string }> = [
+  { value: 'empty', label: 'Sin valor (recomendado)' },
+  { value: 'detectedText', label: 'Usar texto detectado como valor' },
 ];
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
@@ -442,7 +442,7 @@ function ManualRangeRecipeEditor({
             Ordenar por inicio
           </button>
           <button type="button" className="secondary" onClick={() => setShowGenerator((current) => !current)}>
-            Generar desde textos
+            Generar rangos sugeridos
           </button>
         </div>
       </div>
@@ -492,7 +492,7 @@ function ManualRangeRecipeEditor({
   );
 }
 
-function ManualRangeTextGenerator({
+export function ManualRangeTextGenerator({
   recipe,
   inputColumns,
   manualRangeRows,
@@ -506,23 +506,24 @@ function ManualRangeTextGenerator({
   const [inputColumnId, setInputColumnId] = useState(inputColumns[0]?.id ?? '');
   const [startRowInput, setStartRowInput] = useState('');
   const [endRowInput, setEndRowInput] = useState('');
-  const [mode, setMode] = useState<ManualRangeGenerationMode>('untilNextText');
+  const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>('empty');
   const startRowNumber = parseManualRangeRowInput(startRowInput);
   const endRowNumber = parseManualRangeRowInput(endRowInput);
   const canPreview = Boolean(inputColumnId && startRowNumber !== undefined && endRowNumber !== undefined && endRowNumber >= startRowNumber);
-  const generatedRanges = canPreview
+  const generatedPreviewRanges = canPreview
     ? generateManualRangesFromTexts(manualRangeRows, {
       inputColumnId,
       startRowNumber: startRowNumber!,
       endRowNumber: endRowNumber!,
-      mode,
+      mode: 'untilNextText',
+      initialValueMode: 'detectedText',
     })
     : [];
   const previewMessage = !inputColumnId
     ? 'Elegí una columna para buscar textos.'
     : !canPreview
       ? 'Definí un rango de filas válido.'
-      : generatedRanges.length === 0
+      : generatedPreviewRanges.length === 0
         ? 'No se encontraron textos en la zona definida.'
         : '';
 
@@ -535,7 +536,8 @@ function ManualRangeTextGenerator({
       inputColumnId,
       startRowNumber: startRowNumber!,
       endRowNumber: endRowNumber!,
-      mode,
+      mode: 'untilNextText',
+      initialValueMode,
     });
 
     if (nextRanges.length === 0) {
@@ -552,22 +554,23 @@ function ManualRangeTextGenerator({
     <div className="manualRangeGenerator">
       <div className="manualRangeGeneratorHeader">
         <div>
-          <strong>Generar desde textos</strong>
-          <p className="muted">Buscá títulos no vacíos dentro de una zona acotada y agregalos como rangos editables.</p>
+          <strong>Generar rangos sugeridos</strong>
+          <p className="muted">Pandora puede sugerir rangos a partir de textos encontrados en una columna. Después podés revisar, eliminar o definir el valor de cada rango.</p>
+          <p className="muted">El texto detectado ayuda a identificar el bloque, pero no se usa como valor salvo que lo elijas.</p>
         </div>
         <ActionButton
           action="add"
           variant="secondary"
-          disabled={generatedRanges.length === 0}
+          disabled={generatedPreviewRanges.length === 0}
           onClick={confirmGeneratedRanges}
         >
-          Agregar rangos generados
+          Agregar rangos sugeridos
         </ActionButton>
       </div>
       <div className="manualRangeGeneratorControls">
         <Dropdown
           className="compact"
-          label="Buscar textos en"
+          label="Columna base"
           value={inputColumnId}
           options={inputColumns.length === 0
             ? [{ value: '', label: 'Sin columnas activas' }]
@@ -595,25 +598,33 @@ function ManualRangeTextGenerator({
             onChange={(event) => setEndRowInput(event.target.value)}
           />
         </label>
-        <Dropdown<ManualRangeGenerationMode>
+        <Dropdown
           className="compact"
-          label="Modo"
-          value={mode}
-          options={manualRangeGenerationModeOptions}
+          label="Detectar"
+          value="nonEmptyTexts"
+          options={[{ value: 'nonEmptyTexts', label: 'Textos no vacíos' }]}
           scrollStrategy="close"
-          onChange={setMode}
+          onChange={() => undefined}
+        />
+        <Dropdown<ManualRangeInitialValueMode>
+          className="compact"
+          label="Valor inicial"
+          value={initialValueMode}
+          options={manualRangeInitialValueModeOptions}
+          scrollStrategy="close"
+          onChange={setInitialValueMode}
         />
       </div>
       {previewMessage ? (
         <p className="manualRangeValueHelp">{previewMessage}</p>
       ) : (
-        <div className="manualRangeGeneratorPreview" aria-label="Vista previa de rangos generados">
-          {generatedRanges.slice(0, 6).map((range, index) => (
+        <div className="manualRangeGeneratorPreview" aria-label="Vista previa de rangos sugeridos">
+          {generatedPreviewRanges.slice(0, 6).map((range, index) => (
             <span key={`${range.startRowNumber}-${range.endRowNumber}-${index}`}>
               {range.startRowNumber}-{range.endRowNumber}: {getManualRangeRangeTextSource(range).selectedText}
             </span>
           ))}
-          {generatedRanges.length > 6 ? <span>{generatedRanges.length - 6} rangos más…</span> : null}
+          {generatedPreviewRanges.length > 6 ? <span>{generatedPreviewRanges.length - 6} rangos más…</span> : null}
         </div>
       )}
     </div>

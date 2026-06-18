@@ -14,12 +14,14 @@ import type {
 
 export type ManualRangeValueSourceType = ManualRangeValueSource['type'] | 'input';
 export type ManualRangeGenerationMode = 'untilNextText' | 'singleRow';
+export type ManualRangeInitialValueMode = 'empty' | 'detectedText';
 
 export type ManualRangeGenerationConfig = {
   inputColumnId: string;
   startRowNumber: number;
   endRowNumber: number;
   mode: ManualRangeGenerationMode;
+  initialValueMode?: ManualRangeInitialValueMode;
   idFactory?: () => string;
 };
 
@@ -400,7 +402,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -421,23 +423,23 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       ? row.rowNumber
       : Math.min(endRowNumber, nextTextRowNumber ? nextTextRowNumber - 1 : endRowNumber);
 
+    const rangeTextSource = {
+      type: 'rangeText' as const,
+      inputColumnId,
+      selectedText: row.text,
+    };
+    const emptySource = { type: 'fixedText' as const, value: '' };
+    const source = initialValueMode === 'detectedText' ? rangeTextSource : emptySource;
+
     return {
       id: idFactory(),
       startRowNumber: row.rowNumber,
       endRowNumber: rangeEndRowNumber,
       valueRecipe: {
-        source: {
-          type: 'rangeText',
-          inputColumnId,
-          selectedText: row.text,
-        },
+        source,
         steps: [],
       },
-      valueSource: {
-        type: 'rangeText',
-        inputColumnId,
-        selectedText: row.text,
-      },
+      valueSource: source,
     };
   });
 }
