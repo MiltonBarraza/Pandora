@@ -4,7 +4,7 @@ import React from 'react';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { OutputColumnRecipeEditor, ManualRangeRowsPreview, ManualRangeTableRow, ManualRangeTextGenerator, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeRowsPreviewColumns, getManualRangeRowsPreviewInterval, getManualRangeRowsPreviewRows, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeRowsPreviewColumnLimit, manualRangeRowsPreviewLimit, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
@@ -95,6 +95,20 @@ function renderManualRangeTableRow(range: Parameters<typeof ManualRangeTableRow>
   } finally {
     consoleError.mockRestore();
   }
+}
+
+function renderManualRangeRowsPreview(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rows: InputRow[] = manualRangeRows,
+  columns: InputColumn[] = inputColumns,
+) {
+  return renderToStaticMarkup(
+    <ManualRangeRowsPreview
+      recipe={recipe}
+      inputColumns={columns}
+      manualRangeRows={rows}
+    />,
+  );
 }
 
 const combineColumn: OutputColumn = {
@@ -317,6 +331,133 @@ describe('constructor helpers', () => {
     });
 
     expect(markup).not.toContain('Referencia');
+  });
+
+  it('renders the collapsible Excel rows preview without configured ranges', () => {
+    const markup = renderManualRangeRowsPreview({ type: 'manualRange', ranges: [] });
+
+    expect(markup).toContain('Ver filas del Excel');
+    expect(markup).toContain('Agregá o generá rangos para ver filas del Excel.');
+  });
+
+  it('shows Excel rows inside the min and max configured range using real row numbers', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [
+        { id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, valueRecipe: expectedEmptyRangeValueRecipe() },
+        { id: 'range-10-10', startRowNumber: 10, endRowNumber: 10, valueRecipe: expectedEmptyRangeValueRecipe() },
+      ],
+    };
+    const rows: InputRow[] = [
+      { rowNumber: 7, values: { 'input-name': 'Fuera antes', 'input-pack': 'NO' } },
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': '20L' } },
+      { rowNumber: 9, values: { 'input-name': '', 'input-pack': '10L' } },
+      { rowNumber: 10, values: { 'input-name': 'RODILLO SIMIL LANA', 'input-pack': '5L' } },
+      { rowNumber: 11, values: { 'input-name': 'Fuera despues', 'input-pack': 'NO' } },
+    ];
+
+    const preview = getManualRangeRowsPreviewRows(rows, getManualRangeRowsPreviewInterval(recipe.ranges));
+    const markup = renderManualRangeRowsPreview(recipe, rows);
+
+    expect(preview.rows.map((row) => row.rowNumber)).toEqual([8, 9, 10]);
+    expect(markup).toContain('<th>Fila</th>');
+    expect(markup).toContain('<td>8</td>');
+    expect(markup).toContain('PINCELES SERIE 304');
+    expect(markup).toContain('20L');
+    expect(markup).not.toContain('Fuera antes');
+    expect(markup).not.toContain('Fuera despues');
+  });
+
+  it('shows a clear message when ranges do not match Excel rows', () => {
+    const markup = renderManualRangeRowsPreview({
+      type: 'manualRange',
+      ranges: [{ id: 'range-20-22', startRowNumber: 20, endRowNumber: 22, valueRecipe: expectedEmptyRangeValueRecipe() }],
+    });
+
+    expect(markup).toContain('No se encontraron filas del Excel dentro del intervalo de los rangos.');
+  });
+
+  it('limits the Excel rows preview to 50 rows and summarizes the interval', () => {
+    const rows = Array.from({ length: manualRangeRowsPreviewLimit + 5 }, (_, index) => ({
+      rowNumber: index + 1,
+      values: { 'input-name': `Producto ${index + 1}` },
+    }));
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{ id: 'range-1-55', startRowNumber: 1, endRowNumber: 55, valueRecipe: expectedEmptyRangeValueRecipe() }],
+    };
+    const preview = getManualRangeRowsPreviewRows(rows, getManualRangeRowsPreviewInterval(recipe.ranges));
+    const markup = renderManualRangeRowsPreview(recipe, rows);
+
+    expect(preview.rows).toHaveLength(manualRangeRowsPreviewLimit);
+    expect(preview.totalRows).toBe(55);
+    expect(markup).toContain('Mostrando 50 de 55 filas del intervalo 1-55.');
+    expect(markup).toContain('Producto 50');
+    expect(markup).not.toContain('Producto 51');
+  });
+
+  it('shows up to 8 input columns and prioritizes columns used by range value recipes', () => {
+    const manyInputColumns: InputColumn[] = Array.from({ length: manualRangeRowsPreviewColumnLimit + 3 }, (_, index) => ({
+      id: `input-${index}`,
+      columnIndex: index,
+      columnLetter: String.fromCharCode(65 + index),
+      label: `Col ${index}`,
+      active: true,
+      sampleValues: [],
+      nonEmptyCount: 1,
+    }));
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range-1-1',
+        startRowNumber: 1,
+        endRowNumber: 1,
+        valueRecipe: {
+          source: { type: 'input', inputColumnId: 'input-10' },
+          steps: [{
+            id: 'concat',
+            type: 'concat',
+            parts: [
+              { id: 'range-text', source: { type: 'rangeText', inputColumnId: 'input-9', selectedText: 'Texto' } },
+              { id: 'plain', source: { type: 'input', inputColumnId: 'input-8' } },
+            ],
+          }],
+        },
+      }],
+    };
+
+    const columns = getManualRangeRowsPreviewColumns(recipe, manyInputColumns);
+
+    expect(columns).toHaveLength(manualRangeRowsPreviewColumnLimit);
+    expect(columns.slice(0, 3).map((column) => column.id)).toEqual(['input-10', 'input-9', 'input-8']);
+    expect(columns.map((column) => column.id)).not.toContain('input-7');
+  });
+
+  it('does not call onChange when rendering the read-only Excel rows preview in the range editor', () => {
+    const onChange = vi.fn();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{ id: 'range-8-10', startRowNumber: 8, endRowNumber: 10, valueRecipe: expectedEmptyRangeValueRecipe() }],
+    };
+    const column: OutputColumn = {
+      id: 'output-range',
+      label: 'Rango',
+      order: 0,
+      enabled: true,
+      recipe,
+    };
+
+    renderToStaticMarkup(
+      <OutputColumnRecipeEditor
+        column={column}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={onChange}
+      />,
+    );
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(column.recipe).toEqual(recipe);
   });
 
   it('renders a date picker for fixed text used by a date step', () => {

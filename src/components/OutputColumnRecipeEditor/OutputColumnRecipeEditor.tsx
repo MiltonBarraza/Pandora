@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, formatDateValue, parseDateValue, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, getManualRangeValueRecipeSource, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
@@ -26,6 +26,9 @@ type OutputColumnRecipeEditorProps = {
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
 type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 export type ManualRangeDetectionMode = 'textStarts' | 'dataBlocks';
+
+export const manualRangeRowsPreviewLimit = 50;
+export const manualRangeRowsPreviewColumnLimit = 8;
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
   { value: 'direct', label: 'Directa desde entrada' },
@@ -499,8 +502,152 @@ function ManualRangeRecipeEditor({
           </div>
         </>
       )}
+      <ManualRangeRowsPreview
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+      />
     </div>
   );
+}
+
+type ManualRangeRowsPreviewProps = {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  inputColumns: InputColumn[];
+  manualRangeRows?: InputRow[];
+};
+
+type ManualRangeRowsPreviewInterval = {
+  startRowNumber: number;
+  endRowNumber: number;
+};
+
+export function ManualRangeRowsPreview({
+  recipe,
+  inputColumns,
+  manualRangeRows = [],
+}: ManualRangeRowsPreviewProps) {
+  const interval = getManualRangeRowsPreviewInterval(recipe.ranges);
+  const previewColumns = getManualRangeRowsPreviewColumns(recipe, inputColumns);
+  const preview = getManualRangeRowsPreviewRows(manualRangeRows, interval);
+
+  return (
+    <details className="manualRangeRowsPreview">
+      <summary>Ver filas del Excel</summary>
+      {!interval ? (
+        <p className="muted manualRangeRowsPreviewMessage">Agregá o generá rangos para ver filas del Excel.</p>
+      ) : preview.totalRows === 0 ? (
+        <p className="muted manualRangeRowsPreviewMessage">No se encontraron filas del Excel dentro del intervalo de los rangos.</p>
+      ) : (
+        <>
+          <p className="muted manualRangeRowsPreviewSummary">
+            {preview.rows.length < preview.totalRows
+              ? `Mostrando ${preview.rows.length} de ${preview.totalRows} filas del intervalo ${interval.startRowNumber}-${interval.endRowNumber}.`
+              : `Mostrando ${preview.rows.length} filas del intervalo ${interval.startRowNumber}-${interval.endRowNumber}.`}
+          </p>
+          <div className="tableWrap manualRangeRowsPreviewTableWrap">
+            <table className="manualRangeRowsPreviewTable">
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  {previewColumns.map((column) => (
+                    <th key={column.id} title={getInputColumnLabel(column)}>{getInputColumnLabel(column)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows.map((row) => (
+                  <tr key={row.rowNumber}>
+                    <td>{row.rowNumber}</td>
+                    {previewColumns.map((column) => {
+                      const value = row.values[column.id] ?? '';
+                      return <td key={column.id} title={value}>{value}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </details>
+  );
+}
+
+export function getManualRangeRowsPreviewInterval(ranges: ManualRangeValue[]): ManualRangeRowsPreviewInterval | null {
+  const validRanges = ranges.filter((range) => !hasInvalidManualRange(range));
+  if (validRanges.length === 0) {
+    return null;
+  }
+
+  return {
+    startRowNumber: Math.min(...validRanges.map((range) => range.startRowNumber)),
+    endRowNumber: Math.max(...validRanges.map((range) => range.endRowNumber)),
+  };
+}
+
+export function getManualRangeRowsPreviewRows(
+  manualRangeRows: InputRow[],
+  interval: ManualRangeRowsPreviewInterval | null,
+  limit = manualRangeRowsPreviewLimit,
+) {
+  if (!interval) {
+    return { rows: [], totalRows: 0 };
+  }
+
+  const rowsInInterval = manualRangeRows
+    .filter((row) => row.rowNumber >= interval.startRowNumber && row.rowNumber <= interval.endRowNumber)
+    .sort((left, right) => left.rowNumber - right.rowNumber);
+
+  return {
+    rows: rowsInInterval.slice(0, limit),
+    totalRows: rowsInInterval.length,
+  };
+}
+
+export function getManualRangeRowsPreviewColumns(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  inputColumns: InputColumn[],
+  limit = manualRangeRowsPreviewColumnLimit,
+) {
+  const columnsById = new Map(inputColumns.map((column) => [column.id, column]));
+  const selectedColumnIds: string[] = [];
+  const addColumnId = (inputColumnId?: string) => {
+    if (!inputColumnId || !columnsById.has(inputColumnId) || selectedColumnIds.includes(inputColumnId)) {
+      return;
+    }
+
+    selectedColumnIds.push(inputColumnId);
+  };
+
+  recipe.ranges.forEach((range) => {
+    collectManualRangeSourceColumnIds(getManualRangeValueRecipeSource(range), addColumnId);
+    range.valueRecipe?.steps?.forEach((step) => collectManualRangeStepColumnIds(step, addColumnId));
+
+    if (range.valueSource?.type === 'rangeText') {
+      addColumnId(range.valueSource.inputColumnId);
+    }
+  });
+
+  inputColumns.forEach((column) => addColumnId(column.id));
+
+  return selectedColumnIds.slice(0, limit).map((inputColumnId) => columnsById.get(inputColumnId)!);
+}
+
+function collectManualRangeStepColumnIds(step: TransformStep, addColumnId: (inputColumnId?: string) => void) {
+  collectManualRangeSourceColumnIds(step.source, addColumnId);
+  collectManualRangeSourceColumnIds(step.leftOperand, addColumnId);
+  collectManualRangeSourceColumnIds(step.rightOperand, addColumnId);
+  step.parts?.forEach((part) => {
+    collectManualRangeSourceColumnIds(part.source, addColumnId);
+    part.steps?.forEach((partStep) => collectManualRangeStepColumnIds(partStep, addColumnId));
+  });
+}
+
+function collectManualRangeSourceColumnIds(source: RangeValueSource | StepOperand | undefined, addColumnId: (inputColumnId?: string) => void) {
+  if (source?.type === 'input' || source?.type === 'rangeText') {
+    addColumnId(source.inputColumnId);
+  }
 }
 
 export function ManualRangeTextGenerator({
