@@ -480,6 +480,7 @@ h3 {
   padding: 28px 24px;
   position: relative;
   text-align: center;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .dropZone.hasFile {
@@ -492,6 +493,21 @@ h3 {
 .dropZone.isDragging {
   background: var(--color-accent-bg-soft);
   border-color: var(--color-primary-bg);
+}
+
+.dropZone:hover,
+.dropZone:focus-visible {
+  background: var(--color-bg-surface-subtle);
+  border-color: var(--color-primary-bg);
+  box-shadow: 0 8px 18px var(--color-focus-ring);
+  transform: translateY(-1px);
+}
+
+.dropZone.hasFile:hover,
+.dropZone.hasFile:focus-visible,
+.dropZone.hasFile.isDragging {
+  background: var(--color-accent-bg-soft);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring), 0 8px 18px var(--color-focus-ring);
 }
 
 .dropZone input {
@@ -2347,6 +2363,16 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.settingsActions .compactActions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.settingsActions .compactActions .actionButton {
+  white-space: nowrap;
+}
+
 .settingsActions {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
@@ -2361,6 +2387,7 @@ tbody tr:hover {
 .settingsActionsIntro {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .settingsActionsIntro h3 {

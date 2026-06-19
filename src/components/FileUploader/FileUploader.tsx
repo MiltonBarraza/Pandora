@@ -105,8 +105,8 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
           ) : null}
           {hasFile ? <ReadyCheckIcon className="dropZoneReadyIcon" aria-hidden="true" focusable="false" /> : null}
           <strong>{hasFile ? fileName : 'Elegir archivo'}</strong>
-          <span className="dropZoneHelp">Arrastra un archivo aquí de tipo .xlsx, .xls, .xlsm o .csv</span>
-          <span className="dropZoneHelp dropZoneHelpSecondary">o hace click.</span>
+          <span className="dropZoneHelp">Arrastrá un archivo aquí de tipo .xlsx, .xls o .xlsm</span>
+          <span className="dropZoneHelp dropZoneHelpSecondary">Hacé click para subir uno de tu computadora</span>
           {!hasFile && emptyHint ? <span className="dropZoneHint">{emptyHint}</span> : null}
         </div>
       </div>

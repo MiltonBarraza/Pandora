@@ -387,7 +387,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       setRowMetadata(sheetRows.rowMetadata);
       setFileType('spreadsheet');
     } catch {
-      setReadError('No se pudo leer el archivo. Revisa que sea .xlsx, .xls, .xlsm o .csv.');
+      setReadError('No se pudo leer el archivo. Revisá que sea .xlsx, .xls, .xlsm o .csv.');
     }
   };
 
@@ -411,7 +411,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
   const applyImportedSettings = (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => {
     if (!workbook && fileType !== 'csv') {
-      return { ok: false as const, error: 'Primero carga un Excel para aplicar configuración.' };
+      return { ok: false as const, error: 'Primero cargá un Excel para aplicar configuración.' };
     }
 
     if (compatibility.status === 'blocked') {
@@ -460,7 +460,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
   const saveCurrentSettings = () => {
     if (!currentSettings || !currentSettingsKey) {
-      return { ok: false as const, error: 'Primero carga un Excel y selecciona una hoja para guardar configuraciones.' };
+      return { ok: false as const, error: 'Primero cargá un Excel y seleccioná una hoja para guardar configuraciones.' };
     }
 
     try {
@@ -545,16 +545,15 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           <p className="eyebrow">PANDORA</p>
           <h1>Limpia, transforma y guarda tus planillas </h1>
           <p>
-            Carga un Excel o CSV, configura columnas, aplica transformaciones y descarga un archivo limpio sin tocar fórmulas ni código.
+            Cargá un Excel, configurá columnas, aplicá transformaciones y descargá un archivo limpio sin tocar fórmulas ni código.
           </p>
         </div>
       </header>
 
       <div className="wizard">
-        <Step title="1. Subir archivo" info="Elegi el Excel o CSV que queres limpiar.">
+        <Step title="1. Subir archivo">
           <FileUploader
             fileName={fileName}
-            emptyHint={!hasLoadedFile ? 'Cargá un archivo para continuar con la configuración.' : undefined}
             onFileSelected={loadFile}
             onFileRemoved={removeFile}
           />
@@ -563,7 +562,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
         {hasLoadedFile ? (
           <>
-        <Step title="2. Seleccionar hoja" info="Indica que hoja del archivo se va a procesar.">
+        <Step title="2. Seleccionar hoja">
           {fileType === 'csv' ? (
             <p className="muted">El archivo CSV se procesa como una única hoja.</p>
           ) : (
@@ -595,11 +594,11 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="3. Configurar filas" info="Define donde empiezan los titulos y los datos reales.">
+        <Step title="3. Configurar filas" info="Definí dónde empiezan los títulos y los datos reales.">
           <div className="twoColumns">
             <Dropdown
               label="Fila de encabezados"
-              labelInfo={<InfoTooltip content="Selecciona la fila que contiene los nombres de las columnas." />}
+              labelInfo={<InfoTooltip content="Seleccioná la fila que contiene los nombres de las columnas." />}
               value={headerRowIndex === null ? 'none' : String(getExcelRowNumberForInternalIndex(rowMetadata, headerRowIndex))}
               options={[
                 { value: 'none', label: 'Sin encabezados' },
@@ -684,7 +683,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="4. Columnas detectadas" info="Revisa que columnas entran en la receta y cuales se ignoran.">
+        <Step title="4. Columnas detectadas" info="Revisá qué columnas entran en la receta y cuáles se ignoran.">
           <ColumnVisibilityManager
             columns={columnAnalysis}
             showHeaderColumn={headerRowIndex !== null}
@@ -692,7 +691,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="5. Filtrar filas de entrada" info="Excluye filas usando los datos originales del archivo.">
+        <Step title="5. Filtrar filas de entrada" info="Excluí filas usando los datos originales del archivo.">
           <IgnoreRules
             mode="input"
             inputColumns={processedPipeline.inputColumns}
@@ -705,7 +704,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="6. Columnas de salida" info="Define las columnas que tendra el archivo final.">
+        <Step title="6. Columnas de salida" info="Definí las columnas que tendrá el archivo final.">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
             manualRangeRows={processedPipeline.inputRows}
@@ -715,7 +714,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="7. Filtrar filas de salida" info="Excluye filas despues de aplicar las transformaciones.">
+        <Step title="7. Filtrar filas de salida" info="Excluí filas después de aplicar las transformaciones.">
           <IgnoreRules
             mode="output"
             inputColumns={processedPipeline.inputColumns}
@@ -743,7 +742,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           ) : null}
         </Step>
 
-        <Step title="9. Nombre del archivo de salida" info="Configura como se va a llamar el archivo final.">
+        <Step title="9. Nombre del archivo de salida" info="Configurá cómo se va a llamar el archivo final.">
           <FileNameSettings
             settings={fileNameSettings}
             sourceFileName={fileName}
@@ -755,7 +754,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="10. Descargar archivo" info="Genera el archivo final y, si hace falta, el archivo de auditoria.">
+        <Step title="10. Descargar archivo" info="Generá el archivo final y, si hace falta, el archivo de auditoría.">
           <ExportActions
             rows={processedRowsWithStatus}
             auditRows={auditRows}
