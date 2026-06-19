@@ -507,6 +507,8 @@ export function ManualRangeTextGenerator({
   const [startRowInput, setStartRowInput] = useState('');
   const [endRowInput, setEndRowInput] = useState('');
   const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>('empty');
+  const [validRowsColumnId, setValidRowsColumnId] = useState('none');
+  const effectiveValidRowsColumnId = validRowsColumnId === 'none' ? undefined : validRowsColumnId;
   const startRowNumber = parseManualRangeRowInput(startRowInput);
   const endRowNumber = parseManualRangeRowInput(endRowInput);
   const canPreview = Boolean(inputColumnId && startRowNumber !== undefined && endRowNumber !== undefined && endRowNumber >= startRowNumber);
@@ -517,6 +519,7 @@ export function ManualRangeTextGenerator({
       endRowNumber: endRowNumber!,
       mode: 'untilNextText',
       initialValueMode: 'detectedText',
+      validRowsColumnId: effectiveValidRowsColumnId,
     })
     : [];
   const previewMessage = !inputColumnId
@@ -538,6 +541,7 @@ export function ManualRangeTextGenerator({
       endRowNumber: endRowNumber!,
       mode: 'untilNextText',
       initialValueMode,
+      validRowsColumnId: effectiveValidRowsColumnId,
     });
 
     if (nextRanges.length === 0) {
@@ -614,7 +618,19 @@ export function ManualRangeTextGenerator({
           scrollStrategy="close"
           onChange={setInitialValueMode}
         />
+        <Dropdown
+          className="compact"
+          label="Ajustar fin usando columna"
+          value={validRowsColumnId}
+          options={[
+            { value: 'none', label: 'Sin ajuste' },
+            ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
+          ]}
+          scrollStrategy="close"
+          onChange={setValidRowsColumnId}
+        />
       </div>
+      <p className="manualRangeValueHelp">Si elegís una columna, Pandora recorta cada rango hasta la última fila no vacía de esa columna dentro del bloque sugerido.</p>
       {previewMessage ? (
         <p className="manualRangeValueHelp">{previewMessage}</p>
       ) : (

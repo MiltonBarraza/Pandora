@@ -22,6 +22,7 @@ export type ManualRangeGenerationConfig = {
   endRowNumber: number;
   mode: ManualRangeGenerationMode;
   initialValueMode?: ManualRangeInitialValueMode;
+  validRowsColumnId?: string;
   idFactory?: () => string;
 };
 
@@ -402,7 +403,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', validRowsColumnId, idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -419,9 +420,14 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
 
   return foundTexts.map((row, index) => {
     const nextTextRowNumber = foundTexts[index + 1]?.rowNumber;
-    const rangeEndRowNumber = mode === 'singleRow'
+    const naturalEndRowNumber = mode === 'singleRow'
       ? row.rowNumber
       : Math.min(endRowNumber, nextTextRowNumber ? nextTextRowNumber - 1 : endRowNumber);
+    const rangeEndRowNumber = getAdjustedManualRangeEndRowNumber(rows, {
+      startRowNumber: row.rowNumber,
+      endRowNumber: naturalEndRowNumber,
+      validRowsColumnId,
+    });
 
     const rangeTextSource = {
       type: 'rangeText' as const,
@@ -443,6 +449,23 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       valueSource: source,
     };
   });
+}
+
+function getAdjustedManualRangeEndRowNumber(
+  rows: InputRow[],
+  config: { startRowNumber: number; endRowNumber: number; validRowsColumnId?: string },
+) {
+  const { startRowNumber, endRowNumber, validRowsColumnId } = config;
+  if (!validRowsColumnId) {
+    return endRowNumber;
+  }
+
+  const lastUsefulRow = rows
+    .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
+    .filter((row) => String(row.values[validRowsColumnId] ?? '').trim())
+    .sort((left, right) => right.rowNumber - left.rowNumber)[0];
+
+  return lastUsefulRow?.rowNumber ?? endRowNumber;
 }
 
 export function getManualRangeSelectedTextOptions(
