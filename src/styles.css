@@ -337,6 +337,10 @@ button.danger:hover:not(:disabled) {
 }
 
 .appShell {
+  --app-layout-gutter: 12px;
+  --app-panel-border-width: 1px;
+  --app-panel-padding: 16px;
+  --app-hero-content-offset: calc(var(--app-layout-gutter) + var(--app-panel-border-width) + var(--app-panel-padding));
   min-height: 100vh;
   max-width: 100vw;
   overflow-x: hidden;
@@ -396,12 +400,14 @@ button.appearanceToggleOption.isActive {
 .hero {
   background: linear-gradient(135deg, var(--color-hero-gradient-start) 0%, var(--color-hero-gradient-mid) 55%, var(--color-hero-gradient-end) 100%);
   color: var(--color-hero-text);
-  padding: 42px 12px 64px;
+  padding: 42px 0 64px;
 }
 
 .hero > div {
   margin: 0 auto;
   max-width: 1440px;
+  padding: 0 var(--app-hero-content-offset);
+  width: 100%;
 }
 
 .eyebrow {
@@ -432,18 +438,18 @@ h1 {
   margin: -42px auto 48px;
   max-width: 1440px;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 var(--app-layout-gutter);
   width: 100%;
 }
 
 .panel {
   background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
+  border: var(--app-panel-border-width) solid var(--color-border-default);
   border-radius: 8px;
   box-shadow: var(--shadow-panel);
   min-width: 0;
   max-width: 100%;
-  padding: 16px;
+  padding: var(--app-panel-padding);
   overflow: hidden;
 }
 
@@ -474,6 +480,7 @@ h3 {
   padding: 28px 24px;
   position: relative;
   text-align: center;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .dropZone.hasFile {
@@ -486,6 +493,21 @@ h3 {
 .dropZone.isDragging {
   background: var(--color-accent-bg-soft);
   border-color: var(--color-primary-bg);
+}
+
+.dropZone:hover,
+.dropZone:focus-visible {
+  background: var(--color-bg-surface-subtle);
+  border-color: var(--color-primary-bg);
+  box-shadow: 0 8px 18px var(--color-focus-ring);
+  transform: translateY(-1px);
+}
+
+.dropZone.hasFile:hover,
+.dropZone.hasFile:focus-visible,
+.dropZone.hasFile.isDragging {
+  background: var(--color-accent-bg-soft);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring), 0 8px 18px var(--color-focus-ring);
 }
 
 .dropZone input {
@@ -2341,6 +2363,16 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.settingsActions .compactActions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.settingsActions .compactActions .actionButton {
+  white-space: nowrap;
+}
+
 .settingsActions {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
@@ -2355,6 +2387,7 @@ tbody tr:hover {
 .settingsActionsIntro {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .settingsActionsIntro h3 {
@@ -2479,37 +2512,6 @@ tbody tr:hover {
   gap: 8px;
 }
 
-.suggestionToggleButton.isActive {
-  background: var(--color-selected-bg);
-  color: var(--color-selected-text);
-  box-shadow: inset 0 0 0 1px var(--color-selected-border);
-}
-
-.suggestionToggleButton.isActive:hover:not(:disabled) {
-  background: var(--color-accent-bg);
-}
-
-.appliedSuggestions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.appliedSuggestions > span:first-child {
-  font-weight: 700;
-}
-
-.suggestionChip {
-  background: var(--color-selected-bg);
-  border: 1px solid var(--color-selected-border);
-  border-radius: 999px;
-  color: var(--color-selected-text);
-  font-size: 0.9rem;
-  font-weight: 700;
-  padding: 4px 10px;
-}
-
 .columnTable input[type='checkbox'] {
   min-height: 18px;
   width: 18px;
@@ -2545,16 +2547,17 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
+  .appShell {
+    --app-layout-gutter: 8px;
+    --app-panel-padding: 12px;
+  }
+
   .hero {
-    padding: 30px 10px 60px;
+    padding: 30px 0 60px;
   }
 
   .wizard {
-    padding: 0 8px 24px;
-  }
-
-  .panel {
-    padding: 12px;
+    padding: 0 var(--app-layout-gutter) 24px;
   }
 
   .twoColumns,

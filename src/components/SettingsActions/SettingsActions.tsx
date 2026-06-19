@@ -15,7 +15,6 @@ import type {
 } from '../../types/import';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
-import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type SettingsActionsProps = {
   fileType: 'spreadsheet' | 'csv' | '';
@@ -119,7 +118,7 @@ export function SettingsActions({
       }
 
       if (!currentSnapshot) {
-        const message = 'Primero carga un Excel y selecciona una hoja para validar esta configuración.';
+        const message = 'Primero cargá un Excel y seleccioná una hoja para validar esta configuración.';
         setError(message);
         showErrorToast(message);
         return;
@@ -209,18 +208,13 @@ export function SettingsActions({
       <div className="sectionHeader">
         <div className="settingsActionsIntro">
           <h3 className="headingWithInfo">
-            <span>Guardar o cargar configuración</span>
-            <InfoTooltip content="Reutiliza esta receta en archivos similares." />
+            <span>Configuración preestablecida</span>
           </h3>
-          <p>Ahorra tiempo guardando o cargando una configuración para usarla nuevamente en archivos similares.</p>
+          <p>Ahorrá tiempo reutilizando la configuración de procesos anteriores. ¿Cómo funciona? Después de procesar una hoja podés guardar / exportar la configuración utilizada para no tener que hacer todo de nuevo la próxima vez que necesites procesar de la misma forma la misma hoja o una similar.</p>
         </div>
         <ButtonGroup className="actions compactActions">
-          <InfoTooltip content="Guarda la configuración actual en un archivo JSON.">
-            <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
-          </InfoTooltip>
-          <InfoTooltip content="Carga una configuración guardada y valida si coincide.">
-            <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Cargar</ActionButton>
-          </InfoTooltip>
+          <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
+          <ActionButton action="import" onClick={() => fileInputRef.current?.click()}>Cargar</ActionButton>
           {importResult || error ? (
             <ActionButton
               action="clear"
@@ -246,7 +240,7 @@ export function SettingsActions({
       />
 
       {!canCompareSettings ? (
-        <p className="muted">Primero carga un Excel y selecciona una hoja para validar configuraciones importadas.</p>
+        <p className="muted">Primero cargá un Excel y seleccioná una hoja para validar configuraciones importadas.</p>
       ) : null}
       {error ? <p className="errorText">{error}</p> : null}
       {visibleSuccessMessage ? <p className="successText">{visibleSuccessMessage}</p> : null}

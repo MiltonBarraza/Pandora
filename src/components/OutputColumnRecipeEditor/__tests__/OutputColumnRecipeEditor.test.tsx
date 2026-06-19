@@ -1617,7 +1617,7 @@ describe('constructor helpers', () => {
 
   it('does not show invented preview before custom value is configured', () => {
     expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' })).toBe('Sin valores configurados');
-    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' }, true)).toBe('Configura el Paso 1 para ver la vista previa.');
+    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '' }, { 'input-price': '100' }, true)).toBe('Configurá el Paso 1 para ver la vista previa.');
   });
 
   it('previews a top-level manual range step using a real row inside the range', () => {
@@ -3179,8 +3179,8 @@ describe('constructor helpers', () => {
   });
 
   it('shows specific empty states for simple number and text modes', () => {
-    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'numeric', type: 'numericOperation' }] }, {}, true, 'number')).toBe('Selecciona una columna numérica.');
-    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'suffix', type: 'addSuffix', value: 'lts' }] }, {}, true, 'text')).toBe('Selecciona una columna de texto.');
+    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'numeric', type: 'numericOperation' }] }, {}, true, 'number')).toBe('Seleccioná una columna numérica.');
+    expect(buildCustomValuePreview({ type: 'combine', parts: [], separator: '', steps: [{ id: 'suffix', type: 'addSuffix', value: 'lts' }] }, {}, true, 'text')).toBe('Seleccioná una columna de texto.');
   });
 
   it('builds a readable summary for combine parts', () => {

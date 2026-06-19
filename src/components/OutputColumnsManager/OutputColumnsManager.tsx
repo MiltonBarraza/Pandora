@@ -135,7 +135,7 @@ export function OutputColumnsManager({
         onConfirm={confirmRegenerateFromActiveColumns}
       />
       <div className="sectionHeader">
-        <p>Define las columnas finales del archivo y como se llena cada una.</p>
+        <p>Definí las columnas finales del archivo y cómo se llena cada una.</p>
         <div className="outputColumnsHeaderActions">
           <div className="inlineForm">
             <input

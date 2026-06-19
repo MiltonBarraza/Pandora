@@ -11,7 +11,7 @@ export function SheetSelector({ sheetNames, selectedSheet, onSelectSheet }: Shee
   return (
     <Dropdown
       label="Hoja"
-      labelInfo={<InfoTooltip content="Elegi que hoja del Excel se va a usar." />}
+      labelInfo={<InfoTooltip content="Elegí qué hoja querés procesar." />}
       value={selectedSheet}
       options={sheetNames.map((sheetName) => ({ value: sheetName, label: sheetName }))}
       placeholder="Seleccionar hoja"
