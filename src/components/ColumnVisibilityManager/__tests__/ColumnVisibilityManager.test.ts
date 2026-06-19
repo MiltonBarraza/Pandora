@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { ColumnAnalysis, IgnoredReason } from '../../../types/import';
 import {
   activateAllColumns,
+  clearColumnSearchValue,
   containsEveryNumber,
+  filterColumnsBySearch,
   getAppliedFilterState,
   getAppliedSuggestionGroups,
+  getColumnDetail,
+  getColumnDetailEmptyMessage,
+  getColumnDisplayLabel,
+  getColumnTransferEmptyMessage,
+  getSafeSelectedColumnIndex,
+  getSelectedColumn,
   restoreAutomaticColumnDetection,
   sameNumberSet,
   toggleColumnsByAutomaticReasons,
@@ -186,6 +194,154 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(containsEveryNumber([5, 2, 2, 9], [9, 5])).toBe(true);
     expect(containsEveryNumber([5, 2], [5, 9])).toBe(false);
   });
+
+  it('builds the visible column label from alias, header, then column letter', () => {
+    expect(getColumnDisplayLabel({ alias: ' SKU ', header: 'Codigo', columnLetter: 'A' })).toBe('SKU');
+    expect(getColumnDisplayLabel({ alias: ' ', header: ' Codigo ', columnLetter: 'A' })).toBe('Codigo');
+    expect(getColumnDisplayLabel({ alias: '', header: '', columnLetter: 'A' })).toBe('A');
+  });
+
+  it('filters available columns by alias, header, letter, reason, samples and data count', () => {
+    const columns = [
+      createColumn(0, 'empty', { alias: 'Proveedor', header: 'Nombre', sampleValues: ['Acme'], nonEmptyCount: 0 }),
+      createColumn(1, 'hidden', { header: 'Precio', sampleValues: ['123'], nonEmptyCount: 4 }),
+      createColumn(2, 'narrow', { header: 'SKU', sampleValues: ['ZX-9'], nonEmptyCount: 7 }),
+      createColumn(16, 'narrow', { header: 'Total', sampleValues: ['999'], nonEmptyCount: 2 }),
+    ];
+
+    expect(filterColumnsBySearch(columns, 'proveedor').map((column) => column.columnIndex)).toEqual([0]);
+    expect(filterColumnsBySearch(columns, 'precio').map((column) => column.columnIndex)).toEqual([1]);
+    expect(filterColumnsBySearch(columns, 'Q').map((column) => column.columnIndex)).toEqual([16]);
+    expect(filterColumnsBySearch(columns, 'oculta').map((column) => column.columnIndex)).toEqual([1]);
+    expect(filterColumnsBySearch(columns, 'zx-9').map((column) => column.columnIndex)).toEqual([2]);
+    expect(filterColumnsBySearch(columns, '7').map((column) => column.columnIndex)).toEqual([2]);
+  });
+
+  it('does not let one-letter searches match common reason labels', () => {
+    const columns = [
+      createColumn(0, 'hidden', { header: 'SKU', sampleValues: ['A1'], nonEmptyCount: 1 }),
+      createColumn(1, 'empty', { header: 'EAN', sampleValues: [], nonEmptyCount: 0 }),
+    ];
+
+    expect(filterColumnsBySearch(columns, 'o')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'oc').map((column) => column.columnIndex)).toEqual([0]);
+    expect(filterColumnsBySearch(columns, 'va').map((column) => column.columnIndex)).toEqual([1]);
+  });
+
+  it('filters active columns independently from available columns', () => {
+    const activeColumns = activateAllColumns([
+      createColumn(0, undefined, { alias: 'Código interno', header: 'SKU', sampleValues: ['A-1'] }),
+      createColumn(1, undefined, { header: 'Descripción', sampleValues: ['Pincel'] }),
+    ]);
+
+    expect(filterColumnsBySearch(activeColumns, 'descripción').map((column) => column.columnIndex)).toEqual([1]);
+    expect(filterColumnsBySearch(activeColumns, 'código').map((column) => column.columnIndex)).toEqual([0]);
+  });
+
+  it('clears column search to an empty value', () => {
+    expect(clearColumnSearchValue()).toBe('');
+  });
+
+  it('uses a search empty state only when real columns exist but none match', () => {
+    expect(getColumnTransferEmptyMessage({
+      count: 0,
+      visibleCount: 0,
+      emptyMessage: 'No hay columnas disponibles para activar.',
+      emptySearchMessage: 'No hay columnas disponibles que coincidan con la búsqueda.',
+    })).toBe('No hay columnas disponibles para activar.');
+
+    expect(getColumnTransferEmptyMessage({
+      count: 3,
+      visibleCount: 0,
+      emptyMessage: 'No hay columnas activas.',
+      emptySearchMessage: 'No hay columnas activas que coincidan con la búsqueda.',
+    })).toBe('No hay columnas activas que coincidan con la búsqueda.');
+  });
+
+  it('selects an available column and builds its detail', () => {
+    const columns = [
+      createColumn(0),
+      createColumn(1, 'hidden', {
+        alias: 'Costo visual',
+        header: 'Costo',
+        sampleValues: ['10', '20'],
+        nonEmptyCount: 2,
+      }),
+    ];
+    const selectedColumn = getSelectedColumn(columns, 1);
+
+    expect(selectedColumn?.columnIndex).toBe(1);
+    expect(selectedColumn ? getColumnDetail(selectedColumn) : null).toEqual({
+      label: 'Costo visual',
+      columnLetter: 'B',
+      header: 'Costo',
+      alias: 'Costo visual',
+      status: 'Disponible',
+      automaticReason: 'Oculta',
+      nonEmptyCount: '2',
+      examples: ['10', '20'],
+    });
+  });
+
+  it('selects an active column and builds its detail', () => {
+    const columns = [
+      createColumn(0, undefined, {
+        header: 'SKU',
+        sampleValues: ['A-1'],
+        nonEmptyCount: 7,
+      }),
+    ];
+    const selectedColumn = getSelectedColumn(columns, 0);
+
+    expect(selectedColumn ? getColumnDetail(selectedColumn) : null).toMatchObject({
+      label: 'SKU',
+      columnLetter: 'A',
+      status: 'Activa',
+      automaticReason: '-',
+      nonEmptyCount: '7',
+      examples: ['A-1'],
+    });
+  });
+
+  it('keeps selection when the same column is activated or removed', () => {
+    const selectedColumnIndex = 1;
+    const availableColumns = [createColumn(1, 'empty')];
+    const activeColumns = activateAllColumns(availableColumns);
+    const removedAgain = activeColumns.map((column) => (
+      column.columnIndex === selectedColumnIndex
+        ? { ...column, ignored: true, ignoredReason: 'manual' as const }
+        : column
+    ));
+
+    expect(getSafeSelectedColumnIndex(activeColumns, selectedColumnIndex)).toBe(selectedColumnIndex);
+    expect(getSafeSelectedColumnIndex(removedAgain, selectedColumnIndex)).toBe(selectedColumnIndex);
+  });
+
+  it('keeps selected column detail even when search hides that column', () => {
+    const columns = [
+      createColumn(0, undefined, { header: 'SKU', sampleValues: ['A-1'] }),
+      createColumn(1, undefined, { header: 'Descripción', sampleValues: ['Pincel'] }),
+    ];
+    const visibleColumns = filterColumnsBySearch(columns, 'descripción');
+    const selectedColumn = getSelectedColumn(columns, 0);
+
+    expect(visibleColumns.map((column) => column.columnIndex)).toEqual([1]);
+    expect(selectedColumn?.columnIndex).toBe(0);
+    expect(selectedColumn ? getColumnDetail(selectedColumn).header : null).toBe('SKU');
+  });
+
+  it('shows an initial detail empty state without selection', () => {
+    expect(getSelectedColumn(createObservedColumns(), null)).toBeNull();
+    expect(getColumnDetailEmptyMessage()).toBe('Seleccioná una columna para ver sus detalles y ejemplos.');
+  });
+
+  it('clears selection safely when selected column no longer exists', () => {
+    const columns = [createColumn(0), createColumn(1)];
+    const withoutSelectedColumn = columns.filter((column) => column.columnIndex !== 1);
+
+    expect(getSafeSelectedColumnIndex(columns, 1)).toBe(1);
+    expect(getSafeSelectedColumnIndex(withoutSelectedColumn, 1)).toBeNull();
+  });
 });
 
 function createObservedColumns() {
@@ -197,17 +353,22 @@ function createObservedColumns() {
   ];
 }
 
-function createColumn(columnIndex: number, autoIgnoredReason?: IgnoredReason): ColumnAnalysis {
+function createColumn(
+  columnIndex: number,
+  autoIgnoredReason?: IgnoredReason,
+  overrides: Partial<ColumnAnalysis> = {},
+): ColumnAnalysis {
   return {
     columnIndex,
     columnLetter: String.fromCharCode(65 + (columnIndex % 26)),
-    sampleValues: [],
-    nonEmptyCount: autoIgnoredReason === 'empty' ? 0 : 1,
+    sampleValues: overrides.sampleValues ?? [],
+    nonEmptyCount: overrides.nonEmptyCount ?? (autoIgnoredReason === 'empty' ? 0 : 1),
     isEmpty: autoIgnoredReason === 'empty',
     ignored: Boolean(autoIgnoredReason),
     ignoredReason: autoIgnoredReason,
     autoIgnored: Boolean(autoIgnoredReason),
     autoIgnoredReason,
+    ...overrides,
   };
 }
 

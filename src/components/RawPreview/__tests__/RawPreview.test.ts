@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getRawPreviewColumns, getRawPreviewRowNumber } from '../RawPreview';
+import { getRawPreviewColumnLabel, getRawPreviewColumns, getRawPreviewRowNumber } from '../RawPreview';
 
 describe('RawPreview row numbers', () => {
   it('shows real row numbers when provided', () => {
@@ -39,5 +39,22 @@ describe('getRawPreviewColumns', () => {
       showAllColumns: true,
       showDataColumns: true,
     })).toEqual([0, 1, 2, 3]);
+  });
+
+  it('keeps an explicit empty active column list empty', () => {
+    expect(getRawPreviewColumns({
+      maxColumns: 4,
+      activeColumns: [],
+    })).toEqual([]);
+  });
+});
+
+describe('getRawPreviewColumnLabel', () => {
+  it('uses configured column labels when available', () => {
+    expect(getRawPreviewColumnLabel(1, { 1: 'SKU visual' })).toBe('SKU visual');
+  });
+
+  it('falls back to the column letter without a configured label', () => {
+    expect(getRawPreviewColumnLabel(2, { 2: '   ' })).toBe('C');
   });
 });

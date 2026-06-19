@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
-import { getColumnIndexesWithData } from '../../domain/import/columnData';
 import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
@@ -63,7 +62,6 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   const [readError, setReadError] = useState('');
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [showAllRawPreviewColumns, setShowAllRawPreviewColumns] = useState(false);
-  const [showDataRawPreviewColumns, setShowDataRawPreviewColumns] = useState(false);
   const [isConfigurationDirty, setIsConfigurationDirty] = useState(false);
   const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
   const [discardConfirmation, setDiscardConfirmation] = useState<DiscardConfirmationState | null>(null);
@@ -100,16 +98,13 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     () => columnAnalysis.filter((column) => !column.ignored).map((column) => column.columnIndex),
     [columnAnalysis],
   );
-  const rawPreviewColumnIndexes = useMemo(
-    () => columnAnalysis.filter((column) => !column.autoIgnored).map((column) => column.columnIndex),
-    [columnAnalysis],
-  );
-  const rawPreviewDataColumnIndexes = useMemo(
-    () => getColumnIndexesWithData(rawPreviewRows, maxColumns),
-    [rawPreviewRows, maxColumns],
-  );
-  const hasAutoHiddenColumns = useMemo(
-    () => columnAnalysis.some((column) => column.autoIgnored),
+  const rawPreviewColumnLabels = useMemo(
+    () => Object.fromEntries(
+      columnAnalysis.map((column) => [
+        column.columnIndex,
+        column.alias?.trim() || column.header?.trim() || column.columnLetter,
+      ]),
+    ),
     [columnAnalysis],
   );
   const currentSettings = useMemo(
@@ -159,8 +154,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     : '';
   const rawPreviewStartRowNumber = rawPreviewRowNumbers?.[0] ?? startRowIndex + 1;
   const rawPreviewSummary = showRawPreviewFromDataStart
-    ? `Vista previa desde la fila ${rawPreviewStartRowNumber}. Se muestran hasta 30 filas.`
-    : 'Vista previa de las primeras 30 filas.';
+    ? `Vista previa configurada desde la fila ${rawPreviewStartRowNumber}: columnas activas con encabezados y alias actuales. Se muestran hasta 30 filas.`
+    : 'Vista previa configurada de las primeras 30 filas: columnas activas con encabezados y alias actuales.';
   const processedPipeline = useMemo(
     () =>
       buildProcessedRowsPipeline({
@@ -281,7 +276,6 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     setStartRowIndex(0);
     setShowRawPreviewFromDataStart(true);
     setShowAllRawPreviewColumns(false);
-    setShowDataRawPreviewColumns(false);
     setInputColumnAliases({});
     setColumnAnalysis([]);
     setInputIgnoreRules(defaultIgnoreRules());
@@ -551,7 +545,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       </header>
 
       <div className="wizard">
-        <Step title="1. Subir archivo">
+        <Step title="1. Archivo">
           <FileUploader
             fileName={fileName}
             onFileSelected={loadFile}
@@ -562,7 +556,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
         {hasLoadedFile ? (
           <>
-        <Step title="2. Seleccionar hoja">
+        <Step title="2. Hoja y configuración">
           {fileType === 'csv' ? (
             <p className="muted">El archivo CSV se procesa como una única hoja.</p>
           ) : (
@@ -594,8 +588,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="3. Configurar filas" info="Definí dónde empiezan los títulos y los datos reales.">
-          <div className="twoColumns">
+        <Step title="3. Configuración de columnas" info="Configurá filas y elegí qué columnas entran en la receta.">
+          <div className="twoColumns rowColumnConfig">
             <Dropdown
               label="Fila de encabezados"
               labelInfo={<InfoTooltip content="Seleccioná la fila que contiene los nombres de las columnas." />}
@@ -658,36 +652,23 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
               </div>
             </div>
           </div>
-          <div className="twoColumns previewSummaryRow">
-            <span aria-hidden="true" />
-            <p className="muted previewSummary">{rawPreviewSummary}</p>
-          </div>
-          {rowConfigurationError ? <p className="errorText rowConfigurationError">{rowConfigurationError}</p> : null}
-          <RawPreview
-            rows={rawPreviewRows}
-            maxColumns={maxColumns}
-            activeColumns={rawPreviewColumnIndexes}
-            rowNumbers={rawPreviewRowNumbers}
-            dataColumns={rawPreviewDataColumnIndexes}
-            rowNumberOffset={rawPreviewRowNumberOffset}
-            showAllColumns={showAllRawPreviewColumns}
-            showDataColumns={showDataRawPreviewColumns}
-            showHiddenColumnsToggle={hasAutoHiddenColumns}
-            showDataColumnsToggle
-            onShowAllColumnsChange={(showAllColumns) => {
-              setIsConfigurationDirty(true);
-              importedPreviewSettingsRef.current = null;
-              setShowAllRawPreviewColumns(showAllColumns);
-            }}
-            onShowDataColumnsChange={setShowDataRawPreviewColumns}
-          />
-        </Step>
-
-        <Step title="4. Columnas detectadas" info="Revisá qué columnas entran en la receta y cuáles se ignoran.">
           <ColumnVisibilityManager
             columns={columnAnalysis}
             showHeaderColumn={headerRowIndex !== null}
             onChange={updateColumnAnalysis}
+          />
+        </Step>
+
+        <Step title="4. Vista previa de datos" info="Revisá cómo queda la selección actual con columnas activas, encabezados, alias y primera fila de datos.">
+          <p className="muted previewSummary">{rawPreviewSummary}</p>
+          {rowConfigurationError ? <p className="errorText rowConfigurationError">{rowConfigurationError}</p> : null}
+          <RawPreview
+            rows={rawPreviewRows}
+            maxColumns={maxColumns}
+            activeColumns={activeColumnIndexes}
+            columnLabels={rawPreviewColumnLabels}
+            rowNumbers={rawPreviewRowNumbers}
+            rowNumberOffset={rawPreviewRowNumberOffset}
           />
         </Step>
 

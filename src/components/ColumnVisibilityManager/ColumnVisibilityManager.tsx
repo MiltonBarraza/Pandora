@@ -1,5 +1,7 @@
+import { useEffect, useState, type ReactNode } from 'react';
 import type { ColumnAnalysis, IgnoredReason } from '../../types/import';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
 type ColumnVisibilityManagerProps = {
   columns: ColumnAnalysis[];
@@ -30,11 +32,23 @@ type AppliedFilterState = {
   customLabel?: string;
 };
 
-export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onChange }: ColumnVisibilityManagerProps) {
+export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityManagerProps) {
+  const [availableSearch, setAvailableSearch] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [selectedColumnIndex, setSelectedColumnIndex] = useState<number | null>(null);
+  const activeColumns = columns.filter((column) => !column.ignored);
+  const ignoredColumns = columns.filter((column) => column.ignored);
+  const visibleIgnoredColumns = filterColumnsBySearch(ignoredColumns, availableSearch);
+  const visibleActiveColumns = filterColumnsBySearch(activeColumns, activeSearch);
+  const selectedColumn = getSelectedColumn(columns, selectedColumnIndex);
   const activeCount = columns.filter((column) => !column.ignored).length;
   const ignoredCount = columns.length - activeCount;
   const automaticReasonSummary = buildAutomaticReasonSummary(columns);
   const appliedFilters = getAppliedFilterState(columns);
+
+  useEffect(() => {
+    setSelectedColumnIndex((currentIndex) => getSafeSelectedColumnIndex(columns, currentIndex));
+  }, [columns]);
 
   const updateColumn = (columnIndex: number, ignored: boolean) => {
     onChange(
@@ -125,52 +139,352 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
         </div>
       </div>
 
-      <div className="tableWrap columnTable">
-        <table>
-          <thead>
-            <tr>
-              <th>Activa</th>
-              <th>Columna</th>
-              {showHeaderColumn ? <th>Encabezado</th> : null}
-              <th>Alias</th>
-              <th>Ejemplos</th>
-              <th>Datos</th>
-              <th>Motivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {columns.map((column) => (
-              <tr key={column.columnIndex} className={column.ignored ? 'mutedRow' : undefined}>
-                <td>
-                  <input
-                    aria-label={`Activar columna ${column.columnLetter}`}
-                    type="checkbox"
-                    checked={!column.ignored}
-                    onChange={(event) => updateColumn(column.columnIndex, !event.target.checked)}
-                  />
-                </td>
-                <td>
-                  <strong>{column.columnLetter}</strong>
-                </td>
-                {showHeaderColumn ? <td>{column.header || '-'}</td> : null}
-                <td>
-                  <input
-                    aria-label={`Alias para columna ${column.columnLetter}`}
-                    value={column.alias ?? ''}
-                    onChange={(event) => updateAlias(column.columnIndex, event.target.value)}
-                    placeholder={column.header || 'Alias visual'}
-                  />
-                </td>
-                <td>{column.sampleValues.join(' | ') || '-'}</td>
-                <td>{column.nonEmptyCount}</td>
-                <td>{column.ignoredReason ? reasonLabels[column.ignoredReason] : 'Activa'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="columnTransferGrid">
+        <ColumnTransferPanel
+          title="Columnas disponibles"
+          count={ignoredColumns.length}
+          visibleCount={visibleIgnoredColumns.length}
+          searchValue={availableSearch}
+          searchLabel="Buscar columnas disponibles"
+          searchPlaceholder="Buscar disponibles"
+          onSearchChange={setAvailableSearch}
+          onClearSearch={() => setAvailableSearch(clearColumnSearchValue())}
+          emptyMessage="No hay columnas disponibles para activar."
+          emptySearchMessage="No hay columnas disponibles que coincidan con la búsqueda."
+        >
+          {visibleIgnoredColumns.map((column) => (
+            <ColumnTransferItem
+              key={column.columnIndex}
+              column={column}
+              selected={column.columnIndex === selectedColumnIndex}
+              actionLabel="Activar"
+              actionAriaLabel={`Activar columna ${column.columnLetter}`}
+              onSelect={() => setSelectedColumnIndex(column.columnIndex)}
+              onAction={() => updateColumn(column.columnIndex, false)}
+            />
+          ))}
+        </ColumnTransferPanel>
+
+        <ColumnTransferPanel
+          title="Columnas activas"
+          count={activeColumns.length}
+          visibleCount={visibleActiveColumns.length}
+          searchValue={activeSearch}
+          searchLabel="Buscar columnas activas"
+          searchPlaceholder="Buscar activas"
+          onSearchChange={setActiveSearch}
+          onClearSearch={() => setActiveSearch(clearColumnSearchValue())}
+          emptyMessage="No hay columnas activas. Activá columnas disponibles para verlas en la vista previa."
+          emptySearchMessage="No hay columnas activas que coincidan con la búsqueda."
+        >
+          {visibleActiveColumns.map((column) => (
+            <ColumnTransferItem
+              key={column.columnIndex}
+              column={column}
+              selected={column.columnIndex === selectedColumnIndex}
+              actionLabel="Quitar"
+              actionAriaLabel={`Quitar columna ${column.columnLetter}`}
+              aliasValue={column.alias ?? ''}
+              onSelect={() => setSelectedColumnIndex(column.columnIndex)}
+              onAliasChange={(alias) => updateAlias(column.columnIndex, alias)}
+              onAction={() => updateColumn(column.columnIndex, true)}
+            />
+          ))}
+        </ColumnTransferPanel>
       </div>
+
+      <ColumnDetailPanel column={selectedColumn} />
     </div>
   );
+}
+
+type ColumnTransferPanelProps = {
+  title: string;
+  count: number;
+  visibleCount: number;
+  searchValue: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  onSearchChange: (value: string) => void;
+  onClearSearch: () => void;
+  emptyMessage: string;
+  emptySearchMessage: string;
+  children: ReactNode;
+};
+
+function ColumnTransferPanel({
+  title,
+  count,
+  visibleCount,
+  searchValue,
+  searchLabel,
+  searchPlaceholder,
+  onSearchChange,
+  onClearSearch,
+  emptyMessage,
+  emptySearchMessage,
+  children,
+}: ColumnTransferPanelProps) {
+  const hasSearch = normalizeColumnSearch(searchValue) !== '';
+  const emptyMessageToShow = getColumnTransferEmptyMessage({
+    count,
+    visibleCount,
+    emptyMessage,
+    emptySearchMessage,
+  });
+
+  return (
+    <section className="columnTransferPanel" aria-label={title}>
+      <div className="columnTransferPanelHeader">
+        <h3>{title}</h3>
+        <span>{hasSearch ? `${visibleCount}/${count}` : count}</span>
+      </div>
+      <div className="columnTransferSearch">
+        <label>
+          <span>{searchLabel}</span>
+          <input
+            type="search"
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={searchPlaceholder}
+          />
+        </label>
+        {hasSearch ? (
+          <button type="button" className="secondary columnTransferClearSearch" onClick={onClearSearch}>
+            Limpiar
+          </button>
+        ) : null}
+      </div>
+      {visibleCount > 0 ? (
+        <div className="columnTransferList">{children}</div>
+      ) : (
+        <p className="columnTransferEmpty">{emptyMessageToShow}</p>
+      )}
+    </section>
+  );
+}
+
+type ColumnTransferItemProps = {
+  column: ColumnAnalysis;
+  selected: boolean;
+  actionLabel: string;
+  actionAriaLabel: string;
+  aliasValue?: string;
+  onSelect: () => void;
+  onAliasChange?: (alias: string) => void;
+  onAction: () => void;
+};
+
+function ColumnTransferItem({
+  column,
+  selected,
+  actionLabel,
+  actionAriaLabel,
+  aliasValue,
+  onSelect,
+  onAliasChange,
+  onAction,
+}: ColumnTransferItemProps) {
+  const label = getColumnDisplayLabel(column);
+  const reasonLabel = column.ignoredReason ? reasonLabels[column.ignoredReason] : undefined;
+  const showAliasInput = onAliasChange !== undefined;
+
+  return (
+    <article className={`columnTransferItem${selected ? ' isSelected' : ''}`}>
+      <button
+        type="button"
+        className="columnTransferSelectArea"
+        aria-pressed={selected}
+        aria-label={`Seleccionar columna ${column.columnLetter}`}
+        onClick={onSelect}
+      >
+        <div className="columnTransferTitleRow">
+          <strong>
+            <TruncatedText text={label} />
+          </strong>
+          <span>{column.columnLetter}</span>
+        </div>
+        <div className="columnTransferMeta">
+          {reasonLabel ? <span>Motivo: {reasonLabel}</span> : null}
+          <span>{column.nonEmptyCount} datos</span>
+        </div>
+      </button>
+      {showAliasInput ? (
+        <label className="columnTransferAlias">
+          <span>Alias</span>
+          <input
+            aria-label={`Alias para columna ${column.columnLetter}`}
+            value={aliasValue}
+            onChange={(event) => onAliasChange(event.target.value)}
+            placeholder={column.header || 'Alias visual'}
+          />
+        </label>
+      ) : null}
+      <button
+        type="button"
+        className="secondary columnTransferAction"
+        aria-label={actionAriaLabel}
+        onClick={onAction}
+      >
+        {actionLabel}
+      </button>
+    </article>
+  );
+}
+
+type ColumnDetailPanelProps = {
+  column: ColumnAnalysis | null;
+};
+
+function ColumnDetailPanel({ column }: ColumnDetailPanelProps) {
+  if (!column) {
+    return (
+      <section className="columnDetailPanel" aria-label="Detalle de columna">
+        <p className="columnDetailEmpty">{getColumnDetailEmptyMessage()}</p>
+      </section>
+    );
+  }
+
+  const detail = getColumnDetail(column);
+
+  return (
+    <section className="columnDetailPanel" aria-label={`Detalle de columna ${column.columnLetter}`}>
+      <div className="columnDetailHeader">
+        <div>
+          <h3><TruncatedText text={detail.label} tooltipThreshold={24} /></h3>
+          <p>{detail.status}</p>
+        </div>
+        <span>{detail.columnLetter}</span>
+      </div>
+      <dl className="columnDetailGrid">
+        <div>
+          <dt>Encabezado</dt>
+          <dd><TruncatedText text={detail.header} tooltipThreshold={24} /></dd>
+        </div>
+        <div>
+          <dt>Alias</dt>
+          <dd><TruncatedText text={detail.alias} tooltipThreshold={24} /></dd>
+        </div>
+        <div>
+          <dt>Motivo automático</dt>
+          <dd>{detail.automaticReason}</dd>
+        </div>
+        <div>
+          <dt>Datos</dt>
+          <dd>{detail.nonEmptyCount}</dd>
+        </div>
+      </dl>
+      <div className="columnDetailExamples">
+        <h4>Ejemplos</h4>
+        {detail.examples.length > 0 ? (
+          <ul>
+            {detail.examples.map((example, index) => (
+              <li key={`${example}-${index}`}>
+                <TruncatedText text={example} tooltipThreshold={20} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No hay ejemplos disponibles.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function getColumnDisplayLabel(column: Pick<ColumnAnalysis, 'alias' | 'header' | 'columnLetter'>) {
+  return column.alias?.trim() || column.header?.trim() || column.columnLetter;
+}
+
+export function getSelectedColumn(columns: ColumnAnalysis[], selectedColumnIndex: number | null) {
+  if (selectedColumnIndex === null) {
+    return null;
+  }
+
+  return columns.find((column) => column.columnIndex === selectedColumnIndex) ?? null;
+}
+
+export function getSafeSelectedColumnIndex(columns: ColumnAnalysis[], selectedColumnIndex: number | null) {
+  return getSelectedColumn(columns, selectedColumnIndex)?.columnIndex ?? null;
+}
+
+export function getColumnDetail(column: ColumnAnalysis) {
+  return {
+    label: getColumnDisplayLabel(column),
+    columnLetter: column.columnLetter,
+    header: column.header?.trim() || '-',
+    alias: column.alias?.trim() || '-',
+    status: column.ignored ? 'Disponible' : 'Activa',
+    automaticReason: column.autoIgnoredReason ? reasonLabels[column.autoIgnoredReason] : '-',
+    nonEmptyCount: String(column.nonEmptyCount),
+    examples: column.sampleValues.filter((value) => value.trim() !== ''),
+  };
+}
+
+export function getColumnDetailEmptyMessage() {
+  return 'Seleccioná una columna para ver sus detalles y ejemplos.';
+}
+
+export function filterColumnsBySearch(columns: ColumnAnalysis[], search: string) {
+  const query = normalizeColumnSearch(search);
+
+  if (!query) {
+    return columns;
+  }
+
+  return columns.filter((column) => columnMatchesSearch(column, query));
+}
+
+export function getColumnSearchText(column: ColumnAnalysis) {
+  return getColumnSearchTerms(column, { includeReason: true }).join(' ');
+}
+
+export function columnMatchesSearch(column: ColumnAnalysis, normalizedQuery: string) {
+  const terms = getColumnSearchTerms(column, { includeReason: normalizedQuery.length > 1 });
+  return terms.some((term) => term.includes(normalizedQuery));
+}
+
+export function getColumnSearchTerms(column: ColumnAnalysis, { includeReason }: { includeReason: boolean }) {
+  const terms = [
+    column.alias,
+    column.header,
+    column.columnLetter,
+    ...column.sampleValues,
+    String(column.nonEmptyCount),
+  ];
+
+  if (includeReason) {
+    terms.push(
+      column.ignoredReason ? reasonLabels[column.ignoredReason] : '',
+      column.autoIgnoredReason ? reasonLabels[column.autoIgnoredReason] : '',
+    );
+  }
+
+  return terms
+    .map((term) => normalizeColumnSearch(String(term ?? '')))
+    .filter((term) => term !== '');
+}
+
+export function normalizeColumnSearch(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
+export function clearColumnSearchValue() {
+  return '';
+}
+
+export function getColumnTransferEmptyMessage({
+  count,
+  visibleCount,
+  emptyMessage,
+  emptySearchMessage,
+}: {
+  count: number;
+  visibleCount: number;
+  emptyMessage: string;
+  emptySearchMessage: string;
+}) {
+  return count === 0 || visibleCount > 0 ? emptyMessage : emptySearchMessage;
 }
 
 export function activateAllColumns(columns: ColumnAnalysis[]) {
