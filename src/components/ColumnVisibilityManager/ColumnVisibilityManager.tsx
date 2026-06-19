@@ -91,35 +91,29 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
               <InfoTooltip content="Usa filtros sugeridos por la detección o activa columnas manualmente." />
             </strong>
             <p className="muted">Los filtros solo cambian qué columnas quedan activas; no eliminan datos.</p>
-          </div>
-          <div className="appliedSuggestions" aria-label="Filtros aplicados">
-            <span>Filtros aplicados:</span>
-            <AppliedFilterStateChips state={appliedFilters} />
+            <div className="actions">
+              <label className="checkboxField">
+                <input
+                  type="checkbox"
+                  checked={appliedFilters.empty}
+                  onChange={() => toggleByReasons(['empty'])}
+                />
+                Vacías sugeridas
+              </label>
+              <label className="checkboxField">
+                <input
+                  type="checkbox"
+                  checked={appliedFilters.hidden}
+                  onChange={() => toggleByReasons(hiddenSuggestedReasons)}
+                />
+                Ocultas sugeridas
+              </label>
+            </div>
           </div>
           <div className="actions columnQuickActionsButtons">
             <InfoTooltip content="Incluye todas las columnas detectadas en la receta.">
               <button type="button" className="secondary" onClick={showAll}>
                 Activar todas
-              </button>
-            </InfoTooltip>
-            <InfoTooltip content="Alterna las columnas que parecen no tener datos utiles.">
-              <button
-                type="button"
-                className={`secondary suggestionToggleButton${appliedFilters.empty ? ' isActive' : ''}`}
-                aria-pressed={appliedFilters.empty}
-                onClick={() => toggleByReasons(['empty'])}
-              >
-                Vacías sugeridas
-              </button>
-            </InfoTooltip>
-            <InfoTooltip content="Alterna columnas que el Excel trae ocultas.">
-              <button
-                type="button"
-                className={`secondary suggestionToggleButton${appliedFilters.hidden ? ' isActive' : ''}`}
-                aria-pressed={appliedFilters.hidden}
-                onClick={() => toggleByReasons(hiddenSuggestedReasons)}
-              >
-                Ocultas sugeridas
               </button>
             </InfoTooltip>
             <InfoTooltip content="Vuelve a las sugerencias detectadas al leer el archivo.">
@@ -176,20 +170,6 @@ export function ColumnVisibilityManager({ columns, showHeaderColumn = true, onCh
         </table>
       </div>
     </div>
-  );
-}
-
-function AppliedFilterStateChips({ state }: { state: AppliedFilterState }) {
-  if (!state.empty && !state.hidden && !state.customLabel) {
-    return <span className="muted">Sin filtros</span>;
-  }
-
-  return (
-    <>
-      {state.empty ? <span className="suggestionChip">Vacías sugeridas</span> : null}
-      {state.hidden ? <span className="suggestionChip">Ocultas sugeridas</span> : null}
-      {state.customLabel ? <span className="suggestionChip">{state.customLabel}</span> : null}
-    </>
   );
 }
 
