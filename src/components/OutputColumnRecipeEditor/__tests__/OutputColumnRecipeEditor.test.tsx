@@ -227,6 +227,8 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Sin filtro');
     expect(markup).toContain('Condición');
     expect(markup).toContain('está vacía');
+    expect(markup).toContain('Pandora puede sugerir rangos a partir de textos encontrados en una columna');
+    expect(markup).toContain('El texto detectado ayuda a identificar el bloque');
     expect(markup).toContain('Usá este filtro para evitar que textos internos inicien rangos');
     expect(manualRangeDetectionModeOptions).toEqual([
       { value: 'textStarts', label: 'Textos no vacíos' },
@@ -247,12 +249,48 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Columna con datos');
     expect(markup).toContain('Bloques separados por filas vacías');
+    expect(markup).toContain('Pandora puede sugerir rangos a partir de bloques continuos de filas con datos en una columna');
+    expect(markup).toContain('Una fila vacía corta el bloque');
     expect(markup).toContain('Pandora crea un rango por cada bloque continuo de filas con datos');
     expect(markup).not.toContain('Sólo iniciar rango si');
     expect(markup).not.toContain('Condición');
     expect(markup).not.toContain('Valor inicial');
     expect(markup).not.toContain('Ajustar fin usando columna');
     expect(markup).not.toContain('Usar texto detectado como valor');
+    expect(markup).not.toContain('textos encontrados');
+    expect(markup).not.toContain('texto detectado');
+  });
+
+  it('shows the text-mode empty message when no suggested text ranges are found', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialStartRowInput="8"
+        initialEndRowInput="10"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('No se encontraron textos en la zona definida.');
+  });
+
+  it('shows the data-block empty message when no useful rows are found', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialDetectionMode="dataBlocks"
+        initialStartRowInput="8"
+        initialEndRowInput="10"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('No se encontraron filas con datos en la columna elegida.');
+    expect(markup).not.toContain('No se encontraron textos en la zona definida.');
   });
 
   it('shows suggested text references in manual range rows', () => {

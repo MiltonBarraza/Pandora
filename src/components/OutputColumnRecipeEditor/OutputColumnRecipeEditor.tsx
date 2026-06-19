@@ -508,17 +508,21 @@ export function ManualRangeTextGenerator({
   inputColumns,
   manualRangeRows,
   initialDetectionMode = 'textStarts',
+  initialStartRowInput = '',
+  initialEndRowInput = '',
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   initialDetectionMode?: ManualRangeDetectionMode;
+  initialStartRowInput?: string;
+  initialEndRowInput?: string;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const [inputColumnId, setInputColumnId] = useState(inputColumns[0]?.id ?? '');
-  const [startRowInput, setStartRowInput] = useState('');
-  const [endRowInput, setEndRowInput] = useState('');
+  const [startRowInput, setStartRowInput] = useState(initialStartRowInput);
+  const [endRowInput, setEndRowInput] = useState(initialEndRowInput);
   const [detectionMode, setDetectionMode] = useState<ManualRangeDetectionMode>(initialDetectionMode);
   const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>('empty');
   const [validRowsColumnId, setValidRowsColumnId] = useState('none');
@@ -560,8 +564,19 @@ export function ManualRangeTextGenerator({
     : !canPreview
       ? 'Definí un rango de filas válido.'
       : generatedPreviewRanges.length === 0
-        ? 'No se encontraron textos en la zona definida.'
+        ? (detectionMode === 'dataBlocks' ? 'No se encontraron filas con datos en la columna elegida.' : 'No se encontraron textos en la zona definida.')
         : '';
+  const generatorCopy = detectionMode === 'dataBlocks'
+    ? {
+      lead: 'Pandora puede sugerir rangos a partir de bloques continuos de filas con datos en una columna. Después podés revisar, eliminar o definir el valor de cada rango.',
+      detail: 'Una fila vacía corta el bloque.',
+      help: 'Pandora crea un rango por cada bloque continuo de filas con datos en la columna elegida. Una fila vacía corta el bloque.',
+    }
+    : {
+      lead: 'Pandora puede sugerir rangos a partir de textos encontrados en una columna. Después podés revisar, eliminar o definir el valor de cada rango.',
+      detail: 'El texto detectado ayuda a identificar el bloque, pero no se usa como valor salvo que lo elijas.',
+      help: '',
+    };
 
   const confirmGeneratedRanges = () => {
     if (!canPreview) {
@@ -585,8 +600,8 @@ export function ManualRangeTextGenerator({
       <div className="manualRangeGeneratorHeader">
         <div>
           <strong>Generar rangos sugeridos</strong>
-          <p className="muted">Pandora puede sugerir rangos a partir de textos encontrados en una columna. Después podés revisar, eliminar o definir el valor de cada rango.</p>
-          <p className="muted">El texto detectado ayuda a identificar el bloque, pero no se usa como valor salvo que lo elijas.</p>
+          <p className="muted">{generatorCopy.lead}</p>
+          <p className="muted">{generatorCopy.detail}</p>
         </div>
         <ActionButton
           action="add"
@@ -686,7 +701,7 @@ export function ManualRangeTextGenerator({
           <p className="manualRangeValueHelp">Si elegís una columna, Pandora recorta cada rango hasta la última fila no vacía de esa columna dentro del bloque sugerido.</p>
         </>
       ) : (
-        <p className="manualRangeValueHelp">Pandora crea un rango por cada bloque continuo de filas con datos en la columna elegida. Una fila vacía corta el bloque.</p>
+        <p className="manualRangeValueHelp">{generatorCopy.help}</p>
       )}
       {previewMessage ? (
         <p className="manualRangeValueHelp">{previewMessage}</p>
