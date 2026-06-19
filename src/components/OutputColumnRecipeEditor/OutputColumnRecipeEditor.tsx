@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, formatDateValue, parseDateValue, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
@@ -46,6 +46,11 @@ export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del 
 const manualRangeInitialValueModeOptions: Array<{ value: ManualRangeInitialValueMode; label: string }> = [
   { value: 'empty', label: 'Sin valor (recomendado)' },
   { value: 'detectedText', label: 'Usar texto detectado como valor' },
+];
+
+const manualRangeStartFilterOperatorOptions: Array<{ value: ManualRangeStartFilter['operator']; label: string }> = [
+  { value: 'isEmpty', label: 'está vacía' },
+  { value: 'isNotEmpty', label: 'no está vacía' },
 ];
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
@@ -508,7 +513,12 @@ export function ManualRangeTextGenerator({
   const [endRowInput, setEndRowInput] = useState('');
   const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>('empty');
   const [validRowsColumnId, setValidRowsColumnId] = useState('none');
+  const [startFilterColumnId, setStartFilterColumnId] = useState('none');
+  const [startFilterOperator, setStartFilterOperator] = useState<ManualRangeStartFilter['operator']>('isEmpty');
   const effectiveValidRowsColumnId = validRowsColumnId === 'none' ? undefined : validRowsColumnId;
+  const startFilter = startFilterColumnId === 'none'
+    ? undefined
+    : { inputColumnId: startFilterColumnId, operator: startFilterOperator };
   const startRowNumber = parseManualRangeRowInput(startRowInput);
   const endRowNumber = parseManualRangeRowInput(endRowInput);
   const canPreview = Boolean(inputColumnId && startRowNumber !== undefined && endRowNumber !== undefined && endRowNumber >= startRowNumber);
@@ -520,6 +530,7 @@ export function ManualRangeTextGenerator({
       mode: 'untilNextText',
       initialValueMode: 'detectedText',
       validRowsColumnId: effectiveValidRowsColumnId,
+      startFilter,
     })
     : [];
   const previewMessage = !inputColumnId
@@ -542,6 +553,7 @@ export function ManualRangeTextGenerator({
       mode: 'untilNextText',
       initialValueMode,
       validRowsColumnId: effectiveValidRowsColumnId,
+      startFilter,
     });
 
     if (nextRanges.length === 0) {
@@ -610,6 +622,26 @@ export function ManualRangeTextGenerator({
           scrollStrategy="close"
           onChange={() => undefined}
         />
+        <Dropdown
+          className="compact"
+          label="Sólo iniciar rango si"
+          value={startFilterColumnId}
+          options={[
+            { value: 'none', label: 'Sin filtro' },
+            ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
+          ]}
+          scrollStrategy="close"
+          onChange={setStartFilterColumnId}
+        />
+        <Dropdown<ManualRangeStartFilter['operator']>
+          className="compact"
+          label="Condición"
+          value={startFilterOperator}
+          options={manualRangeStartFilterOperatorOptions}
+          disabled={startFilterColumnId === 'none'}
+          scrollStrategy="close"
+          onChange={setStartFilterOperator}
+        />
         <Dropdown<ManualRangeInitialValueMode>
           className="compact"
           label="Valor inicial"
@@ -630,6 +662,7 @@ export function ManualRangeTextGenerator({
           onChange={setValidRowsColumnId}
         />
       </div>
+      <p className="manualRangeValueHelp">Usá este filtro para evitar que textos internos inicien rangos. Por ejemplo: iniciar sólo cuando la columna de productos está vacía.</p>
       <p className="manualRangeValueHelp">Si elegís una columna, Pandora recorta cada rango hasta la última fila no vacía de esa columna dentro del bloque sugerido.</p>
       {previewMessage ? (
         <p className="manualRangeValueHelp">{previewMessage}</p>

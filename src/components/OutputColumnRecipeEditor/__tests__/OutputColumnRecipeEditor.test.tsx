@@ -223,6 +223,11 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Ajustar fin usando columna');
     expect(markup).toContain('Sin ajuste');
     expect(markup).toContain('recorta cada rango hasta la última fila no vacía');
+    expect(markup).toContain('Sólo iniciar rango si');
+    expect(markup).toContain('Sin filtro');
+    expect(markup).toContain('Condición');
+    expect(markup).toContain('está vacía');
+    expect(markup).toContain('Usá este filtro para evitar que textos internos inicien rangos');
   });
 
   it('shows suggested text references in manual range rows', () => {
@@ -1444,6 +1449,181 @@ describe('constructor helpers', () => {
     }]);
 
     expect(processedRows[0].outputValues['output-range']).toBe('');
+  });
+
+  it('filters generated manual range starts when the helper column is empty', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': '' } },
+      { rowNumber: 12, values: { 'input-name': 'Texto interno', 'input-pack': 'Producto 2' } },
+      { rowNumber: 15, values: { 'input-name': 'PINCELES SERIE 404', 'input-pack': '   ' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
+      idFactory: () => `generated-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 8,
+        endRowNumber: 14,
+        suggestedFromText: 'PINCELES SERIE 304',
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 15,
+        endRowNumber: 20,
+        suggestedFromText: 'PINCELES SERIE 404',
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+    ]);
+  });
+
+  it('filters generated manual range starts when the helper column is not empty', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'Sin producto', 'input-pack': '' } },
+      { rowNumber: 12, values: { 'input-name': 'Con producto', 'input-pack': 'Producto 2' } },
+      { rowNumber: 15, values: { 'input-name': 'Tambien con producto', 'input-pack': 'Producto 3' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-pack', operator: 'isNotEmpty' },
+      idFactory: () => `generated-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 12,
+        endRowNumber: 14,
+        suggestedFromText: 'Con producto',
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 15,
+        endRowNumber: 20,
+        suggestedFromText: 'Tambien con producto',
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+    ]);
+  });
+
+  it('ignores incomplete generated range start filters', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': '' } },
+      { rowNumber: 12, values: { 'input-name': 'Texto interno', 'input-pack': 'Producto 2' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: '', operator: 'isEmpty' },
+      idFactory: () => `generated-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 8,
+        endRowNumber: 11,
+        suggestedFromText: 'PINCELES SERIE 304',
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+      {
+        id: 'generated-2',
+        startRowNumber: 12,
+        endRowNumber: 20,
+        suggestedFromText: 'Texto interno',
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+    ]);
+  });
+
+  it('filters starts before adjusting generated manual range ends with the valid rows column', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': '', 'input-price': '' } },
+      { rowNumber: 9, values: { 'input-name': '', 'input-pack': 'Producto 1', 'input-price': '100' } },
+      { rowNumber: 12, values: { 'input-name': 'Texto interno', 'input-pack': 'Producto 2', 'input-price': '200' } },
+      { rowNumber: 13, values: { 'input-name': '', 'input-pack': 'Producto 3', 'input-price': '300' } },
+      { rowNumber: 14, values: { 'input-name': '', 'input-pack': '', 'input-price': '' } },
+      { rowNumber: 15, values: { 'input-name': 'PINCELES SERIE 404', 'input-pack': '', 'input-price': '' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
+      validRowsColumnId: 'input-price',
+      idFactory: () => `generated-${nextId++}`,
+    })[0]).toEqual({
+      id: 'generated-1',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      suggestedFromText: 'PINCELES SERIE 304',
+      valueRecipe: expectedEmptyRangeValueRecipe(),
+      valueSource: { type: 'fixedText', value: '' },
+    });
+  });
+
+  it('keeps detected text values when generated range starts are filtered', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': '' } },
+      { rowNumber: 12, values: { 'input-name': 'Texto interno', 'input-pack': 'Producto 2' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      initialValueMode: 'detectedText',
+      startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
+      idFactory: () => `generated-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'generated-1',
+        startRowNumber: 8,
+        endRowNumber: 20,
+        suggestedFromText: 'PINCELES SERIE 304',
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'PINCELES SERIE 304'),
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+      },
+    ]);
+  });
+
+  it('does not generate manual ranges when no found text matches the start filter', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-name': 'PINCELES SERIE 304', 'input-pack': 'Producto 1' } },
+      { rowNumber: 12, values: { 'input-name': 'PINCELES SERIE 404', 'input-pack': 'Producto 2' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-name',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
+    })).toEqual([]);
   });
 
   it('does not generate manual ranges when no texts are found', () => {

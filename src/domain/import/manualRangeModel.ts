@@ -1,5 +1,6 @@
 import { parseStartRowInputWhileEditing } from './numberInput';
 import { getInputColumnLabel } from './inputColumnLabels';
+import { evaluateTextCondition } from './evaluateCondition';
 import type {
   InputColumn,
   InputRow,
@@ -15,6 +16,10 @@ import type {
 export type ManualRangeValueSourceType = ManualRangeValueSource['type'] | 'input';
 export type ManualRangeGenerationMode = 'untilNextText' | 'singleRow';
 export type ManualRangeInitialValueMode = 'empty' | 'detectedText';
+export type ManualRangeStartFilter = {
+  inputColumnId: string;
+  operator: 'isEmpty' | 'isNotEmpty';
+};
 
 export type ManualRangeGenerationConfig = {
   inputColumnId: string;
@@ -23,6 +28,7 @@ export type ManualRangeGenerationConfig = {
   mode: ManualRangeGenerationMode;
   initialValueMode?: ManualRangeInitialValueMode;
   validRowsColumnId?: string;
+  startFilter?: ManualRangeStartFilter;
   idFactory?: () => string;
 };
 
@@ -403,7 +409,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', validRowsColumnId, idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', validRowsColumnId, startFilter, idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -414,8 +420,11 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
     .map((row) => ({
       rowNumber: row.rowNumber,
       text: String(row.values[inputColumnId] ?? '').trim(),
+      row,
     }))
     .filter((row) => row.text)
+    .filter(({ row }) => matchesManualRangeStartFilter(row, startFilter))
+    .map(({ rowNumber, text }) => ({ rowNumber, text }))
     .sort((left, right) => left.rowNumber - right.rowNumber);
 
   return foundTexts.map((row, index) => {
@@ -449,6 +458,18 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       valueSource: source,
     };
   });
+}
+
+function matchesManualRangeStartFilter(row: InputRow, startFilter: ManualRangeStartFilter | undefined) {
+  if (!startFilter?.inputColumnId || !isManualRangeStartFilterOperator(startFilter.operator)) {
+    return true;
+  }
+
+  return evaluateTextCondition(String(row.values[startFilter.inputColumnId] ?? ''), startFilter.operator);
+}
+
+function isManualRangeStartFilterOperator(operator: string): operator is ManualRangeStartFilter['operator'] {
+  return operator === 'isEmpty' || operator === 'isNotEmpty';
 }
 
 function getAdjustedManualRangeEndRowNumber(
