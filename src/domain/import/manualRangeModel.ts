@@ -15,7 +15,7 @@ import type {
 
 export type ManualRangeValueSourceType = ManualRangeValueSource['type'] | 'input';
 export type ManualRangeGenerationMode = 'untilNextText' | 'singleRow';
-export type ManualRangeInitialValueMode = 'empty' | 'detectedText';
+export type ManualRangeInitialValueMode = 'empty' | 'detectedText' | 'firstValueInColumn' | 'lastValueInColumn';
 export type ManualRangeStartFilter = {
   inputColumnId: string;
   operator: 'isEmpty' | 'isNotEmpty';
@@ -27,6 +27,7 @@ export type ManualRangeGenerationConfig = {
   endRowNumber: number;
   mode: ManualRangeGenerationMode;
   initialValueMode?: ManualRangeInitialValueMode;
+  initialValueColumnId?: string;
   validRowsColumnId?: string;
   startFilter?: ManualRangeStartFilter;
   idFactory?: () => string;
@@ -36,6 +37,8 @@ export type ManualRangeBlockGenerationConfig = {
   dataColumnId: string;
   startRowNumber: number;
   endRowNumber: number;
+  initialValueMode?: ManualRangeInitialValueMode;
+  initialValueColumnId?: string;
   idFactory?: () => string;
 };
 
@@ -416,7 +419,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', validRowsColumnId, startFilter, idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', initialValueColumnId, validRowsColumnId, startFilter, idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -450,8 +453,13 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       inputColumnId,
       selectedText: row.text,
     };
-    const emptySource = { type: 'fixedText' as const, value: '' };
-    const source = initialValueMode === 'detectedText' ? rangeTextSource : emptySource;
+    const source = createGeneratedManualRangeValueSource(rows, {
+      startRowNumber: row.rowNumber,
+      endRowNumber: rangeEndRowNumber,
+      initialValueMode,
+      initialValueColumnId,
+      rangeTextSource,
+    });
 
     return {
       id: idFactory(),
@@ -468,7 +476,7 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
 }
 
 export function generateManualRangesFromDataBlocks(rows: InputRow[], config: ManualRangeBlockGenerationConfig): ManualRangeValue[] {
-  const { dataColumnId, startRowNumber, endRowNumber, idFactory = () => crypto.randomUUID() } = config;
+  const { dataColumnId, startRowNumber, endRowNumber, initialValueMode = 'empty', initialValueColumnId, idFactory = () => crypto.randomUUID() } = config;
 
   if (!dataColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -490,21 +498,49 @@ export function generateManualRangesFromDataBlocks(rows: InputRow[], config: Man
     }
 
     if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
-      ranges.push(createManualRangeBlockValue(blockStartRowNumber, lastUsefulRowNumber, idFactory));
+      ranges.push(createManualRangeBlockValue(rows, {
+        startRowNumber: blockStartRowNumber,
+        endRowNumber: lastUsefulRowNumber,
+        initialValueMode,
+        initialValueColumnId,
+        idFactory,
+      }));
     }
     blockStartRowNumber = null;
     lastUsefulRowNumber = null;
   });
 
   if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
-    ranges.push(createManualRangeBlockValue(blockStartRowNumber, lastUsefulRowNumber, idFactory));
+    ranges.push(createManualRangeBlockValue(rows, {
+      startRowNumber: blockStartRowNumber,
+      endRowNumber: lastUsefulRowNumber,
+      initialValueMode,
+      initialValueColumnId,
+      idFactory,
+    }));
   }
 
   return ranges;
 }
 
-function createManualRangeBlockValue(startRowNumber: number, endRowNumber: number, idFactory: () => string): ManualRangeValue {
-  const source = { type: 'fixedText' as const, value: '' };
+function createManualRangeBlockValue(
+  rows: InputRow[],
+  config: {
+    startRowNumber: number;
+    endRowNumber: number;
+    initialValueMode: ManualRangeInitialValueMode;
+    initialValueColumnId?: string;
+    idFactory: () => string;
+  },
+): ManualRangeValue {
+  const { startRowNumber, endRowNumber, initialValueMode, initialValueColumnId, idFactory } = config;
+  const source = createGeneratedManualRangeValueSource(rows, {
+    startRowNumber,
+    endRowNumber,
+    initialValueMode,
+    initialValueColumnId,
+  });
+
   return {
     id: idFactory(),
     startRowNumber,
@@ -515,6 +551,61 @@ function createManualRangeBlockValue(startRowNumber: number, endRowNumber: numbe
     },
     valueSource: source,
   };
+}
+
+function createGeneratedManualRangeValueSource(
+  rows: InputRow[],
+  config: {
+    startRowNumber: number;
+    endRowNumber: number;
+    initialValueMode: ManualRangeInitialValueMode;
+    initialValueColumnId?: string;
+    rangeTextSource?: Extract<ManualRangeValueSource, { type: 'rangeText' }>;
+  },
+): ManualRangeValueSource {
+  const { startRowNumber, endRowNumber, initialValueMode, initialValueColumnId, rangeTextSource } = config;
+  if (initialValueMode === 'detectedText' && rangeTextSource) {
+    return rangeTextSource;
+  }
+
+  if ((initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn') && initialValueColumnId) {
+    return {
+      type: 'fixedText',
+      value: findManualRangeBoundaryValue(rows, {
+        startRowNumber,
+        endRowNumber,
+        inputColumnId: initialValueColumnId,
+        direction: initialValueMode === 'firstValueInColumn' ? 'first' : 'last',
+      }),
+    };
+  }
+
+  return { type: 'fixedText', value: '' };
+}
+
+function findManualRangeBoundaryValue(
+  rows: InputRow[],
+  config: {
+    startRowNumber: number;
+    endRowNumber: number;
+    inputColumnId: string;
+    direction: 'first' | 'last';
+  },
+) {
+  const { startRowNumber, endRowNumber, inputColumnId, direction } = config;
+  const rangeRows = rows
+    .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
+    .sort((left, right) => left.rowNumber - right.rowNumber);
+  const orderedRows = direction === 'first' ? rangeRows : [...rangeRows].reverse();
+
+  for (const row of orderedRows) {
+    const value = String(row.values[inputColumnId] ?? '').trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return '';
 }
 
 function matchesManualRangeStartFilter(row: InputRow, startFilter: ManualRangeStartFilter | undefined) {

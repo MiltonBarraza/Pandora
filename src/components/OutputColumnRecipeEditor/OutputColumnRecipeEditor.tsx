@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, formatDateValue, parseDateValue, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
@@ -45,8 +45,10 @@ export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
 
 const manualRangeInitialValueModeOptions: Array<{ value: ManualRangeInitialValueMode; label: string }> = [
-  { value: 'empty', label: 'Sin valor (recomendado)' },
-  { value: 'detectedText', label: 'Usar texto detectado como valor' },
+  { value: 'empty', label: 'Sin valor' },
+  { value: 'detectedText', label: 'Usar nombre detectado' },
+  { value: 'firstValueInColumn', label: 'Usar primer valor con datos de columna' },
+  { value: 'lastValueInColumn', label: 'Usar último valor con datos de columna' },
 ];
 
 const manualRangeStartFilterOperatorOptions: Array<{ value: ManualRangeStartFilter['operator']; label: string }> = [
@@ -538,6 +540,8 @@ export function ManualRangeTextGenerator({
   initialDetectionMode = 'textStarts',
   initialStartRowInput = '',
   initialEndRowInput = '',
+  initialValueMode: initialGeneratorValueMode = 'empty',
+  initialValueColumnId: initialGeneratorValueColumnId,
   onClose,
   onChange,
 }: {
@@ -547,19 +551,24 @@ export function ManualRangeTextGenerator({
   initialDetectionMode?: ManualRangeDetectionMode;
   initialStartRowInput?: string;
   initialEndRowInput?: string;
+  initialValueMode?: ManualRangeInitialValueMode;
+  initialValueColumnId?: string;
   onClose?: () => void;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const defaultInputColumnId = inputColumns[0]?.id ?? '';
+  const defaultInitialValueColumnId = initialGeneratorValueColumnId ?? defaultInputColumnId;
   const [inputColumnId, setInputColumnId] = useState(defaultInputColumnId);
   const [startRowInput, setStartRowInput] = useState(initialStartRowInput);
   const [endRowInput, setEndRowInput] = useState(initialEndRowInput);
   const [detectionMode, setDetectionMode] = useState<ManualRangeDetectionMode>(initialDetectionMode);
-  const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>('empty');
+  const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>(initialGeneratorValueMode);
+  const [initialValueColumnId, setInitialValueColumnId] = useState(defaultInitialValueColumnId);
   const [validRowsColumnId, setValidRowsColumnId] = useState('none');
   const [startFilterColumnId, setStartFilterColumnId] = useState('none');
   const [startFilterOperator, setStartFilterOperator] = useState<ManualRangeStartFilter['operator']>('isEmpty');
   const [isClearGeneratorConfirmationOpen, setIsClearGeneratorConfirmationOpen] = useState(false);
+  const shouldShowInitialValueColumn = initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn';
   const effectiveValidRowsColumnId = validRowsColumnId === 'none' ? undefined : validRowsColumnId;
   const startFilter = startFilterColumnId === 'none'
     ? undefined
@@ -568,7 +577,8 @@ export function ManualRangeTextGenerator({
     || startRowInput !== initialStartRowInput
     || endRowInput !== initialEndRowInput
     || detectionMode !== initialDetectionMode
-    || initialValueMode !== 'empty'
+    || initialValueMode !== initialGeneratorValueMode
+    || initialValueColumnId !== defaultInitialValueColumnId
     || validRowsColumnId !== 'none'
     || startFilterColumnId !== 'none'
     || startFilterOperator !== 'isEmpty';
@@ -580,11 +590,18 @@ export function ManualRangeTextGenerator({
       return [];
     }
 
+    const effectiveInitialValueColumnId = shouldShowInitialValueColumn ? initialValueColumnId : undefined;
+    const previewValueMode = preview && detectionMode === 'textStarts' && initialValueMode === 'empty'
+      ? 'detectedText'
+      : initialValueMode;
+
     if (detectionMode === 'dataBlocks') {
       return generateManualRangesFromDataBlocks(manualRangeRows, {
         dataColumnId: inputColumnId,
         startRowNumber: startRowNumber!,
         endRowNumber: endRowNumber!,
+        initialValueMode: previewValueMode,
+        initialValueColumnId: effectiveInitialValueColumnId,
       });
     }
 
@@ -593,14 +610,15 @@ export function ManualRangeTextGenerator({
       startRowNumber: startRowNumber!,
       endRowNumber: endRowNumber!,
       mode: 'untilNextText',
-      initialValueMode: preview ? 'detectedText' : initialValueMode,
+      initialValueMode: previewValueMode,
+      initialValueColumnId: effectiveInitialValueColumnId,
       validRowsColumnId: effectiveValidRowsColumnId,
       startFilter,
     });
   };
   const generatedPreviewRanges = generateRanges(true);
   const visiblePreviewRanges = generatedPreviewRanges.slice(0, 6);
-  const hiddenPreviewRangeLabels = generatedPreviewRanges.slice(6).map((range) => getManualRangeGeneratedExampleLabel(range, detectionMode));
+  const hiddenPreviewRangeLabels = generatedPreviewRanges.slice(6).map((range) => getManualRangeGeneratedExampleLabel(range));
   const previewMessage = !inputColumnId
     ? (detectionMode === 'dataBlocks' ? 'Elegí una columna con datos.' : 'Elegí una columna para buscar textos.')
     : !canPreview
@@ -631,7 +649,8 @@ export function ManualRangeTextGenerator({
     setStartRowInput(initialStartRowInput);
     setEndRowInput(initialEndRowInput);
     setDetectionMode(initialDetectionMode);
-    setInitialValueMode('empty');
+    setInitialValueMode(initialGeneratorValueMode);
+    setInitialValueColumnId(defaultInitialValueColumnId);
     setValidRowsColumnId('none');
     setStartFilterColumnId('none');
     setStartFilterOperator('isEmpty');
@@ -680,7 +699,14 @@ export function ManualRangeTextGenerator({
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-detection">
           <Dropdown
             className="compact"
-            label={detectionMode === 'dataBlocks' ? 'Columna con datos' : 'Columna base'}
+            label={detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar nombres o grupos en'}
+            labelInfo={(
+              <InfoTooltip
+                content={detectionMode === 'dataBlocks'
+                  ? 'Elegí una columna que tenga datos en las filas que forman cada bloque. Una fila vacía corta el bloque.'
+                  : 'Elegí la columna donde aparecen los nombres que identifican cada grupo o rango.'}
+              />
+            )}
             value={inputColumnId}
             options={inputColumns.length === 0
               ? [{ value: '', label: 'Sin columnas activas' }]
@@ -728,11 +754,11 @@ export function ManualRangeTextGenerator({
             <div className="manualRangeGeneratorRow manualRangeGeneratorRow-filters">
               <Dropdown
                 className="compact"
-                label="Filtrar inicios detectados"
+                label="Aceptar como grupo sólo si"
                 labelInfo={(
                   <InfoTooltip
-                    ariaLabel="Ayuda: filtrar inicios detectados"
-                    content="Sirve para ignorar falsos inicios. Pandora primero mira la columna base; después este filtro decide cuáles de esos candidatos se quedan."
+                    ariaLabel="Ayuda: aceptar como grupo"
+                    content="Primero Pandora busca posibles grupos en la columna elegida. Esta condición sólo descarta algunos de esos grupos; no crea grupos nuevos."
                   />
                 )}
                 value={startFilterColumnId}
@@ -745,7 +771,7 @@ export function ManualRangeTextGenerator({
               />
               <Dropdown<ManualRangeStartFilter['operator']>
                 className="compact"
-                label="Condición"
+                label="Condición de grupo"
                 value={startFilterOperator}
                 options={manualRangeStartFilterOperatorOptions}
                 disabled={startFilterColumnId === 'none'}
@@ -754,11 +780,11 @@ export function ManualRangeTextGenerator({
               />
               <Dropdown
                 className="compact"
-                label="Recortar fin usando columna"
+                label="El grupo llega hasta la última fila con dato en"
                 labelInfo={(
                   <InfoTooltip
-                    ariaLabel="Ayuda: recortar fin usando columna"
-                    content="Opcional. Si elegís una columna, el rango se corta en la última fila que tenga dato en esa columna."
+                    ariaLabel="Ayuda: fin del grupo"
+                    content="Útil cuando el nombre del grupo está arriba y las filas de productos tienen datos debajo."
                   />
                 )}
                 value={validRowsColumnId}
@@ -770,24 +796,42 @@ export function ManualRangeTextGenerator({
                 onChange={setValidRowsColumnId}
               />
             </div>
-            <div className="manualRangeGeneratorRow manualRangeGeneratorRow-value">
-              <Dropdown<ManualRangeInitialValueMode>
-                className="compact"
-                label="Valor de los rangos creados"
-                labelInfo={(
-                  <InfoTooltip
-                    ariaLabel="Ayuda: valor de los rangos creados"
-                    content="Elegí si los rangos arrancan vacíos o si usan como valor el texto que Pandora detectó al crear cada rango."
-                  />
-                )}
-                value={initialValueMode}
-                options={manualRangeInitialValueModeOptions}
-                scrollStrategy="close"
-                onChange={setInitialValueMode}
-              />
-            </div>
           </>
         ) : null}
+        <div className="manualRangeGeneratorRow manualRangeGeneratorRow-value">
+          <Dropdown<ManualRangeInitialValueMode>
+            className="compact"
+            label="Guardar como valor"
+            labelInfo={(
+              <InfoTooltip
+                ariaLabel="Ayuda: guardar como valor"
+                content="Elegí si los rangos arrancan sin valor, usan el nombre detectado o toman un valor dentro de cada rango."
+              />
+            )}
+            value={initialValueMode}
+            options={manualRangeInitialValueModeOptions}
+            scrollStrategy="close"
+            onChange={setInitialValueMode}
+          />
+          {shouldShowInitialValueColumn ? (
+            <Dropdown
+              className="compact"
+              label="Columna para tomar el valor"
+              labelInfo={(
+                <InfoTooltip
+                  ariaLabel="Ayuda: columna para tomar el valor"
+                  content="Pandora buscará dentro de cada rango el primer o último valor con datos en esta columna."
+                />
+              )}
+              value={initialValueColumnId}
+              options={inputColumns.length === 0
+                ? [{ value: '', label: 'Sin columnas activas' }]
+                : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+              scrollStrategy="close"
+              onChange={setInitialValueColumnId}
+            />
+          ) : null}
+        </div>
       </div>
       {generatorHelpText ? <p className="manualRangeValueHelp">{generatorHelpText}</p> : null}
       {previewMessage ? (
@@ -798,7 +842,7 @@ export function ManualRangeTextGenerator({
           <div className="manualRangeGeneratorPreview" aria-label="Ejemplos de rangos sugeridos">
             {visiblePreviewRanges.map((range, index) => (
               <span key={`${range.startRowNumber}-${range.endRowNumber}-${index}`}>
-                {getManualRangeGeneratedExampleLabel(range, detectionMode)}
+                {getManualRangeGeneratedExampleLabel(range)}
               </span>
             ))}
             {hiddenPreviewRangeLabels.length > 0 ? (
@@ -828,9 +872,19 @@ export function ManualRangeTextGenerator({
   );
 }
 
-function getManualRangeGeneratedExampleLabel(range: ManualRangeValue, detectionMode: ManualRangeDetectionMode) {
+function getManualRangeGeneratedExampleLabel(range: ManualRangeValue) {
   const rangeLabel = `${range.startRowNumber}-${range.endRowNumber}`;
-  return detectionMode === 'textStarts' ? `${rangeLabel}: ${getManualRangeRangeTextSource(range).selectedText}` : rangeLabel;
+  const fixedTextValue = getManualRangeFixedTextValue(range).trim();
+  if (fixedTextValue) {
+    return `${rangeLabel}: ${fixedTextValue}`;
+  }
+
+  const rangeTextValue = getManualRangeRangeTextSource(range).selectedText.trim();
+  if (rangeTextValue) {
+    return `${rangeLabel}: ${rangeTextValue}`;
+  }
+
+  return rangeLabel;
 }
 
 export function ManualRangeTableRow({
@@ -1656,7 +1710,7 @@ function SimpleStepBlock({
           </div>
         ) : isManualRangeStep ? (
           <div className="manualRangeStepCondition">
-            <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+            <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
           </div>
         ) : (
           <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
@@ -1833,7 +1887,7 @@ function StepDetailPanel({
           </div>
         ) : isManualRangeStep ? (
           <div className="manualRangeStepCondition">
-            <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+            <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
           </div>
         ) : (
           <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
@@ -2886,29 +2940,34 @@ function StepFields({
   return sourceFields;
 }
 
-function StepConditionFields({
+export function StepConditionFields({
   step,
   inputColumns,
+  variant = 'default',
   onChange,
 }: {
   step: TransformStep;
   inputColumns: InputColumn[];
+  variant?: 'default' | 'manualRange';
   onChange: (patch: Partial<TransformStep>) => void;
 }) {
   const condition = step.condition;
   const conditionColumns = inputColumns;
   const inputCondition = condition ? normalizeConditionToInput(condition, inputColumns) : undefined;
+  const isManualRangeCondition = variant === 'manualRange';
 
   return (
     <div className="transformConditionBlock conditionFieldsRow">
       <Dropdown<'always' | 'conditional'>
         className="compact"
-        label="Condición"
-        labelInfo={<InfoTooltip content="Elige si este paso se aplica siempre o solo en algunos casos." />}
+        label={isManualRangeCondition ? 'Aplicar el valor' : 'Condición'}
+        labelInfo={<InfoTooltip content={isManualRangeCondition
+          ? 'El rango puede incluir filas de título o separación. Esta condición define en qué filas se escribe realmente el valor.'
+          : 'Elige si este paso se aplica siempre o solo en algunos casos.'} />}
         value={condition ? 'conditional' : 'always'}
         options={[
-          { value: 'always', label: 'Aplicar siempre' },
-          { value: 'conditional', label: 'Aplicar solo si...' },
+          { value: 'always', label: isManualRangeCondition ? 'Aplicar el valor a todas las filas del rango' : 'Aplicar siempre' },
+          { value: 'conditional', label: isManualRangeCondition ? 'Aplicar el valor sólo a filas donde' : 'Aplicar solo si...' },
         ]}
         scrollStrategy="close"
         onChange={(value) => {

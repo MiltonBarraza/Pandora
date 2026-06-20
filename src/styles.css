@@ -1982,15 +1982,13 @@ tbody tr:hover {
 }
 
 .manualRangeGeneratorRow-value {
-  grid-template-columns: minmax(220px, 280px);
+  grid-template-columns: minmax(220px, 320px) minmax(220px, 320px);
 }
 
 .manualRangeGenerator .dropdownLabel,
 .manualRangeGenerator .field > span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .manualRangeGeneratorExamples {
