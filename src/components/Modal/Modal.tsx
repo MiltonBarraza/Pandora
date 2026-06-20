@@ -66,10 +66,16 @@ export function Modal({ open, title, size = 'default', className = '', onClose, 
       className={`modalDialog${size === 'xl' ? ' modalDialogXl' : ''}${className ? ` ${className}` : ''}`}
       aria-labelledby={titleId}
       onCancel={(event) => {
+        event.stopPropagation();
         event.preventDefault();
         onClose();
       }}
-      onClose={onClose}
+      onClose={(event) => {
+        event.stopPropagation();
+        if (event.currentTarget === event.target) {
+          onClose();
+        }
+      }}
     >
       <div className="modalHeader">
         <div className="modalTitleBlock">
