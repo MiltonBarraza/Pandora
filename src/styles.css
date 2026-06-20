@@ -2176,6 +2176,66 @@ tbody tr:hover {
   align-self: start;
 }
 
+.manualRangeRowsPreview {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeRowsPreviewHeader {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.manualRangeRowsPreviewHeader strong {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.manualRangeRowsPreviewHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.manualRangeRowsPreviewScroller {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.manualRangeRowsPreviewTable {
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  min-width: 520px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.manualRangeRowsPreviewTable th,
+.manualRangeRowsPreviewTable td {
+  border-bottom: 1px solid var(--color-border-muted);
+  max-width: 220px;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manualRangeRowsPreviewTable th {
+  color: var(--color-text-muted);
+  font-weight: 800;
+}
+
+.manualRangeRowsPreviewTable tbody th {
+  width: 64px;
+}
+
 .rangeValueTransforms {
   display: grid;
   gap: 8px;

@@ -892,16 +892,19 @@ export function ManualRangeTableRow({
   range,
   inputColumns,
   manualRangeRows,
+  initiallyShowRowsPreview = false,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
   range: ManualRangeValue;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  initiallyShowRowsPreview?: boolean;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const [startRowInput, setStartRowInput] = useState(String(range.startRowNumber));
   const [endRowInput, setEndRowInput] = useState(String(range.endRowNumber));
+  const [showRowsPreview, setShowRowsPreview] = useState(initiallyShowRowsPreview);
   const rowCount = getManualRangeRowCountFromInputs(startRowInput, endRowInput);
   const suggestedFromText = range.suggestedFromText?.trim();
 
@@ -974,6 +977,9 @@ export function ManualRangeTableRow({
       <div className="manualRangeActionsField">
         <span>Acciones</span>
         <div className="manualRangeRowActions">
+          <button type="button" className="secondary sm" onClick={() => setShowRowsPreview((isOpen) => !isOpen)}>
+            {showRowsPreview ? 'Ocultar filas' : 'Ver filas'}
+          </button>
           <ActionButton
             action="duplicate"
             variant="secondary"
@@ -985,6 +991,89 @@ export function ManualRangeTableRow({
           <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
         </div>
       </div>
+      {showRowsPreview ? (
+        <ManualRangeRowsPreview
+          range={range}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function getManualRangePreviewRowsForRange(range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>, rows: InputRow[], limit = 30) {
+  const rowsInRange = rows
+    .filter((row) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)
+    .sort((left, right) => left.rowNumber - right.rowNumber);
+
+  return {
+    rows: rowsInRange.slice(0, limit),
+    total: rowsInRange.length,
+  };
+}
+
+export function getManualRangePreviewColumnsForRows(rows: InputRow[], inputColumns: InputColumn[], maxColumns = 8) {
+  return inputColumns
+    .filter((inputColumn) => rows.some((row) => String(row.values[inputColumn.id] ?? '').trim()))
+    .slice(0, maxColumns);
+}
+
+function ManualRangeRowsPreview({
+  range,
+  inputColumns,
+  manualRangeRows,
+}: {
+  range: ManualRangeValue;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+}) {
+  const { rows, total } = getManualRangePreviewRowsForRange(range, manualRangeRows);
+  const previewColumns = getManualRangePreviewColumnsForRows(rows, inputColumns);
+
+  return (
+    <div className="manualRangeRowsPreview">
+      <div className="manualRangeRowsPreviewHeader">
+        <strong>Filas del rango</strong>
+        <span>Filas reales del Excel incluidas en este rango.</span>
+      </div>
+      {manualRangeRows.length === 0 ? (
+        <p className="manualRangeValueHelp">No hay filas disponibles para previsualizar este rango.</p>
+      ) : total === 0 ? (
+        <p className="manualRangeValueHelp">No se encontraron filas dentro de este rango.</p>
+      ) : (
+        <>
+          {total > rows.length ? (
+            <p className="manualRangeValueHelp">Mostrando {rows.length} de {total} filas del rango.</p>
+          ) : null}
+          {previewColumns.length === 0 ? (
+            <p className="manualRangeValueHelp">No hay columnas con datos en este rango.</p>
+          ) : null}
+          <div className="manualRangeRowsPreviewScroller">
+            <table className="manualRangeRowsPreviewTable">
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  {previewColumns.map((inputColumn) => (
+                    <th key={inputColumn.id}>{getInputColumnLabel(inputColumn)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.rowNumber}>
+                    <th scope="row">{row.rowNumber}</th>
+                    {previewColumns.map((inputColumn) => {
+                      const value = String(row.values[inputColumn.id] ?? '');
+                      return <td key={inputColumn.id} title={value}>{value}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1454,6 +1543,10 @@ export const stepModeOptions: Array<{ value: TransformStepMode; label: string }>
   { value: 'manualRange', label: 'Trabajar con rangos' },
 ];
 
+export function getStepModeOptions({ allowManualRange = true }: { allowManualRange?: boolean } = {}) {
+  return allowManualRange ? stepModeOptions : stepModeOptions.filter((option) => option.value !== 'manualRange');
+}
+
 function CustomValueEditor({
   recipe,
   inputColumns,
@@ -1847,7 +1940,7 @@ function StepDetailPanel({
         {step.type === 'concat' || isManualRangeStep ? (
           <div className="concatStepTopRow">
             <div className="concatStepTopControls">
-              <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+              <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onChange(changeStepMode(step, mode))} />
               {showStepTypeSelect ? (
                 <StepTypeSelect
                   step={step}
@@ -1860,7 +1953,7 @@ function StepDetailPanel({
           </div>
         ) : (
           <>
-            <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+            <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onChange(changeStepMode(step, mode))} />
             <StepTypeSelect
               step={step}
               mode={stepMode}
@@ -1955,14 +2048,22 @@ export function shouldShowStepTypeSelectForStep(step: TransformStep) {
   return step.type !== 'manualRange';
 }
 
-function StepModeSelect({ mode, onChange }: { mode: TransformStepMode; onChange: (mode: TransformStepMode) => void }) {
+function StepModeSelect({
+  mode,
+  allowManualRange = true,
+  onChange,
+}: {
+  mode: TransformStepMode;
+  allowManualRange?: boolean;
+  onChange: (mode: TransformStepMode) => void;
+}) {
   return (
     <Dropdown<TransformStepMode>
       className="compact"
       label="Tipo de operación"
       labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
       value={mode}
-      options={stepModeOptions}
+      options={getStepModeOptions({ allowManualRange })}
       scrollStrategy="close"
       onChange={onChange}
     />
