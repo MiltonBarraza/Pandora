@@ -311,8 +311,10 @@ export type ColumnAnalysis = {
   isEmpty: boolean;
   ignored: boolean;
   ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
   autoIgnored: boolean;
   autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
 };
 
 export type ColumnDetectionOptions = {

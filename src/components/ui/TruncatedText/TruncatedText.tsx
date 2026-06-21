@@ -10,7 +10,7 @@ type TruncatedTextProps = {
 export function TruncatedText({ text, className = '', tooltipThreshold = 18 }: TruncatedTextProps) {
   const content = <span className={`truncatedText${className ? ` ${className}` : ''}`}>{text}</span>;
 
-  if (text.trim().length <= tooltipThreshold) {
+  if (!shouldShowTruncatedTextTooltip(text, tooltipThreshold)) {
     return content;
   }
 
@@ -19,4 +19,8 @@ export function TruncatedText({ text, className = '', tooltipThreshold = 18 }: T
       {content}
     </InfoTooltip>
   );
+}
+
+export function shouldShowTruncatedTextTooltip(text: string, tooltipThreshold = 18) {
+  return text.trim().length > tooltipThreshold;
 }

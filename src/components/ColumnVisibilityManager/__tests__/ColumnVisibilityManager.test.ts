@@ -4,21 +4,50 @@ import {
   activateAllColumns,
   clearColumnSearchValue,
   containsEveryNumber,
+  deactivateAllColumns,
   filterColumnsBySearch,
   getAppliedFilterState,
   getAppliedSuggestionGroups,
-  getColumnDetail,
-  getColumnDetailEmptyMessage,
+  getAvailableColumnDetails,
+  getColumnBaseDisplayLabel,
+  getColumnAutomaticReasons,
+  getColumnCurrentIgnoredReasons,
   getColumnDisplayLabel,
+  getColumnExamples,
+  getColumnExamplesTooltipContent,
+  getColumnIdentityLabel,
+  getColumnReasonLabel,
   getColumnTransferEmptyMessage,
+  getColumnVisibleReasonLabels,
   getSafeSelectedColumnIndex,
   getSelectedColumn,
+  hasActiveColumns,
   restoreAutomaticColumnDetection,
   sameNumberSet,
+  shouldRenderColumnDetailPanel,
   toggleColumnsByAutomaticReasons,
 } from '../ColumnVisibilityManager';
 
 describe('ColumnVisibilityManager quick actions', () => {
+  it('uses simplified visible labels for suggested filters and reasons', () => {
+    expect(getColumnReasonLabel('empty')).toBe('Sin datos');
+    expect(getColumnReasonLabel('hidden')).toBe('Oculta');
+    expect(getColumnReasonLabel('narrow')).toBe('Oculta');
+  });
+
+  it('shows every visible reason for a column with multiple automatic reasons', () => {
+    const column = createColumn(1, 'hidden', {
+      autoIgnoredReasons: ['hidden', 'empty'],
+      ignoredReasons: ['hidden', 'empty'],
+      isEmpty: true,
+      isHidden: true,
+    });
+
+    expect(getColumnAutomaticReasons(column)).toEqual(['hidden', 'empty']);
+    expect(getColumnCurrentIgnoredReasons(column)).toEqual(['hidden', 'empty']);
+    expect(getColumnVisibleReasonLabels(column)).toEqual(['Oculta', 'Sin datos']);
+  });
+
   it('activates all columns idempotently', () => {
     const once = activateAllColumns(createObservedColumns());
     const twice = activateAllColumns(once);
@@ -26,6 +55,39 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(countVisibility(once)).toEqual({ active: 43, ignored: 0 });
     expect(countVisibility(twice)).toEqual({ active: 43, ignored: 0 });
     expect(twice.every((column) => column.ignoredReason === undefined)).toBe(true);
+    expect(twice.every((column) => column.ignoredReasons === undefined)).toBe(true);
+  });
+
+  it('deactivates all active columns while preserving aliases and automatic reasons', () => {
+    const columns = activateAllColumns([
+      createColumn(0, undefined, { alias: 'Codigo manual' }),
+      createColumn(1, 'empty', { alias: 'EAN', header: 'Codigo de barras' }),
+      createMultiReasonColumn(2),
+    ]);
+    const result = deactivateAllColumns(columns);
+
+    expect(countVisibility(result)).toEqual({ active: 0, ignored: 3 });
+    expect(result[0]).toMatchObject({ ignored: true, ignoredReason: 'manual', ignoredReasons: ['manual'], alias: 'Codigo manual' });
+    expect(result[1]).toMatchObject({ ignored: true, ignoredReason: 'empty', ignoredReasons: ['empty'], alias: 'EAN' });
+    expect(result[2]).toMatchObject({ ignored: true, ignoredReason: 'hidden', ignoredReasons: ['hidden', 'empty'] });
+  });
+
+  it('reports no active columns for disabling the remove-all action', () => {
+    const allActive = activateAllColumns(createObservedColumns());
+    const noneActive = deactivateAllColumns(allActive);
+
+    expect(hasActiveColumns(allActive)).toBe(true);
+    expect(hasActiveColumns(noneActive)).toBe(false);
+  });
+
+  it('restores suggested filters after all columns are removed', () => {
+    const allActive = activateAllColumns(createObservedColumns());
+    const noneActive = deactivateAllColumns(allActive);
+    const restored = restoreAutomaticColumnDetection(noneActive);
+
+    expect(countVisibility(noneActive)).toEqual({ active: 0, ignored: 43 });
+    expect(countVisibility(restored)).toEqual({ active: 5, ignored: 38 });
+    expect(getAppliedFilterState(restored)).toEqual({ empty: true, hidden: true, customLabel: undefined });
   });
 
   it('applies suggested empty columns from an all-active state', () => {
@@ -88,6 +150,35 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(getAppliedSuggestionGroups(onlyHiddenOrNarrowIgnored)).toEqual({ empty: false, hiddenOrNarrow: true });
     expect(countVisibility(onlyEmptyIgnored)).toEqual({ active: 39, ignored: 4 });
     expect(getAppliedSuggestionGroups(onlyEmptyIgnored)).toEqual({ empty: true, hiddenOrNarrow: false });
+  });
+
+  it('keeps a column with both automatic reasons ignored while one matching filter remains active', () => {
+    const columns = [createMultiReasonColumn(0), createColumn(1)];
+    const allActive = activateAllColumns(columns);
+    const onlyEmptyIgnored = toggleColumnsByAutomaticReasons(allActive, ['empty']);
+    const bothIgnored = toggleColumnsByAutomaticReasons(onlyEmptyIgnored, ['hidden', 'narrow']);
+    const onlyHiddenIgnored = toggleColumnsByAutomaticReasons(bothIgnored, ['empty']);
+    const restoredActive = toggleColumnsByAutomaticReasons(onlyHiddenIgnored, ['hidden', 'narrow']);
+
+    expect(onlyEmptyIgnored[0]).toMatchObject({ ignored: true, ignoredReason: 'empty', ignoredReasons: ['empty'] });
+    expect(getAppliedFilterState(onlyEmptyIgnored)).toEqual({ empty: true, hidden: false, customLabel: undefined });
+    expect(bothIgnored[0]).toMatchObject({ ignored: true, ignoredReason: 'hidden', ignoredReasons: ['hidden', 'empty'] });
+    expect(getAppliedFilterState(bothIgnored)).toEqual({ empty: true, hidden: true, customLabel: undefined });
+    expect(onlyHiddenIgnored[0]).toMatchObject({ ignored: true, ignoredReason: 'hidden', ignoredReasons: ['hidden'] });
+    expect(getAppliedFilterState(onlyHiddenIgnored)).toEqual({ empty: false, hidden: true, customLabel: undefined });
+    expect(restoredActive[0]).toMatchObject({ ignored: false, ignoredReason: undefined, ignoredReasons: undefined });
+  });
+
+  it('manually reactivates a column with both automatic reasons and restore applies both again', () => {
+    const restoredAutomatic = restoreAutomaticColumnDetection([createMultiReasonColumn(0), createColumn(1)]);
+    const manuallyActivated = restoredAutomatic.map((column) =>
+      column.columnIndex === 0 ? { ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined } : column,
+    );
+    const restoredAgain = restoreAutomaticColumnDetection(manuallyActivated);
+
+    expect(getAppliedFilterState(manuallyActivated)).toEqual({ empty: false, hidden: false });
+    expect(restoredAgain[0]).toMatchObject({ ignored: true, ignoredReason: 'hidden', ignoredReasons: ['hidden', 'empty'] });
+    expect(getAppliedFilterState(restoredAgain)).toEqual({ empty: true, hidden: true, customLabel: undefined });
   });
 
   it('does not affect manually ignored columns outside the toggled group', () => {
@@ -201,31 +292,60 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(getColumnDisplayLabel({ alias: '', header: '', columnLetter: 'A' })).toBe('A');
   });
 
-  it('filters available columns by alias, header, letter, reason, samples and data count', () => {
+  it('builds active item title from base column identity without alias', () => {
+    expect(getColumnBaseDisplayLabel({ header: ' Codigo ', columnLetter: 'A' })).toBe('Codigo');
+    expect(getColumnBaseDisplayLabel({ header: '', columnLetter: 'A' })).toBe('A');
+    expect(getColumnIdentityLabel({ header: ' Precio ', columnLetter: 'J' })).toBe('Columna: J · Precio');
+    expect(getColumnIdentityLabel({ header: '', columnLetter: 'J' })).toBe('Columna: J');
+    expect(getAvailableColumnDetails({ alias: ' Alias largo ', header: 'Header' })).toEqual([{ label: 'Alias:', value: 'Alias largo' }]);
+    expect(getAvailableColumnDetails({ alias: '', header: ' Header largo ' })).toEqual([{ label: 'Encabezado:', value: 'Header largo' }]);
+  });
+
+  it('filters columns only by alias, header or fallback letter', () => {
     const columns = [
       createColumn(0, 'empty', { alias: 'Proveedor', header: 'Nombre', sampleValues: ['Acme'], nonEmptyCount: 0 }),
       createColumn(1, 'hidden', { header: 'Precio', sampleValues: ['123'], nonEmptyCount: 4 }),
       createColumn(2, 'narrow', { header: 'SKU', sampleValues: ['ZX-9'], nonEmptyCount: 7 }),
-      createColumn(16, 'narrow', { header: 'Total', sampleValues: ['999'], nonEmptyCount: 2 }),
+      createColumn(16, 'narrow', { header: '', sampleValues: ['999'], nonEmptyCount: 2 }),
     ];
 
     expect(filterColumnsBySearch(columns, 'proveedor').map((column) => column.columnIndex)).toEqual([0]);
+    expect(filterColumnsBySearch(columns, 'nombre')).toEqual([]);
     expect(filterColumnsBySearch(columns, 'precio').map((column) => column.columnIndex)).toEqual([1]);
     expect(filterColumnsBySearch(columns, 'Q').map((column) => column.columnIndex)).toEqual([16]);
-    expect(filterColumnsBySearch(columns, 'oculta').map((column) => column.columnIndex)).toEqual([1]);
-    expect(filterColumnsBySearch(columns, 'zx-9').map((column) => column.columnIndex)).toEqual([2]);
-    expect(filterColumnsBySearch(columns, '7').map((column) => column.columnIndex)).toEqual([2]);
+    expect(filterColumnsBySearch(columns, 'zx-9')).toEqual([]);
+    expect(filterColumnsBySearch(columns, '7')).toEqual([]);
   });
 
-  it('does not let one-letter searches match common reason labels', () => {
+  it('does not match unrelated columns by auxiliary text or partial column letters', () => {
+    const columns = [
+      createColumn(9, 'hidden', { header: 'SKU', sampleValues: ['A1'], nonEmptyCount: 1 }),
+      createColumn(10, 'empty', { header: 'EAN', sampleValues: [], nonEmptyCount: 0 }),
+      createColumn(15, undefined, { header: 'Papelera', sampleValues: ['Muestra oculta'], nonEmptyCount: 12 }),
+    ];
+
+    expect(filterColumnsBySearch(columns, 'pa').map((column) => column.columnIndex)).toEqual([15]);
+    expect(filterColumnsBySearch(columns, 'p').map((column) => column.columnIndex)).toEqual([15]);
+    expect(filterColumnsBySearch(columns, 'muestra')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'j')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'k').map((column) => column.columnIndex)).toEqual([9]);
+    expect(filterColumnsBySearch(columns, '1')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'datos')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'columna')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'alias')).toEqual([]);
+  });
+
+  it('does not match automatic reason labels in search', () => {
     const columns = [
       createColumn(0, 'hidden', { header: 'SKU', sampleValues: ['A1'], nonEmptyCount: 1 }),
       createColumn(1, 'empty', { header: 'EAN', sampleValues: [], nonEmptyCount: 0 }),
     ];
 
     expect(filterColumnsBySearch(columns, 'o')).toEqual([]);
-    expect(filterColumnsBySearch(columns, 'oc').map((column) => column.columnIndex)).toEqual([0]);
-    expect(filterColumnsBySearch(columns, 'va').map((column) => column.columnIndex)).toEqual([1]);
+    expect(filterColumnsBySearch(columns, 'oc')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'oculta')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'va')).toEqual([]);
+    expect(filterColumnsBySearch(columns, 'vacia')).toEqual([]);
   });
 
   it('filters active columns independently from available columns', () => {
@@ -258,7 +378,7 @@ describe('ColumnVisibilityManager quick actions', () => {
     })).toBe('No hay columnas activas que coincidan con la búsqueda.');
   });
 
-  it('selects an available column and builds its detail', () => {
+  it('keeps selection for an available column without rendering the old detail panel', () => {
     const columns = [
       createColumn(0),
       createColumn(1, 'hidden', {
@@ -271,36 +391,22 @@ describe('ColumnVisibilityManager quick actions', () => {
     const selectedColumn = getSelectedColumn(columns, 1);
 
     expect(selectedColumn?.columnIndex).toBe(1);
-    expect(selectedColumn ? getColumnDetail(selectedColumn) : null).toEqual({
-      label: 'Costo visual',
-      columnLetter: 'B',
-      header: 'Costo',
-      alias: 'Costo visual',
-      status: 'Disponible',
-      automaticReason: 'Oculta',
-      nonEmptyCount: '2',
-      examples: ['10', '20'],
-    });
+    expect(shouldRenderColumnDetailPanel()).toBe(false);
   });
 
-  it('selects an active column and builds its detail', () => {
-    const columns = [
-      createColumn(0, undefined, {
-        header: 'SKU',
-        sampleValues: ['A-1'],
-        nonEmptyCount: 7,
-      }),
-    ];
-    const selectedColumn = getSelectedColumn(columns, 0);
-
-    expect(selectedColumn ? getColumnDetail(selectedColumn) : null).toMatchObject({
-      label: 'SKU',
-      columnLetter: 'A',
-      status: 'Activa',
-      automaticReason: '-',
-      nonEmptyCount: '7',
-      examples: ['A-1'],
+  it('opens active column examples with a limited vertical tooltip payload', () => {
+    const column = createColumn(0, undefined, {
+      header: 'SKU',
+      sampleValues: ['A-1', 'B-2', 'C-3', 'D-4'],
+      nonEmptyCount: 7,
     });
+
+    expect(getColumnExamples(column)).toEqual(['A-1', 'B-2', 'C-3']);
+    expect(getColumnExamplesTooltipContent(column)).toBe('A-1\nB-2\nC-3');
+  });
+
+  it('shows an empty examples message when active column has no samples', () => {
+    expect(getColumnExamplesTooltipContent(createColumn(0, undefined, { sampleValues: [] }))).toBe('Sin ejemplos disponibles.');
   });
 
   it('keeps selection when the same column is activated or removed', () => {
@@ -317,7 +423,7 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(getSafeSelectedColumnIndex(removedAgain, selectedColumnIndex)).toBe(selectedColumnIndex);
   });
 
-  it('keeps selected column detail even when search hides that column', () => {
+  it('keeps selected column even when search hides that column', () => {
     const columns = [
       createColumn(0, undefined, { header: 'SKU', sampleValues: ['A-1'] }),
       createColumn(1, undefined, { header: 'Descripción', sampleValues: ['Pincel'] }),
@@ -327,12 +433,11 @@ describe('ColumnVisibilityManager quick actions', () => {
 
     expect(visibleColumns.map((column) => column.columnIndex)).toEqual([1]);
     expect(selectedColumn?.columnIndex).toBe(0);
-    expect(selectedColumn ? getColumnDetail(selectedColumn).header : null).toBe('SKU');
   });
 
-  it('shows an initial detail empty state without selection', () => {
+  it('keeps empty selection state without rendering the old detail panel', () => {
     expect(getSelectedColumn(createObservedColumns(), null)).toBeNull();
-    expect(getColumnDetailEmptyMessage()).toBe('Seleccioná una columna para ver sus detalles y ejemplos.');
+    expect(shouldRenderColumnDetailPanel()).toBe(false);
   });
 
   it('clears selection safely when selected column no longer exists', () => {
@@ -358,6 +463,9 @@ function createColumn(
   autoIgnoredReason?: IgnoredReason,
   overrides: Partial<ColumnAnalysis> = {},
 ): ColumnAnalysis {
+  const autoIgnoredReasons = overrides.autoIgnoredReasons ?? (autoIgnoredReason ? [autoIgnoredReason] : undefined);
+  const ignoredReasons = overrides.ignoredReasons ?? autoIgnoredReasons;
+
   return {
     columnIndex,
     columnLetter: String.fromCharCode(65 + (columnIndex % 26)),
@@ -366,10 +474,22 @@ function createColumn(
     isEmpty: autoIgnoredReason === 'empty',
     ignored: Boolean(autoIgnoredReason),
     ignoredReason: autoIgnoredReason,
+    ignoredReasons,
     autoIgnored: Boolean(autoIgnoredReason),
     autoIgnoredReason,
+    autoIgnoredReasons,
     ...overrides,
   };
+}
+
+function createMultiReasonColumn(columnIndex: number) {
+  return createColumn(columnIndex, 'hidden', {
+    autoIgnoredReasons: ['hidden', 'empty'],
+    ignoredReasons: ['hidden', 'empty'],
+    isHidden: true,
+    isEmpty: true,
+    nonEmptyCount: 0,
+  });
 }
 
 function countVisibility(columns: ColumnAnalysis[]) {

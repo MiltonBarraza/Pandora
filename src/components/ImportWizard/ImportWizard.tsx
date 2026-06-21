@@ -588,8 +588,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="3. Configuración de columnas" info="Configurá filas y elegí qué columnas entran en la receta.">
-          <div className="twoColumns rowColumnConfig">
+        <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta.">
+          <div className="rowColumnConfig">
             <Dropdown
               label="Fila de encabezados"
               labelInfo={<InfoTooltip content="Seleccioná la fila que contiene los nombres de las columnas." />}
@@ -612,10 +612,20 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
                 }
               }}
             />
+          </div>
+          <ColumnVisibilityManager
+            columns={columnAnalysis}
+            showHeaderColumn={headerRowIndex !== null}
+            onChange={updateColumnAnalysis}
+          />
+        </Step>
+
+        <Step title="4. Vista previa de datos" info="Elegí desde qué fila empieza la vista previa y revisá la selección actual con columnas activas, encabezados y alias.">
+          <div className="rowColumnConfig">
             <div className="field startRowField">
               <span className="labelWithInfo">
                 <span>Primera fila de datos</span>
-                <InfoTooltip content="Desde esta fila se empiezan a procesar los registros." />
+                <InfoTooltip content="Desde esta fila se empiezan a mostrar y procesar los registros." />
               </span>
               <div className="startRowControls">
                 <input
@@ -650,17 +660,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
                   Previsualizar desde esta fila
                 </label>
               </div>
+              <p className="muted previewSummary">{rawPreviewSummary}</p>
             </div>
           </div>
-          <ColumnVisibilityManager
-            columns={columnAnalysis}
-            showHeaderColumn={headerRowIndex !== null}
-            onChange={updateColumnAnalysis}
-          />
-        </Step>
-
-        <Step title="4. Vista previa de datos" info="Revisá cómo queda la selección actual con columnas activas, encabezados, alias y primera fila de datos.">
-          <p className="muted previewSummary">{rawPreviewSummary}</p>
           {rowConfigurationError ? <p className="errorText rowConfigurationError">{rowConfigurationError}</p> : null}
           <RawPreview
             rows={rawPreviewRows}

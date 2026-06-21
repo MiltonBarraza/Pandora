@@ -11,20 +11,12 @@ type ColumnVisibilityManagerProps = {
 
 const reasonLabels: Record<IgnoredReason, string> = {
   hidden: 'Oculta',
-  narrow: 'Angosta',
-  empty: 'Vacía',
+  narrow: 'Oculta',
+  empty: 'Sin datos',
   lowData: 'Pocos datos',
   manual: 'Manual',
 };
 
-const automaticReasonPluralLabels: Partial<Record<IgnoredReason, string>> = {
-  hidden: 'ocultas',
-  narrow: 'angostas',
-  empty: 'vacías',
-  lowData: 'pocos datos',
-};
-
-const automaticReasonOrder: IgnoredReason[] = ['empty', 'narrow', 'hidden', 'lowData'];
 const hiddenSuggestedReasons: IgnoredReason[] = ['hidden', 'narrow'];
 type AppliedFilterState = {
   empty: boolean;
@@ -40,10 +32,6 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
   const ignoredColumns = columns.filter((column) => column.ignored);
   const visibleIgnoredColumns = filterColumnsBySearch(ignoredColumns, availableSearch);
   const visibleActiveColumns = filterColumnsBySearch(activeColumns, activeSearch);
-  const selectedColumn = getSelectedColumn(columns, selectedColumnIndex);
-  const activeCount = columns.filter((column) => !column.ignored).length;
-  const ignoredCount = columns.length - activeCount;
-  const automaticReasonSummary = buildAutomaticReasonSummary(columns);
   const appliedFilters = getAppliedFilterState(columns);
 
   useEffect(() => {
@@ -54,11 +42,7 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
     onChange(
       columns.map((column) =>
         column.columnIndex === columnIndex
-          ? {
-              ...column,
-              ignored,
-              ignoredReason: ignored ? 'manual' : undefined,
-            }
+          ? setColumnVisibility(column, ignored)
           : column,
       ),
     );
@@ -81,6 +65,10 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
     onChange(activateAllColumns(columns));
   };
 
+  const hideAll = () => {
+    onChange(deactivateAllColumns(columns));
+  };
+
   const toggleByReasons = (reasons: IgnoredReason[]) => {
     onChange(toggleColumnsByAutomaticReasons(columns, reasons));
   };
@@ -92,19 +80,12 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
   return (
     <div className="columnDetection">
       <div className="columnDetectionHeader">
-        <div className="columnDetectionSummary">
-          <p>
-            {activeCount} columnas activas, {ignoredCount} ignoradas. Puedes activar columnas manualmente o usar filtros sugeridos.
-          </p>
-          {automaticReasonSummary ? <p className="muted">{automaticReasonSummary}</p> : null}
-        </div>
         <div className="columnQuickActions">
           <div>
             <strong className="headingWithInfo">
               <span>Acciones rápidas</span>
-              <InfoTooltip content="Usa filtros sugeridos por la detección o activa columnas manualmente." />
+              <InfoTooltip content="Ocultá automáticamente columnas sin datos u ocultas por detección. Podés volver a activarlas manualmente cuando quieras." />
             </strong>
-            <p className="muted">Los filtros solo cambian qué columnas quedan activas; no eliminan datos.</p>
             <div className="actions">
               <label className="checkboxField">
                 <input
@@ -112,7 +93,7 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
                   checked={appliedFilters.empty}
                   onChange={() => toggleByReasons(['empty'])}
                 />
-                Vacías sugeridas
+                Sin datos
               </label>
               <label className="checkboxField">
                 <input
@@ -120,7 +101,7 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
                   checked={appliedFilters.hidden}
                   onChange={() => toggleByReasons(hiddenSuggestedReasons)}
                 />
-                Ocultas sugeridas
+                Ocultas
               </label>
             </div>
           </div>
@@ -128,6 +109,11 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
             <InfoTooltip content="Incluye todas las columnas detectadas en la receta.">
               <button type="button" className="secondary" onClick={showAll}>
                 Activar todas
+              </button>
+            </InfoTooltip>
+            <InfoTooltip content="Mueve todas las columnas activas a disponibles.">
+              <button type="button" className="secondary" onClick={hideAll} disabled={!hasActiveColumns(columns)}>
+                Quitar todas
               </button>
             </InfoTooltip>
             <InfoTooltip content="Vuelve a las sugerencias detectadas al leer el archivo.">
@@ -187,15 +173,28 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
               aliasValue={column.alias ?? ''}
               onSelect={() => setSelectedColumnIndex(column.columnIndex)}
               onAliasChange={(alias) => updateAlias(column.columnIndex, alias)}
+              showExamples
               onAction={() => updateColumn(column.columnIndex, true)}
             />
           ))}
         </ColumnTransferPanel>
       </div>
 
-      <ColumnDetailPanel column={selectedColumn} />
     </div>
   );
+}
+
+export function getColumnReasonLabel(reason: IgnoredReason) {
+  return reasonLabels[reason];
+}
+
+export function getColumnVisibleReasonLabels(column: ColumnAnalysis) {
+  const currentReasons = getColumnCurrentIgnoredReasons(column);
+  const reasons = currentReasons.length > 0 ? currentReasons : getColumnAutomaticReasons(column);
+
+  return uniqueStrings(uniqueReasons(reasons)
+    .filter((reason) => reason !== 'manual')
+    .map((reason) => getColumnReasonLabel(reason)));
 }
 
 type ColumnTransferPanelProps = {
@@ -236,8 +235,7 @@ function ColumnTransferPanel({
   return (
     <section className="columnTransferPanel" aria-label={title}>
       <div className="columnTransferPanelHeader">
-        <h3>{title}</h3>
-        <span>{hasSearch ? `${visibleCount}/${count}` : count}</span>
+        <h3>{title} <span>({hasSearch ? `${visibleCount}/${count}` : count})</span></h3>
       </div>
       <div className="columnTransferSearch">
         <label>
@@ -270,6 +268,7 @@ type ColumnTransferItemProps = {
   actionLabel: string;
   actionAriaLabel: string;
   aliasValue?: string;
+  showExamples?: boolean;
   onSelect: () => void;
   onAliasChange?: (alias: string) => void;
   onAction: () => void;
@@ -281,16 +280,18 @@ function ColumnTransferItem({
   actionLabel,
   actionAriaLabel,
   aliasValue,
+  showExamples = false,
   onSelect,
   onAliasChange,
   onAction,
 }: ColumnTransferItemProps) {
-  const label = getColumnDisplayLabel(column);
-  const reasonLabel = column.ignoredReason ? reasonLabels[column.ignoredReason] : undefined;
   const showAliasInput = onAliasChange !== undefined;
+  const label = showAliasInput ? getColumnIdentityLabel(column) : getColumnDisplayLabel(column);
+  const availableDetails = showAliasInput ? [] : getAvailableColumnDetails(column);
+  const reasonLabels = getColumnVisibleReasonLabels(column);
 
   return (
-    <article className={`columnTransferItem${selected ? ' isSelected' : ''}`}>
+    <article className={`columnTransferItem${selected ? ' isSelected' : ''}${showAliasInput ? ' hasAlias' : ''}`}>
       <button
         type="button"
         className="columnTransferSelectArea"
@@ -300,100 +301,80 @@ function ColumnTransferItem({
       >
         <div className="columnTransferTitleRow">
           <strong>
-            <TruncatedText text={label} />
+            <TruncatedText text={showAliasInput ? label : `Columna: ${column.columnLetter}`} />
           </strong>
-          <span>{column.columnLetter}</span>
         </div>
+        {availableDetails.map((detail) => (
+          <div key={detail.label} className="columnTransferDetailRow">
+            <span>{detail.label}</span>
+            <TruncatedText text={detail.value} />
+          </div>
+        ))}
         <div className="columnTransferMeta">
-          {reasonLabel ? <span>Motivo: {reasonLabel}</span> : null}
+          {reasonLabels.map((reasonLabel) => (
+            <span key={reasonLabel} className="columnReasonChip">{reasonLabel}</span>
+          ))}
           <span>{column.nonEmptyCount} datos</span>
         </div>
       </button>
       {showAliasInput ? (
         <label className="columnTransferAlias">
-          <span>Alias</span>
+          <span>Alias visual</span>
           <input
             aria-label={`Alias para columna ${column.columnLetter}`}
             value={aliasValue}
             onChange={(event) => onAliasChange(event.target.value)}
-            placeholder={column.header || 'Alias visual'}
+            placeholder="Sin alias"
           />
         </label>
       ) : null}
-      <button
-        type="button"
-        className="secondary columnTransferAction"
-        aria-label={actionAriaLabel}
-        onClick={onAction}
-      >
-        {actionLabel}
-      </button>
+      <div className="columnTransferActions">
+        {showExamples ? (
+          <InfoTooltip content={getColumnExamplesTooltipContent(column)} className="columnExamplesTooltip">
+            <button type="button" className="secondary columnTransferExampleAction">
+              Ver ejemplos
+            </button>
+          </InfoTooltip>
+        ) : null}
+        <button
+          type="button"
+          className="secondary columnTransferAction"
+          aria-label={actionAriaLabel}
+          onClick={onAction}
+        >
+          {actionLabel}
+        </button>
+      </div>
     </article>
-  );
-}
-
-type ColumnDetailPanelProps = {
-  column: ColumnAnalysis | null;
-};
-
-function ColumnDetailPanel({ column }: ColumnDetailPanelProps) {
-  if (!column) {
-    return (
-      <section className="columnDetailPanel" aria-label="Detalle de columna">
-        <p className="columnDetailEmpty">{getColumnDetailEmptyMessage()}</p>
-      </section>
-    );
-  }
-
-  const detail = getColumnDetail(column);
-
-  return (
-    <section className="columnDetailPanel" aria-label={`Detalle de columna ${column.columnLetter}`}>
-      <div className="columnDetailHeader">
-        <div>
-          <h3><TruncatedText text={detail.label} tooltipThreshold={24} /></h3>
-          <p>{detail.status}</p>
-        </div>
-        <span>{detail.columnLetter}</span>
-      </div>
-      <dl className="columnDetailGrid">
-        <div>
-          <dt>Encabezado</dt>
-          <dd><TruncatedText text={detail.header} tooltipThreshold={24} /></dd>
-        </div>
-        <div>
-          <dt>Alias</dt>
-          <dd><TruncatedText text={detail.alias} tooltipThreshold={24} /></dd>
-        </div>
-        <div>
-          <dt>Motivo automático</dt>
-          <dd>{detail.automaticReason}</dd>
-        </div>
-        <div>
-          <dt>Datos</dt>
-          <dd>{detail.nonEmptyCount}</dd>
-        </div>
-      </dl>
-      <div className="columnDetailExamples">
-        <h4>Ejemplos</h4>
-        {detail.examples.length > 0 ? (
-          <ul>
-            {detail.examples.map((example, index) => (
-              <li key={`${example}-${index}`}>
-                <TruncatedText text={example} tooltipThreshold={20} />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No hay ejemplos disponibles.</p>
-        )}
-      </div>
-    </section>
   );
 }
 
 export function getColumnDisplayLabel(column: Pick<ColumnAnalysis, 'alias' | 'header' | 'columnLetter'>) {
   return column.alias?.trim() || column.header?.trim() || column.columnLetter;
+}
+
+export function getColumnBaseDisplayLabel(column: Pick<ColumnAnalysis, 'header' | 'columnLetter'>) {
+  return column.header?.trim() || column.columnLetter;
+}
+
+export function getColumnIdentityLabel(column: Pick<ColumnAnalysis, 'header' | 'columnLetter'>) {
+  const header = column.header?.trim();
+  return header ? `Columna: ${column.columnLetter} · ${header}` : `Columna: ${column.columnLetter}`;
+}
+
+export function getAvailableColumnDetails(column: Pick<ColumnAnalysis, 'alias' | 'header'>) {
+  const alias = column.alias?.trim();
+  const header = column.header?.trim();
+
+  if (alias) {
+    return [{ label: 'Alias:', value: alias }];
+  }
+
+  if (header) {
+    return [{ label: 'Encabezado:', value: header }];
+  }
+
+  return [];
 }
 
 export function getSelectedColumn(columns: ColumnAnalysis[], selectedColumnIndex: number | null) {
@@ -408,21 +389,20 @@ export function getSafeSelectedColumnIndex(columns: ColumnAnalysis[], selectedCo
   return getSelectedColumn(columns, selectedColumnIndex)?.columnIndex ?? null;
 }
 
-export function getColumnDetail(column: ColumnAnalysis) {
-  return {
-    label: getColumnDisplayLabel(column),
-    columnLetter: column.columnLetter,
-    header: column.header?.trim() || '-',
-    alias: column.alias?.trim() || '-',
-    status: column.ignored ? 'Disponible' : 'Activa',
-    automaticReason: column.autoIgnoredReason ? reasonLabels[column.autoIgnoredReason] : '-',
-    nonEmptyCount: String(column.nonEmptyCount),
-    examples: column.sampleValues.filter((value) => value.trim() !== ''),
-  };
+export function getColumnExamples(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 3) {
+  return column.sampleValues
+    .map((value) => value.trim())
+    .filter((value) => value !== '')
+    .slice(0, limit);
 }
 
-export function getColumnDetailEmptyMessage() {
-  return 'Seleccioná una columna para ver sus detalles y ejemplos.';
+export function getColumnExamplesTooltipContent(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 3) {
+  const examples = getColumnExamples(column, limit);
+  return examples.length > 0 ? examples.join('\n') : 'Sin ejemplos disponibles.';
+}
+
+export function shouldRenderColumnDetailPanel() {
+  return false;
 }
 
 export function filterColumnsBySearch(columns: ColumnAnalysis[], search: string) {
@@ -436,31 +416,19 @@ export function filterColumnsBySearch(columns: ColumnAnalysis[], search: string)
 }
 
 export function getColumnSearchText(column: ColumnAnalysis) {
-  return getColumnSearchTerms(column, { includeReason: true }).join(' ');
+  return getColumnSearchTerms(column).join(' ');
 }
 
 export function columnMatchesSearch(column: ColumnAnalysis, normalizedQuery: string) {
-  const terms = getColumnSearchTerms(column, { includeReason: normalizedQuery.length > 1 });
-  return terms.some((term) => term.includes(normalizedQuery));
+  return getColumnSearchTerms(column).some((term) => term.includes(normalizedQuery));
 }
 
-export function getColumnSearchTerms(column: ColumnAnalysis, { includeReason }: { includeReason: boolean }) {
-  const terms = [
-    column.alias,
-    column.header,
-    column.columnLetter,
-    ...column.sampleValues,
-    String(column.nonEmptyCount),
-  ];
+export function getColumnSearchTerms(column: ColumnAnalysis) {
+  const alias = column.alias?.trim();
+  const header = column.header?.trim();
+  const visibleIdentifier = alias || header || column.columnLetter;
 
-  if (includeReason) {
-    terms.push(
-      column.ignoredReason ? reasonLabels[column.ignoredReason] : '',
-      column.autoIgnoredReason ? reasonLabels[column.autoIgnoredReason] : '',
-    );
-  }
-
-  return terms
+  return [visibleIdentifier]
     .map((term) => normalizeColumnSearch(String(term ?? '')))
     .filter((term) => term !== '');
 }
@@ -488,36 +456,63 @@ export function getColumnTransferEmptyMessage({
 }
 
 export function activateAllColumns(columns: ColumnAnalysis[]) {
-  return columns.map((column) => ({ ...column, ignored: false, ignoredReason: undefined }));
+  return columns.map((column) => ({ ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined }));
+}
+
+export function deactivateAllColumns(columns: ColumnAnalysis[]) {
+  return columns.map((column) => setColumnVisibility(column, true));
+}
+
+export function hasActiveColumns(columns: ColumnAnalysis[]) {
+  return columns.some((column) => !column.ignored);
+}
+
+export function setColumnVisibility(column: ColumnAnalysis, ignored: boolean) {
+  if (!ignored) {
+    return { ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined };
+  }
+
+  const automaticReasons = getColumnAutomaticReasons(column);
+  return automaticReasons.length > 0
+    ? setColumnIgnoredByReasons(column, automaticReasons)
+    : { ...column, ignored: true, ignoredReason: 'manual' as const, ignoredReasons: ['manual' as const] };
 }
 
 export function ignoreColumnsByAutomaticReasons(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
-  return columns.map((column) =>
-    column.autoIgnoredReason && reasons.includes(column.autoIgnoredReason)
-      ? { ...column, ignored: true, ignoredReason: column.autoIgnoredReason }
-      : column,
-  );
+  return columns.map((column) => {
+    const matchingReasons = getColumnAutomaticReasons(column).filter((reason) => reasons.includes(reason));
+    return matchingReasons.length > 0 ? setColumnIgnoredByReasons(column, matchingReasons) : column;
+  });
 }
 
 export function toggleColumnsByAutomaticReasons(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
-  const shouldActivateGroup = isAutomaticReasonGroupApplied(columns, reasons);
+  const appliedFilters = getAppliedFilterState(columns);
+  const nextAppliedFilters = {
+    empty: reasons.includes('empty') ? !appliedFilters.empty : appliedFilters.empty,
+    hidden: reasons.some((reason) => hiddenSuggestedReasons.includes(reason)) ? !appliedFilters.hidden : appliedFilters.hidden,
+  };
 
   return columns.map((column) => {
-    if (!column.autoIgnoredReason || !reasons.includes(column.autoIgnoredReason)) {
+    const automaticReasons = getColumnAutomaticReasons(column);
+    if (!automaticReasons.some((reason) => reasons.includes(reason))) {
       return column;
     }
 
-    return shouldActivateGroup
-      ? { ...column, ignored: false, ignoredReason: undefined }
-      : { ...column, ignored: true, ignoredReason: column.autoIgnoredReason };
+    const nextIgnoredReasons = getAppliedAutomaticReasonsForColumn(column, nextAppliedFilters);
+    if (nextIgnoredReasons.length > 0) {
+      return setColumnIgnoredByReasons(column, nextIgnoredReasons);
+    }
+
+    return { ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined };
   });
 }
 
 export function restoreAutomaticColumnDetection(columns: ColumnAnalysis[]) {
+  const allFiltersApplied = { empty: true, hidden: true };
+
   return columns.map((column) => ({
     ...column,
-    ignored: column.autoIgnored,
-    ignoredReason: column.autoIgnoredReason,
+    ...setColumnAutomaticVisibility(column, allFiltersApplied),
   }));
 }
 
@@ -530,13 +525,10 @@ export function getAppliedSuggestionGroups(columns: ColumnAnalysis[]) {
   };
 }
 
-function isAutomaticReasonGroupApplied(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
-  const groupColumns = columns.filter((column) => column.autoIgnoredReason && reasons.includes(column.autoIgnoredReason));
-  return groupColumns.length > 0 && groupColumns.every((column) => column.ignored);
-}
-
 export function getAppliedFilterState(columns: ColumnAnalysis[]): AppliedFilterState {
-  const ignoredColumnIndexes = columns.filter((column) => column.ignored).map((column) => column.columnIndex);
+  const ignoredColumnIndexes = columns
+    .filter((column) => column.ignored)
+    .map((column) => column.columnIndex);
   const emptyColumnIndexes = getSuggestedColumnIndexes(columns, ['empty']);
   const hiddenColumnIndexes = getSuggestedColumnIndexes(columns, hiddenSuggestedReasons);
   const suggestedIgnoredColumnIndexes = columns.filter((column) => column.autoIgnored).map((column) => column.columnIndex);
@@ -545,8 +537,8 @@ export function getAppliedFilterState(columns: ColumnAnalysis[]): AppliedFilterS
     return { empty: false, hidden: false };
   }
 
-  const empty = emptyColumnIndexes.length > 0 && containsEveryNumber(ignoredColumnIndexes, emptyColumnIndexes);
-  const hidden = hiddenColumnIndexes.length > 0 && containsEveryNumber(ignoredColumnIndexes, hiddenColumnIndexes);
+  const empty = isAutomaticReasonGroupApplied(columns, ['empty']);
+  const hidden = isAutomaticReasonGroupApplied(columns, hiddenSuggestedReasons);
   const hasSomeEmptyIgnored = emptyColumnIndexes.some((columnIndex) => uniqueNumbers(ignoredColumnIndexes).includes(columnIndex));
   const hasSomeHiddenIgnored = hiddenColumnIndexes.some((columnIndex) => uniqueNumbers(ignoredColumnIndexes).includes(columnIndex));
   const manuallyIgnoredColumnIndexes = uniqueNumbers(ignoredColumnIndexes).filter((columnIndex) =>
@@ -558,7 +550,7 @@ export function getAppliedFilterState(columns: ColumnAnalysis[]): AppliedFilterS
   ].filter((columnIndex) => !uniqueNumbers(ignoredColumnIndexes).includes(columnIndex));
   const customLabel = getCustomFilterLabel({
     ignoredCount: manuallyIgnoredColumnIndexes.length,
-    activatedCount: manuallyActivatedColumnIndexes.length,
+    activatedCount: uniqueNumbers(manuallyActivatedColumnIndexes).length,
   });
 
   return { empty, hidden, customLabel };
@@ -566,8 +558,82 @@ export function getAppliedFilterState(columns: ColumnAnalysis[]): AppliedFilterS
 
 export function getSuggestedColumnIndexes(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
   return columns
-    .filter((column) => column.autoIgnoredReason && reasons.includes(column.autoIgnoredReason))
+    .filter((column) => getColumnAutomaticReasons(column).some((reason) => reasons.includes(reason)))
     .map((column) => column.columnIndex);
+}
+
+function isAutomaticReasonGroupApplied(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
+  const groupColumns = columns.filter((column) => getColumnAutomaticReasons(column).some((reason) => reasons.includes(reason)));
+  return groupColumns.length > 0 && groupColumns.every((column) =>
+    getColumnCurrentIgnoredReasons(column).some((reason) => reasons.includes(reason)),
+  );
+}
+
+function setColumnAutomaticVisibility(
+  column: ColumnAnalysis,
+  appliedFilters: Pick<AppliedFilterState, 'empty' | 'hidden'>,
+) {
+  const ignoredReasons = getAppliedAutomaticReasonsForColumn(column, appliedFilters);
+  return ignoredReasons.length > 0
+    ? setColumnIgnoredByReasons(column, ignoredReasons)
+    : { ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined };
+}
+
+function getAppliedAutomaticReasonsForColumn(
+  column: ColumnAnalysis,
+  appliedFilters: Pick<AppliedFilterState, 'empty' | 'hidden'>,
+) {
+  const automaticReasons = getColumnAutomaticReasons(column);
+  return automaticReasons.filter((reason) =>
+    (reason === 'empty' && appliedFilters.empty)
+    || (hiddenSuggestedReasons.includes(reason) && appliedFilters.hidden)
+    || reason === 'lowData',
+  );
+}
+
+function setColumnIgnoredByReasons(column: ColumnAnalysis, reasons: IgnoredReason[]) {
+  const ignoredReasons = uniqueReasons(reasons);
+  return {
+    ...column,
+    ignored: ignoredReasons.length > 0,
+    ignoredReason: ignoredReasons[0],
+    ignoredReasons,
+  };
+}
+
+export function getColumnAutomaticReasons(column: ColumnAnalysis) {
+  const savedReasons = uniqueReasons(column.autoIgnoredReasons ?? []);
+  if (savedReasons.length > 0) {
+    return savedReasons;
+  }
+
+  const inferredReasons: IgnoredReason[] = [];
+  if (column.autoIgnoredReason) {
+    inferredReasons.push(column.autoIgnoredReason);
+  }
+  if (column.isHidden) {
+    inferredReasons.push('hidden');
+  }
+  if (column.isNarrow) {
+    inferredReasons.push('narrow');
+  }
+  if (column.isEmpty) {
+    inferredReasons.push('empty');
+  }
+  return uniqueReasons(inferredReasons);
+}
+
+export function getColumnCurrentIgnoredReasons(column: ColumnAnalysis) {
+  if (!column.ignored) {
+    return [];
+  }
+
+  const savedReasons = uniqueReasons(column.ignoredReasons ?? []);
+  if (savedReasons.length > 0) {
+    return savedReasons;
+  }
+
+  return column.ignoredReason ? [column.ignoredReason] : [];
 }
 
 export function sameNumberSet(left: number[], right: number[]) {
@@ -608,23 +674,10 @@ function uniqueNumbers(values: number[]) {
   return [...new Set(values)];
 }
 
-function buildAutomaticReasonSummary(columns: ColumnAnalysis[]) {
-  const counts = columns.reduce<Partial<Record<IgnoredReason, number>>>((nextCounts, column) => {
-    if (!column.autoIgnoredReason || column.autoIgnoredReason === 'manual') {
-      return nextCounts;
-    }
+function uniqueReasons(values: IgnoredReason[]) {
+  return [...new Set(values)];
+}
 
-    nextCounts[column.autoIgnoredReason] = (nextCounts[column.autoIgnoredReason] ?? 0) + 1;
-    return nextCounts;
-  }, {});
-
-  const parts = automaticReasonOrder
-    .map((reason) => {
-      const count = counts[reason] ?? 0;
-      const label = automaticReasonPluralLabels[reason];
-      return count > 0 && label ? `${count} ${label}` : '';
-    })
-    .filter((part) => part !== '');
-
-  return parts.length ? `Motivos automáticos: ${parts.join(', ')}.` : '';
+function uniqueStrings(values: string[]) {
+  return [...new Set(values)];
 }

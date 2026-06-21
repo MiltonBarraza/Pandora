@@ -706,6 +706,45 @@ input[type='checkbox']:disabled {
 
 .rawPreviewTableWrap {
   max-height: 360px;
+  overflow: auto;
+}
+
+.rawPreviewTable {
+  min-width: max(100%, calc(72px + var(--raw-preview-column-count, 1) * 180px));
+  table-layout: fixed;
+  width: 100%;
+}
+
+.rawPreviewRowNumberColumn {
+  width: 72px;
+}
+
+.rawPreviewDataColumn {
+  width: 180px;
+}
+
+.rawPreviewColumnHeader {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.rawPreviewTable th,
+.rawPreviewTable td {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.rawPreviewTable th:first-child,
+.rawPreviewTable td:first-child {
+  max-width: 72px;
+  min-width: 72px;
+  width: 72px;
+}
+
+.rawPreviewColumnHeader .truncatedTextTooltip {
+  max-width: 100%;
 }
 
 .rawPreviewEmptyState {
@@ -718,11 +757,15 @@ input[type='checkbox']:disabled {
 }
 
 .previewSummary {
-  margin: 2px 0 0;
+  max-width: 100%;
+  margin: 8px 0 0;
+  width: 100%;
 }
 
 .rowColumnConfig {
+  display: grid;
   margin-bottom: 16px;
+  max-width: 100%;
 }
 
 table {
@@ -2535,7 +2578,7 @@ tbody tr:hover {
 .columnTransferGrid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(240px, 0.35fr) minmax(360px, 0.65fr);
 }
 
 .columnTransferPanel {
@@ -2544,6 +2587,9 @@ tbody tr:hover {
   border-radius: 8px;
   display: grid;
   gap: 12px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: min(58vh, 560px);
+  min-height: 440px;
   min-width: 0;
   padding: 12px;
 }
@@ -2552,22 +2598,21 @@ tbody tr:hover {
   align-items: center;
   display: flex;
   gap: 10px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .columnTransferPanelHeader h3 {
+  align-items: baseline;
+  display: flex;
+  gap: 4px;
   font-size: 1rem;
   margin: 0;
 }
 
-.columnTransferPanelHeader span {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 999px;
+.columnTransferPanelHeader h3 span {
   color: var(--color-text-muted);
   font-size: 0.85rem;
-  line-height: 1;
-  padding: 5px 8px;
+  font-weight: 600;
 }
 
 .columnTransferSearch {
@@ -2594,6 +2639,7 @@ tbody tr:hover {
 }
 
 .columnTransferClearSearch {
+  height: 38px;
   min-height: 38px;
   white-space: nowrap;
 }
@@ -2601,18 +2647,24 @@ tbody tr:hover {
 .columnTransferList {
   display: grid;
   gap: 10px;
-  max-height: 420px;
+  min-height: 0;
+  align-content: start;
   overflow: auto;
   padding-right: 2px;
 }
 
 .columnTransferEmpty {
+  align-self: stretch;
   background: var(--color-bg-surface-muted);
   border: 1px dashed var(--color-border-muted);
   border-radius: 8px;
   color: var(--color-text-muted);
+  display: grid;
+  min-height: 0;
+  place-items: center;
   margin: 0;
   padding: 16px;
+  text-align: center;
 }
 
 .columnTransferItem {
@@ -2624,6 +2676,13 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   padding: 12px;
   transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.columnTransferItem.hasAlias {
+  align-items: center;
+  grid-template-columns: minmax(0, 1.15fr) minmax(180px, 0.95fr) auto;
+  grid-template-rows: auto;
+  padding: 10px 12px;
 }
 
 .columnTransferItem:hover {
@@ -2648,6 +2707,11 @@ tbody tr:hover {
   min-width: 0;
   padding: 0;
   text-align: left;
+}
+
+.columnTransferItem.hasAlias .columnTransferSelectArea {
+  align-self: stretch;
+  align-content: center;
 }
 
 .columnTransferSelectArea:hover:not(:disabled) {
@@ -2679,6 +2743,7 @@ tbody tr:hover {
 .columnTransferTitleRow span {
   color: var(--color-text-muted);
   font-size: 0.85rem;
+  order: -1;
   white-space: nowrap;
 }
 
@@ -2686,13 +2751,42 @@ tbody tr:hover {
   color: var(--color-text-muted);
   display: flex;
   flex-wrap: wrap;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   gap: 4px 10px;
+}
+
+.columnTransferDetailRow {
+  align-items: baseline;
+  color: var(--color-text-muted);
+  display: grid;
+  font-size: 0.82rem;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.columnTransferDetailRow > span {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.columnReasonChip {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
 }
 
 .columnTransferAlias {
   grid-column: 1 / 2;
   min-width: 0;
+}
+
+.columnTransferItem.hasAlias .columnTransferAlias {
+  grid-column: 2;
 }
 
 .columnTransferAlias span {
@@ -2707,116 +2801,43 @@ tbody tr:hover {
   padding-block: 6px;
 }
 
+.columnTransferItem.hasAlias .columnTransferAlias input {
+  min-height: 32px;
+}
+
 .columnTransferAction {
   align-self: start;
   min-height: 36px;
   white-space: nowrap;
 }
 
-.columnDetailPanel {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  display: grid;
-  gap: 14px;
-  padding: 14px;
-}
-
-.columnDetailEmpty {
-  background: var(--color-bg-surface-muted);
-  border: 1px dashed var(--color-border-muted);
-  border-radius: 8px;
-  color: var(--color-text-muted);
-  margin: 0;
-  padding: 16px;
-}
-
-.columnDetailHeader {
-  align-items: start;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.columnDetailHeader h3 {
-  font-size: 1rem;
-  margin: 0 0 4px;
-  max-width: 100%;
-}
-
-.columnDetailHeader p {
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.columnDetailHeader > span {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 999px;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  line-height: 1;
-  padding: 5px 8px;
-}
-
-.columnDetailGrid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0;
-}
-
-.columnDetailGrid div {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
-  min-width: 0;
-  padding: 10px;
-}
-
-.columnDetailGrid dt,
-.columnDetailExamples h4 {
-  color: var(--color-text-muted);
-  font-size: 0.86rem;
-  margin: 0 0 4px;
-}
-
-.columnDetailGrid dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.columnDetailGrid .truncatedText,
-.columnDetailHeader .truncatedText {
-  max-width: 100%;
-}
-
-.columnDetailExamples {
-  display: grid;
-  gap: 8px;
-}
-
-.columnDetailExamples ul {
+.columnTransferActions {
+  align-items: end;
+  align-self: end;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
-.columnDetailExamples li {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 999px;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  padding: 6px 10px;
+.columnTransferItem.hasAlias .columnTransferActions {
+  align-self: end;
+  flex-wrap: nowrap;
 }
 
-.columnDetailExamples p {
-  color: var(--color-text-muted);
-  margin: 0;
+.columnTransferExampleAction {
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.columnTransferItem.hasAlias .columnTransferAction,
+.columnTransferItem.hasAlias .columnTransferExampleAction {
+  min-height: 32px;
+  padding-block: 5px;
+}
+
+.infoTooltipBubble.columnExamplesTooltip {
+  white-space: pre-line;
 }
 
 .mutedRow {
@@ -2915,11 +2936,24 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .columnTransferPanel {
+    height: min(64vh, 520px);
+    min-height: 360px;
+  }
+
   .columnTransferItem {
     grid-template-columns: 1fr;
   }
 
+  .columnTransferItem.hasAlias {
+    grid-template-columns: 1fr;
+  }
+
   .columnTransferAlias {
+    grid-column: 1;
+  }
+
+  .columnTransferItem.hasAlias .columnTransferAlias {
     grid-column: 1;
   }
 
@@ -2928,17 +2962,9 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
-  .columnDetailGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .columnDetailHeader {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .columnDetailHeader > span {
-    align-self: start;
+  .columnTransferItem.hasAlias .columnTransferActions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .columnTransferAction {

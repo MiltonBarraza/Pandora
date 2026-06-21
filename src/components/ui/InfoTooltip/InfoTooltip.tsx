@@ -115,7 +115,7 @@ export function InfoTooltip({
           ref={bubbleRef}
           id={tooltipId}
           role="tooltip"
-          className={`infoTooltipBubble ${getInfoTooltipPlacementClass(position?.placement ?? placement)}${position ? ' isPositioned' : ''}`}
+          className={`infoTooltipBubble ${getInfoTooltipPlacementClass(position?.placement ?? placement)}${position ? ' isPositioned' : ''}${className ? ` ${className}` : ''}`}
           style={position ? getInfoTooltipBubbleStyle(position) : undefined}
         >
           {content}

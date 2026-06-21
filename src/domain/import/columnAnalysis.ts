@@ -30,13 +30,14 @@ export function analyzeSheetColumns(
     const nonEmptyCount = productRows.filter((row) => cellText(row[columnIndex]) !== '').length;
     const isEmpty = nonEmptyCount === 0;
     const header = headerRowIndex === null ? '' : cellText(rows[headerRowIndex]?.[columnIndex]);
-    const autoIgnoredReason = getAutoIgnoredReason({
+    const autoIgnoredReasons = getAutoIgnoredReasons({
       isHidden,
       isNarrow,
       isEmpty,
       nonEmptyCount,
       options,
     });
+    const autoIgnoredReason = autoIgnoredReasons[0];
 
     return {
       columnIndex,
@@ -48,10 +49,12 @@ export function analyzeSheetColumns(
       width,
       isNarrow,
       isEmpty,
-      ignored: Boolean(autoIgnoredReason),
+      ignored: autoIgnoredReasons.length > 0,
       ignoredReason: autoIgnoredReason,
-      autoIgnored: Boolean(autoIgnoredReason),
+      ignoredReasons: autoIgnoredReasons,
+      autoIgnored: autoIgnoredReasons.length > 0,
       autoIgnoredReason,
+      autoIgnoredReasons,
     };
   });
 }
@@ -134,7 +137,7 @@ function getColumnWidth(columnMetadata: XLSX.ColInfo | undefined) {
   return columnMetadata.wpx ?? columnMetadata.wch ?? columnMetadata.width;
 }
 
-function getAutoIgnoredReason({
+function getAutoIgnoredReasons({
   isHidden,
   isNarrow,
   isEmpty,
@@ -146,24 +149,26 @@ function getAutoIgnoredReason({
   isEmpty: boolean;
   nonEmptyCount: number;
   options: ColumnDetectionOptions;
-}): IgnoredReason | undefined {
+}): IgnoredReason[] {
+  const reasons: IgnoredReason[] = [];
+
   if (options.hideHiddenColumns && isHidden) {
-    return 'hidden';
+    reasons.push('hidden');
   }
 
   if (options.hideNarrowColumns && isNarrow) {
-    return 'narrow';
+    reasons.push('narrow');
   }
 
   if (options.hideEmptyColumns && isEmpty) {
-    return 'empty';
+    reasons.push('empty');
   }
 
   if (options.hideLowDataColumns && nonEmptyCount < options.lowDataMinValues) {
-    return 'lowData';
+    reasons.push('lowData');
   }
 
-  return undefined;
+  return reasons;
 }
 
 function cellText(value: unknown) {

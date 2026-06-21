@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { columnLetter } from '../../domain/import/columnAnalysis';
 import type { RawRow } from '../../types/import';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -17,6 +18,10 @@ type RawPreviewProps = {
   showDataColumnsToggle?: boolean;
   onShowAllColumnsChange?: (showAllColumns: boolean) => void;
   onShowDataColumnsChange?: (showDataColumns: boolean) => void;
+};
+
+type RawPreviewTableStyle = CSSProperties & {
+  '--raw-preview-column-count': string;
 };
 
 export function RawPreview({
@@ -82,12 +87,21 @@ export function RawPreview({
         </div>
       ) : (
         <div className="tableWrap rawPreviewTableWrap">
-          <table>
+          <table
+            className="rawPreviewTable"
+            style={{ '--raw-preview-column-count': String(columns.length) } as RawPreviewTableStyle}
+          >
+            <colgroup>
+              <col className="rawPreviewRowNumberColumn" />
+              {columns.map((column) => (
+                <col key={column} className="rawPreviewDataColumn" />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th>#</th>
                 {columns.map((column) => (
-                  <th key={column}>
+                  <th key={column} className="rawPreviewColumnHeader">
                     <TruncatedText text={getRawPreviewColumnLabel(column, columnLabels)} tooltipThreshold={14} />
                   </th>
                 ))}
