@@ -220,6 +220,29 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('<p class="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>');
   });
 
+  it('shows compact manual range usage help only in manual range mode', () => {
+    const manualRangeMarkup = renderRecipeEditorMarkup({
+      id: 'output-range',
+      label: 'Rango',
+      order: 0,
+      enabled: true,
+      recipe: { type: 'manualRange', ranges: [] },
+    });
+    const directMarkup = renderRecipeEditorMarkup({
+      id: 'output-direct',
+      label: 'Directa',
+      order: 0,
+      enabled: true,
+      recipe: { type: 'direct', inputColumnId: 'input-code' },
+    });
+
+    expect(manualRangeMarkup).toContain('>Info</button>');
+    expect(manualRangeMarkup).not.toContain('Usá rangos para completar datos contextuales que aplican a varias filas.');
+    expect(manualRangeMarkup).toContain('Los rangos sirven cuando un valor debe repetirse en varias filas.');
+    expect(manualRangeMarkup).toContain('Si el valor ya está en cada fila, usá una columna de entrada.');
+    expect(directMarkup).not.toContain('Los rangos sirven cuando un valor debe repetirse en varias filas.');
+  });
+
   it('renders an enabled clear ranges action when manual ranges exist', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-range',

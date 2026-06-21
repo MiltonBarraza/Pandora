@@ -453,12 +453,24 @@ function ManualRangeRecipeEditor({
     <div className="recipeSubBlock manualRangeEditor">
       <div className="sectionHeader">
         <div>
-          <strong className="labelWithInfo">
+          <strong className="manualRangeTitleGroup labelWithInfo">
             <span>Valores por rangos</span>
             <InfoTooltip
               ariaLabel="Ayuda: valores por rangos"
               content="Asigná un valor distinto según el rango de filas reales del Excel."
             />
+            <InfoTooltip
+              content="Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada."
+              placement="bottom"
+            >
+              <button
+                type="button"
+                className="manualRangeInfoChip"
+                aria-label="Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada."
+              >
+                Info
+              </button>
+            </InfoTooltip>
           </strong>
         </div>
         <div className="manualRangeHeaderActions">
@@ -476,7 +488,6 @@ function ManualRangeRecipeEditor({
           </button>
         </div>
       </div>
-
       {showGenerator ? (
         <ManualRangeTextGenerator
           recipe={recipe}

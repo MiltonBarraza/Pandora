@@ -1927,6 +1927,32 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.manualRangeTitleGroup {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.manualRangeInfoChip {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, var(--color-border-muted));
+  border-radius: 999px;
+  color: var(--color-text-default);
+  cursor: help;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 8px;
+}
+
+.manualRangeInfoChip:hover,
+.manualRangeInfoChip:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border-muted));
+}
+
 .manualRangeFooterActions {
   justify-content: flex-start;
 }
