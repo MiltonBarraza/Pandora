@@ -617,6 +617,39 @@ export function ManualRangeTextGenerator({
     });
   };
   const generatedPreviewRanges = generateRanges(true);
+  const generatedPreviewRangesWithoutStartFilter = detectionMode === 'textStarts' && canPreview && startFilter
+    ? generateManualRangesFromTexts(manualRangeRows, {
+      inputColumnId,
+      startRowNumber: startRowNumber!,
+      endRowNumber: endRowNumber!,
+      mode: 'untilNextText',
+      initialValueMode,
+      initialValueColumnId: shouldShowInitialValueColumn ? initialValueColumnId : undefined,
+      validRowsColumnId: effectiveValidRowsColumnId,
+    })
+    : [];
+  const selectedInputColumn = inputColumns.find((inputColumn) => inputColumn.id === inputColumnId);
+  const selectedStartFilterColumn = inputColumns.find((inputColumn) => inputColumn.id === startFilterColumnId);
+  const selectedValidRowsColumn = inputColumns.find((inputColumn) => inputColumn.id === validRowsColumnId);
+  const selectedInitialValueColumn = inputColumns.find((inputColumn) => inputColumn.id === initialValueColumnId);
+  const generatorSummary = buildManualRangeGeneratorSummary({
+    detectionMode,
+    inputColumn: selectedInputColumn,
+    startRowInput,
+    endRowInput,
+    startFilterColumn: startFilter ? selectedStartFilterColumn : undefined,
+    startFilterOperator,
+    validRowsColumn: effectiveValidRowsColumnId ? selectedValidRowsColumn : undefined,
+    initialValueMode,
+    initialValueColumn: shouldShowInitialValueColumn ? selectedInitialValueColumn : undefined,
+    conditionSummary: recipe.condition ? describeManualRangeCondition(recipe, inputColumns) : undefined,
+  });
+  const generatorWarnings = getManualRangeGeneratorWarnings({
+    canPreview,
+    generatedRanges: generatedPreviewRanges,
+    rangesBeforeStartFilter: generatedPreviewRangesWithoutStartFilter,
+    isColumnLookupValueMode: shouldShowInitialValueColumn,
+  });
   const visiblePreviewRanges = generatedPreviewRanges.slice(0, 6);
   const hiddenPreviewRangeLabels = generatedPreviewRanges.slice(6).map((range) => getManualRangeGeneratedExampleLabel(range));
   const previewMessage = !inputColumnId
@@ -624,10 +657,8 @@ export function ManualRangeTextGenerator({
     : !canPreview
       ? ''
       : generatedPreviewRanges.length === 0
-        ? (detectionMode === 'dataBlocks' ? 'No se encontraron filas con datos en la columna elegida.' : 'No se encontraron textos en la zona definida.')
+        ? 'No se encontraron rangos con esta configuración. Revisá la columna elegida, el intervalo de filas o los filtros aplicados.'
         : '';
-  const generatorHelpText = detectionMode === 'dataBlocks' ? 'Una fila vacía corta el bloque.' : '';
-
   const confirmGeneratedRanges = () => {
     if (!canPreview) {
       return;
@@ -833,9 +864,18 @@ export function ManualRangeTextGenerator({
           ) : null}
         </div>
       </div>
-      {generatorHelpText ? <p className="manualRangeValueHelp">{generatorHelpText}</p> : null}
+      <p className="manualRangeGeneratorSummary">{generatorSummary}</p>
+      {generatorWarnings.length > 0 ? (
+        <div className="manualRangeGeneratorWarnings" role="status">
+          {generatorWarnings.map((warning) => (
+            <p key={warning}>{warning}</p>
+          ))}
+        </div>
+      ) : null}
       {previewMessage ? (
-        <p className="manualRangeValueHelp">{previewMessage}</p>
+        <div className="manualRangeGeneratorWarnings" role="status">
+          <p>{previewMessage}</p>
+        </div>
       ) : generatedPreviewRanges.length > 0 ? (
         <div className="manualRangeGeneratorExamples">
           <span className="manualRangeGeneratorExamplesLabel">Ejemplos</span>
@@ -885,6 +925,107 @@ function getManualRangeGeneratedExampleLabel(range: ManualRangeValue) {
   }
 
   return rangeLabel;
+}
+
+export function buildManualRangeGeneratorSummary({
+  detectionMode,
+  inputColumn,
+  startRowInput,
+  endRowInput,
+  startFilterColumn,
+  startFilterOperator,
+  validRowsColumn,
+  initialValueMode,
+  initialValueColumn,
+  conditionSummary,
+}: {
+  detectionMode: ManualRangeDetectionMode;
+  inputColumn?: InputColumn;
+  startRowInput: string;
+  endRowInput: string;
+  startFilterColumn?: InputColumn;
+  startFilterOperator: ManualRangeStartFilter['operator'];
+  validRowsColumn?: InputColumn;
+  initialValueMode: ManualRangeInitialValueMode;
+  initialValueColumn?: InputColumn;
+  conditionSummary?: string;
+}) {
+  const columnLabel = getManualRangeSummaryColumnLabel(inputColumn);
+  const startLabel = startRowInput || '?';
+  const endLabel = endRowInput || '?';
+  const parts = detectionMode === 'dataBlocks'
+    ? [`Pandora agrupará filas consecutivas con datos en ${columnLabel} entre las filas ${startLabel} y ${endLabel}. Cada fila vacía en ${columnLabel} inicia un nuevo bloque.`]
+    : [`Pandora buscará grupos en ${columnLabel} entre las filas ${startLabel} y ${endLabel}.`];
+
+  if (detectionMode === 'textStarts' && startFilterColumn) {
+    parts.push(`Aceptará sólo grupos donde ${getManualRangeSummaryColumnLabel(startFilterColumn)} ${startFilterOperator === 'isEmpty' ? 'está vacía' : 'no está vacía'}.`);
+  }
+
+  if (detectionMode === 'textStarts' && validRowsColumn) {
+    parts.push(`Cada grupo llegará hasta la última fila con dato en ${getManualRangeSummaryColumnLabel(validRowsColumn)}.`);
+  }
+
+  parts.push(getManualRangeGeneratorValueSummary(initialValueMode, initialValueColumn));
+
+  if (conditionSummary) {
+    parts.push(`El valor se aplicará sólo a filas donde ${conditionSummary}.`);
+  }
+
+  return parts.join(' ');
+}
+
+export function getManualRangeGeneratorWarnings({
+  canPreview,
+  generatedRanges,
+  rangesBeforeStartFilter = [],
+  isColumnLookupValueMode,
+}: {
+  canPreview: boolean;
+  generatedRanges: ManualRangeValue[];
+  rangesBeforeStartFilter?: ManualRangeValue[];
+  isColumnLookupValueMode: boolean;
+}) {
+  const warnings: string[] = [];
+
+  if (!canPreview) {
+    return warnings;
+  }
+
+  if (generatedRanges.length === 0 && rangesBeforeStartFilter.length > 0) {
+    warnings.push('El filtro de grupo descartó todos los posibles grupos. Revisá la columna o la condición elegida.');
+  }
+
+  const singleRowRanges = generatedRanges.filter((range) => range.startRowNumber === range.endRowNumber).length;
+  if (generatedRanges.length >= 3 && singleRowRanges / generatedRanges.length > 0.6) {
+    warnings.push('Muchos rangos sugeridos tienen una sola fila. Si el Excel usa celdas combinadas, probá usar una columna con códigos, precios o cantidades para detectar los bloques.');
+  }
+
+  if (isColumnLookupValueMode && generatedRanges.some((range) => getManualRangeFixedTextValue(range).trim() === '')) {
+    warnings.push('Algunos rangos no encontraron valor en la columna elegida. Se crearán con valor vacío.');
+  }
+
+  return warnings;
+}
+
+function getManualRangeGeneratorValueSummary(initialValueMode: ManualRangeInitialValueMode, initialValueColumn?: InputColumn) {
+  const columnLabel = getManualRangeSummaryColumnLabel(initialValueColumn);
+  if (initialValueMode === 'detectedText') {
+    return 'Guardará el nombre detectado.';
+  }
+
+  if (initialValueMode === 'firstValueInColumn') {
+    return `Guardará el primer valor con datos de ${columnLabel}.`;
+  }
+
+  if (initialValueMode === 'lastValueInColumn') {
+    return `Guardará el último valor con datos de ${columnLabel}.`;
+  }
+
+  return 'Creará los rangos sin valor inicial.';
+}
+
+function getManualRangeSummaryColumnLabel(inputColumn?: InputColumn) {
+  return inputColumn?.columnLetter || 'la columna elegida';
 }
 
 export function ManualRangeTableRow({

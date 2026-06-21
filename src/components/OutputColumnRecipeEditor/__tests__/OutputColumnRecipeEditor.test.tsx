@@ -4,7 +4,7 @@ import React from 'react';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
@@ -335,6 +335,147 @@ describe('constructor helpers', () => {
     expect(lastMarkup).toContain('Columna para tomar el valor');
   });
 
+  it('renders a suggested range generator summary for text starts', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialStartRowInput="12"
+        initialEndRowInput="33"
+        initialValueMode="firstValueInColumn"
+        initialValueColumnId="input-name"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('grupos en A entre las filas 12 y 33');
+    expect(markup).toContain('primer valor con datos de D');
+  });
+
+  it('builds a suggested range generator summary with group filters and end adjustment', () => {
+    const summary = buildManualRangeGeneratorSummary({
+      detectionMode: 'textStarts',
+      inputColumn: inputColumns[1],
+      startRowInput: '12',
+      endRowInput: '33',
+      startFilterColumn: inputColumns[0],
+      startFilterOperator: 'isEmpty',
+      validRowsColumn: inputColumns[0],
+      initialValueMode: 'firstValueInColumn',
+      initialValueColumn: inputColumns[1],
+      conditionSummary: 'A no está vacía',
+    });
+
+    expect(summary).toContain('grupos en D entre las filas 12 y 33');
+    expect(summary).toContain('grupos donde A está vacía');
+    expect(summary).toContain('última fila con dato en A');
+    expect(summary).toContain('primer valor con datos de D');
+    expect(summary).toContain('El valor se aplicará sólo a filas donde A no está vacía');
+  });
+
+  it('renders a suggested range generator summary for data blocks', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialDetectionMode="dataBlocks"
+        initialStartRowInput="8"
+        initialEndRowInput="26"
+        initialValueMode="lastValueInColumn"
+        initialValueColumnId="input-name"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('agrupará filas consecutivas con datos en A entre las filas 8 y 26');
+    expect(markup).toContain('Cada fila vacía en A inicia un nuevo bloque');
+    expect(markup).toContain('último valor con datos de D');
+  });
+
+  it('shows a useful warning when no suggested ranges are found', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialDetectionMode="dataBlocks"
+        initialStartRowInput="8"
+        initialEndRowInput="10"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('No se encontraron rangos con esta');
+    expect(markup).toContain('Revis');
+    expect(markup).toContain('manualRangeGeneratorWarnings');
+  });
+
+  it('warns when many suggested ranges have one row', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-code': 'Grupo 1' } },
+      { rowNumber: 9, values: { 'input-code': 'Grupo 2' } },
+      { rowNumber: 10, values: { 'input-code': 'Grupo 3' } },
+      { rowNumber: 11, values: { 'input-code': 'Grupo 4' } },
+    ];
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={rows}
+        initialStartRowInput="8"
+        initialEndRowInput="15"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Muchos rangos sugeridos tienen una sola fila.');
+    expect(markup).toContain('precios o cantidades');
+    expect(markup).not.toContain('disabled="">Agregar rangos sugeridos');
+  });
+
+  it('warns when lookup values are empty without blocking suggested ranges', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-code': 'P-1', 'input-name': 'PINCELES SERIE 304', 'input-price': '' } },
+      { rowNumber: 9, values: { 'input-code': 'P-2', 'input-name': '', 'input-price': '' } },
+      { rowNumber: 14, values: { 'input-code': '', 'input-name': '', 'input-price': '' } },
+      { rowNumber: 15, values: { 'input-code': 'P-3', 'input-name': 'PINCELES SERIE 404', 'input-price': '100' } },
+    ];
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={rows}
+        initialDetectionMode="dataBlocks"
+        initialStartRowInput="8"
+        initialEndRowInput="15"
+        initialValueMode="firstValueInColumn"
+        initialValueColumnId="input-price"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Algunos rangos no encontraron valor');
+    expect(markup).toContain('valor vacío');
+    expect(markup).not.toContain('disabled="">Agregar rangos sugeridos');
+  });
+
+  it('detects group filters that discard all possible groups', () => {
+    expect(getManualRangeGeneratorWarnings({
+      canPreview: true,
+      generatedRanges: [],
+      rangesBeforeStartFilter: [{
+        id: 'range-8-13',
+        startRowNumber: 8,
+        endRowNumber: 13,
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      }],
+      isColumnLookupValueMode: false,
+    })[0]).toContain('El filtro de grupo descartó todos los posibles grupos');
+  });
+
   it('renders a close action when the suggested range generator receives a close handler', () => {
     const markup = renderToStaticMarkup(
       <ManualRangeTextGenerator
@@ -405,7 +546,8 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Columna que marca el bloque');
     expect(markup).toContain('Bloques separados por filas vacías');
-    expect(markup).toContain('Una fila vacía corta el bloque');
+    expect(markup).toContain('Pandora agrupará filas consecutivas con datos en A');
+    expect(markup).toContain('Cada fila vacía en A inicia un nuevo bloque');
     expect(markup).toContain('Ayuda: detectar rangos');
     expect(markup).not.toContain('Configurá cómo detectar rangos y agregalos para revisarlos.');
     expect(markup).not.toContain('Columna con datos');
@@ -415,6 +557,22 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('El grupo llega hasta la última fila con dato en');
     expect(markup).not.toContain('textos encontrados');
     expect(markup).not.toContain('texto detectado');
+  });
+
+  it('mentions the selected data block column in the block help text', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={[inputColumns[2], ...inputColumns.filter((inputColumn) => inputColumn.id !== 'input-pack')]}
+        manualRangeRows={manualRangeRows}
+        initialDetectionMode="dataBlocks"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('agrupará filas consecutivas con datos en F');
+    expect(markup).toContain('Cada fila vacía en F inicia un nuevo bloque');
+    expect(markup.match(/filas consecutivas/g)).toHaveLength(1);
   });
 
   it('shows calculated lookup values in suggested data block examples', () => {
@@ -484,7 +642,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('No se encontraron textos en la zona definida.');
+    expect(markup).toContain('No se encontraron rangos con esta');
+    expect(markup).toContain('manualRangeGeneratorWarnings');
   });
 
   it('shows the data-block empty message when no useful rows are found', () => {
@@ -500,7 +659,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('No se encontraron filas con datos en la columna elegida.');
+    expect(markup).toContain('No se encontraron rangos con esta');
+    expect(markup).toContain('manualRangeGeneratorWarnings');
     expect(markup).not.toContain('No se encontraron textos en la zona definida.');
   });
 
