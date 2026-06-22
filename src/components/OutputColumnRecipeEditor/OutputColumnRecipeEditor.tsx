@@ -597,9 +597,17 @@ export function ManualRangeTextGenerator({
     || trailingRowInput !== defaultTrailingRowInput
     || startFilterColumnId !== 'none'
     || startFilterOperator !== 'isEmpty';
-  const startRowNumber = parseManualRangeRowInput(startRowInput);
-  const endRowNumber = parseManualRangeRowInput(endRowInput);
-  const canPreview = Boolean(inputColumnId && startRowNumber !== undefined && endRowNumber !== undefined && endRowNumber >= startRowNumber);
+  const { startRowNumber, endRowNumber } = resolveManualRangeGeneratorRowBounds(
+    manualRangeRows,
+    startRowInput,
+    endRowInput,
+  );
+  const canPreview = Boolean(
+    inputColumnId
+    && startRowNumber !== undefined
+    && endRowNumber !== undefined
+    && endRowNumber >= startRowNumber,
+  );
   const generateRanges = (preview: boolean) => {
     if (!canPreview) {
       return [];
@@ -1028,11 +1036,10 @@ export function buildManualRangeGeneratorSummary({
   conditionSummary?: string;
 }) {
   const columnLabel = getManualRangeSummaryColumnLabel(inputColumn);
-  const startLabel = startRowInput || '?';
-  const endLabel = endRowInput || '?';
+  const intervalSummary = getManualRangeGeneratorIntervalSummary(startRowInput, endRowInput);
   const parts = detectionMode === 'dataBlocks'
-    ? [`Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, entre las filas ${startLabel} y ${endLabel}.`]
-    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, entre las filas ${startLabel} y ${endLabel}.`];
+    ? [`Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, ${intervalSummary}.`]
+    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalSummary}.`];
 
   if (detectionMode === 'textStarts' && startFilterColumn) {
     parts.push(`Aceptará sólo grupos donde ${getManualRangeSummaryColumnLabel(startFilterColumn)} ${startFilterOperator === 'isEmpty' ? 'está vacía' : 'no está vacía'}.`);
@@ -1053,6 +1060,29 @@ export function buildManualRangeGeneratorSummary({
   }
 
   return parts.join(' ');
+}
+
+export function resolveManualRangeGeneratorRowBounds(
+  rows: InputRow[],
+  startRowInput: string,
+  endRowInput: string,
+) {
+  const availableRowNumbers = rows
+    .map((row) => row.rowNumber)
+    .filter((rowNumber) => Number.isInteger(rowNumber) && rowNumber > 0);
+  const firstAvailableRowNumber = availableRowNumbers.length > 0 ? Math.min(...availableRowNumbers) : undefined;
+  const lastAvailableRowNumber = availableRowNumbers.length > 0 ? Math.max(...availableRowNumbers) : undefined;
+
+  return {
+    startRowNumber: startRowInput.trim() === '' ? firstAvailableRowNumber : parseManualRangeRowInput(startRowInput),
+    endRowNumber: endRowInput.trim() === '' ? lastAvailableRowNumber : parseManualRangeRowInput(endRowInput),
+  };
+}
+
+export function getManualRangeGeneratorIntervalSummary(startRowInput: string, endRowInput: string) {
+  const startSummary = startRowInput.trim() === '' ? 'desde el inicio' : `desde la fila ${startRowInput.trim()}`;
+  const endSummary = endRowInput.trim() === '' ? 'hasta el final' : `hasta la fila ${endRowInput.trim()}`;
+  return `${startSummary} ${endSummary}`;
 }
 
 export function getManualRangeGeneratorWarnings({
