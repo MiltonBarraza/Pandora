@@ -198,6 +198,7 @@ function RangeValueStepsEditor({
   sourceFields,
   hasSourceDetails = false,
   allowConcat = true,
+  showAdditionalStepsHeader = true,
   onChange,
 }: {
   steps: TransformStep[];
@@ -207,6 +208,7 @@ function RangeValueStepsEditor({
   sourceFields?: ReactNode;
   hasSourceDetails?: boolean;
   allowConcat?: boolean;
+  showAdditionalStepsHeader?: boolean;
   onChange: (steps: TransformStep[]) => void;
 }) {
   const safeSteps = steps
@@ -220,9 +222,7 @@ function RangeValueStepsEditor({
 
     onChange(shouldKeepImplicitNoop ? [] : [normalizedStep, ...additionalSteps]);
   };
-  const addStep = () => onChange(safeSteps.length === 0
-    ? [createRangeValueStep(), createRangeValueStep()]
-    : [...safeSteps, createRangeValueStep()]);
+  const addStep = () => onChange(appendRangeValueStep(safeSteps));
   const updateStep = (stepId: string, patch: Partial<TransformStep>) => {
     onChange(safeSteps.map((step) => (step.id === stepId ? normalizeRangeValueStep({ ...step, ...patch }, allowConcat) : step)));
   };
@@ -257,13 +257,19 @@ function RangeValueStepsEditor({
         </div>
       </div>
 
-      <div className="sectionHeader compact rangeValueAdditionalHeader">
-        <div>
-          <strong>Pasos adicionales</strong>
-          <p className="muted">{additionalSteps.length === 0 ? 'Sin pasos adicionales.' : `${additionalSteps.length} configurado${additionalSteps.length === 1 ? '' : 's'}.`}</p>
+      {showAdditionalStepsHeader ? (
+        <div className="sectionHeader compact rangeValueAdditionalHeader">
+          <div>
+            <strong>Pasos adicionales</strong>
+            <p className="muted">{additionalSteps.length === 0 ? 'Sin pasos adicionales.' : `${additionalSteps.length} configurado${additionalSteps.length === 1 ? '' : 's'}.`}</p>
+          </div>
+          <ActionButton action="add" variant="secondary" onClick={addStep}>Agregar paso</ActionButton>
         </div>
-        <ActionButton action="add" variant="secondary" onClick={addStep}>Agregar paso</ActionButton>
-      </div>
+      ) : (
+        <div className="concatPartStepsActions">
+          <ActionButton action="add" variant="secondary" onClick={addStep}>Agregar paso</ActionButton>
+        </div>
+      )}
 
       {additionalSteps.length > 0 ? (
         <div className="concatPartTransformList">
@@ -560,6 +566,7 @@ function RangeValueConcatEditor({
               />
             )}
             allowConcat={false}
+            showAdditionalStepsHeader={false}
             onChange={(steps) => updatePart(selectedPart.id, { steps })}
           />
         </div>
@@ -731,11 +738,16 @@ function normalizeRangeValueStep(step: TransformStep, allowConcat = true): Trans
   return { ...step, mode };
 }
 
-function createDefaultRangeValueConcatParts(): ConcatPart[] {
+export function createDefaultRangeValueConcatParts(): ConcatPart[] {
   return [
     { id: crypto.randomUUID(), source: { type: 'previousResult' } },
-    { id: crypto.randomUUID(), source: { type: 'input', inputColumnId: '' }, separatorBefore: ' ' },
   ];
+}
+
+export function appendRangeValueStep(steps: TransformStep[]): TransformStep[] {
+  return steps.length === 0
+    ? [createRangeValueStep(), createRangeValueStep()]
+    : [...steps, createRangeValueStep()];
 }
 
 function getConcatPartSourceDropdownValue(source: StepSource): RangeValueConcatPartSourceDropdownValue | '' {

@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
-import { buildProcessedRows } from '../../../domain/import/outputModel';
+import { buildInputRows, buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
-import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
+import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
   {
@@ -307,8 +307,12 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('Campos con datos');
-    expect(markup).toContain('Buscar nombres o grupos en');
+    expect(markup).toContain('Criterio para sugerir rangos');
+    expect(markup).toContain('Cada dato inicia un rango');
+    expect(markup).toContain('Buscar inicios de rango en');
+    expect(markup).toContain('Cada celda con dato en la columna elegida inicia un rango. El rango termina antes del próximo dato encontrado.');
+    expect(markup).toContain('placeholder="Inicio"');
+    expect(markup).toContain('placeholder="Fin"');
     expect(markup).toContain('Aceptar como grupo sólo si');
     expect(markup).toContain('El grupo llega hasta la última fila con dato en');
     expect(markup).toContain('Guardar como valor');
@@ -326,8 +330,8 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('no crea rangos nuevos');
     expect(markup).not.toContain('Opciones avanzadas');
     expect(manualRangeDetectionModeOptions).toEqual([
-      { value: 'textStarts', label: 'Campos con datos' },
-      { value: 'dataBlocks', label: 'Bloques separados por filas vacías' },
+      { value: 'textStarts', label: 'Cada dato inicia un rango' },
+      { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
     ]);
   });
 
@@ -372,7 +376,7 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('grupos en A entre las filas 12 y 33');
+    expect(markup).toContain('usará cada dato de A como inicio de un rango, entre las filas 12 y 33');
     expect(markup).toContain('primer valor con datos de D');
   });
 
@@ -390,7 +394,7 @@ describe('constructor helpers', () => {
       conditionSummary: 'A no está vacía',
     });
 
-    expect(summary).toContain('grupos en D entre las filas 12 y 33');
+    expect(summary).toContain('usará cada dato de D como inicio de un rango, entre las filas 12 y 33');
     expect(summary).toContain('grupos donde A está vacía');
     expect(summary).toContain('última fila con dato en A');
     expect(summary).toContain('primer valor con datos de D');
@@ -446,8 +450,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('agrupará filas consecutivas con datos en A entre las filas 8 y 26');
-    expect(markup).toContain('Cada fila vacía en A inicia un nuevo bloque');
+    expect(markup).toContain('creará un rango por cada bloque consecutivo con datos en A, entre las filas 8 y 26');
+    expect(markup).toContain('Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.');
     expect(markup).toContain('Incluira 1 fila posterior al bloque');
     expect(markup).toContain('último valor con datos de D');
   });
@@ -619,9 +623,9 @@ describe('constructor helpers', () => {
     );
 
     expect(markup).toContain('Columna que marca el bloque');
-    expect(markup).toContain('Bloques separados por filas vacías');
-    expect(markup).toContain('Pandora agrupará filas consecutivas con datos en A');
-    expect(markup).toContain('Cada fila vacía en A inicia un nuevo bloque');
+    expect(markup).toContain('Bloques consecutivos con datos');
+    expect(markup).toContain('Pandora creará un rango por cada bloque consecutivo con datos en A, entre las filas');
+    expect(markup).toContain('Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.');
     expect(markup).toContain('Ayuda: detectar rangos');
     expect(markup).not.toContain('Configurá cómo detectar rangos y agregalos para revisarlos.');
     expect(markup).not.toContain('Columna con datos');
@@ -644,9 +648,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('agrupará filas consecutivas con datos en F');
-    expect(markup).toContain('Cada fila vacía en F inicia un nuevo bloque');
-    expect(markup.match(/filas consecutivas/g)).toHaveLength(1);
+    expect(markup).toContain('creará un rango por cada bloque consecutivo con datos en F');
+    expect(markup).toContain('Una fila vacía corta el bloque');
   });
 
   it('shows calculated lookup values in suggested data block examples', () => {
@@ -1237,6 +1240,14 @@ describe('constructor helpers', () => {
     expect(recipeEditorPreviousResultHelpText).toBe('Toma el valor que salió del paso anterior, no de la parte anterior.');
   });
 
+  it('makes the first add-step click visible inside a concat part', () => {
+    const nextSteps = appendConcatPartAdditionalStep([]);
+
+    expect(nextSteps).toHaveLength(2);
+    expect(nextSteps[0]).toMatchObject({ mode: 'text', type: 'noop' });
+    expect(nextSteps[1]).toMatchObject({ mode: 'text', type: 'noop' });
+  });
+
   it('shows previous result help only when previous result is selected', () => {
     expect(shouldShowPreviousResultSourceHelp({ type: 'previousResult' })).toBe(true);
     expect(shouldShowPreviousResultSourceHelp({ type: 'input', inputColumnId: 'input-code' })).toBe(false);
@@ -1631,6 +1642,21 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Buscar textos en');
     expect(markup).not.toContain('Texto encontrado</span>');
     expect(markup).not.toMatch(/<span id="[^"]+">Fuente<\/span>/);
+    expect(markup.match(/Pasos adicionales/g)).toHaveLength(1);
+  });
+
+  it('starts range concat with one clear previous-result part', () => {
+    expect(createDefaultRangeValueConcatParts()).toEqual([
+      expect.objectContaining({ source: { type: 'previousResult' } }),
+    ]);
+  });
+
+  it('makes the first add-step click visible inside range concat', () => {
+    const nextSteps = appendRangeValueStep([]);
+
+    expect(nextSteps).toHaveLength(2);
+    expect(nextSteps[0]).toMatchObject({ mode: 'text', type: 'noop' });
+    expect(nextSteps[1]).toMatchObject({ mode: 'text', type: 'noop' });
   });
 
   it('builds concat part source options for range values without the old source field label', () => {
@@ -2756,6 +2782,33 @@ describe('constructor helpers', () => {
       'RODILLO SIMIL LANA',
       'RODILLO ANTIGOTA',
     ]);
+  });
+
+  it('keeps selected Excel column identity when hidden or empty columns exist before it', () => {
+    const rawRow = Array.from({ length: 12 }, () => '');
+    rawRow[0] = 'AEROSOLES';
+    rawRow[11] = '9058.23';
+    const columns: InputColumn[] = [
+      { ...inputColumns[0], id: 'input-0', columnIndex: 0, columnLetter: 'A' },
+      { ...inputColumns[1], id: 'input-11', columnIndex: 11, columnLetter: 'L', active: true },
+    ];
+    const rows = buildInputRows([rawRow], columns, 0, [{ internalRowIndex: 0, excelRowNumber: 12 }]);
+
+    expect(rows[0]).toEqual({
+      rowNumber: 12,
+      values: { 'input-0': 'AEROSOLES', 'input-11': '9058.23' },
+    });
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-11',
+      startRowNumber: 1,
+      endRowNumber: 200,
+      mode: 'singleRow',
+      idFactory: () => 'range-l',
+    })[0]).toMatchObject({
+      id: 'range-l',
+      startRowNumber: 12,
+      suggestedFromText: '9058.23',
+    });
   });
 
   it('builds manual range text options from real row numbers', () => {

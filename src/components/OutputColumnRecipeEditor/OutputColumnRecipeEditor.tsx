@@ -61,8 +61,8 @@ const manualRangeStartFilterOperatorOptions: Array<{ value: ManualRangeStartFilt
 ];
 
 export const manualRangeDetectionModeOptions: Array<{ value: ManualRangeDetectionMode; label: string }> = [
-  { value: 'textStarts', label: 'Campos con datos' },
-  { value: 'dataBlocks', label: 'Bloques separados por filas vacías' },
+  { value: 'textStarts', label: 'Cada dato inicia un rango' },
+  { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
 ];
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
@@ -752,12 +752,12 @@ export function ManualRangeTextGenerator({
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-detection">
           <Dropdown
             className="compact"
-            label={detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar nombres o grupos en'}
+            label={detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar inicios de rango en'}
             labelInfo={(
               <InfoTooltip
                 content={detectionMode === 'dataBlocks'
                   ? 'Elegí una columna que tenga datos en las filas que forman cada bloque. Una fila vacía corta el bloque.'
-                  : 'Elegí la columna donde aparecen los nombres que identifican cada grupo o rango.'}
+                  : 'Elegí la columna donde cada celda con dato marca el inicio de un rango.'}
               />
             )}
             value={inputColumnId}
@@ -772,7 +772,7 @@ export function ManualRangeTextGenerator({
             <input
               type="number"
               min="1"
-              placeholder="42"
+              placeholder="Inicio"
               value={startRowInput}
               onChange={(event) => setStartRowInput(event.target.value)}
             />
@@ -782,14 +782,14 @@ export function ManualRangeTextGenerator({
             <input
               type="number"
               min="1"
-              placeholder="50"
+              placeholder="Fin"
               value={endRowInput}
               onChange={(event) => setEndRowInput(event.target.value)}
             />
           </label>
           <Dropdown
             className="compact"
-            label="Detectar"
+            label="Criterio para sugerir rangos"
             labelInfo={(
               <InfoTooltip
                 ariaLabel="Ayuda: detectar rangos"
@@ -802,6 +802,11 @@ export function ManualRangeTextGenerator({
             onChange={setDetectionMode}
           />
         </div>
+        <p className="manualRangeValueHelp manualRangeDetectionHelp">
+          {detectionMode === 'dataBlocks'
+            ? 'Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.'
+            : 'Cada celda con dato en la columna elegida inicia un rango. El rango termina antes del próximo dato encontrado.'}
+        </p>
         {detectionMode === 'textStarts' ? (
           <>
             <div className="manualRangeGeneratorRow manualRangeGeneratorRow-filters">
@@ -1026,8 +1031,8 @@ export function buildManualRangeGeneratorSummary({
   const startLabel = startRowInput || '?';
   const endLabel = endRowInput || '?';
   const parts = detectionMode === 'dataBlocks'
-    ? [`Pandora agrupará filas consecutivas con datos en ${columnLabel} entre las filas ${startLabel} y ${endLabel}. Cada fila vacía en ${columnLabel} inicia un nuevo bloque.`]
-    : [`Pandora buscará grupos en ${columnLabel} entre las filas ${startLabel} y ${endLabel}.`];
+    ? [`Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, entre las filas ${startLabel} y ${endLabel}.`]
+    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, entre las filas ${startLabel} y ${endLabel}.`];
 
   if (detectionMode === 'textStarts' && startFilterColumn) {
     parts.push(`Aceptará sólo grupos donde ${getManualRangeSummaryColumnLabel(startFilterColumn)} ${startFilterOperator === 'isEmpty' ? 'está vacía' : 'no está vacía'}.`);
@@ -2917,7 +2922,7 @@ function ConcatPartStepsEditor({
     onBaseSourceChange(source, primaryStep.source ? clearPrimaryStepSource(steps) : undefined);
   };
   const addAdditionalStep = () => {
-    onChange([...steps, createNoopStep('text')]);
+    onChange(appendConcatPartAdditionalStep(steps));
   };
   const updateAdditionalStep = (stepId: string, patch: Partial<TransformStep>) => {
     onChange([
@@ -3810,6 +3815,13 @@ export function getVisibleConcatPartPrimaryStep(steps: TransformStep[]) {
 export function updateConcatPartPrimaryStep(steps: TransformStep[], patch: Partial<TransformStep>) {
   const primaryStep = getVisibleConcatPartPrimaryStep(steps);
   return [{ ...primaryStep, ...patch }, ...steps.slice(1)];
+}
+
+export function appendConcatPartAdditionalStep(steps: TransformStep[]): TransformStep[] {
+  const nextStep = createNoopStep('text');
+  return steps.length === 0
+    ? [getVisibleConcatPartPrimaryStep(steps), nextStep]
+    : [...steps, nextStep];
 }
 
 export function createDefaultConcatPart(index: number, preferPreviousResult = false): ConcatPart {
