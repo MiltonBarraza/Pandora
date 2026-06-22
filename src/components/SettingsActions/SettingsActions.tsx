@@ -23,8 +23,6 @@ type SettingsActionsProps = {
   rows: RawRow[];
   headerRowIndex: number | null;
   startRowIndex: number;
-  showRawPreviewFromDataStart: boolean;
-  showAllRawPreviewColumns: boolean;
   columnAnalysis: ColumnAnalysis[];
   inputColumnAliases: Record<string, string>;
   inputIgnoreRules: IgnoreRule[];
@@ -55,8 +53,6 @@ export function SettingsActions({
   rows,
   headerRowIndex,
   startRowIndex,
-  showRawPreviewFromDataStart,
-  showAllRawPreviewColumns,
   columnAnalysis,
   inputColumnAliases,
   inputIgnoreRules,

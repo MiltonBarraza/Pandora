@@ -311,8 +311,10 @@ export type ColumnAnalysis = {
   isEmpty: boolean;
   ignored: boolean;
   ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
   autoIgnored: boolean;
   autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
 };
 
 export type ColumnDetectionOptions = {
@@ -336,6 +338,7 @@ export type ExportedImportSettings = {
     headerRowIndex: number | null;
     startRowIndex: number;
     showRawPreviewFromDataStart?: boolean;
+    /** Legacy raw-preview toggle kept only so older settings files still parse. */
     showAllRawPreviewColumns?: boolean;
     columnVisibility: SavedInputColumnConfig[];
     inputColumnAliases: Record<string, string>;
@@ -364,6 +367,9 @@ export type SourceColumnSnapshot = {
   alias?: string;
   active: boolean;
   ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
+  autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
   sampleValues: string[];
   nonEmptyCount: number;
   fingerprint: string;
@@ -377,6 +383,9 @@ export type SavedInputColumnConfig = {
   alias?: string;
   active: boolean;
   ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
+  autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
 };
 
 export type SettingsCompatibilityStatus = 'compatible' | 'warning' | 'needsRemap' | 'blocked';
@@ -480,6 +489,7 @@ export type ImportedSettingsApplyPayload = {
   headerRowIndex: number | null;
   startRowIndex: number;
   showRawPreviewFromDataStart?: boolean;
+  /** Legacy raw-preview toggle kept only so older settings files still parse. */
   showAllRawPreviewColumns?: boolean;
   inputColumnAliases: Record<string, string>;
   columnVisibility: SavedInputColumnConfig[];

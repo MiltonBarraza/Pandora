@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyActiveColumnVisualOrder,
   getExcelRowNumberForInternalIndex,
+  getHeaderRowOptions,
+  getInternalDataStartIndexForExcelRowNumber,
   getInternalIndexForExcelRowNumber,
+  getRawPreviewRows,
   getRawPreviewRowNumbers,
+  getRowConfigurationError,
+  getStartRowInputValidationError,
+  headerRowOptionsHelpText,
   shouldProtectWizardState,
 } from '../ImportWizard';
 
@@ -71,11 +78,21 @@ describe('ImportWizard raw preview row numbers', () => {
   });
 
   it('keeps real Excel row numbers when preview starts from data start', () => {
-    expect(getRawPreviewRowNumbers(rowMetadata, 1, true)).toEqual([10, 11]);
+    expect(getRawPreviewRowNumbers(rowMetadata, 10, true)).toEqual([10, 11]);
+  });
+
+  it('keeps a valid empty Excel row as the preview start', () => {
+    expect(getRawPreviewRowNumbers(rowMetadata, 9, true)).toEqual([9, 10, 11]);
+    expect(getRawPreviewRows([['A8'], ['A10'], ['A11']], rowMetadata, 9, true)).toEqual([
+      [],
+      ['A10'],
+      ['A11'],
+    ]);
   });
 
   it('keeps CSV fallback behavior when metadata is absent', () => {
-    expect(getRawPreviewRowNumbers([], 1, true)).toBeUndefined();
+    expect(getRawPreviewRowNumbers([], 2, true)).toBeUndefined();
+    expect(getRawPreviewRows([['A1'], ['A2'], ['A3']], [], 2, true)).toEqual([['A2'], ['A3']]);
   });
 });
 
@@ -100,8 +117,95 @@ describe('ImportWizard row number mapping', () => {
     expect(getInternalIndexForExcelRowNumber(rowMetadata, 9)).toBe(1);
   });
 
+  it('keeps data start on a valid empty Excel row without normalizing the visible value', () => {
+    expect(getInternalDataStartIndexForExcelRowNumber(rowMetadata, 9)).toBe(1);
+  });
+
   it('keeps previous index-based behavior without metadata', () => {
     expect(getExcelRowNumberForInternalIndex([], 5)).toBe(6);
     expect(getInternalIndexForExcelRowNumber([], 6)).toBe(5);
+    expect(getInternalDataStartIndexForExcelRowNumber([], 6)).toBe(5);
   });
 });
+
+describe('ImportWizard row configuration validation', () => {
+  const rowMetadata = [
+    { internalRowIndex: 0, excelRowNumber: 3 },
+    { internalRowIndex: 1, excelRowNumber: 7 },
+  ];
+
+  it('requires the header row to be before the first data row', () => {
+    expect(getRowConfigurationError(0, rowMetadata, 4)).toBe('');
+    expect(getRowConfigurationError(1, rowMetadata, 7)).toBe('La fila de encabezados debe estar antes de la primera fila de datos.');
+    expect(getRowConfigurationError(1, rowMetadata, 6)).toBe('La fila de encabezados debe estar antes de la primera fila de datos.');
+  });
+
+  it('keeps the row configuration error visible text stable', () => {
+    expect(getRowConfigurationError(0, [], 1)).toBe('La fila de encabezados debe estar antes de la primera fila de datos.');
+  });
+
+  it('validates start row input without replacing invalid values', () => {
+    expect(getStartRowInputValidationError('5')).toBe('');
+    expect(getStartRowInputValidationError('')).toBe('Ingresá una primera fila de datos.');
+    expect(getStartRowInputValidationError('0')).toBe('Usá un número entero mayor o igual a 1.');
+    expect(getStartRowInputValidationError('1.5')).toBe('Usá un número entero mayor o igual a 1.');
+  });
+});
+
+describe('ImportWizard header row options', () => {
+  it('lists only content rows from spreadsheet metadata and documents that behavior', () => {
+    expect(getHeaderRowOptions([
+      { internalRowIndex: 0, excelRowNumber: 1 },
+      { internalRowIndex: 1, excelRowNumber: 6 },
+    ], 6)).toEqual([
+      { value: 'none', label: 'Sin encabezados' },
+      { value: '1', label: 'Fila 1' },
+      { value: '6', label: 'Fila 6' },
+    ]);
+    expect(headerRowOptionsHelpText).toContain('Solo se muestran filas con contenido.');
+  });
+
+  it('keeps every row option for CSV rows without spreadsheet metadata', () => {
+    expect(getHeaderRowOptions([], 3)).toEqual([
+      { value: 'none', label: 'Sin encabezados' },
+      { value: '1', label: 'Fila 1' },
+      { value: '2', label: 'Fila 2' },
+      { value: '3', label: 'Fila 3' },
+    ]);
+  });
+});
+
+describe('ImportWizard active column visual order', () => {
+  it('orders active input columns for output generation using the visual order', () => {
+    const inputColumns = [
+      inputColumn(0, true),
+      inputColumn(1, true),
+      inputColumn(2, false),
+      inputColumn(3, true),
+    ];
+
+    expect(applyActiveColumnVisualOrder(inputColumns, [3, 0]).map((column) => column.columnIndex)).toEqual([3, 0, 1, 2]);
+  });
+
+  it('keeps original column order when no visual order was set', () => {
+    const inputColumns = [
+      inputColumn(0, true),
+      inputColumn(1, true),
+      inputColumn(2, false),
+    ];
+
+    expect(applyActiveColumnVisualOrder(inputColumns, []).map((column) => column.columnIndex)).toEqual([0, 1, 2]);
+  });
+});
+
+function inputColumn(columnIndex: number, active: boolean) {
+  return {
+    id: `input-${columnIndex}`,
+    columnIndex,
+    columnLetter: String.fromCharCode(65 + columnIndex),
+    label: String.fromCharCode(65 + columnIndex),
+    active,
+    sampleValues: [],
+    nonEmptyCount: 0,
+  };
+}
