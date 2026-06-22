@@ -111,10 +111,7 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
       )}
 
       <div className="filenamePreview">
-        <strong className="headingWithInfo">
-          <span>Nombre final</span>
-          <InfoTooltip content="Asi se llamara el archivo al descargarlo." />
-        </strong>
+        <strong>Nombre final</strong>
         <span>{outputName}</span>
         <small>Formatos disponibles: .xlsx y .csv</small>
         <small>Auditoría: {auditName}.xlsx</small>

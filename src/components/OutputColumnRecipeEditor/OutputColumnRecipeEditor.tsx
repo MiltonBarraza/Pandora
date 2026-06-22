@@ -10,6 +10,7 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -468,15 +469,21 @@ function ManualRangeRecipeEditor({
           <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe))}>
             Agregar rango
           </ActionButton>
-          <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
-            Ordenar por inicio
-          </button>
-          <button type="button" className="secondary" disabled={recipe.ranges.length === 0} onClick={() => setIsClearRangesConfirmationOpen(true)}>
-            Borrar rangos
-          </button>
-          <button type="button" className="secondary" onClick={() => setShowGenerator(true)}>
-            Generar rangos sugeridos
-          </button>
+          <InfoTooltip content="Ordena los rangos por la fila de inicio.">
+            <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
+              Ordenar por inicio
+            </button>
+          </InfoTooltip>
+          <InfoTooltip content="Elimina todos los rangos configurados.">
+            <button type="button" className="secondary" disabled={recipe.ranges.length === 0} onClick={() => setIsClearRangesConfirmationOpen(true)}>
+              Borrar rangos
+            </button>
+          </InfoTooltip>
+          <InfoTooltip content="Genera rangos automáticamente según los datos detectados.">
+            <button type="button" className="secondary" onClick={() => setShowGenerator(true)}>
+              Generar rangos sugeridos
+            </button>
+          </InfoTooltip>
         </div>
       </div>
       {showGenerator ? (
@@ -1201,18 +1208,30 @@ export function ManualRangeTableRow({
         <div className="manualRangeActionsField">
           <span>Acciones</span>
           <div className="manualRangeRowActions">
-            <button type="button" className="secondary sm" onClick={() => setShowRowsPreview((isOpen) => !isOpen)}>
-              {showRowsPreview ? 'Ocultar filas' : 'Ver filas'}
-            </button>
-            <ActionButton
-              action="duplicate"
-              variant="secondary"
-              size="sm"
-              title="Duplicar rango"
-              aria-label="Duplicar rango"
-              onClick={() => onChange(duplicateManualRangeValue(recipe, range.id))}
-            />
-            <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
+            <InfoTooltip content="Ver filas">
+              <button
+                type="button"
+                className="secondary sm manualRangeIconAction"
+                aria-label={showRowsPreview ? 'Ocultar filas' : 'Ver filas'}
+                title="Ver filas"
+                onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
+              >
+                <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
+              </button>
+            </InfoTooltip>
+            <InfoTooltip content="Duplicar rango">
+              <ActionButton
+                action="duplicate"
+                variant="secondary"
+                size="sm"
+                title="Duplicar rango"
+                aria-label="Duplicar rango"
+                onClick={() => onChange(duplicateManualRangeValue(recipe, range.id))}
+              />
+            </InfoTooltip>
+            <InfoTooltip content="Eliminar rango">
+              <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
+            </InfoTooltip>
           </div>
         </div>
       </div>
@@ -1946,7 +1965,7 @@ function StepBlocksEditor({
       )}
       <div className="stepsBlockActions">
         <InfoTooltip content="Agrega una transformacion nueva al valor.">
-          <button type="button" className="secondary constructorAddStepButton" onClick={addStep}>Agregar paso</button>
+          <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
         </InfoTooltip>
       </div>
     </div>
@@ -2093,7 +2112,7 @@ function StepsWorkspace({
               <InfoTooltip content="Cada paso transforma el resultado anterior." />
             </strong>
             <InfoTooltip content="Agrega una transformacion nueva al valor.">
-              <button type="button" className="secondary constructorAddStepButton" onClick={addStep}>Agregar paso</button>
+              <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
             </InfoTooltip>
           </div>
           {steps.length === 0 ? (

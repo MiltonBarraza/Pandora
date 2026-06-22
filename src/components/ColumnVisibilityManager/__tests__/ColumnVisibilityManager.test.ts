@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import type { ColumnAnalysis, IgnoredReason } from '../../../types/import';
 import {
+  ColumnVisibilityManager,
   activateAllColumns,
   clearColumnSearchValue,
   containsEveryNumber,
@@ -28,6 +31,7 @@ import {
   restoreAutomaticColumnDetection,
   sameNumberSet,
   shouldRenderColumnDetailPanel,
+  shouldShowColumnDataCount,
   syncActiveColumnOrder,
   toggleColumnsByAutomaticReasons,
 } from '../ColumnVisibilityManager';
@@ -50,6 +54,12 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(getColumnAutomaticReasons(column)).toEqual(['hidden', 'empty']);
     expect(getColumnCurrentIgnoredReasons(column)).toEqual(['hidden', 'empty']);
     expect(getColumnVisibleReasonLabels(column)).toEqual(['Oculta', 'Sin datos']);
+  });
+
+  it('hides the zero data count when the empty reason is already visible', () => {
+    expect(shouldShowColumnDataCount({ nonEmptyCount: 0 }, ['Sin datos'])).toBe(false);
+    expect(shouldShowColumnDataCount({ nonEmptyCount: 4 }, ['Sin datos'])).toBe(true);
+    expect(shouldShowColumnDataCount({ nonEmptyCount: 0 }, ['Oculta'])).toBe(true);
   });
 
   it('activates all columns idempotently', () => {
@@ -450,6 +460,34 @@ describe('ColumnVisibilityManager quick actions', () => {
 
     expect(getColumnExamples(column)).toEqual(['A-1', 'B-2', 'C-3', 'D-4', 'E-5', 'F-6', 'G-7', 'H-8', 'I-9', 'J-10']);
     expect(getColumnExamplesTooltipContent(column)).toBe('A-1\nB-2\nC-3\nD-4\nE-5\nF-6\nG-7\nH-8\nI-9\nJ-10');
+  });
+
+  it('renders active column actions as accessible icon buttons', () => {
+    const originalDocument = globalThis.document;
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: { body: {} },
+    });
+
+    let markup = '';
+    try {
+      markup = renderToStaticMarkup(createElement(ColumnVisibilityManager, {
+        columns: [createColumn(0, undefined, { sampleValues: ['A-1'], nonEmptyCount: 1 })],
+        onChange: () => undefined,
+      }));
+    } finally {
+      Object.defineProperty(globalThis, 'document', {
+        configurable: true,
+        value: originalDocument,
+      });
+    }
+
+    expect(markup).toContain('aria-label="Ver ejemplos"');
+    expect(markup).toContain('title="Ver ejemplos"');
+    expect(markup).toContain('aria-label="Quitar columna A"');
+    expect(markup).toContain('columnTransferIconAction');
+    expect(markup).not.toContain('>Ver ejemplos</button>');
+    expect(markup).not.toContain('>Quitar</button>');
   });
 
   it('shows an empty examples message when active column has no samples', () => {

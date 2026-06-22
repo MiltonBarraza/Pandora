@@ -14,6 +14,7 @@ import {
   type ReactElement,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { AppIcon } from '../AppIcon/AppIcon';
 import './InfoTooltip.css';
 
 type InfoTooltipPlacement = 'top' | 'right' | 'bottom' | 'left';
@@ -338,22 +339,13 @@ export function isFocusVisible(element: HTMLElement) {
 
 function InfoTooltipIcon() {
   return (
-    <svg
+    <AppIcon
+      name="info"
       aria-hidden="true"
       className="infoTooltipIcon"
       focusable="false"
-      fill="none"
-      height="15"
-      viewBox="0 0 24 24"
-      width="15"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2.2"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v5" />
-      <path d="M12 8h.01" />
-    </svg>
+      size={15}
+      strokeWidth={2.2}
+    />
   );
 }

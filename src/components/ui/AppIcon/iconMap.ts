@@ -1,0 +1,40 @@
+import {
+  Check,
+  CircleMinus,
+  CirclePlus,
+  CircleX,
+  FileDown,
+  FileSpreadsheet,
+  FileUp,
+  Eye,
+  Files,
+  Info,
+  Save,
+  Settings,
+  SquarePen,
+  Trash2,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react';
+
+export const appIconMap = {
+  add: CirclePlus,
+  clear: CircleMinus,
+  close: CircleX,
+  configure: Settings,
+  delete: Trash2,
+  done: Check,
+  download: FileDown,
+  duplicate: Files,
+  eye: Eye,
+  edit: SquarePen,
+  error: CircleX,
+  export: FileDown,
+  import: FileSpreadsheet,
+  info: Info,
+  save: Save,
+  upload: FileUp,
+  warning: TriangleAlert,
+} satisfies Record<string, LucideIcon>;
+
+export type AppIconName = keyof typeof appIconMap;
