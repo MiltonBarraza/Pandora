@@ -236,6 +236,10 @@ export function getColumnVisibleReasonLabels(column: ColumnAnalysis) {
     .map((reason) => getColumnReasonLabel(reason)));
 }
 
+export function shouldShowColumnDataCount(column: Pick<ColumnAnalysis, 'nonEmptyCount'>, visibleReasonLabels: string[]) {
+  return column.nonEmptyCount > 0 || !visibleReasonLabels.includes('Sin datos');
+}
+
 type ColumnTransferPanelProps = {
   title: string;
   count: number;
@@ -355,7 +359,7 @@ function ColumnTransferItem({
           {reasonLabels.map((reasonLabel) => (
             <span key={reasonLabel} className="columnReasonChip">{reasonLabel}</span>
           ))}
-          <span>{column.nonEmptyCount} datos</span>
+          {shouldShowColumnDataCount(column, reasonLabels) ? <span>{column.nonEmptyCount} datos</span> : null}
         </div>
       </button>
       {showAliasInput ? (

@@ -31,6 +31,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
   const activeInputColumns = inputColumns.filter((column) => column.active);
   const activeOutputColumns = [...outputColumns].filter((column) => column.enabled).sort((a, b) => a.order - b.order);
   const activeColumns = mode === 'input' ? activeInputColumns : activeOutputColumns;
+  const summaryText = getIgnoreRulesSummaryText(rules);
 
   const addRule = () => {
     onChange([
@@ -53,9 +54,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
     <div className="rules">
       <div className="managerSummaryRow">
         <p className="muted">
-          {rules.length === 0
-            ? 'No hay reglas de ignorado configuradas.'
-            : `${rules.length} ${rules.length === 1 ? 'regla configurada' : 'reglas configuradas'}.`}
+          {summaryText}
         </p>
         <div className="rulesActions">
           <InfoTooltip content="Agregá una nueva regla para excluir filas.">
@@ -66,7 +65,6 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
       {rules.map((rule) => {
         const needsValue = ignoreRuleNeedsValue(rule.operator);
-        const isComplete = isIgnoreRuleComplete(rule);
         const target = mode;
         const columns = activeColumns;
 
@@ -117,10 +115,20 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
             </div>
             <DeleteButton onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
-            {!isComplete ? <p className="muted ruleIncompleteHint">Completá la regla para aplicarla.</p> : null}
           </div>
         );
       })}
     </div>
   );
+}
+
+export function getIgnoreRulesSummaryText(rules: IgnoreRule[]) {
+  if (rules.length === 0) {
+    return 'No hay reglas de ignorado configuradas.';
+  }
+
+  const ruleCountText = `${rules.length} ${rules.length === 1 ? 'regla configurada' : 'reglas configuradas'}.`;
+  return rules.some((rule) => !isIgnoreRuleComplete(rule))
+    ? `${ruleCountText} Completá las reglas pendientes para aplicarlas.`
+    : ruleCountText;
 }

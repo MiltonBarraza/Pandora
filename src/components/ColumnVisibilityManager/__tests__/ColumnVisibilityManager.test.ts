@@ -28,6 +28,7 @@ import {
   restoreAutomaticColumnDetection,
   sameNumberSet,
   shouldRenderColumnDetailPanel,
+  shouldShowColumnDataCount,
   syncActiveColumnOrder,
   toggleColumnsByAutomaticReasons,
 } from '../ColumnVisibilityManager';
@@ -50,6 +51,12 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(getColumnAutomaticReasons(column)).toEqual(['hidden', 'empty']);
     expect(getColumnCurrentIgnoredReasons(column)).toEqual(['hidden', 'empty']);
     expect(getColumnVisibleReasonLabels(column)).toEqual(['Oculta', 'Sin datos']);
+  });
+
+  it('hides the zero data count when the empty reason is already visible', () => {
+    expect(shouldShowColumnDataCount({ nonEmptyCount: 0 }, ['Sin datos'])).toBe(false);
+    expect(shouldShowColumnDataCount({ nonEmptyCount: 4 }, ['Sin datos'])).toBe(true);
+    expect(shouldShowColumnDataCount({ nonEmptyCount: 0 }, ['Oculta'])).toBe(true);
   });
 
   it('activates all columns idempotently', () => {
