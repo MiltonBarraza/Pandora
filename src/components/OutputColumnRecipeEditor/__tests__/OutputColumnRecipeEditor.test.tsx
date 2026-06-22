@@ -318,7 +318,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Condición de grupo');
     expect(markup).not.toContain('Sin ajuste');
     expect(markup).not.toContain('Sin filtro');
-    expect(markup).toContain('Incluir filas posteriores');
+    expect(markup).not.toContain('Incluir filas posteriores');
     expect(markup).toContain('Guardar como valor');
     expect(markup).toContain('Ayuda: generar rangos sugeridos');
     expect(markup).toContain('Ayuda: detectar rangos');
@@ -497,7 +497,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('9-9: Último');
   });
 
-  it('renders trailing rows controls for text-based suggested ranges', () => {
+  it('hides trailing rows controls and ignores legacy trailing values for text starts', () => {
     const markup = renderToStaticMarkup(
       <ManualRangeTextGenerator
         recipe={createManualRangeRecipe()}
@@ -508,26 +508,34 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('Incluir filas posteriores');
-    expect(markup).toContain('Ayuda: incluir filas posteriores');
-    expect(markup).toContain('value="1"');
-    expect(markup).toContain('Incluira 1 fila posterior al bloque');
+    expect(markup).not.toContain('Incluir filas posteriores');
+    expect(markup).not.toContain('Ayuda: incluir filas posteriores');
+    expect(markup).not.toContain('Incluira 1 fila posterior al bloque');
+    expect(markup).not.toContain('El rango incluira filas posteriores');
   });
 
-  it('renders trailing rows controls for data block suggested ranges', () => {
+  it('generates data blocks with trailing rows fixed at zero', () => {
     const markup = renderToStaticMarkup(
       <ManualRangeTextGenerator
         recipe={createManualRangeRecipe()}
         inputColumns={inputColumns}
-        manualRangeRows={manualRangeRows}
+        manualRangeRows={[
+          { rowNumber: 8, values: { 'input-code': 'Bloque A' } },
+          { rowNumber: 9, values: { 'input-code': '' } },
+          { rowNumber: 10, values: { 'input-code': '' } },
+          { rowNumber: 11, values: { 'input-code': 'Bloque B' } },
+        ]}
         initialDetectionMode="dataBlocks"
         initialTrailingRowCount={1}
         onChange={() => undefined}
       />,
     );
 
-    expect(markup).toContain('Incluir filas posteriores');
-    expect(markup).toContain('Incluira 1 fila posterior al bloque');
+    expect(markup).not.toContain('Incluir filas posteriores');
+    expect(markup).not.toContain('Incluira 1 fila posterior al bloque');
+    expect(markup).toContain('8-8');
+    expect(markup).not.toContain('8-9');
+    expect(markup).toContain('11-11');
   });
 
   it('renders a suggested range generator summary for data blocks', () => {
@@ -548,7 +556,7 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('creará un rango por cada bloque consecutivo con datos en A, desde la fila 8 hasta la fila 26');
     expect(markup).toContain('Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.');
-    expect(markup).toContain('Incluira 1 fila posterior al bloque');
+    expect(markup).not.toContain('Incluira 1 fila posterior al bloque');
     expect(markup).toContain('último valor con datos de D');
   });
 

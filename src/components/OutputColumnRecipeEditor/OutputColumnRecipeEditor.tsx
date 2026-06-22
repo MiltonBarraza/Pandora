@@ -27,8 +27,6 @@ type OutputColumnRecipeEditorProps = {
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
 type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 export type ManualRangeDetectionMode = 'textStarts' | 'dataBlocks';
-const manualRangeTrailingRowMin = 0;
-const manualRangeTrailingRowMax = 10;
 export const manualRangeUsageHelpText = 'Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada.';
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
@@ -546,7 +544,7 @@ export function ManualRangeTextGenerator({
   initialEndRowInput = '',
   initialValueMode: initialGeneratorValueMode = 'empty',
   initialValueColumnId: initialGeneratorValueColumnId,
-  initialTrailingRowCount = 0,
+  initialTrailingRowCount: _initialTrailingRowCount = 0,
   onClose,
   onChange,
 }: {
@@ -564,7 +562,6 @@ export function ManualRangeTextGenerator({
 }) {
   const defaultInputColumnId = inputColumns[0]?.id ?? '';
   const defaultInitialValueColumnId = initialGeneratorValueColumnId ?? defaultInputColumnId;
-  const defaultTrailingRowInput = String(clampManualRangeTrailingRowCount(initialTrailingRowCount));
   const [inputColumnId, setInputColumnId] = useState(defaultInputColumnId);
   const [startRowInput, setStartRowInput] = useState(initialStartRowInput);
   const [endRowInput, setEndRowInput] = useState(initialEndRowInput);
@@ -572,13 +569,12 @@ export function ManualRangeTextGenerator({
   const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>(initialGeneratorValueMode);
   const [initialValueColumnId, setInitialValueColumnId] = useState(defaultInitialValueColumnId);
   const [validRowsColumnId, setValidRowsColumnId] = useState('none');
-  const [trailingRowInput, setTrailingRowInput] = useState(defaultTrailingRowInput);
   const [startFilterColumnId, setStartFilterColumnId] = useState('none');
   const [startFilterOperator, setStartFilterOperator] = useState<ManualRangeStartFilter['operator']>('isEmpty');
   const [isClearGeneratorConfirmationOpen, setIsClearGeneratorConfirmationOpen] = useState(false);
   const shouldShowInitialValueColumn = initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn';
   const effectiveValidRowsColumnId = validRowsColumnId === 'none' ? undefined : validRowsColumnId;
-  const trailingRowCount = clampManualRangeTrailingRowCount(parseOptionalNumberInput(trailingRowInput) ?? 0);
+  const trailingRowCount = 0;
   const startFilter = startFilterColumnId === 'none'
     ? undefined
     : { inputColumnId: startFilterColumnId, operator: startFilterOperator };
@@ -589,7 +585,6 @@ export function ManualRangeTextGenerator({
     || initialValueMode !== initialGeneratorValueMode
     || initialValueColumnId !== defaultInitialValueColumnId
     || validRowsColumnId !== 'none'
-    || trailingRowInput !== defaultTrailingRowInput
     || startFilterColumnId !== 'none'
     || startFilterOperator !== 'isEmpty';
   const { startRowNumber, endRowNumber } = resolveManualRangeGeneratorRowBounds(
@@ -707,7 +702,6 @@ export function ManualRangeTextGenerator({
     setInitialValueMode(initialGeneratorValueMode);
     setInitialValueColumnId(defaultInitialValueColumnId);
     setValidRowsColumnId('none');
-    setTrailingRowInput(defaultTrailingRowInput);
     setStartFilterColumnId('none');
     setStartFilterOperator('isEmpty');
     setIsClearGeneratorConfirmationOpen(false);
@@ -810,30 +804,6 @@ export function ManualRangeTextGenerator({
             ? 'Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.'
             : 'Cada celda con dato en la columna elegida inicia un rango. El rango termina antes del próximo dato encontrado.'}
         </p>
-        <div className="manualRangeGeneratorRow manualRangeGeneratorRow-trailing">
-          <label className="field compact">
-            <span className="labelWithInfo">
-              <span>Incluir filas posteriores</span>
-              <InfoTooltip
-                ariaLabel="Ayuda: incluir filas posteriores"
-                content="Suma filas despues de la ultima fila detectada, sin pasar el proximo grupo ni el limite final."
-              />
-            </span>
-            <input
-              type="number"
-              min={manualRangeTrailingRowMin}
-              max={manualRangeTrailingRowMax}
-              value={trailingRowInput}
-              onChange={(event) => setTrailingRowInput(normalizeNumberInputWhileTyping(trailingRowInput, event.target.value))}
-              onBlur={() => setTrailingRowInput(String(normalizeNumberInputOnBlur(trailingRowInput, {
-                fallback: 0,
-                min: manualRangeTrailingRowMin,
-                max: manualRangeTrailingRowMax,
-                integer: true,
-              })))}
-            />
-          </label>
-        </div>
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-value">
           <Dropdown<ManualRangeInitialValueMode>
             className="compact"
@@ -1046,14 +1016,6 @@ export function getManualRangeGeneratorWarnings({
   }
 
   return warnings;
-}
-
-function clampManualRangeTrailingRowCount(value: number) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.min(manualRangeTrailingRowMax, Math.max(manualRangeTrailingRowMin, Math.trunc(value)));
 }
 
 function getManualRangeGeneratedValueText(range: ManualRangeValue) {
