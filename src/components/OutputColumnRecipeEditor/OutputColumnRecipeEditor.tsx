@@ -55,11 +55,6 @@ const manualRangeInitialValueModeOptions: Array<{ value: ManualRangeInitialValue
   { value: 'lastValueInColumn', label: 'Usar último valor con datos de columna' },
 ];
 
-const manualRangeStartFilterOperatorOptions: Array<{ value: ManualRangeStartFilter['operator']; label: string }> = [
-  { value: 'isEmpty', label: 'está vacía' },
-  { value: 'isNotEmpty', label: 'no está vacía' },
-];
-
 export const manualRangeDetectionModeOptions: Array<{ value: ManualRangeDetectionMode; label: string }> = [
   { value: 'textStarts', label: 'Cada dato inicia un rango' },
   { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
@@ -815,103 +810,30 @@ export function ManualRangeTextGenerator({
             ? 'Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.'
             : 'Cada celda con dato en la columna elegida inicia un rango. El rango termina antes del próximo dato encontrado.'}
         </p>
-        {detectionMode === 'textStarts' ? (
-          <>
-            <div className="manualRangeGeneratorRow manualRangeGeneratorRow-filters">
-              <Dropdown
-                className="compact"
-                label="Aceptar como grupo sólo si"
-                labelInfo={(
-                  <InfoTooltip
-                    ariaLabel="Ayuda: aceptar como grupo"
-                    content="Primero Pandora busca posibles grupos en la columna elegida. Esta condición sólo descarta algunos de esos grupos; no crea grupos nuevos."
-                  />
-                )}
-                value={startFilterColumnId}
-                options={[
-                  { value: 'none', label: 'Sin filtro' },
-                  ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
-                ]}
-                scrollStrategy="close"
-                onChange={setStartFilterColumnId}
+        <div className="manualRangeGeneratorRow manualRangeGeneratorRow-trailing">
+          <label className="field compact">
+            <span className="labelWithInfo">
+              <span>Incluir filas posteriores</span>
+              <InfoTooltip
+                ariaLabel="Ayuda: incluir filas posteriores"
+                content="Suma filas despues de la ultima fila detectada, sin pasar el proximo grupo ni el limite final."
               />
-              <Dropdown<ManualRangeStartFilter['operator']>
-                className="compact"
-                label="Condición de grupo"
-                value={startFilterOperator}
-                options={manualRangeStartFilterOperatorOptions}
-                disabled={startFilterColumnId === 'none'}
-                scrollStrategy="close"
-                onChange={setStartFilterOperator}
-              />
-              <Dropdown
-                className="compact"
-                label="El grupo llega hasta la última fila con dato en"
-                labelInfo={(
-                  <InfoTooltip
-                    ariaLabel="Ayuda: fin del grupo"
-                    content="Útil cuando el nombre del grupo está arriba y las filas de productos tienen datos debajo."
-                  />
-                )}
-                value={validRowsColumnId}
-                options={[
-                  { value: 'none', label: 'Sin ajuste' },
-                  ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
-                ]}
-                scrollStrategy="close"
-                onChange={setValidRowsColumnId}
-              />
-              <label className="field compact">
-                <span className="labelWithInfo">
-                  <span>Incluir filas posteriores</span>
-                  <InfoTooltip
-                    ariaLabel="Ayuda: incluir filas posteriores"
-                    content="Suma filas despues de la ultima fila detectada, sin pasar el proximo grupo ni el limite final."
-                  />
-                </span>
-                <input
-                  type="number"
-                  min={manualRangeTrailingRowMin}
-                  max={manualRangeTrailingRowMax}
-                  value={trailingRowInput}
-                  onChange={(event) => setTrailingRowInput(normalizeNumberInputWhileTyping(trailingRowInput, event.target.value))}
-                  onBlur={() => setTrailingRowInput(String(normalizeNumberInputOnBlur(trailingRowInput, {
-                    fallback: 0,
-                    min: manualRangeTrailingRowMin,
-                    max: manualRangeTrailingRowMax,
-                    integer: true,
-                  })))}
-                />
-              </label>
-            </div>
-          </>
-        ) : null}
-        {detectionMode === 'dataBlocks' ? (
-          <div className="manualRangeGeneratorRow manualRangeGeneratorRow-trailing">
-            <label className="field compact">
-              <span className="labelWithInfo">
-                <span>Incluir filas posteriores</span>
-                <InfoTooltip
-                  ariaLabel="Ayuda: incluir filas posteriores"
-                  content="Suma filas despues de la ultima fila detectada, sin pasar el proximo grupo ni el limite final."
-                />
-              </span>
-              <input
-                type="number"
-                min={manualRangeTrailingRowMin}
-                max={manualRangeTrailingRowMax}
-                value={trailingRowInput}
-                onChange={(event) => setTrailingRowInput(normalizeNumberInputWhileTyping(trailingRowInput, event.target.value))}
-                onBlur={() => setTrailingRowInput(String(normalizeNumberInputOnBlur(trailingRowInput, {
-                  fallback: 0,
-                  min: manualRangeTrailingRowMin,
-                  max: manualRangeTrailingRowMax,
-                  integer: true,
-                })))}
-              />
-            </label>
-          </div>
-        ) : null}
+            </span>
+            <input
+              type="number"
+              min={manualRangeTrailingRowMin}
+              max={manualRangeTrailingRowMax}
+              value={trailingRowInput}
+              onChange={(event) => setTrailingRowInput(normalizeNumberInputWhileTyping(trailingRowInput, event.target.value))}
+              onBlur={() => setTrailingRowInput(String(normalizeNumberInputOnBlur(trailingRowInput, {
+                fallback: 0,
+                min: manualRangeTrailingRowMin,
+                max: manualRangeTrailingRowMax,
+                integer: true,
+              })))}
+            />
+          </label>
+        </div>
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-value">
           <Dropdown<ManualRangeInitialValueMode>
             className="compact"
