@@ -676,7 +676,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
                 </label>
               </div>
               <p className="muted previewSummary">{rawPreviewSummary}</p>
-              {startRowInputError ? <p className="errorText rowInputError">{startRowInputError}</p> : null}
+              {startRowInputError ? <p className="rowInputError">{startRowInputError}</p> : null}
             </div>
           </div>
           {rowConfigurationError ? <p className="rowConfigurationError">{rowConfigurationError}</p> : null}
