@@ -4,7 +4,7 @@ import React from 'react';
 import { buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
 
 const inputColumns: InputColumn[] = [
@@ -220,7 +220,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('<p class="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>');
   });
 
-  it('shows compact manual range usage help only in manual range mode', () => {
+  it('shows manual range usage help only in the title info icon', () => {
     const manualRangeMarkup = renderRecipeEditorMarkup({
       id: 'output-range',
       label: 'Rango',
@@ -236,11 +236,11 @@ describe('constructor helpers', () => {
       recipe: { type: 'direct', inputColumnId: 'input-code' },
     });
 
-    expect(manualRangeMarkup).toContain('>Info</button>');
+    expect(manualRangeMarkup).not.toContain('>Info</button>');
+    expect(manualRangeMarkup).not.toContain('manualRangeInfoChip');
     expect(manualRangeMarkup).not.toContain('Usá rangos para completar datos contextuales que aplican a varias filas.');
-    expect(manualRangeMarkup).toContain('Los rangos sirven cuando un valor debe repetirse en varias filas.');
-    expect(manualRangeMarkup).toContain('Si el valor ya está en cada fila, usá una columna de entrada.');
-    expect(directMarkup).not.toContain('Los rangos sirven cuando un valor debe repetirse en varias filas.');
+    expect(manualRangeUsageHelpText).toBe('Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada.');
+    expect(directMarkup).not.toContain('Ayuda: valores por rangos');
   });
 
   it('renders an enabled clear ranges action when manual ranges exist', () => {
@@ -397,6 +397,39 @@ describe('constructor helpers', () => {
     expect(summary).toContain('El valor se aplicará sólo a filas donde A no está vacía');
   });
 
+  it('renders trailing rows controls for text-based suggested ranges', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialTrailingRowCount={1}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Incluir filas posteriores');
+    expect(markup).toContain('Ayuda: incluir filas posteriores');
+    expect(markup).toContain('value="1"');
+    expect(markup).toContain('Incluira 1 fila posterior al bloque');
+  });
+
+  it('renders trailing rows controls for data block suggested ranges', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        initialDetectionMode="dataBlocks"
+        initialTrailingRowCount={1}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Incluir filas posteriores');
+    expect(markup).toContain('Incluira 1 fila posterior al bloque');
+  });
+
   it('renders a suggested range generator summary for data blocks', () => {
     const markup = renderToStaticMarkup(
       <ManualRangeTextGenerator
@@ -408,12 +441,14 @@ describe('constructor helpers', () => {
         initialEndRowInput="26"
         initialValueMode="lastValueInColumn"
         initialValueColumnId="input-name"
+        initialTrailingRowCount={1}
         onChange={() => undefined}
       />,
     );
 
     expect(markup).toContain('agrupará filas consecutivas con datos en A entre las filas 8 y 26');
     expect(markup).toContain('Cada fila vacía en A inicia un nuevo bloque');
+    expect(markup).toContain('Incluira 1 fila posterior al bloque');
     expect(markup).toContain('último valor con datos de D');
   });
 
@@ -497,6 +532,22 @@ describe('constructor helpers', () => {
       }],
       isColumnLookupValueMode: false,
     })[0]).toContain('El filtro de grupo descartó todos los posibles grupos');
+  });
+
+  it('warns when trailing rows would apply values to all rows in the range', () => {
+    expect(getManualRangeGeneratorWarnings({
+      canPreview: true,
+      generatedRanges: [{
+        id: 'range-10-13',
+        startRowNumber: 10,
+        endRowNumber: 13,
+        valueRecipe: expectedFixedTextRangeValueRecipe('NOTA A'),
+        valueSource: { type: 'fixedText', value: 'NOTA A' },
+      }],
+      isColumnLookupValueMode: false,
+      trailingRowCount: 1,
+      appliesToAllRows: true,
+    })[0]).toContain('El rango incluira filas posteriores');
   });
 
   it('renders a close action when the suggested range generator receives a close handler', () => {
@@ -699,6 +750,8 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Referencia');
     expect(markup).toContain('PINCELES SERIE 304');
+    expect(markup).toContain('manualRangeMetadataRow');
+    expect(markup).toContain('manualRangeEditorRow');
   });
 
   it('renders a row preview action for configured manual ranges', () => {
@@ -772,7 +825,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Fila 31');
   });
 
-  it('does not show suggested text references for manual ranges without metadata', () => {
+  it('keeps the reference slot for manual ranges without suggested metadata', () => {
     const markup = renderManualRangeTableRow({
       id: 'range-8-13',
       startRowNumber: 8,
@@ -781,7 +834,8 @@ describe('constructor helpers', () => {
       valueSource: { type: 'fixedText', value: '' },
     });
 
-    expect(markup).not.toContain('Referencia');
+    expect(markup).toContain('Referencia');
+    expect(markup).toMatch(/manualRangeReferenceField[^>]*><span>Referencia<\/span><strong>-<\/strong>/);
   });
 
   it('renders a date picker for fixed text used by a date step', () => {
@@ -1466,6 +1520,8 @@ describe('constructor helpers', () => {
     });
 
     expect(markup).not.toContain('Valor del rango');
+    expect(markup).toContain('rangeValuePrimaryControls');
+    expect(markup).toContain('rangeValueSourceControls');
     expect(markup).toContain('Tipo de operación');
     expect(markup).toContain('Qué quiero hacer');
     expect(markup).toContain('Desde donde toma el valor');
@@ -1898,6 +1954,119 @@ describe('constructor helpers', () => {
     ]);
   });
 
+  it('extends generated manual range ends with trailing rows after helper-column adjustment', () => {
+    let nextId = 1;
+    const rows: InputRow[] = [
+      { rowNumber: 10, values: { 'input-pack': 'GRUPO A', 'input-name': '', 'input-code': '' } },
+      { rowNumber: 11, values: { 'input-pack': '', 'input-name': 'Producto A1', 'input-code': 'A-1' } },
+      { rowNumber: 12, values: { 'input-pack': '', 'input-name': 'Producto A2', 'input-code': 'A-2' } },
+      { rowNumber: 13, values: { 'input-pack': '', 'input-name': 'NOTA A', 'input-code': '' } },
+      { rowNumber: 14, values: { 'input-pack': 'GRUPO B', 'input-name': '', 'input-code': '' } },
+      { rowNumber: 15, values: { 'input-pack': '', 'input-name': 'Producto B1', 'input-code': 'B-1' } },
+    ];
+
+    expect(generateManualRangesFromTexts(rows, {
+      inputColumnId: 'input-pack',
+      startRowNumber: 10,
+      endRowNumber: 15,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
+      validRowsColumnId: 'input-code',
+      trailingRowCount: 1,
+      idFactory: () => `generated-${nextId++}`,
+    })[0]).toEqual({
+      id: 'generated-1',
+      startRowNumber: 10,
+      endRowNumber: 13,
+      suggestedFromText: 'GRUPO A',
+      valueRecipe: expectedEmptyRangeValueRecipe(),
+      valueSource: { type: 'fixedText', value: '' },
+    });
+  });
+
+  it('does not extend generated manual ranges past the next detected group', () => {
+    const ranges = generateManualRangesFromTexts([
+      { rowNumber: 10, values: { 'input-pack': 'GRUPO A', 'input-name': '', 'input-code': '' } },
+      { rowNumber: 11, values: { 'input-pack': '', 'input-name': 'Producto A1', 'input-code': 'A-1' } },
+      { rowNumber: 12, values: { 'input-pack': '', 'input-name': 'Producto A2', 'input-code': 'A-2' } },
+      { rowNumber: 13, values: { 'input-pack': '', 'input-name': 'NOTA A', 'input-code': '' } },
+      { rowNumber: 14, values: { 'input-pack': 'GRUPO B', 'input-name': '', 'input-code': '' } },
+      { rowNumber: 15, values: { 'input-pack': '', 'input-name': 'Producto B1', 'input-code': 'B-1' } },
+    ], {
+      inputColumnId: 'input-pack',
+      startRowNumber: 10,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
+      validRowsColumnId: 'input-code',
+      trailingRowCount: 5,
+      idFactory: () => 'generated-1',
+    });
+
+    expect(ranges[0].endRowNumber).toBe(13);
+  });
+
+  it('does not extend generated manual ranges past the configured end row', () => {
+    const ranges = generateManualRangesFromTexts([
+      { rowNumber: 10, values: { 'input-pack': 'GRUPO A', 'input-name': '', 'input-code': '' } },
+      { rowNumber: 11, values: { 'input-pack': '', 'input-name': 'Producto A1', 'input-code': 'A-1' } },
+      { rowNumber: 12, values: { 'input-pack': '', 'input-name': 'Producto A2', 'input-code': 'A-2' } },
+      { rowNumber: 13, values: { 'input-pack': '', 'input-name': 'NOTA A', 'input-code': '' } },
+    ], {
+      inputColumnId: 'input-pack',
+      startRowNumber: 10,
+      endRowNumber: 12,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
+      validRowsColumnId: 'input-code',
+      trailingRowCount: 1,
+      idFactory: () => 'generated-1',
+    });
+
+    expect(ranges[0].endRowNumber).toBe(12);
+  });
+
+  it('uses trailing rows for generated last-value lookup when they are included in the range', () => {
+    const ranges = generateManualRangesFromTexts([
+      { rowNumber: 10, values: { 'input-pack': 'GRUPO A', 'input-name': '', 'input-code': '' } },
+      { rowNumber: 11, values: { 'input-pack': '', 'input-name': 'Producto A1', 'input-code': 'A-1' } },
+      { rowNumber: 12, values: { 'input-pack': '', 'input-name': 'Producto A2', 'input-code': 'A-2' } },
+      { rowNumber: 13, values: { 'input-pack': '', 'input-name': 'NOTA A', 'input-code': '' } },
+      { rowNumber: 14, values: { 'input-pack': 'GRUPO B', 'input-name': '', 'input-code': '' } },
+    ], {
+      inputColumnId: 'input-pack',
+      startRowNumber: 10,
+      endRowNumber: 14,
+      mode: 'untilNextText',
+      startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
+      validRowsColumnId: 'input-code',
+      trailingRowCount: 1,
+      initialValueMode: 'lastValueInColumn',
+      initialValueColumnId: 'input-name',
+      idFactory: () => 'generated-1',
+    });
+
+    expect(ranges[0]).toMatchObject({
+      endRowNumber: 13,
+      valueRecipe: expectedRangeTextValueRecipe('input-name', 'NOTA A'),
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'NOTA A' },
+    });
+    expect(buildProcessedRows([
+      { rowNumber: 11, values: { 'input-code': 'A-1', 'input-name': 'Producto A1' } },
+      { rowNumber: 13, values: { 'input-code': '', 'input-name': 'NOTA A' } },
+    ], [{
+      id: 'output-range',
+      label: 'Rango',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'manualRange',
+        ranges,
+        condition: { inputColumnId: 'input-code', operator: 'isNotEmpty' },
+      },
+    }]).map((row) => row.outputValues['output-range'])).toEqual(['NOTA A', '']);
+  });
+
   it('keeps the natural generated range end when the helper column has no useful rows', () => {
     let nextId = 1;
     const rows: InputRow[] = [
@@ -1976,8 +2145,8 @@ describe('constructor helpers', () => {
       startRowNumber: 12,
       endRowNumber: 16,
       suggestedFromText: 'FORESTA ADVANCE SATINADO',
-      valueRecipe: expectedFixedTextRangeValueRecipe('FORESTA ADVANCE SATINADO'),
-      valueSource: { type: 'fixedText', value: 'FORESTA ADVANCE SATINADO' },
+      valueRecipe: expectedRangeTextValueRecipe('input-name', 'FORESTA ADVANCE SATINADO'),
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'FORESTA ADVANCE SATINADO' },
     });
   });
 
@@ -1998,8 +2167,8 @@ describe('constructor helpers', () => {
     });
 
     expect(ranges[0]).toMatchObject({
-      valueRecipe: expectedEmptyRangeValueRecipe(),
-      valueSource: { type: 'fixedText', value: '' },
+      valueRecipe: expectedRangeTextValueRecipe('input-price', ''),
+      valueSource: { type: 'rangeText', inputColumnId: 'input-price', selectedText: '' },
     });
   });
 
@@ -2268,6 +2437,101 @@ describe('constructor helpers', () => {
     ]);
   });
 
+  it('extends data block ranges with trailing rows', () => {
+    let nextId = 1;
+
+    expect(generateManualRangesFromDataBlocks([
+      { rowNumber: 12, values: { 'input-code': 'A-1', 'input-name': 'Producto A1' } },
+      { rowNumber: 13, values: { 'input-code': 'A-2', 'input-name': 'Producto A2' } },
+      { rowNumber: 14, values: { 'input-code': '', 'input-name': 'COLORES A' } },
+      { rowNumber: 15, values: { 'input-code': '', 'input-name': '' } },
+      { rowNumber: 16, values: { 'input-code': 'B-1', 'input-name': 'Producto B1' } },
+      { rowNumber: 17, values: { 'input-code': 'B-2', 'input-name': 'Producto B2' } },
+      { rowNumber: 18, values: { 'input-code': '', 'input-name': 'COLORES B' } },
+      { rowNumber: 19, values: { 'input-code': '', 'input-name': '' } },
+    ], {
+      dataColumnId: 'input-code',
+      startRowNumber: 12,
+      endRowNumber: 19,
+      trailingRowCount: 1,
+      idFactory: () => `block-${nextId++}`,
+    })).toEqual([
+      {
+        id: 'block-1',
+        startRowNumber: 12,
+        endRowNumber: 14,
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+      {
+        id: 'block-2',
+        startRowNumber: 16,
+        endRowNumber: 18,
+        valueRecipe: expectedEmptyRangeValueRecipe(),
+        valueSource: { type: 'fixedText', value: '' },
+      },
+    ]);
+  });
+
+  it('does not extend data block ranges into the next block', () => {
+    const ranges = generateManualRangesFromDataBlocks([
+      { rowNumber: 12, values: { 'input-code': 'A-1', 'input-name': 'Producto A1' } },
+      { rowNumber: 13, values: { 'input-code': 'A-2', 'input-name': 'Producto A2' } },
+      { rowNumber: 14, values: { 'input-code': '', 'input-name': 'COLORES A' } },
+      { rowNumber: 15, values: { 'input-code': '', 'input-name': '' } },
+      { rowNumber: 16, values: { 'input-code': 'B-1', 'input-name': 'Producto B1' } },
+    ], {
+      dataColumnId: 'input-code',
+      startRowNumber: 12,
+      endRowNumber: 20,
+      trailingRowCount: 5,
+      idFactory: () => 'block-1',
+    });
+
+    expect(ranges[0].endRowNumber).toBe(15);
+  });
+
+  it('does not extend data block ranges past the configured end row', () => {
+    const ranges = generateManualRangesFromDataBlocks([
+      { rowNumber: 12, values: { 'input-code': 'A-1', 'input-name': 'Producto A1' } },
+      { rowNumber: 13, values: { 'input-code': 'A-2', 'input-name': 'Producto A2' } },
+      { rowNumber: 14, values: { 'input-code': '', 'input-name': 'COLORES A' } },
+    ], {
+      dataColumnId: 'input-code',
+      startRowNumber: 12,
+      endRowNumber: 13,
+      trailingRowCount: 1,
+      idFactory: () => 'block-1',
+    });
+
+    expect(ranges[0].endRowNumber).toBe(13);
+  });
+
+  it('uses trailing rows for generated last-value lookup in data block ranges', () => {
+    const ranges = generateManualRangesFromDataBlocks([
+      { rowNumber: 12, values: { 'input-code': 'A-1', 'input-name': 'Producto A1' } },
+      { rowNumber: 13, values: { 'input-code': 'A-2', 'input-name': 'Producto A2' } },
+      { rowNumber: 14, values: { 'input-code': '', 'input-name': 'COLORES A' } },
+      { rowNumber: 15, values: { 'input-code': '', 'input-name': '' } },
+      { rowNumber: 16, values: { 'input-code': 'B-1', 'input-name': 'Producto B1' } },
+    ], {
+      dataColumnId: 'input-code',
+      startRowNumber: 12,
+      endRowNumber: 16,
+      trailingRowCount: 1,
+      initialValueMode: 'lastValueInColumn',
+      initialValueColumnId: 'input-name',
+      idFactory: () => 'block-1',
+    });
+
+    expect(ranges[0]).toMatchObject({
+      startRowNumber: 12,
+      endRowNumber: 14,
+      valueRecipe: expectedRangeTextValueRecipe('input-name', 'COLORES A'),
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'COLORES A' },
+    });
+  });
+
   it('uses the first non-empty value in a column for data block ranges', () => {
     let nextId = 1;
     const rows: InputRow[] = [
@@ -2292,15 +2556,15 @@ describe('constructor helpers', () => {
         id: 'block-1',
         startRowNumber: 8,
         endRowNumber: 13,
-        valueRecipe: expectedFixedTextRangeValueRecipe('PINCELES SERIE 304'),
-        valueSource: { type: 'fixedText', value: 'PINCELES SERIE 304' },
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'PINCELES SERIE 304'),
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
       },
       {
         id: 'block-2',
         startRowNumber: 15,
         endRowNumber: 20,
-        valueRecipe: expectedFixedTextRangeValueRecipe('PINCELES SERIE 404'),
-        valueSource: { type: 'fixedText', value: 'PINCELES SERIE 404' },
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'PINCELES SERIE 404'),
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 404' },
       },
     ]);
   });
@@ -2329,15 +2593,15 @@ describe('constructor helpers', () => {
         id: 'block-1',
         startRowNumber: 8,
         endRowNumber: 13,
-        valueRecipe: expectedFixedTextRangeValueRecipe('Cerda china mango amarillo'),
-        valueSource: { type: 'fixedText', value: 'Cerda china mango amarillo' },
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'Cerda china mango amarillo'),
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Cerda china mango amarillo' },
       },
       {
         id: 'block-2',
         startRowNumber: 15,
         endRowNumber: 20,
-        valueRecipe: expectedFixedTextRangeValueRecipe('Cerda china blanca mango bordeaux'),
-        valueSource: { type: 'fixedText', value: 'Cerda china blanca mango bordeaux' },
+        valueRecipe: expectedRangeTextValueRecipe('input-name', 'Cerda china blanca mango bordeaux'),
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Cerda china blanca mango bordeaux' },
       },
     ]);
   });

@@ -739,7 +739,26 @@ tbody tr:hover {
 }
 
 .rules {
-  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.managerSummaryRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.managerSummaryRow > p {
+  margin: 0;
+}
+
+.rulesActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .ruleRow {
@@ -825,7 +844,6 @@ tbody tr:hover {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
-  min-width: min(100%, 520px);
 }
 
 .exportSections {
@@ -1289,7 +1307,8 @@ tbody tr:hover {
 }
 
 .modalDialogXl .constructorModalContent .dropdownField,
-.modalDialogXl .constructorModalContent .dropdownField.compact {
+.modalDialogXl .constructorModalContent .dropdownField.compact,
+.modalDialogXl .constructorModalContent .field.compact {
   gap: 5px;
 }
 
@@ -1933,26 +1952,6 @@ tbody tr:hover {
   gap: 6px;
 }
 
-.manualRangeInfoChip {
-  align-items: center;
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, var(--color-border-muted));
-  border-radius: 999px;
-  color: var(--color-text-default);
-  cursor: help;
-  display: inline-flex;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 3px 8px;
-}
-
-.manualRangeInfoChip:hover,
-.manualRangeInfoChip:focus-visible {
-  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
-  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border-muted));
-}
-
 .manualRangeFooterActions {
   justify-content: flex-start;
 }
@@ -2000,15 +1999,19 @@ tbody tr:hover {
 }
 
 .manualRangeGeneratorRow-detection {
-  grid-template-columns: minmax(180px, 1.1fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) minmax(180px, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .manualRangeGeneratorRow-filters {
-  grid-template-columns: minmax(230px, 1.25fr) minmax(150px, 0.75fr) minmax(260px, 1.35fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .manualRangeGeneratorRow-value {
-  grid-template-columns: minmax(220px, 320px) minmax(220px, 320px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manualRangeGeneratorRow-trailing {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .manualRangeGenerator .dropdownLabel,
@@ -2149,30 +2152,30 @@ tbody tr:hover {
 }
 
 .manualRangeRangeItem {
-  align-items: start;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 10px;
-  grid-template-columns:
-    minmax(72px, 0.42fr)
-    minmax(72px, 0.42fr)
-    minmax(64px, 0.34fr)
-    minmax(360px, 3fr)
-    minmax(82px, auto);
   min-width: 0;
   padding: 10px;
 }
 
-.manualRangeRangeItem.hasSuggestedReference {
+.manualRangeMetadataRow {
+  align-items: end;
+  display: grid;
+  gap: 10px;
   grid-template-columns:
-    minmax(72px, 0.42fr)
-    minmax(72px, 0.42fr)
-    minmax(64px, 0.34fr)
-    minmax(180px, 1.1fr)
-    minmax(320px, 2.4fr)
-    minmax(82px, auto);
+    minmax(90px, 120px)
+    minmax(90px, 120px)
+    minmax(64px, 80px)
+    minmax(160px, 1fr)
+    auto;
+  min-width: 0;
+}
+
+.manualRangeEditorRow {
+  min-width: 0;
 }
 
 .manualRangeCellField,
@@ -2306,15 +2309,42 @@ tbody tr:hover {
   padding: 10px;
 }
 
+.rangeValuePrimaryLayout {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rangeValuePrimaryControls {
+  align-items: end;
+  display: grid;
+  flex: 1 1 500px;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(210px, 1fr));
+  min-width: min(100%, 440px);
+}
+
+.rangeValueSourceControls {
+  align-items: end;
+  display: grid;
+  flex: 1.5 1 680px;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  min-width: min(100%, 560px);
+}
+
+.rangeValuePrimaryStepFields {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
 .rangeValueOperationPanel .manualRangeValueHelp,
 .rangeValueOperationPanel .concatPartStepsBlock,
 .rangeValueOperationPanel .rangeValueConcatWorkspace,
 .stepDetailPanel .rangeValueConcatWorkspace {
   grid-column: 1 / -1;
-}
-
-.rangeValueOperationPanel.hasSourceDetails .manualRangeValueSourceField {
-  grid-column: 1;
 }
 
 .rangeValueAdditionalHeader {
@@ -2817,7 +2847,6 @@ tbody tr:hover {
   .constructorPartMainGrid,
   .manualRangeGeneratorControls,
   .manualRangeGeneratorRow,
-  .manualRangeRangeItem,
   .transformStepRow,
   .outputColumnsWorkspace,
   .outputColumnHeader,
@@ -2846,6 +2875,33 @@ tbody tr:hover {
   .outputColumnsHeaderActions {
     justify-content: flex-start;
     min-width: 0;
+  }
+
+  .managerSummaryRow {
+    align-items: stretch;
+  }
+
+  .managerSummaryRow > p {
+    flex: 1 1 220px;
+  }
+
+  .manualRangeMetadataRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manualRangeReferenceField,
+  .manualRangeActionsField {
+    grid-column: 1 / -1;
+  }
+
+  .manualRangeRowActions {
+    justify-content: flex-start;
+  }
+
+  .rangeValuePrimaryControls,
+  .rangeValueSourceControls {
+    grid-template-columns: 1fr;
+    min-width: 100%;
   }
 
   .exportBlock {

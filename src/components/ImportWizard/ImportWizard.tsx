@@ -692,7 +692,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="5. Filtrar filas de entrada" info="Excluye filas usando los datos originales del archivo.">
+        <Step title="5. Filtrar filas de entrada" info="Estas reglas se aplican sobre los datos originales antes de construir las columnas de salida.">
           <IgnoreRules
             mode="input"
             inputColumns={processedPipeline.inputColumns}
@@ -705,7 +705,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="6. Columnas de salida" info="Define las columnas que tendra el archivo final.">
+        <Step title="6. Columnas de salida" info="Define las columnas finales del archivo y como se llena cada una.">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
             manualRangeRows={processedPipeline.inputRows}
@@ -715,7 +715,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           />
         </Step>
 
-        <Step title="7. Filtrar filas de salida" info="Excluye filas despues de aplicar las transformaciones.">
+        <Step title="7. Filtrar filas de salida" info="Estas reglas se aplican sobre las columnas de salida ya transformadas.">
           <IgnoreRules
             mode="output"
             inputColumns={processedPipeline.inputColumns}

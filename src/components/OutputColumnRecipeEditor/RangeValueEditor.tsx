@@ -231,20 +231,28 @@ function RangeValueStepsEditor({
   return (
     <div className="rangeValueTransforms">
       <div className={`rangeValueOperationPanel${hasSourceDetails && !isPrimaryConcat ? ' hasSourceDetails' : ''}`}>
-        <div className="simpleCustomValueGrid">
-          <RangeValueStepControls
-            step={primaryStep}
-            allowConcat={allowConcat}
-            onChange={updatePrimaryStep}
-          />
-          {isPrimaryConcat ? null : sourceFields}
-          <RangeValueStepFields
-            step={primaryStep}
-            inputColumns={inputColumns}
-            manualRangeRows={manualRangeRows}
-            range={range}
-            onChange={(patch) => updatePrimaryStep({ ...primaryStep, ...patch })}
-          />
+        <div className="rangeValuePrimaryLayout">
+          <div className="rangeValuePrimaryControls">
+            <RangeValueStepControls
+              step={primaryStep}
+              allowConcat={allowConcat}
+              onChange={updatePrimaryStep}
+            />
+          </div>
+          {isPrimaryConcat ? null : (
+            <div className="rangeValueSourceControls">
+              {sourceFields}
+            </div>
+          )}
+          <div className="rangeValuePrimaryStepFields">
+            <RangeValueStepFields
+              step={primaryStep}
+              inputColumns={inputColumns}
+              manualRangeRows={manualRangeRows}
+              range={range}
+              onChange={(patch) => updatePrimaryStep({ ...primaryStep, ...patch })}
+            />
+          </div>
         </div>
       </div>
 

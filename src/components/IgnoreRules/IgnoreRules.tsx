@@ -31,9 +31,6 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
   const activeInputColumns = inputColumns.filter((column) => column.active);
   const activeOutputColumns = [...outputColumns].filter((column) => column.enabled).sort((a, b) => a.order - b.order);
   const activeColumns = mode === 'input' ? activeInputColumns : activeOutputColumns;
-  const sectionCopy = mode === 'input'
-    ? 'Estas reglas se aplican sobre los datos originales antes de construir las columnas de salida.'
-    : 'Estas reglas se aplican sobre las columnas de salida ya transformadas.';
 
   const addRule = () => {
     onChange([
@@ -54,14 +51,18 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
   return (
     <div className="rules">
-      <div className="sectionHeader">
-        <p>{sectionCopy}</p>
-        <InfoTooltip content="Agrega una nueva regla para excluir filas.">
-          <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
-        </InfoTooltip>
+      <div className="managerSummaryRow">
+        <p className="muted">
+          {rules.length === 0
+            ? 'No hay reglas de ignorado configuradas.'
+            : `${rules.length} ${rules.length === 1 ? 'regla configurada' : 'reglas configuradas'}.`}
+        </p>
+        <div className="rulesActions">
+          <InfoTooltip content="Agrega una nueva regla para excluir filas.">
+            <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
+          </InfoTooltip>
+        </div>
       </div>
-
-      {rules.length === 0 ? <p className="muted">No hay reglas de ignorado configuradas.</p> : null}
 
       {rules.map((rule) => {
         const needsValue = ignoreRuleNeedsValue(rule.operator);

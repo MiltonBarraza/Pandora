@@ -29,6 +29,7 @@ export type ManualRangeGenerationConfig = {
   initialValueMode?: ManualRangeInitialValueMode;
   initialValueColumnId?: string;
   validRowsColumnId?: string;
+  trailingRowCount?: number;
   startFilter?: ManualRangeStartFilter;
   idFactory?: () => string;
 };
@@ -39,6 +40,7 @@ export type ManualRangeBlockGenerationConfig = {
   endRowNumber: number;
   initialValueMode?: ManualRangeInitialValueMode;
   initialValueColumnId?: string;
+  trailingRowCount?: number;
   idFactory?: () => string;
 };
 
@@ -419,7 +421,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', initialValueColumnId, validRowsColumnId, startFilter, idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', initialValueColumnId, validRowsColumnId, trailingRowCount = 0, startFilter, idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -447,6 +449,12 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
       endRowNumber: naturalEndRowNumber,
       validRowsColumnId,
     });
+    const extendedEndRowNumber = getTrailingAdjustedManualRangeEndRowNumber({
+      adjustedEndRowNumber: rangeEndRowNumber,
+      naturalEndRowNumber,
+      configuredEndRowNumber: endRowNumber,
+      trailingRowCount,
+    });
 
     const rangeTextSource = {
       type: 'rangeText' as const,
@@ -455,7 +463,7 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
     };
     const source = createGeneratedManualRangeValueSource(rows, {
       startRowNumber: row.rowNumber,
-      endRowNumber: rangeEndRowNumber,
+      endRowNumber: extendedEndRowNumber,
       initialValueMode,
       initialValueColumnId,
       rangeTextSource,
@@ -464,7 +472,7 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
     return {
       id: idFactory(),
       startRowNumber: row.rowNumber,
-      endRowNumber: rangeEndRowNumber,
+      endRowNumber: extendedEndRowNumber,
       suggestedFromText: row.text,
       valueRecipe: {
         source,
@@ -476,7 +484,7 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
 }
 
 export function generateManualRangesFromDataBlocks(rows: InputRow[], config: ManualRangeBlockGenerationConfig): ManualRangeValue[] {
-  const { dataColumnId, startRowNumber, endRowNumber, initialValueMode = 'empty', initialValueColumnId, idFactory = () => crypto.randomUUID() } = config;
+  const { dataColumnId, startRowNumber, endRowNumber, initialValueMode = 'empty', initialValueColumnId, trailingRowCount = 0, idFactory = () => crypto.randomUUID() } = config;
 
   if (!dataColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -485,7 +493,7 @@ export function generateManualRangesFromDataBlocks(rows: InputRow[], config: Man
   const sortedRows = rows
     .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
     .sort((left, right) => left.rowNumber - right.rowNumber);
-  const ranges: ManualRangeValue[] = [];
+  const detectedBlocks: Array<{ startRowNumber: number; endRowNumber: number }> = [];
   let blockStartRowNumber: number | null = null;
   let lastUsefulRowNumber: number | null = null;
 
@@ -498,29 +506,40 @@ export function generateManualRangesFromDataBlocks(rows: InputRow[], config: Man
     }
 
     if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
-      ranges.push(createManualRangeBlockValue(rows, {
+      detectedBlocks.push({
         startRowNumber: blockStartRowNumber,
         endRowNumber: lastUsefulRowNumber,
-        initialValueMode,
-        initialValueColumnId,
-        idFactory,
-      }));
+      });
     }
     blockStartRowNumber = null;
     lastUsefulRowNumber = null;
   });
 
   if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
-    ranges.push(createManualRangeBlockValue(rows, {
+    detectedBlocks.push({
       startRowNumber: blockStartRowNumber,
       endRowNumber: lastUsefulRowNumber,
+    });
+  }
+
+  return detectedBlocks.map((block, index) => {
+    const nextBlockStartRowNumber = detectedBlocks[index + 1]?.startRowNumber;
+    const naturalEndRowNumber = Math.min(endRowNumber, nextBlockStartRowNumber ? nextBlockStartRowNumber - 1 : endRowNumber);
+    const extendedEndRowNumber = getTrailingAdjustedManualRangeEndRowNumber({
+      adjustedEndRowNumber: block.endRowNumber,
+      naturalEndRowNumber,
+      configuredEndRowNumber: endRowNumber,
+      trailingRowCount,
+    });
+
+    return createManualRangeBlockValue(rows, {
+      startRowNumber: block.startRowNumber,
+      endRowNumber: extendedEndRowNumber,
       initialValueMode,
       initialValueColumnId,
       idFactory,
-    }));
-  }
-
-  return ranges;
+    });
+  });
 }
 
 function createManualRangeBlockValue(
@@ -569,14 +588,17 @@ function createGeneratedManualRangeValueSource(
   }
 
   if ((initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn') && initialValueColumnId) {
+    const selectedText = findManualRangeBoundaryValue(rows, {
+      startRowNumber,
+      endRowNumber,
+      inputColumnId: initialValueColumnId,
+      direction: initialValueMode === 'firstValueInColumn' ? 'first' : 'last',
+    });
+
     return {
-      type: 'fixedText',
-      value: findManualRangeBoundaryValue(rows, {
-        startRowNumber,
-        endRowNumber,
-        inputColumnId: initialValueColumnId,
-        direction: initialValueMode === 'firstValueInColumn' ? 'first' : 'last',
-      }),
+      type: 'rangeText',
+      inputColumnId: initialValueColumnId,
+      selectedText,
     };
   }
 
@@ -635,6 +657,28 @@ function getAdjustedManualRangeEndRowNumber(
     .sort((left, right) => right.rowNumber - left.rowNumber)[0];
 
   return lastUsefulRow?.rowNumber ?? endRowNumber;
+}
+
+function getTrailingAdjustedManualRangeEndRowNumber(config: {
+  adjustedEndRowNumber: number;
+  naturalEndRowNumber: number;
+  configuredEndRowNumber: number;
+  trailingRowCount: number;
+}) {
+  const { adjustedEndRowNumber, naturalEndRowNumber, configuredEndRowNumber, trailingRowCount } = config;
+  const normalizedTrailingRowCount = Number.isFinite(trailingRowCount)
+    ? Math.max(0, Math.trunc(trailingRowCount))
+    : 0;
+
+  if (normalizedTrailingRowCount === 0) {
+    return adjustedEndRowNumber;
+  }
+
+  return Math.min(
+    adjustedEndRowNumber + normalizedTrailingRowCount,
+    naturalEndRowNumber,
+    configuredEndRowNumber,
+  );
 }
 
 export function getManualRangeSelectedTextOptions(
