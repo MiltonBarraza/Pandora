@@ -32,7 +32,7 @@ export const manualRangeUsageHelpText = 'Los rangos sirven cuando un valor debe 
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
   { value: 'direct', label: 'Directa desde entrada' },
-  { value: 'empty', label: 'Columna vacia' },
+  { value: 'empty', label: 'Columna vacía' },
   { value: 'fixedText', label: 'Texto fijo' },
   { value: 'combine', label: 'Crear valor personalizado' },
 ];
@@ -170,7 +170,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
         <Dropdown<OutputRecipe['type']>
           className="compact"
           label="Tipo de operación"
-          labelInfo={<InfoTooltip content="Define como se va a llenar esta columna." />}
+          labelInfo={<InfoTooltip content="Definí cómo se va a llenar esta columna." />}
           scrollStrategy="close"
           value={getOutputRecipeTypeSelectorValue(column.recipe)}
           options={outputRecipeTypeOptions}
@@ -186,7 +186,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           <Dropdown
             className="compact"
             label="Columna de entrada"
-            labelInfo={<InfoTooltip content="Elegi la columna del Excel que contiene este dato." />}
+            labelInfo={<InfoTooltip content="Elegí la columna del Excel que contiene este dato." />}
             value={column.recipe.inputColumnId}
             options={activeInputColumns.length === 0
               ? [{ value: '', label: 'Sin columnas activas' }]
@@ -254,7 +254,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           <Modal
             open={isConstructorOpen}
             title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
-            titleInfo="Configura como se arma este valor antes de aplicarlo."
+            titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
@@ -317,7 +317,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           <Modal
             open={isConstructorOpen}
             title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
-            titleInfo="Configura como se arma este valor antes de aplicarlo."
+            titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
@@ -1595,18 +1595,18 @@ export function buildCustomValuePreview(
   const mode = modeOverride ?? getCustomValueMode(recipe);
 
   if (mode === '') {
-    return modal ? 'Configura el Paso 1 para ver la vista previa.' : 'Sin valores configurados';
+    return modal ? 'Configurá el Paso 1 para ver la vista previa.' : 'Sin valores configurados';
   }
 
   const hasNumericOperands = hasConfiguredNumericStepOperands(recipe);
   const effectiveMode = hasNumericOperands ? 'number' : mode;
 
   if (effectiveMode === 'number' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasNumericOperands) {
-    return 'Selecciona una columna numérica.';
+    return 'Seleccioná una columna numérica.';
   }
 
   if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasConfiguredManualRangeStep(recipe)) {
-    return 'Selecciona una columna de texto.';
+    return 'Seleccioná una columna de texto.';
   }
 
   if (effectiveMode === 'concat' && recipe.parts.length === 0 && !hasConfiguredConcatStep(recipe)) {
@@ -2245,7 +2245,7 @@ function StepTypeSelect({
       <Dropdown<NonNullable<TransformStep['operation']> | ''>
         className="compact"
         label="Que quiero hacer"
-        labelInfo={<InfoTooltip content="Define como se va a transformar esta informacion." />}
+        labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
         value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
         options={[
           { value: '', label: 'Usar valor tal cual' },
@@ -2270,7 +2270,7 @@ function StepTypeSelect({
       <Dropdown<TransformStepType>
         className="compact"
         label="Que quiero hacer"
-        labelInfo={<InfoTooltip content="Define como se va a transformar esta informacion." />}
+        labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
         value={step.type}
         options={options}
         scrollStrategy="close"
@@ -2517,7 +2517,7 @@ function InputColumnSelect({
     <Dropdown
       className="compact"
       label={label}
-      labelInfo={<InfoTooltip content="Elegi la columna del Excel que contiene este dato." />}
+      labelInfo={<InfoTooltip content="Elegí la columna del Excel que contiene este dato." />}
       value={value}
       options={[
         { value: '', label: 'Seleccionar columna' },
@@ -2828,7 +2828,7 @@ function ConcatStepFields({
               <div className="concatPartHeader">
                 <strong className="headingWithInfo">
                   <span>Parte {selectedPartIndex + 1}</span>
-                  <InfoTooltip content="Configura el dato o texto de esta parte." />
+                  <InfoTooltip content="Configurá el dato o texto de esta parte." />
                 </strong>
                 <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
               </div>
@@ -3195,7 +3195,7 @@ function StepFields({
         <Dropdown
           className="compact"
           label={labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}
-          labelInfo={<InfoTooltip content="Define como mostrar los numeros del resultado." />}
+          labelInfo={<InfoTooltip content="Definí cómo mostrar los números del resultado." />}
           value={String(step.rounding ?? 2)}
           options={[
             { value: 'none', label: 'Sin redondeo' },

@@ -12,6 +12,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
+  inputColumnsForGeneration?: InputColumn[];
   manualRangeRows?: InputRow[];
   sampleInputValues?: Record<string, string>;
   outputColumns: OutputColumn[];
@@ -20,6 +21,7 @@ type OutputColumnsManagerProps = {
 
 export function OutputColumnsManager({
   inputColumns = [],
+  inputColumnsForGeneration,
   manualRangeRows = [],
   sampleInputValues,
   outputColumns,
@@ -30,6 +32,7 @@ export function OutputColumnsManager({
   const [isRegenerateConfirmationOpen, setIsRegenerateConfirmationOpen] = useState(false);
   const ordered = [...outputColumns].sort((a, b) => a.order - b.order);
   const selectedColumn = ordered.find((column) => column.id === selectedColumnId) ?? ordered[0];
+  const generationInputColumns = inputColumnsForGeneration ?? inputColumns;
 
   useEffect(() => {
     if (ordered.length === 0) {
@@ -56,7 +59,7 @@ export function OutputColumnsManager({
   };
 
   const createFromActiveColumns = () => {
-    if (hasGeneratedOutputColumnManualChanges(inputColumns, ordered)) {
+    if (hasGeneratedOutputColumnManualChanges(generationInputColumns, ordered)) {
       setIsRegenerateConfirmationOpen(true);
       return;
     }
@@ -65,9 +68,9 @@ export function OutputColumnsManager({
   };
 
   const regenerateFromActiveColumns = () => {
-    const result = createOutputColumnsFromActiveInputColumns(inputColumns, ordered);
+    const result = createOutputColumnsFromActiveInputColumns(generationInputColumns, ordered);
 
-    if (result.activeCount === 0) {
+    if (!shouldApplyGeneratedColumnsResult(result)) {
       showInfoToast('No hay columnas activas para crear.');
       return;
     }
@@ -277,4 +280,14 @@ function OutputColumnSelectButton({
 
 export function shouldShowOutputColumnNameTooltip(label: string) {
   return label.trim().length > 24;
+}
+
+export function shouldApplyGeneratedColumnsResult({
+  activeCount,
+  removedObsoleteCount,
+}: {
+  activeCount: number;
+  removedObsoleteCount: number;
+}) {
+  return activeCount > 0 || removedObsoleteCount > 0;
 }

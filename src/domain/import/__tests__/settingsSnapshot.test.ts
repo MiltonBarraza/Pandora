@@ -157,7 +157,6 @@ describe('settingsSnapshot', () => {
       headerRowIndex: 0,
       startRowIndex: 1,
       showRawPreviewFromDataStart: false,
-      showAllRawPreviewColumns: true,
       columnAnalysis,
       inputColumnAliases: { 'input-0': 'SKU' },
       inputIgnoreRules,
@@ -183,7 +182,6 @@ describe('settingsSnapshot', () => {
         headerRowIndex: 0,
         startRowIndex: 1,
         showRawPreviewFromDataStart: false,
-        showAllRawPreviewColumns: true,
         inputColumnAliases: { 'input-0': 'SKU' },
         inputIgnoreRules,
         outputColumns,
@@ -216,6 +214,51 @@ describe('settingsSnapshot', () => {
     expect(settings).not.toHaveProperty('processedRows');
     expect(settings).not.toHaveProperty('auditRows');
     expect(settings).not.toHaveProperty('rowOverrides');
+  });
+
+  it('exports multiple ignored reasons while keeping legacy reason fields', () => {
+    const settings = exportSettingsFromWizardState({
+      fileType: 'spreadsheet',
+      selectedSheet: 'Hoja 1',
+      rows,
+      headerRowIndex: 0,
+      startRowIndex: 1,
+      columnAnalysis: [
+        {
+          columnIndex: 2,
+          columnLetter: 'C',
+          header: 'Extra',
+          sampleValues: [],
+          nonEmptyCount: 0,
+          isEmpty: true,
+          isHidden: true,
+          ignored: true,
+          ignoredReason: 'hidden',
+          ignoredReasons: ['hidden', 'empty', 'hidden'],
+          autoIgnored: true,
+          autoIgnoredReason: 'hidden',
+          autoIgnoredReasons: ['hidden', 'empty', 'hidden'],
+        },
+      ],
+      inputColumnAliases: {},
+      inputIgnoreRules,
+      outputColumns,
+      outputIgnoreRules,
+      fileNameSettings,
+    });
+
+    expect(settings.sourceSnapshot.columns[0]).toMatchObject({
+      ignoredReason: 'hidden',
+      ignoredReasons: ['hidden', 'empty'],
+      autoIgnoredReason: 'hidden',
+      autoIgnoredReasons: ['hidden', 'empty'],
+    });
+    expect(settings.config.columnVisibility[0]).toMatchObject({
+      ignoredReason: 'hidden',
+      ignoredReasons: ['hidden', 'empty'],
+      autoIgnoredReason: 'hidden',
+      autoIgnoredReasons: ['hidden', 'empty'],
+    });
   });
 
   it('exports output columns with date recipe fields intact', () => {
@@ -360,16 +403,12 @@ describe('settingsSnapshot', () => {
     expect(settings.config.startRowIndex).toBe(0);
   });
 
-  it.each([
-    [true, true],
-    [false, false],
-  ])('exports both preview checkbox values when set to %s/%s', (showRawPreviewFromDataStart, showAllRawPreviewColumns) => {
+  it.each([true, false])('exports the data-start preview checkbox when set to %s', (showRawPreviewFromDataStart) => {
     const settings = exportSettingsFromWizardState({
       fileType: 'csv',
       headerRowIndex: null,
       startRowIndex: 0,
       showRawPreviewFromDataStart,
-      showAllRawPreviewColumns,
       columnAnalysis,
       inputColumnAliases: {},
       inputIgnoreRules,
@@ -379,6 +418,6 @@ describe('settingsSnapshot', () => {
     });
 
     expect(settings.config.showRawPreviewFromDataStart).toBe(showRawPreviewFromDataStart);
-    expect(settings.config.showAllRawPreviewColumns).toBe(showAllRawPreviewColumns);
+    expect(settings.config).not.toHaveProperty('showAllRawPreviewColumns');
   });
 });

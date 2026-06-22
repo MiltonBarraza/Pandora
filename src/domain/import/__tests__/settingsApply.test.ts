@@ -73,7 +73,6 @@ describe('settingsApply', () => {
         headerRowIndex: 0,
         startRowIndex: 1,
         showRawPreviewFromDataStart: false,
-        showAllRawPreviewColumns: true,
         columnVisibility: [
           {
             inputColumnId: 'input-0',
@@ -353,7 +352,7 @@ describe('settingsApply', () => {
     }
   });
 
-  it('preserves explicit false preview settings in the apply payload', () => {
+  it('preserves explicit false preview start and ignores obsolete all-columns preview setting', () => {
     const settings = buildSettings();
     settings.config.showRawPreviewFromDataStart = false;
     settings.config.showAllRawPreviewColumns = false;
@@ -363,25 +362,23 @@ describe('settingsApply', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.showRawPreviewFromDataStart).toBe(false);
-      expect(result.payload.showAllRawPreviewColumns).toBe(false);
+      expect(result.payload).not.toHaveProperty('showAllRawPreviewColumns');
     }
   });
 
   it('resolves imported preview settings without confusing undefined and false', () => {
     expect(resolveImportedPreviewSettings(
-      { showRawPreviewFromDataStart: true, showAllRawPreviewColumns: true },
+      { showRawPreviewFromDataStart: true },
       { showRawPreviewFromDataStart: false, showAllRawPreviewColumns: false },
     )).toEqual({
       showRawPreviewFromDataStart: false,
-      showAllRawPreviewColumns: false,
     });
 
     expect(resolveImportedPreviewSettings(
-      { showRawPreviewFromDataStart: false, showAllRawPreviewColumns: true },
+      { showRawPreviewFromDataStart: false },
       {},
     )).toEqual({
       showRawPreviewFromDataStart: false,
-      showAllRawPreviewColumns: true,
     });
   });
 
@@ -418,10 +415,54 @@ describe('settingsApply', () => {
     });
 
     expect(result[0]).toMatchObject({ alias: 'Codigo', ignored: true, ignoredReason: 'manual' });
+    expect(result[0].ignoredReasons).toEqual(['manual']);
     expect(result[1]).toMatchObject({ ignored: false });
     expect(result[1].ignoredReason).toBeUndefined();
+    expect(result[1].ignoredReasons).toBeUndefined();
     expect(columns[0].ignored).toBe(false);
     expect(columns[1].ignored).toBe(true);
+  });
+
+  it('restores multiple ignored reasons and automatic reasons from saved visibility', () => {
+    const columns: ColumnAnalysis[] = [
+      {
+        columnIndex: 0,
+        columnLetter: 'A',
+        sampleValues: [],
+        nonEmptyCount: 0,
+        isEmpty: true,
+        isHidden: true,
+        ignored: false,
+        autoIgnored: true,
+        autoIgnoredReason: 'hidden',
+        autoIgnoredReasons: ['hidden', 'empty'],
+      },
+    ];
+
+    const result = applyColumnVisibilitySettings(columns, {
+      inputColumnAliases: { 'input-0': 'Codigo' },
+      columnVisibility: [
+        {
+          inputColumnId: 'input-0',
+          columnIndex: 0,
+          columnLetter: 'A',
+          active: false,
+          ignoredReason: 'hidden',
+          ignoredReasons: ['hidden', 'empty', 'hidden'],
+          autoIgnoredReason: 'hidden',
+          autoIgnoredReasons: ['hidden', 'empty', 'hidden'],
+        },
+      ],
+    });
+
+    expect(result[0]).toMatchObject({
+      alias: 'Codigo',
+      ignored: true,
+      ignoredReason: 'hidden',
+      ignoredReasons: ['hidden', 'empty'],
+      autoIgnoredReason: 'hidden',
+      autoIgnoredReasons: ['hidden', 'empty'],
+    });
   });
 
   it('preserves current visibility when older column settings do not include active', () => {

@@ -9,6 +9,13 @@ type SortableListProps<T extends { id: string }> = {
   renderItem: (item: T, handle: ReactNode) => ReactNode;
 };
 
+type SortableTransform = {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+};
+
 export function SortableList<T extends { id: string }>({ items, onChange, renderItem }: SortableListProps<T>) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -45,7 +52,7 @@ function SortableRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: getVerticalSortableTransform(transform),
     transition,
   };
 
@@ -62,8 +69,12 @@ function SortableRow({
   );
 
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'sortableDragging' : undefined}>
+    <div ref={setNodeRef} style={style} className={`sortableRow${isDragging ? ' sortableDragging' : ''}`}>
       {children(handle)}
     </div>
   );
+}
+
+export function getVerticalSortableTransform(transform: SortableTransform | null) {
+  return CSS.Transform.toString(transform ? { ...transform, x: 0 } : null);
 }

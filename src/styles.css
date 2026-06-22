@@ -299,6 +299,12 @@ button.danger:hover:not(:disabled) {
   cursor: grabbing;
 }
 
+.sortableRow {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
 .sortableDragging {
   opacity: 0.72;
   position: relative;
@@ -337,6 +343,10 @@ button.danger:hover:not(:disabled) {
 }
 
 .appShell {
+  --app-layout-gutter: 12px;
+  --app-panel-border-width: 1px;
+  --app-panel-padding: 16px;
+  --app-hero-content-offset: calc(var(--app-layout-gutter) + var(--app-panel-border-width) + var(--app-panel-padding));
   min-height: 100vh;
   max-width: 100vw;
   overflow-x: hidden;
@@ -396,12 +406,14 @@ button.appearanceToggleOption.isActive {
 .hero {
   background: linear-gradient(135deg, var(--color-hero-gradient-start) 0%, var(--color-hero-gradient-mid) 55%, var(--color-hero-gradient-end) 100%);
   color: var(--color-hero-text);
-  padding: 42px 12px 64px;
+  padding: 42px 0 64px;
 }
 
 .hero > div {
   margin: 0 auto;
   max-width: 1440px;
+  padding: 0 var(--app-hero-content-offset);
+  width: 100%;
 }
 
 .eyebrow {
@@ -432,18 +444,18 @@ h1 {
   margin: -42px auto 48px;
   max-width: 1440px;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 var(--app-layout-gutter);
   width: 100%;
 }
 
 .panel {
   background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
+  border: var(--app-panel-border-width) solid var(--color-border-default);
   border-radius: 8px;
   box-shadow: var(--shadow-panel);
   min-width: 0;
   max-width: 100%;
-  padding: 16px;
+  padding: var(--app-panel-padding);
   overflow: hidden;
 }
 
@@ -474,6 +486,7 @@ h3 {
   padding: 28px 24px;
   position: relative;
   text-align: center;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .dropZone.hasFile {
@@ -486,6 +499,21 @@ h3 {
 .dropZone.isDragging {
   background: var(--color-accent-bg-soft);
   border-color: var(--color-primary-bg);
+}
+
+.dropZone:hover,
+.dropZone:focus-visible {
+  background: var(--color-bg-surface-subtle);
+  border-color: var(--color-primary-bg);
+  box-shadow: 0 8px 18px var(--color-focus-ring);
+  transform: translateY(-1px);
+}
+
+.dropZone.hasFile:hover,
+.dropZone.hasFile:focus-visible,
+.dropZone.hasFile.isDragging {
+  background: var(--color-accent-bg-soft);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring), 0 8px 18px var(--color-focus-ring);
 }
 
 .dropZone input {
@@ -684,14 +712,66 @@ input[type='checkbox']:disabled {
 
 .rawPreviewTableWrap {
   max-height: 360px;
+  overflow: auto;
+}
+
+.rawPreviewTable {
+  min-width: max(100%, calc(72px + var(--raw-preview-column-count, 1) * 180px));
+  table-layout: fixed;
+  width: 100%;
+}
+
+.rawPreviewRowNumberColumn {
+  width: 72px;
+}
+
+.rawPreviewDataColumn {
+  width: 180px;
+}
+
+.rawPreviewColumnHeader {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.rawPreviewTable th,
+.rawPreviewTable td {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.rawPreviewTable th:first-child,
+.rawPreviewTable td:first-child {
+  max-width: 72px;
+  min-width: 72px;
+  width: 72px;
+}
+
+.rawPreviewColumnHeader .truncatedTextTooltip {
+  max-width: 100%;
+}
+
+.rawPreviewEmptyState {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  margin-top: 16px;
+  padding: 16px;
 }
 
 .previewSummary {
-  margin: 2px 0 0;
+  max-width: 100%;
+  margin: 8px 0 0;
+  width: 100%;
 }
 
-.previewSummaryRow {
-  margin-top: 6px;
+.rowColumnConfig {
+  display: grid;
+  margin-bottom: 16px;
+  max-width: 100%;
 }
 
 table {
@@ -711,6 +791,11 @@ td {
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+th .truncatedText,
+td .truncatedText {
+  max-width: 100%;
 }
 
 th:first-child,
@@ -2543,7 +2628,16 @@ tbody tr:hover {
 }
 
 .rowConfigurationError {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  color: var(--color-warning-text);
   margin: 12px 0 0;
+  padding: 8px 10px;
+}
+
+.rowInputError {
+  margin: 0;
 }
 
 .rawPreviewOptions {
@@ -2616,6 +2710,16 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.settingsActions .compactActions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.settingsActions .compactActions .actionButton {
+  white-space: nowrap;
+}
+
 .settingsActions {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
@@ -2630,6 +2734,7 @@ tbody tr:hover {
 .settingsActionsIntro {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .settingsActionsIntro h3 {
@@ -2754,46 +2859,279 @@ tbody tr:hover {
   gap: 8px;
 }
 
-.suggestionToggleButton.isActive {
-  background: var(--color-selected-bg);
-  color: var(--color-selected-text);
-  box-shadow: inset 0 0 0 1px var(--color-selected-border);
-}
-
-.suggestionToggleButton.isActive:hover:not(:disabled) {
-  background: var(--color-accent-bg);
-}
-
-.appliedSuggestions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.appliedSuggestions > span:first-child {
-  font-weight: 700;
-}
-
-.suggestionChip {
-  background: var(--color-selected-bg);
-  border: 1px solid var(--color-selected-border);
-  border-radius: 999px;
-  color: var(--color-selected-text);
-  font-size: 0.9rem;
-  font-weight: 700;
-  padding: 4px 10px;
-}
-
-.columnTable input[type='checkbox'] {
-  min-height: 18px;
-  width: 18px;
-}
-
 .tableWrap input[type='checkbox'] {
   cursor: pointer;
   min-height: 18px;
   width: 18px;
+}
+
+.columnTransferGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(240px, 0.35fr) minmax(360px, 0.65fr);
+}
+
+.columnTransferPanel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: min(58vh, 560px);
+  min-height: 440px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.columnTransferPanelHeader {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.columnTransferPanelHeader h3 {
+  align-items: baseline;
+  display: flex;
+  gap: 4px;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.columnTransferPanelHeader h3 span {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.columnTransferSearch {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.columnTransferSearch label {
+  min-width: 0;
+}
+
+.columnTransferSearch label span {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 0.86rem;
+  margin-bottom: 4px;
+}
+
+.columnTransferSearch input {
+  min-width: 0;
+  width: 100%;
+}
+
+.columnTransferClearSearch {
+  height: 38px;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.columnTransferList {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.columnTransferEmpty {
+  align-self: stretch;
+  background: var(--color-bg-surface-muted);
+  border: 1px dashed var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+}
+
+.columnTransferItem {
+  align-items: start;
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 12px;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.columnTransferItem.hasAlias {
+  align-items: center;
+  grid-template-columns: minmax(0, 1.15fr) minmax(180px, 0.95fr) auto;
+  grid-template-rows: auto;
+  padding: 10px 12px;
+}
+
+.columnTransferItem:hover {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
+}
+
+.columnTransferItem.isSelected {
+  border-color: var(--color-focus-border);
+  box-shadow: inset 3px 0 0 var(--color-focus-border), 0 0 0 2px var(--color-focus-ring);
+}
+
+.columnTransferSelectArea {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  justify-items: stretch;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.columnTransferItem.hasAlias .columnTransferSelectArea {
+  align-self: stretch;
+  align-content: center;
+}
+
+.columnTransferSelectArea:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.columnTransferSelectArea:focus-visible {
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  outline: none;
+}
+
+.columnTransferTitleRow {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.columnTransferTitleRow strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.columnTransferTitleRow span {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  order: -1;
+  white-space: nowrap;
+}
+
+.columnTransferMeta {
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  gap: 4px 10px;
+}
+
+.columnTransferDetailRow {
+  align-items: baseline;
+  color: var(--color-text-muted);
+  display: grid;
+  font-size: 0.82rem;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.columnTransferDetailRow > span {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.columnReasonChip {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
+}
+
+.columnTransferAlias {
+  grid-column: 1 / 2;
+  min-width: 0;
+}
+
+.columnTransferItem.hasAlias .columnTransferAlias {
+  grid-column: 2;
+}
+
+.columnTransferAlias span {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-bottom: 2px;
+}
+
+.columnTransferAlias input {
+  min-height: 34px;
+  padding-block: 6px;
+}
+
+.columnTransferItem.hasAlias .columnTransferAlias input {
+  min-height: 32px;
+}
+
+.columnTransferAction {
+  align-self: start;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.columnTransferActions {
+  align-items: end;
+  align-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.columnTransferItem.hasAlias .columnTransferActions {
+  align-self: end;
+  flex-wrap: nowrap;
+}
+
+.columnTransferExampleAction {
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.columnTransferItem.hasAlias .columnTransferAction,
+.columnTransferItem.hasAlias .columnTransferExampleAction {
+  min-height: 32px;
+  padding-block: 5px;
+}
+
+.infoTooltipBubble.columnExamplesTooltip {
+  max-height: min(280px, calc(100vh - 32px));
+  max-width: min(320px, calc(100vw - 32px));
+  overflow: auto;
+  white-space: pre-line;
 }
 
 .mutedRow {
@@ -2820,16 +3158,17 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
+  .appShell {
+    --app-layout-gutter: 8px;
+    --app-panel-padding: 12px;
+  }
+
   .hero {
-    padding: 30px 10px 60px;
+    padding: 30px 0 60px;
   }
 
   .wizard {
-    padding: 0 8px 24px;
-  }
-
-  .panel {
-    padding: 12px;
+    padding: 0 var(--app-layout-gutter) 24px;
   }
 
   .twoColumns,
@@ -2914,12 +3253,43 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
-  .previewSummaryRow {
-    margin-top: 8px;
+  .columnTransferGrid {
+    grid-template-columns: 1fr;
   }
 
-  .previewSummaryRow > span {
-    display: none;
+  .columnTransferPanel {
+    height: min(64vh, 520px);
+    min-height: 360px;
+  }
+
+  .columnTransferItem {
+    grid-template-columns: 1fr;
+  }
+
+  .columnTransferItem.hasAlias {
+    grid-template-columns: 1fr;
+  }
+
+  .columnTransferAlias {
+    grid-column: 1;
+  }
+
+  .columnTransferItem.hasAlias .columnTransferAlias {
+    grid-column: 1;
+  }
+
+  .columnTransferSearch {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .columnTransferItem.hasAlias .columnTransferActions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .columnTransferAction {
+    justify-self: start;
   }
 
   .sectionHeader {

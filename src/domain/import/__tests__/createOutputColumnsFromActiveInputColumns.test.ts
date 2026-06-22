@@ -95,6 +95,43 @@ describe('createOutputColumnsFromActiveInputColumns', () => {
     ]);
   });
 
+  it('uses the visual active input order as the generated output order', () => {
+    const result = createOutputColumnsFromActiveInputColumns(
+      [
+        inputColumn({ id: 'input-c', columnIndex: 2, columnLetter: 'C', header: 'Precio' }),
+        inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', alias: 'Codigo' }),
+        inputColumn({ id: 'input-b', columnIndex: 1, columnLetter: 'B', header: 'Nombre' }),
+      ],
+      [],
+      { idFactory: idFactory() },
+    );
+
+    expect(result.columns.map((column) => column.generatedFromInputColumnId)).toEqual(['input-c', 'input-a', 'input-b']);
+    expect(result.columns.map((column) => column.order)).toEqual([0, 1, 2]);
+  });
+
+  it('inserts missing generated columns according to the visual active input order', () => {
+    const existingGeneratedColumn = outputColumn({
+      id: 'generated-a',
+      label: 'Codigo',
+      generatedFromInputColumnId: 'input-a',
+      recipe: { type: 'direct', inputColumnId: 'input-a' },
+    });
+
+    const result = createOutputColumnsFromActiveInputColumns(
+      [
+        inputColumn({ id: 'input-b', columnIndex: 1, columnLetter: 'B', header: 'Nombre' }),
+        inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', alias: 'Codigo' }),
+        inputColumn({ id: 'input-c', columnIndex: 2, columnLetter: 'C', header: 'Precio' }),
+      ],
+      [existingGeneratedColumn],
+      { idFactory: idFactory() },
+    );
+
+    expect(result.columns.map((column) => column.generatedFromInputColumnId)).toEqual(['input-b', 'input-a', 'input-c']);
+    expect(result.columns.map((column) => column.id)).toEqual(['created-1', 'generated-a', 'created-2']);
+  });
+
   it('preserves manually added columns while regenerating generated columns', () => {
     const customColumn = outputColumn({
       id: 'custom',
@@ -168,10 +205,11 @@ describe('createOutputColumnsFromActiveInputColumns', () => {
       { idFactory: idFactory() },
     );
 
+    expect(result).toMatchObject({ createdCount: 0, skippedExistingCount: 1 });
     expect(result.columns).toEqual([
       outputColumn({ ...manualDirectColumn, order: 0 }),
       outputColumn({
-        id: 'created-1',
+        id: 'generated-a',
         label: 'Codigo',
         order: 1,
         generatedFromInputColumnId: 'input-a',
@@ -197,6 +235,72 @@ describe('createOutputColumnsFromActiveInputColumns', () => {
     expect(new Set(result.columns.map((column) => column.generatedFromInputColumnId)).size).toBe(1);
   });
 
+  it('removes an obsolete generated column when its input column is no longer active', () => {
+    const result = createOutputColumnsFromActiveInputColumns(
+      [
+        inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', alias: 'Codigo' }),
+        inputColumn({ id: 'input-b', columnIndex: 1, columnLetter: 'B', active: false, header: 'Nombre' }),
+      ],
+      [
+        outputColumn({ id: 'manual', label: 'Manual', recipe: { type: 'empty' } }),
+        outputColumn({ id: 'old-a', generatedFromInputColumnId: 'input-a', recipe: { type: 'direct', inputColumnId: 'input-a' } }),
+        outputColumn({ id: 'old-b', generatedFromInputColumnId: 'input-b', recipe: { type: 'direct', inputColumnId: 'input-b' } }),
+      ],
+      { idFactory: idFactory() },
+    );
+
+    expect(result.removedObsoleteCount).toBe(1);
+    expect(result.columns).toEqual([
+      outputColumn({ id: 'manual', label: 'Manual', order: 0, recipe: { type: 'empty' } }),
+      outputColumn({
+        id: 'created-1',
+        label: 'Codigo',
+        order: 1,
+        generatedFromInputColumnId: 'input-a',
+        recipe: { type: 'direct', inputColumnId: 'input-a' },
+      }),
+    ]);
+  });
+
+  it('removes every generated column when all input columns are inactive and keeps manual columns', () => {
+    const result = createOutputColumnsFromActiveInputColumns(
+      [
+        inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', active: false }),
+        inputColumn({ id: 'input-b', columnIndex: 1, columnLetter: 'B', active: false }),
+      ],
+      [
+        outputColumn({ id: 'manual', label: 'Manual', recipe: { type: 'empty' } }),
+        outputColumn({ id: 'old-a', generatedFromInputColumnId: 'input-a', recipe: { type: 'direct', inputColumnId: 'input-a' } }),
+        outputColumn({ id: 'old-b', generatedFromInputColumnId: 'input-b', recipe: { type: 'direct', inputColumnId: 'input-b' } }),
+      ],
+      { idFactory: idFactory() },
+    );
+
+    expect(result).toMatchObject({ activeCount: 0, createdCount: 0, removedObsoleteCount: 2 });
+    expect(result.columns).toEqual([
+      outputColumn({ id: 'manual', label: 'Manual', order: 0, recipe: { type: 'empty' } }),
+    ]);
+  });
+
+  it('uses the current alias when regenerating generated columns', () => {
+    const result = createOutputColumnsFromActiveInputColumns(
+      [
+        inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', alias: 'Codigo nuevo', header: 'Codigo viejo' }),
+      ],
+      [
+        outputColumn({
+          id: 'old-a',
+          label: 'Codigo viejo',
+          generatedFromInputColumnId: 'input-a',
+          recipe: { type: 'direct', inputColumnId: 'input-a' },
+        }),
+      ],
+      { idFactory: idFactory() },
+    );
+
+    expect(result.columns[0]).toMatchObject({ label: 'Codigo nuevo', generatedFromInputColumnId: 'input-a' });
+  });
+
   it('regenerates directly when generated columns are unmodified', () => {
     const inputColumns = [
       inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', alias: 'Codigo' }),
@@ -212,6 +316,22 @@ describe('createOutputColumnsFromActiveInputColumns', () => {
     ];
     const outputColumns = createOutputColumnsFromActiveInputColumns(inputColumns, [], { idFactory: idFactory() }).columns
       .map((column) => ({ ...column, label: 'Codigo editado' }));
+
+    expect(hasGeneratedOutputColumnManualChanges(inputColumns, outputColumns)).toBe(true);
+  });
+
+  it('requires confirmation when an obsolete generated column has manual changes', () => {
+    const inputColumns = [
+      inputColumn({ id: 'input-a', columnIndex: 0, columnLetter: 'A', active: false, alias: 'Codigo' }),
+    ];
+    const outputColumns = [
+      outputColumn({
+        id: 'old-a',
+        label: 'Codigo editado',
+        generatedFromInputColumnId: 'input-a',
+        recipe: { type: 'direct', inputColumnId: 'input-a' },
+      }),
+    ];
 
     expect(hasGeneratedOutputColumnManualChanges(inputColumns, outputColumns)).toBe(true);
   });

@@ -58,7 +58,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
             : `${rules.length} ${rules.length === 1 ? 'regla configurada' : 'reglas configuradas'}.`}
         </p>
         <div className="rulesActions">
-          <InfoTooltip content="Agrega una nueva regla para excluir filas.">
+          <InfoTooltip content="Agregá una nueva regla para excluir filas.">
             <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
           </InfoTooltip>
         </div>
@@ -76,7 +76,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
               <Dropdown
                 className="compact"
                 label="Columna"
-                labelInfo={<InfoTooltip content="Elegi la columna que se va a revisar." />}
+                labelInfo={<InfoTooltip content="Elegí la columna que se va a revisar." />}
                 value={rule.columnId}
                 placeholder="Seleccionar columna"
                 options={columns.map((column) => ({
@@ -90,7 +90,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
               <Dropdown<CompletedIgnoreRuleOperator>
                 className="compact"
                 label="Condición"
-                labelInfo={<InfoTooltip content="Define cuando se excluye una fila." />}
+                labelInfo={<InfoTooltip content="Definí cuándo se excluye una fila." />}
                 value={rule.operator}
                 placeholder="Seleccionar condición"
                 options={operators}
@@ -117,7 +117,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
             </div>
             <DeleteButton onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
-            {!isComplete ? <p className="muted ruleIncompleteHint">Completa la regla para aplicarla.</p> : null}
+            {!isComplete ? <p className="muted ruleIncompleteHint">Completá la regla para aplicarla.</p> : null}
           </div>
         );
       })}

@@ -20,21 +20,40 @@ export function createOutputColumnsFromActiveInputColumns(
   const activeInputColumns = inputColumns.filter((column) => column.active);
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const manualColumns = outputColumns.filter((column) => !getGeneratedInputColumnId(column, outputColumns));
+  const existingGeneratedColumns = outputColumns.filter((column) => getGeneratedInputColumnId(column, outputColumns));
   const activeInputIds = new Set(activeInputColumns.map((column) => column.id));
   const removedObsoleteCount = outputColumns.filter((column) => {
     const generatedInputColumnId = getGeneratedInputColumnId(column, outputColumns);
     return generatedInputColumnId && !activeInputIds.has(generatedInputColumnId);
   }).length;
-  const generatedColumns = activeInputColumns.map((inputColumn, index) =>
-    createGeneratedOutputColumn(inputColumn, manualColumns.length + index, idFactory()),
+  const reusableColumnsByInputId = new Map(
+    activeInputColumns
+      .map((inputColumn) => [
+        inputColumn.id,
+        existingGeneratedColumns.find((column) =>
+          getGeneratedInputColumnId(column, outputColumns) === inputColumn.id
+          && isGeneratedColumnUnmodified(column, inputColumn),
+        ),
+      ] as const)
+      .filter((entry): entry is [string, OutputColumn] => Boolean(entry[1])),
   );
+  let createdCount = 0;
+  const generatedColumns = activeInputColumns.map((inputColumn, index) => {
+    const reusableColumn = reusableColumnsByInputId.get(inputColumn.id);
+    if (reusableColumn) {
+      return { ...reusableColumn, order: manualColumns.length + index };
+    }
+
+    createdCount += 1;
+    return createGeneratedOutputColumn(inputColumn, manualColumns.length + index, idFactory());
+  });
   const columns = reorder([...manualColumns, ...generatedColumns]);
 
   return {
     columns,
     activeCount: activeInputColumns.length,
-    createdCount: generatedColumns.length,
-    skippedExistingCount: 0,
+    createdCount,
+    skippedExistingCount: reusableColumnsByInputId.size,
     removedObsoleteCount,
   };
 }
@@ -59,8 +78,6 @@ export function resolveGeneratedColumnsRegeneration(
 }
 
 export function hasGeneratedOutputColumnManualChanges(inputColumns: InputColumn[], outputColumns: OutputColumn[]) {
-  const activeInputColumns = inputColumns.filter((column) => column.active);
-  const activeInputIds = new Set(activeInputColumns.map((column) => column.id));
   const generatedColumns = outputColumns.filter((column) => getGeneratedInputColumnId(column, outputColumns));
 
   if (generatedColumns.length === 0) {
@@ -69,11 +86,11 @@ export function hasGeneratedOutputColumnManualChanges(inputColumns: InputColumn[
 
   return generatedColumns.some((column) => {
     const generatedInputColumnId = getGeneratedInputColumnId(column, outputColumns);
-    if (!generatedInputColumnId || !activeInputIds.has(generatedInputColumnId)) {
+    if (!generatedInputColumnId) {
       return false;
     }
 
-    const inputColumn = activeInputColumns.find((item) => item.id === generatedInputColumnId);
+    const inputColumn = inputColumns.find((item) => item.id === generatedInputColumnId);
     if (!inputColumn) {
       return false;
     }
