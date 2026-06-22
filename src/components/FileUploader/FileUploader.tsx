@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ReadyCheckIcon } from '../../dev/icons';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type FileUploaderProps = {
@@ -103,7 +103,7 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
               Remover
             </ActionButton>
           ) : null}
-          {hasFile ? <ReadyCheckIcon className="dropZoneReadyIcon" aria-hidden="true" focusable="false" /> : null}
+          {hasFile ? <AppIcon name="done" className="dropZoneReadyIcon" aria-hidden="true" focusable="false" /> : null}
           <strong>{hasFile ? fileName : 'Elegir archivo'}</strong>
           <span className="dropZoneHelp">Arrastrá un archivo aquí de tipo .xlsx, .xls o .xlsm</span>
           <span className="dropZoneHelp dropZoneHelpSecondary">Hacé click para subir uno de tu computadora</span>

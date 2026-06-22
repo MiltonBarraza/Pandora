@@ -1,25 +1,8 @@
-import {
-  AddCircleIcon,
-  CloseCircleIcon,
-  DeleteTrashIcon,
-  DownloadFileIcon,
-  DuplicateFileIcon,
-  EditBoxIcon,
-  ErrorCircleIcon,
-  ExportIcon,
-  ImportExcelIcon,
-  InfoCircleIcon,
-  ReadyCheckIcon,
-  RemoveCircleIcon,
-  SaveCheckIcon,
-  SaveIcon,
-  SettingsGearIcon,
-  UploadFileIcon,
-  WarningTriangleIcon,
-  type IconProps,
-} from '../../../dev/icons';
+import type { ComponentProps } from 'react';
+import { AppIcon } from '../AppIcon/AppIcon';
+import type { AppIconName } from '../AppIcon/iconMap';
 
-export type ActionIconComponent = (props: IconProps) => JSX.Element;
+export type ActionIconComponent = (props: ComponentProps<'svg'>) => JSX.Element;
 
 export type ActionName =
   | 'delete'
@@ -39,25 +22,31 @@ export type ActionName =
   | 'error'
   | 'done';
 
+function createActionIcon(name: AppIconName): ActionIconComponent {
+  return function ActionIcon(props) {
+    return <AppIcon {...props} name={name} />;
+  };
+}
+
 export const actionIcons: Record<ActionName, ActionIconComponent> = {
-  delete: DeleteTrashIcon,
-  duplicate: DuplicateFileIcon,
-  add: AddCircleIcon,
-  edit: EditBoxIcon,
-  save: SaveIcon,
-  download: DownloadFileIcon,
-  import: ImportExcelIcon,
-  export: ExportIcon,
-  upload: UploadFileIcon,
-  clear: RemoveCircleIcon,
-  close: CloseCircleIcon,
-  configure: SettingsGearIcon,
-  info: InfoCircleIcon,
-  warning: WarningTriangleIcon,
-  error: ErrorCircleIcon,
-  done: ReadyCheckIcon,
+  delete: createActionIcon('delete'),
+  duplicate: createActionIcon('duplicate'),
+  add: createActionIcon('add'),
+  edit: createActionIcon('edit'),
+  save: createActionIcon('save'),
+  download: createActionIcon('download'),
+  import: createActionIcon('import'),
+  export: createActionIcon('export'),
+  upload: createActionIcon('upload'),
+  clear: createActionIcon('clear'),
+  close: createActionIcon('close'),
+  configure: createActionIcon('configure'),
+  info: createActionIcon('info'),
+  warning: createActionIcon('warning'),
+  error: createActionIcon('error'),
+  done: createActionIcon('done'),
 };
 
 export const actionIconsAlternate = {
-  saveDone: SaveCheckIcon,
+  saveDone: createActionIcon('done'),
 } as const;

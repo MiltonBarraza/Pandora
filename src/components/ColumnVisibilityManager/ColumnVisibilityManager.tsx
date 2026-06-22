@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ColumnAnalysis, IgnoredReason } from '../../types/import';
 import { SortableList } from '../SortableList/SortableList';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
@@ -376,19 +377,37 @@ function ColumnTransferItem({
       <div className="columnTransferActions">
         {showExamples ? (
           <InfoTooltip content={getColumnExamplesTooltipContent(column)} className="columnExamplesTooltip">
-            <button type="button" className="secondary columnTransferExampleAction">
-              Ver ejemplos
+            <button
+              type="button"
+              className="secondary columnTransferIconAction columnTransferExampleAction"
+              aria-label="Ver ejemplos"
+              title="Ver ejemplos"
+            >
+              <AppIcon name="eye" aria-hidden="true" focusable="false" />
             </button>
           </InfoTooltip>
         ) : null}
-        <button
-          type="button"
-          className="secondary columnTransferAction"
-          aria-label={actionAriaLabel}
-          onClick={onAction}
-        >
-          {actionLabel}
-        </button>
+        {showAliasInput ? (
+          <InfoTooltip content={actionLabel}>
+            <button
+              type="button"
+              className="danger columnTransferIconAction columnTransferAction"
+              aria-label={actionAriaLabel}
+              onClick={onAction}
+            >
+              <AppIcon name="delete" aria-hidden="true" focusable="false" />
+            </button>
+          </InfoTooltip>
+        ) : (
+          <button
+            type="button"
+            className="secondary columnTransferAction"
+            aria-label={actionAriaLabel}
+            onClick={onAction}
+          >
+            {actionLabel}
+          </button>
+        )}
         {dragHandle}
       </div>
     </article>

@@ -3112,6 +3112,20 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.columnTransferIconAction {
+  align-items: center;
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0;
+  width: 40px;
+}
+
+.columnTransferIconAction svg {
+  flex: 0 0 auto;
+}
+
 .columnTransferActions .dragHandle {
   height: 40px;
   min-height: 40px;

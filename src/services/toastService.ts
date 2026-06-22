@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import toast, { type ToasterProps } from 'react-hot-toast';
-import { InfoCircleIcon } from '../dev/icons';
+import { AppIcon } from '../components/ui/AppIcon/AppIcon';
 
 export type ToastId = string;
 
@@ -39,7 +39,7 @@ export function showInfoToast(message: string): ToastId {
     icon: createElement(
       'span',
       { className: 'appToastInfoIconWrap', 'aria-hidden': 'true' },
-      createElement(InfoCircleIcon, { className: 'appToastInfoIcon', focusable: 'false' }),
+      createElement(AppIcon, { name: 'info', className: 'appToastInfoIcon', focusable: 'false' }),
     ),
   });
 }
