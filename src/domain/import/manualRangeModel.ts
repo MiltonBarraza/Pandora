@@ -1,5 +1,6 @@
 import { parseStartRowInputWhileEditing } from './numberInput';
 import { getInputColumnLabel } from './inputColumnLabels';
+import { evaluateTextCondition } from './evaluateCondition';
 import type {
   InputColumn,
   InputRow,
@@ -14,12 +15,32 @@ import type {
 
 export type ManualRangeValueSourceType = ManualRangeValueSource['type'] | 'input';
 export type ManualRangeGenerationMode = 'untilNextText' | 'singleRow';
+export type ManualRangeInitialValueMode = 'empty' | 'detectedText' | 'firstValueInColumn' | 'lastValueInColumn';
+export type ManualRangeStartFilter = {
+  inputColumnId: string;
+  operator: 'isEmpty' | 'isNotEmpty';
+};
 
 export type ManualRangeGenerationConfig = {
   inputColumnId: string;
   startRowNumber: number;
   endRowNumber: number;
   mode: ManualRangeGenerationMode;
+  initialValueMode?: ManualRangeInitialValueMode;
+  initialValueColumnId?: string;
+  validRowsColumnId?: string;
+  trailingRowCount?: number;
+  startFilter?: ManualRangeStartFilter;
+  idFactory?: () => string;
+};
+
+export type ManualRangeBlockGenerationConfig = {
+  dataColumnId: string;
+  startRowNumber: number;
+  endRowNumber: number;
+  initialValueMode?: ManualRangeInitialValueMode;
+  initialValueColumnId?: string;
+  trailingRowCount?: number;
   idFactory?: () => string;
 };
 
@@ -400,7 +421,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', initialValueColumnId, validRowsColumnId, trailingRowCount = 0, startFilter, idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -411,35 +432,253 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
     .map((row) => ({
       rowNumber: row.rowNumber,
       text: String(row.values[inputColumnId] ?? '').trim(),
+      row,
     }))
     .filter((row) => row.text)
+    .filter(({ row }) => matchesManualRangeStartFilter(row, startFilter))
+    .map(({ rowNumber, text }) => ({ rowNumber, text }))
     .sort((left, right) => left.rowNumber - right.rowNumber);
 
   return foundTexts.map((row, index) => {
     const nextTextRowNumber = foundTexts[index + 1]?.rowNumber;
-    const rangeEndRowNumber = mode === 'singleRow'
+    const naturalEndRowNumber = mode === 'singleRow'
       ? row.rowNumber
       : Math.min(endRowNumber, nextTextRowNumber ? nextTextRowNumber - 1 : endRowNumber);
+    const rangeEndRowNumber = getAdjustedManualRangeEndRowNumber(rows, {
+      startRowNumber: row.rowNumber,
+      endRowNumber: naturalEndRowNumber,
+      validRowsColumnId,
+    });
+    const extendedEndRowNumber = getTrailingAdjustedManualRangeEndRowNumber({
+      adjustedEndRowNumber: rangeEndRowNumber,
+      naturalEndRowNumber,
+      configuredEndRowNumber: endRowNumber,
+      trailingRowCount,
+    });
+
+    const rangeTextSource = {
+      type: 'rangeText' as const,
+      inputColumnId,
+      selectedText: row.text,
+    };
+    const source = createGeneratedManualRangeValueSource(rows, {
+      startRowNumber: row.rowNumber,
+      endRowNumber: extendedEndRowNumber,
+      initialValueMode,
+      initialValueColumnId,
+      rangeTextSource,
+    });
 
     return {
       id: idFactory(),
       startRowNumber: row.rowNumber,
-      endRowNumber: rangeEndRowNumber,
+      endRowNumber: extendedEndRowNumber,
+      suggestedFromText: row.text,
       valueRecipe: {
-        source: {
-          type: 'rangeText',
-          inputColumnId,
-          selectedText: row.text,
-        },
+        source,
         steps: [],
       },
-      valueSource: {
-        type: 'rangeText',
-        inputColumnId,
-        selectedText: row.text,
-      },
+      valueSource: source,
     };
   });
+}
+
+export function generateManualRangesFromDataBlocks(rows: InputRow[], config: ManualRangeBlockGenerationConfig): ManualRangeValue[] {
+  const { dataColumnId, startRowNumber, endRowNumber, initialValueMode = 'empty', initialValueColumnId, trailingRowCount = 0, idFactory = () => crypto.randomUUID() } = config;
+
+  if (!dataColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
+    return [];
+  }
+
+  const sortedRows = rows
+    .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
+    .sort((left, right) => left.rowNumber - right.rowNumber);
+  const detectedBlocks: Array<{ startRowNumber: number; endRowNumber: number }> = [];
+  let blockStartRowNumber: number | null = null;
+  let lastUsefulRowNumber: number | null = null;
+
+  sortedRows.forEach((row) => {
+    const isUsefulRow = Boolean(String(row.values[dataColumnId] ?? '').trim());
+    if (isUsefulRow) {
+      blockStartRowNumber ??= row.rowNumber;
+      lastUsefulRowNumber = row.rowNumber;
+      return;
+    }
+
+    if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
+      detectedBlocks.push({
+        startRowNumber: blockStartRowNumber,
+        endRowNumber: lastUsefulRowNumber,
+      });
+    }
+    blockStartRowNumber = null;
+    lastUsefulRowNumber = null;
+  });
+
+  if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
+    detectedBlocks.push({
+      startRowNumber: blockStartRowNumber,
+      endRowNumber: lastUsefulRowNumber,
+    });
+  }
+
+  return detectedBlocks.map((block, index) => {
+    const nextBlockStartRowNumber = detectedBlocks[index + 1]?.startRowNumber;
+    const naturalEndRowNumber = Math.min(endRowNumber, nextBlockStartRowNumber ? nextBlockStartRowNumber - 1 : endRowNumber);
+    const extendedEndRowNumber = getTrailingAdjustedManualRangeEndRowNumber({
+      adjustedEndRowNumber: block.endRowNumber,
+      naturalEndRowNumber,
+      configuredEndRowNumber: endRowNumber,
+      trailingRowCount,
+    });
+
+    return createManualRangeBlockValue(rows, {
+      startRowNumber: block.startRowNumber,
+      endRowNumber: extendedEndRowNumber,
+      initialValueMode,
+      initialValueColumnId,
+      idFactory,
+    });
+  });
+}
+
+function createManualRangeBlockValue(
+  rows: InputRow[],
+  config: {
+    startRowNumber: number;
+    endRowNumber: number;
+    initialValueMode: ManualRangeInitialValueMode;
+    initialValueColumnId?: string;
+    idFactory: () => string;
+  },
+): ManualRangeValue {
+  const { startRowNumber, endRowNumber, initialValueMode, initialValueColumnId, idFactory } = config;
+  const source = createGeneratedManualRangeValueSource(rows, {
+    startRowNumber,
+    endRowNumber,
+    initialValueMode,
+    initialValueColumnId,
+  });
+
+  return {
+    id: idFactory(),
+    startRowNumber,
+    endRowNumber,
+    valueRecipe: {
+      source,
+      steps: [],
+    },
+    valueSource: source,
+  };
+}
+
+function createGeneratedManualRangeValueSource(
+  rows: InputRow[],
+  config: {
+    startRowNumber: number;
+    endRowNumber: number;
+    initialValueMode: ManualRangeInitialValueMode;
+    initialValueColumnId?: string;
+    rangeTextSource?: Extract<ManualRangeValueSource, { type: 'rangeText' }>;
+  },
+): ManualRangeValueSource {
+  const { startRowNumber, endRowNumber, initialValueMode, initialValueColumnId, rangeTextSource } = config;
+  if (initialValueMode === 'detectedText' && rangeTextSource) {
+    return rangeTextSource;
+  }
+
+  if ((initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn') && initialValueColumnId) {
+    const selectedText = findManualRangeBoundaryValue(rows, {
+      startRowNumber,
+      endRowNumber,
+      inputColumnId: initialValueColumnId,
+      direction: initialValueMode === 'firstValueInColumn' ? 'first' : 'last',
+    });
+
+    return {
+      type: 'rangeText',
+      inputColumnId: initialValueColumnId,
+      selectedText,
+    };
+  }
+
+  return { type: 'fixedText', value: '' };
+}
+
+function findManualRangeBoundaryValue(
+  rows: InputRow[],
+  config: {
+    startRowNumber: number;
+    endRowNumber: number;
+    inputColumnId: string;
+    direction: 'first' | 'last';
+  },
+) {
+  const { startRowNumber, endRowNumber, inputColumnId, direction } = config;
+  const rangeRows = rows
+    .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
+    .sort((left, right) => left.rowNumber - right.rowNumber);
+  const orderedRows = direction === 'first' ? rangeRows : [...rangeRows].reverse();
+
+  for (const row of orderedRows) {
+    const value = String(row.values[inputColumnId] ?? '').trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return '';
+}
+
+function matchesManualRangeStartFilter(row: InputRow, startFilter: ManualRangeStartFilter | undefined) {
+  if (!startFilter?.inputColumnId || !isManualRangeStartFilterOperator(startFilter.operator)) {
+    return true;
+  }
+
+  return evaluateTextCondition(String(row.values[startFilter.inputColumnId] ?? ''), startFilter.operator);
+}
+
+function isManualRangeStartFilterOperator(operator: string): operator is ManualRangeStartFilter['operator'] {
+  return operator === 'isEmpty' || operator === 'isNotEmpty';
+}
+
+function getAdjustedManualRangeEndRowNumber(
+  rows: InputRow[],
+  config: { startRowNumber: number; endRowNumber: number; validRowsColumnId?: string },
+) {
+  const { startRowNumber, endRowNumber, validRowsColumnId } = config;
+  if (!validRowsColumnId) {
+    return endRowNumber;
+  }
+
+  const lastUsefulRow = rows
+    .filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber)
+    .filter((row) => String(row.values[validRowsColumnId] ?? '').trim())
+    .sort((left, right) => right.rowNumber - left.rowNumber)[0];
+
+  return lastUsefulRow?.rowNumber ?? endRowNumber;
+}
+
+function getTrailingAdjustedManualRangeEndRowNumber(config: {
+  adjustedEndRowNumber: number;
+  naturalEndRowNumber: number;
+  configuredEndRowNumber: number;
+  trailingRowCount: number;
+}) {
+  const { adjustedEndRowNumber, naturalEndRowNumber, configuredEndRowNumber, trailingRowCount } = config;
+  const normalizedTrailingRowCount = Number.isFinite(trailingRowCount)
+    ? Math.max(0, Math.trunc(trailingRowCount))
+    : 0;
+
+  if (normalizedTrailingRowCount === 0) {
+    return adjustedEndRowNumber;
+  }
+
+  return Math.min(
+    adjustedEndRowNumber + normalizedTrailingRowCount,
+    naturalEndRowNumber,
+    configuredEndRowNumber,
+  );
 }
 
 export function getManualRangeSelectedTextOptions(

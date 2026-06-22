@@ -350,6 +350,7 @@ describe('localOutputColumnsService', () => {
               id: 'range-8-13',
               startRowNumber: 8,
               endRowNumber: 13,
+              suggestedFromText: 'PINCELES SERIE 304',
               valueRecipe: {
                 source: { type: 'input', inputColumnId: 'input-name' },
                 steps: [{ id: 'upper', type: 'uppercase', mode: 'text' }],
@@ -397,6 +398,7 @@ describe('localOutputColumnsService', () => {
       type: 'manualRange',
       ranges: [{
         id: 'range-8-13',
+        suggestedFromText: 'PINCELES SERIE 304',
         valueRecipe: {
           source: { type: 'input', inputColumnId: 'input-name' },
           steps: [{ id: 'upper', type: 'uppercase', mode: 'text' }],

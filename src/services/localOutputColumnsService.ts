@@ -135,6 +135,7 @@ function normalizeManualRange(range: Partial<ManualRangeValue>): ManualRangeValu
     id: range.id ?? crypto.randomUUID(),
     startRowNumber,
     endRowNumber,
+    ...(typeof range.suggestedFromText === 'string' ? { suggestedFromText: range.suggestedFromText } : {}),
     ...(valueRecipe ? { valueRecipe } : {}),
   };
 

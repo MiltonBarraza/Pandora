@@ -111,6 +111,7 @@ describe('duplicateOutputColumn', () => {
           id: 'range-8-13',
           startRowNumber: 8,
           endRowNumber: 13,
+          suggestedFromText: 'PINCELES SERIE 304',
           valueRecipe: {
             source: { type: 'input', inputColumnId: 'input-name' },
             steps: [{
@@ -136,6 +137,7 @@ describe('duplicateOutputColumn', () => {
     const copyRange = copy.recipe.ranges[0];
 
     expect(copyRange.id).not.toBe(originalRange.id);
+    expect(copyRange.suggestedFromText).toBe('PINCELES SERIE 304');
     expect(copyRange.valueRecipe).toMatchObject({
       source: { type: 'input', inputColumnId: 'input-name' },
       steps: [{

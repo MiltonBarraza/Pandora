@@ -824,7 +824,26 @@ tbody tr:hover {
 }
 
 .rules {
-  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.managerSummaryRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.managerSummaryRow > p {
+  margin: 0;
+}
+
+.rulesActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .ruleRow {
@@ -910,7 +929,6 @@ tbody tr:hover {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
-  min-width: min(100%, 520px);
 }
 
 .exportSections {
@@ -1374,7 +1392,8 @@ tbody tr:hover {
 }
 
 .modalDialogXl .constructorModalContent .dropdownField,
-.modalDialogXl .constructorModalContent .dropdownField.compact {
+.modalDialogXl .constructorModalContent .dropdownField.compact,
+.modalDialogXl .constructorModalContent .field.compact {
   gap: 5px;
 }
 
@@ -1778,6 +1797,10 @@ tbody tr:hover {
   width: 100%;
 }
 
+.manualRangeEditor .sectionHeader {
+  margin-bottom: 0;
+}
+
 .manualRangeStepFields .sectionHeader {
   align-items: center;
 }
@@ -2008,6 +2031,12 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.manualRangeTitleGroup {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
 .manualRangeFooterActions {
   justify-content: flex-start;
 }
@@ -2034,21 +2063,98 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.manualRangeGeneratorHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .manualRangeGeneratorControls {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(96px, 0.55fr)) minmax(220px, 1.2fr);
   min-width: 0;
+}
+
+.manualRangeGeneratorRow {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.manualRangeGeneratorRow-detection {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manualRangeGeneratorRow-filters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manualRangeGeneratorRow-value {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manualRangeGeneratorRow-trailing {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manualRangeGenerator .dropdownLabel,
+.manualRangeGenerator .field > span {
+  min-width: 0;
+  white-space: normal;
+}
+
+.manualRangeGeneratorSummary {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.manualRangeGeneratorWarnings {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manualRangeGeneratorWarnings p {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  color: var(--color-warning-text);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.manualRangeGeneratorExamples {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manualRangeGeneratorExamplesLabel {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .manualRangeGeneratorPreview {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
   min-width: 0;
 }
 
-.manualRangeGeneratorPreview span {
+.manualRangeGeneratorPreview > span {
   background: var(--color-bg-subtle);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
@@ -2056,8 +2162,71 @@ tbody tr:hover {
   font-size: 0.86rem;
   line-height: 1.25;
   max-width: 100%;
+  min-width: 0;
   padding: 6px 8px;
   overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.manualRangeGeneratorMoreExamples {
+  cursor: help;
+  display: inline-flex;
+  position: relative;
+}
+
+.manualRangeGeneratorMoreExamples::after {
+  content: '';
+  height: 8px;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: 100%;
+}
+
+.manualRangeGeneratorMoreExamples:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.manualRangeMoreExamplesTooltip {
+  background: var(--color-tooltip-bg);
+  border-radius: 6px;
+  box-shadow: var(--shadow-dropdown);
+  color: var(--color-tooltip-text);
+  display: grid;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 4px;
+  line-height: 1.3;
+  max-height: min(360px, 50vh);
+  max-width: min(520px, calc(100vw - 32px));
+  min-width: min(360px, calc(100vw - 32px));
+  opacity: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  text-align: left;
+  top: calc(100% + 4px);
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  visibility: hidden;
+  white-space: normal;
+  z-index: 10020;
+}
+
+.manualRangeMoreExamplesTooltip span {
+  display: block;
+}
+
+.manualRangeGeneratorMoreExamples:hover .manualRangeMoreExamplesTooltip,
+.manualRangeGeneratorMoreExamples:focus-within .manualRangeMoreExamplesTooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
 }
 
 .manualRangeList {
@@ -2068,28 +2237,40 @@ tbody tr:hover {
 }
 
 .manualRangeRangeItem {
-  align-items: start;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 10px;
-  grid-template-columns:
-    minmax(72px, 0.42fr)
-    minmax(72px, 0.42fr)
-    minmax(64px, 0.34fr)
-    minmax(360px, 3fr)
-    minmax(82px, auto);
   min-width: 0;
   padding: 10px;
 }
 
+.manualRangeMetadataRow {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns:
+    minmax(90px, 120px)
+    minmax(90px, 120px)
+    minmax(64px, 80px)
+    minmax(160px, 1fr)
+    auto;
+  min-width: 0;
+}
+
+.manualRangeEditorRow {
+  min-width: 0;
+}
+
 .manualRangeCellField,
+.manualRangeReferenceField,
 .manualRangeActionsField {
   gap: 5px;
 }
 
 .manualRangeCellField span,
+.manualRangeReferenceField span,
 .manualRangeActionsField > span {
   color: var(--color-text-muted);
   font-size: 0.82rem;
@@ -2104,6 +2285,13 @@ tbody tr:hover {
   align-items: center;
   display: flex;
   min-height: 40px;
+}
+
+.manualRangeReferenceField strong {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
+  overflow-wrap: anywhere;
 }
 
 .manualRangeValueFields {
@@ -2130,6 +2318,66 @@ tbody tr:hover {
   align-self: start;
 }
 
+.manualRangeRowsPreview {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeRowsPreviewHeader {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.manualRangeRowsPreviewHeader strong {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.manualRangeRowsPreviewHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.manualRangeRowsPreviewScroller {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.manualRangeRowsPreviewTable {
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  min-width: 520px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.manualRangeRowsPreviewTable th,
+.manualRangeRowsPreviewTable td {
+  border-bottom: 1px solid var(--color-border-muted);
+  max-width: 220px;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manualRangeRowsPreviewTable th {
+  color: var(--color-text-muted);
+  font-weight: 800;
+}
+
+.manualRangeRowsPreviewTable tbody th {
+  width: 64px;
+}
+
 .rangeValueTransforms {
   display: grid;
   gap: 8px;
@@ -2146,15 +2394,42 @@ tbody tr:hover {
   padding: 10px;
 }
 
+.rangeValuePrimaryLayout {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rangeValuePrimaryControls {
+  align-items: end;
+  display: grid;
+  flex: 1 1 500px;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(210px, 1fr));
+  min-width: min(100%, 440px);
+}
+
+.rangeValueSourceControls {
+  align-items: end;
+  display: grid;
+  flex: 1.5 1 680px;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  min-width: min(100%, 560px);
+}
+
+.rangeValuePrimaryStepFields {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
 .rangeValueOperationPanel .manualRangeValueHelp,
 .rangeValueOperationPanel .concatPartStepsBlock,
 .rangeValueOperationPanel .rangeValueConcatWorkspace,
 .stepDetailPanel .rangeValueConcatWorkspace {
   grid-column: 1 / -1;
-}
-
-.rangeValueOperationPanel.hasSourceDetails .manualRangeValueSourceField {
-  grid-column: 1;
 }
 
 .rangeValueAdditionalHeader {
@@ -2910,7 +3185,7 @@ tbody tr:hover {
   .stepTypeFieldGroup,
   .constructorPartMainGrid,
   .manualRangeGeneratorControls,
-  .manualRangeRangeItem,
+  .manualRangeGeneratorRow,
   .transformStepRow,
   .outputColumnsWorkspace,
   .outputColumnHeader,
@@ -2939,6 +3214,33 @@ tbody tr:hover {
   .outputColumnsHeaderActions {
     justify-content: flex-start;
     min-width: 0;
+  }
+
+  .managerSummaryRow {
+    align-items: stretch;
+  }
+
+  .managerSummaryRow > p {
+    flex: 1 1 220px;
+  }
+
+  .manualRangeMetadataRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manualRangeReferenceField,
+  .manualRangeActionsField {
+    grid-column: 1 / -1;
+  }
+
+  .manualRangeRowActions {
+    justify-content: flex-start;
+  }
+
+  .rangeValuePrimaryControls,
+  .rangeValueSourceControls {
+    grid-template-columns: 1fr;
+    min-width: 100%;
   }
 
   .exportBlock {

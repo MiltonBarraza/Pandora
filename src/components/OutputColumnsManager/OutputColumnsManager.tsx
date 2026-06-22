@@ -137,8 +137,12 @@ export function OutputColumnsManager({
         onCancel={() => setIsRegenerateConfirmationOpen(false)}
         onConfirm={confirmRegenerateFromActiveColumns}
       />
-      <div className="sectionHeader">
-        <p>Definí las columnas finales del archivo y cómo se llena cada una.</p>
+      <div className="managerSummaryRow">
+        <p className="muted">
+          {ordered.length === 0
+            ? 'No hay columnas de salida configuradas.'
+            : `${ordered.length} ${ordered.length === 1 ? 'columna configurada' : 'columnas configuradas'}.`}
+        </p>
         <div className="outputColumnsHeaderActions">
           <div className="inlineForm">
             <input
@@ -167,8 +171,6 @@ export function OutputColumnsManager({
           </ButtonGroup>
         </div>
       </div>
-
-      {ordered.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
 
       {ordered.length > 0 ? (
         <div className="outputColumnsWorkspace">
