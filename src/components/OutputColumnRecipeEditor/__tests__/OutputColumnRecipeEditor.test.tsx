@@ -763,7 +763,10 @@ describe('constructor helpers', () => {
       valueSource: { type: 'fixedText', value: 'FORESTA ADVANCE SATINADO' },
     });
 
-    expect(markup).toContain('Ver filas');
+    expect(markup).toContain('aria-label="Ver filas"');
+    expect(markup).toContain('title="Ver filas"');
+    expect(markup).toContain('manualRangeIconAction');
+    expect(markup).not.toContain('>Ver filas</button>');
     expect(markup).not.toContain('Ver filas del Excel');
   });
 

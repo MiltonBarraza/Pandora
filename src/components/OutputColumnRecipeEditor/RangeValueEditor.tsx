@@ -13,6 +13,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, NumericOperation, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 
 type RangeValueEditorProps = {
@@ -261,9 +262,7 @@ function RangeValueStepsEditor({
           <strong>Pasos adicionales</strong>
           <p className="muted">{additionalSteps.length === 0 ? 'Sin pasos adicionales.' : `${additionalSteps.length} configurado${additionalSteps.length === 1 ? '' : 's'}.`}</p>
         </div>
-        <button type="button" className="secondary" onClick={addStep}>
-          Agregar paso
-        </button>
+        <ActionButton action="add" variant="secondary" onClick={addStep}>Agregar paso</ActionButton>
       </div>
 
       {additionalSteps.length > 0 ? (
