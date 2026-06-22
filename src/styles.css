@@ -299,6 +299,12 @@ button.danger:hover:not(:disabled) {
   cursor: grabbing;
 }
 
+.sortableRow {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
 .sortableDragging {
   opacity: 0.72;
   position: relative;
@@ -2347,7 +2353,16 @@ tbody tr:hover {
 }
 
 .rowConfigurationError {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  color: var(--color-warning-text);
   margin: 12px 0 0;
+  padding: 8px 10px;
+}
+
+.rowInputError {
+  margin: 0;
 }
 
 .rawPreviewOptions {
@@ -2649,7 +2664,8 @@ tbody tr:hover {
   gap: 10px;
   min-height: 0;
   align-content: start;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-right: 2px;
 }
 
@@ -2837,6 +2853,9 @@ tbody tr:hover {
 }
 
 .infoTooltipBubble.columnExamplesTooltip {
+  max-height: min(280px, calc(100vh - 32px));
+  max-width: min(320px, calc(100vw - 32px));
+  overflow: auto;
   white-space: pre-line;
 }
 

@@ -8,6 +8,7 @@ import {
   filterColumnsBySearch,
   getAppliedFilterState,
   getAppliedSuggestionGroups,
+  getActiveColumnDragId,
   getAvailableColumnDetails,
   getColumnBaseDisplayLabel,
   getColumnAutomaticReasons,
@@ -19,12 +20,15 @@ import {
   getColumnReasonLabel,
   getColumnTransferEmptyMessage,
   getColumnVisibleReasonLabels,
+  getOrderedActiveColumns,
   getSafeSelectedColumnIndex,
   getSelectedColumn,
   hasActiveColumns,
+  reorderActiveColumnOrder,
   restoreAutomaticColumnDetection,
   sameNumberSet,
   shouldRenderColumnDetailPanel,
+  syncActiveColumnOrder,
   toggleColumnsByAutomaticReasons,
 } from '../ColumnVisibilityManager';
 
@@ -358,6 +362,49 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(filterColumnsBySearch(activeColumns, 'código').map((column) => column.columnIndex)).toEqual([0]);
   });
 
+  it('reorders active columns visually without changing column indexes or aliases', () => {
+    const activeColumns = activateAllColumns([
+      createColumn(0, undefined, { alias: 'Código interno' }),
+      createColumn(1, undefined, { alias: 'Descripción' }),
+      createColumn(2, undefined, { alias: 'Precio' }),
+    ]);
+    const reorderedOrder = reorderActiveColumnOrder([0, 1, 2], [0, 1, 2], [2, 0, 1]);
+    const orderedColumns = getOrderedActiveColumns(activeColumns, reorderedOrder);
+
+    expect(orderedColumns.map((column) => column.columnIndex)).toEqual([2, 0, 1]);
+    expect(orderedColumns.map((column) => column.alias)).toEqual(['Precio', 'Código interno', 'Descripción']);
+    expect(activeColumns.map((column) => column.columnIndex)).toEqual([0, 1, 2]);
+  });
+
+  it('keeps available columns out of active drag ordering', () => {
+    const activeColumns = activateAllColumns([createColumn(0), createColumn(2)]);
+    const availableColumn = createColumn(1, 'empty');
+
+    expect(syncActiveColumnOrder([0, 1, 2], activeColumns)).toEqual([0, 2]);
+    expect(getOrderedActiveColumns(activeColumns, [2, 0]).map((column) => column.columnIndex)).toEqual([2, 0]);
+    expect(availableColumn.ignored).toBe(true);
+  });
+
+  it('keeps activate and remove flows compatible with active visual ordering', () => {
+    const activeColumns = activateAllColumns([createColumn(0), createColumn(2)]);
+    const withActivatedColumn = [...activeColumns, { ...createColumn(1, 'empty'), ignored: false, ignoredReason: undefined, ignoredReasons: undefined }];
+    const orderAfterActivate = syncActiveColumnOrder([2, 0], withActivatedColumn);
+    const orderAfterRemove = syncActiveColumnOrder(orderAfterActivate, withActivatedColumn.filter((column) => column.columnIndex !== 2));
+
+    expect(orderAfterActivate).toEqual([2, 0, 1]);
+    expect(orderAfterRemove).toEqual([0, 1]);
+  });
+
+  it('reorders only visible active search results', () => {
+    const currentOrder = [0, 1, 2, 3];
+
+    expect(reorderActiveColumnOrder(currentOrder, [1, 3], [3, 1])).toEqual([0, 3, 2, 1]);
+  });
+
+  it('uses stable drag ids for active columns only', () => {
+    expect(getActiveColumnDragId(7)).toBe('active-column-7');
+  });
+
   it('clears column search to an empty value', () => {
     expect(clearColumnSearchValue()).toBe('');
   });
@@ -397,12 +444,12 @@ describe('ColumnVisibilityManager quick actions', () => {
   it('opens active column examples with a limited vertical tooltip payload', () => {
     const column = createColumn(0, undefined, {
       header: 'SKU',
-      sampleValues: ['A-1', 'B-2', 'C-3', 'D-4'],
+      sampleValues: ['A-1', 'B-2', 'C-3', 'D-4', 'E-5', 'F-6', 'G-7', 'H-8', 'I-9', 'J-10', 'K-11'],
       nonEmptyCount: 7,
     });
 
-    expect(getColumnExamples(column)).toEqual(['A-1', 'B-2', 'C-3']);
-    expect(getColumnExamplesTooltipContent(column)).toBe('A-1\nB-2\nC-3');
+    expect(getColumnExamples(column)).toEqual(['A-1', 'B-2', 'C-3', 'D-4', 'E-5', 'F-6', 'G-7', 'H-8', 'I-9', 'J-10']);
+    expect(getColumnExamplesTooltipContent(column)).toBe('A-1\nB-2\nC-3\nD-4\nE-5\nF-6\nG-7\nH-8\nI-9\nJ-10');
   });
 
   it('shows an empty examples message when active column has no samples', () => {

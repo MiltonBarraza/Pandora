@@ -3,6 +3,7 @@ import type {
   ExportedImportSettings,
   FileNameSettings,
   IgnoreRule,
+  IgnoredReason,
   OutputColumn,
   RawRow,
   SavedInputColumnConfig,
@@ -38,7 +39,6 @@ export type ExportSettingsFromWizardStateOptions = {
   headerRowIndex: number | null;
   startRowIndex: number;
   showRawPreviewFromDataStart?: boolean;
-  showAllRawPreviewColumns?: boolean;
   columnAnalysis: ColumnAnalysis[];
   inputColumnAliases: Record<string, string>;
   inputIgnoreRules: IgnoreRule[];
@@ -91,7 +91,6 @@ export function exportSettingsFromWizardState({
   headerRowIndex,
   startRowIndex,
   showRawPreviewFromDataStart,
-  showAllRawPreviewColumns,
   columnAnalysis,
   inputColumnAliases,
   inputIgnoreRules,
@@ -121,7 +120,6 @@ export function exportSettingsFromWizardState({
       headerRowIndex,
       startRowIndex,
       ...(showRawPreviewFromDataStart !== undefined ? { showRawPreviewFromDataStart } : {}),
-      ...(showAllRawPreviewColumns !== undefined ? { showAllRawPreviewColumns } : {}),
       columnVisibility: columnAnalysis.map(createSavedInputColumnConfig),
       inputColumnAliases: { ...inputColumnAliases },
       inputIgnoreRules: cloneJson(inputIgnoreRules),
@@ -141,6 +139,7 @@ function createSourceColumnSnapshot(column: ColumnAnalysis, sampleLimit: number)
     ...(column.alias ? { alias: column.alias } : {}),
     active: !column.ignored,
     ...(column.ignoredReason ? { ignoredReason: column.ignoredReason } : {}),
+    ...getSavedReasonFields(column),
     sampleValues: getLimitedSamples(column.sampleValues, sampleLimit),
     nonEmptyCount: column.nonEmptyCount,
     fingerprint: createColumnFingerprint(column, sampleLimit),
@@ -156,7 +155,23 @@ function createSavedInputColumnConfig(column: ColumnAnalysis): SavedInputColumnC
     ...(column.alias ? { alias: column.alias } : {}),
     active: !column.ignored,
     ...(column.ignoredReason ? { ignoredReason: column.ignoredReason } : {}),
+    ...getSavedReasonFields(column),
   };
+}
+
+function getSavedReasonFields(column: Pick<ColumnAnalysis, 'ignoredReasons' | 'autoIgnoredReason' | 'autoIgnoredReasons'>) {
+  const ignoredReasons = normalizeReasons(column.ignoredReasons);
+  const autoIgnoredReasons = normalizeReasons(column.autoIgnoredReasons);
+
+  return {
+    ...(ignoredReasons.length > 0 ? { ignoredReasons } : {}),
+    ...(column.autoIgnoredReason ? { autoIgnoredReason: column.autoIgnoredReason } : {}),
+    ...(autoIgnoredReasons.length > 0 ? { autoIgnoredReasons } : {}),
+  };
+}
+
+function normalizeReasons(reasons: IgnoredReason[] | undefined) {
+  return [...new Set(reasons ?? [])];
 }
 
 function getLimitedSamples(sampleValues: string[], sampleLimit: number) {

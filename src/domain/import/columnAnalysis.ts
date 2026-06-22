@@ -76,7 +76,7 @@ export function isColumnNarrow(columnMetadata: XLSX.ColInfo | undefined, options
   );
 }
 
-export function getColumnSampleValues(rows: RawRow[], columnIndex: number, startRowIndex = 0, limit = 3) {
+export function getColumnSampleValues(rows: RawRow[], columnIndex: number, startRowIndex = 0, limit = 10) {
   const sample: string[] = [];
 
   rows.slice(startRowIndex).some((row) => {

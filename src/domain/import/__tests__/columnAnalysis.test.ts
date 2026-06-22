@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type * as XLSX from 'xlsx';
-import { analyzeSheetColumns } from '../columnAnalysis';
+import { analyzeSheetColumns, getColumnSampleValues } from '../columnAnalysis';
 
 describe('analyzeSheetColumns', () => {
   it('keeps multiple automatic ignored reasons for hidden empty columns', () => {
@@ -20,5 +20,22 @@ describe('analyzeSheetColumns', () => {
       autoIgnoredReason: 'hidden',
       autoIgnoredReasons: ['hidden', 'empty'],
     });
+  });
+
+  it('collects up to ten sample values for column examples', () => {
+    const rows = Array.from({ length: 12 }, (_, index) => [`Valor ${index + 1}`]);
+
+    expect(getColumnSampleValues(rows, 0)).toEqual([
+      'Valor 1',
+      'Valor 2',
+      'Valor 3',
+      'Valor 4',
+      'Valor 5',
+      'Valor 6',
+      'Valor 7',
+      'Valor 8',
+      'Valor 9',
+      'Valor 10',
+    ]);
   });
 });

@@ -1,11 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ColumnAnalysis, IgnoredReason } from '../../types/import';
+import { SortableList } from '../SortableList/SortableList';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
 type ColumnVisibilityManagerProps = {
   columns: ColumnAnalysis[];
   showHeaderColumn?: boolean;
+  activeColumnOrder?: number[];
+  onActiveColumnOrderChange?: (columnOrder: number[]) => void;
   onChange: (columns: ColumnAnalysis[]) => void;
 };
 
@@ -24,19 +27,42 @@ type AppliedFilterState = {
   customLabel?: string;
 };
 
-export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityManagerProps) {
+export function ColumnVisibilityManager({ columns, activeColumnOrder, onActiveColumnOrderChange, onChange }: ColumnVisibilityManagerProps) {
   const [availableSearch, setAvailableSearch] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedColumnIndex, setSelectedColumnIndex] = useState<number | null>(null);
+  const [localActiveColumnOrder, setLocalActiveColumnOrder] = useState<number[]>([]);
   const activeColumns = columns.filter((column) => !column.ignored);
   const ignoredColumns = columns.filter((column) => column.ignored);
+  const effectiveActiveColumnOrder = activeColumnOrder ?? localActiveColumnOrder;
+  const orderedActiveColumns = getOrderedActiveColumns(activeColumns, effectiveActiveColumnOrder);
   const visibleIgnoredColumns = filterColumnsBySearch(ignoredColumns, availableSearch);
-  const visibleActiveColumns = filterColumnsBySearch(activeColumns, activeSearch);
+  const visibleActiveColumns = filterColumnsBySearch(orderedActiveColumns, activeSearch);
+  const visibleActiveSortableColumns = visibleActiveColumns.map((column) => ({
+    ...column,
+    id: getActiveColumnDragId(column.columnIndex),
+  }));
   const appliedFilters = getAppliedFilterState(columns);
 
   useEffect(() => {
     setSelectedColumnIndex((currentIndex) => getSafeSelectedColumnIndex(columns, currentIndex));
   }, [columns]);
+
+  useEffect(() => {
+    const nextOrder = syncActiveColumnOrder(effectiveActiveColumnOrder, activeColumns);
+    if (!sameNumberOrder(nextOrder, effectiveActiveColumnOrder)) {
+      updateActiveColumnOrder(nextOrder);
+    }
+  }, [columns, effectiveActiveColumnOrder]);
+
+  const updateActiveColumnOrder = (nextOrder: number[]) => {
+    if (onActiveColumnOrderChange) {
+      onActiveColumnOrderChange(nextOrder);
+      return;
+    }
+
+    setLocalActiveColumnOrder(nextOrder);
+  };
 
   const updateColumn = (columnIndex: number, ignored: boolean) => {
     onChange(
@@ -75,6 +101,14 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
 
   const restoreAutomatic = () => {
     onChange(restoreAutomaticColumnDetection(columns));
+  };
+
+  const reorderVisibleActiveColumns = (items: Array<ColumnAnalysis & { id: string }>) => {
+    updateActiveColumnOrder(reorderActiveColumnOrder(
+      syncActiveColumnOrder(effectiveActiveColumnOrder, activeColumns),
+      visibleActiveSortableColumns.map((column) => column.columnIndex),
+      items.map((column) => column.columnIndex),
+    ));
   };
 
   return (
@@ -163,20 +197,25 @@ export function ColumnVisibilityManager({ columns, onChange }: ColumnVisibilityM
           emptyMessage="No hay columnas activas. Activá columnas disponibles para verlas en la vista previa."
           emptySearchMessage="No hay columnas activas que coincidan con la búsqueda."
         >
-          {visibleActiveColumns.map((column) => (
-            <ColumnTransferItem
-              key={column.columnIndex}
-              column={column}
-              selected={column.columnIndex === selectedColumnIndex}
-              actionLabel="Quitar"
-              actionAriaLabel={`Quitar columna ${column.columnLetter}`}
-              aliasValue={column.alias ?? ''}
-              onSelect={() => setSelectedColumnIndex(column.columnIndex)}
-              onAliasChange={(alias) => updateAlias(column.columnIndex, alias)}
-              showExamples
-              onAction={() => updateColumn(column.columnIndex, true)}
-            />
-          ))}
+          <SortableList
+            items={visibleActiveSortableColumns}
+            onChange={reorderVisibleActiveColumns}
+            renderItem={(column, dragHandle) => (
+              <ColumnTransferItem
+                key={column.columnIndex}
+                column={column}
+                selected={column.columnIndex === selectedColumnIndex}
+                actionLabel="Quitar"
+                actionAriaLabel={`Quitar columna ${column.columnLetter}`}
+                aliasValue={column.alias ?? ''}
+                onSelect={() => setSelectedColumnIndex(column.columnIndex)}
+                onAliasChange={(alias) => updateAlias(column.columnIndex, alias)}
+                showExamples
+                dragHandle={dragHandle}
+                onAction={() => updateColumn(column.columnIndex, true)}
+              />
+            )}
+          />
         </ColumnTransferPanel>
       </div>
 
@@ -269,6 +308,7 @@ type ColumnTransferItemProps = {
   actionAriaLabel: string;
   aliasValue?: string;
   showExamples?: boolean;
+  dragHandle?: ReactNode;
   onSelect: () => void;
   onAliasChange?: (alias: string) => void;
   onAction: () => void;
@@ -281,6 +321,7 @@ function ColumnTransferItem({
   actionAriaLabel,
   aliasValue,
   showExamples = false,
+  dragHandle,
   onSelect,
   onAliasChange,
   onAction,
@@ -344,6 +385,7 @@ function ColumnTransferItem({
         >
           {actionLabel}
         </button>
+        {dragHandle}
       </div>
     </article>
   );
@@ -389,14 +431,49 @@ export function getSafeSelectedColumnIndex(columns: ColumnAnalysis[], selectedCo
   return getSelectedColumn(columns, selectedColumnIndex)?.columnIndex ?? null;
 }
 
-export function getColumnExamples(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 3) {
+export function getOrderedActiveColumns(columns: ColumnAnalysis[], activeColumnOrder: number[]) {
+  const orderIndex = new Map(activeColumnOrder.map((columnIndex, index) => [columnIndex, index]));
+  return [...columns].sort((left, right) => {
+    const leftOrder = orderIndex.get(left.columnIndex) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = orderIndex.get(right.columnIndex) ?? Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder || left.columnIndex - right.columnIndex;
+  });
+}
+
+export function syncActiveColumnOrder(currentOrder: number[], activeColumns: Pick<ColumnAnalysis, 'columnIndex'>[]) {
+  const activeColumnIndexes = activeColumns.map((column) => column.columnIndex);
+  const activeColumnIndexSet = new Set(activeColumnIndexes);
+  const keptOrder = currentOrder.filter((columnIndex) => activeColumnIndexSet.has(columnIndex));
+  const appendedOrder = activeColumnIndexes.filter((columnIndex) => !keptOrder.includes(columnIndex));
+  return [...keptOrder, ...appendedOrder];
+}
+
+export function reorderActiveColumnOrder(currentOrder: number[], visibleColumnIndexes: number[], reorderedVisibleColumnIndexes: number[]) {
+  const reorderedQueue = [...reorderedVisibleColumnIndexes];
+  const visibleSet = new Set(visibleColumnIndexes);
+  return currentOrder.map((columnIndex) => (
+    visibleSet.has(columnIndex)
+      ? reorderedQueue.shift() ?? columnIndex
+      : columnIndex
+  ));
+}
+
+export function getActiveColumnDragId(columnIndex: number) {
+  return `active-column-${columnIndex}`;
+}
+
+export function sameNumberOrder(left: number[], right: number[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+export function getColumnExamples(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 10) {
   return column.sampleValues
     .map((value) => value.trim())
     .filter((value) => value !== '')
     .slice(0, limit);
 }
 
-export function getColumnExamplesTooltipContent(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 3) {
+export function getColumnExamplesTooltipContent(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 10) {
   const examples = getColumnExamples(column, limit);
   return examples.length > 0 ? examples.join('\n') : 'Sin ejemplos disponibles.';
 }
