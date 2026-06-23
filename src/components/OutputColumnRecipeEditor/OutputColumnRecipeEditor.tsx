@@ -1,22 +1,141 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat, formatDateValue, parseDateValue, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
+import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
-import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, CustomValueMode as PersistedCustomValueMode, RecipePart, StepOperand, StepSource, TransformCondition, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, ConditionOperator, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepOperand, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
-import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
-import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  conditionNeedsValue,
+  conditionOperators,
+  createDefaultCondition,
+  dateInputFormatOptions,
+  dateInvalidFallbackOptions,
+  dateOutputFormatOptions,
+  getDatePickerValue,
+  getStepModeOptions,
+  getStepSourceDropdownOptions,
+  getStepSourceDropdownValue,
+  getStepSourceForTextAction,
+  getStepSourceFromDropdownValue,
+  getStepTextSourceAction,
+  getStepTextSourceActionOptions,
+  getStepTypeOptions,
+  getStepTypesForMode,
+  isNumericConditionOperator,
+  isStepTextSourceAction,
+  normalizeConditionToInput,
+  numericOperationOptions,
+  parseRounding,
+  shouldShowPreviousResultSourceHelp,
+  updateStep,
+  type StepTextAction,
+  type StepTextSourceAction,
+} from './OutputColumnRecipeEditor.optionHelpers';
+import {
+  appendConcatPartAdditionalStep,
+  applyRecipeEditorDraft,
+  buildRecipeForSelectedType,
+  buildSimpleCustomValueRecipeWithSteps,
+  buildStepBasedCustomValueRecipe,
+  canPreviewNumericValue,
+  changeStepMode,
+  clearManualRangeValues,
+  createDefaultConcatPart,
+  createNoopStep,
+  describeConcatPartSource,
+  getCustomValueMode,
+  getDefaultStepModeForRecipe,
+  getFirstStepSource,
+  getInputColumnSummary,
+  getNextSelectedConcatPartIdAfterRemove,
+  getOutputRecipeTypeOptions,
+  getOutputRecipeTypeSelectorValue,
+  getRecipeEditorModalRecipe,
+  getSafeSelectedConcatPartId,
+  getSimpleInputPart,
+  getStepMode,
+  getVisibleConcatPartPrimaryStep,
+  getVisibleLeftOperand,
+  getVisibleRecipeSteps,
+  getVisibleRightOperand,
+  getVisibleStepSource,
+  hasConfiguredConcatStep,
+  hasConfiguredManualRangeStep,
+  hasConfiguredNumericStepOperands,
+  hasRecipeEditorDraftChanges,
+  isCustomValueConfigured,
+  normalizeConcatPartsAfterReorder,
+  replaceStepType,
+  shouldShowTextSourceFields,
+  updateConcatPartPrimaryStep,
+  updateConcatPartSteps,
+  type CustomValueMode,
+  type EditableCustomRecipe,
+} from './OutputColumnRecipeEditor.recipeHelpers';
 import { RangeValueEditor } from './RangeValueEditor';
+
+export {
+  dateInputFormatOptions,
+  dateOutputFormatOptions,
+  getDatePickerValue,
+  getSimpleStepValue,
+  getStepModeOptions,
+  getStepSourceDropdownOptions,
+  getStepSourceDropdownValue,
+  getStepSourceForTextAction,
+  getStepSourceFromDropdownValue,
+  getStepTextSourceActionOptions,
+  getStepTypesForMode,
+  numericOperationOptions,
+  setSimpleStep,
+  shouldShowPreviousResultSourceHelp,
+  stepModeOptions,
+  updateStep,
+} from './OutputColumnRecipeEditor.optionHelpers';
+export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelpers';
+export {
+  appendConcatPartAdditionalStep,
+  applyRecipeEditorDraft,
+  buildRecipeForSelectedType,
+  buildSimpleCustomValueRecipe,
+  changeStepMode,
+  clearManualRangeValues,
+  createCustomValueRecipeForMode,
+  createDefaultConcatPart,
+  createRecipeForConstructionMode,
+  describeConcatPartSource,
+  getNextSelectedConcatPartIdAfterRemove,
+  getOutputRecipeTypeOptions,
+  getOutputRecipeTypeSelectorValue,
+  getRecipeEditorModalRecipe,
+  getSafeSelectedConcatPartId,
+  getStepMode,
+  getTextStepSourceLabel,
+  getVisibleConcatPartPrimaryStep,
+  getVisibleLeftOperand,
+  getVisibleRecipeSteps,
+  getVisibleRightOperand,
+  hasRecipeEditorDraftChanges,
+  inferStepModeFromType,
+  normalizeConcatPartsAfterReorder,
+  normalizeStepsForMode,
+  outputRecipeTypeOptions,
+  shouldShowTextSourceFields,
+  updateConcatPartPrimaryStep,
+  updateConcatPartSteps,
+  valueConstructionOptions,
+} from './OutputColumnRecipeEditor.recipeHelpers';
 
 type OutputColumnRecipeEditorProps = {
   column: OutputColumn;
@@ -26,21 +145,8 @@ type OutputColumnRecipeEditorProps = {
   onChange: (column: OutputColumn) => void;
 };
 
-type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 export type ManualRangeDetectionMode = 'textStarts' | 'dataBlocks';
 export const manualRangeUsageHelpText = 'Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada.';
-
-export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
-  { value: 'direct', label: 'Directa desde entrada' },
-  { value: 'fixedText', label: 'Texto fijo' },
-  { value: 'combine', label: 'Crear valor personalizado' },
-];
-
-export function getOutputRecipeTypeOptions(recipe: OutputRecipe) {
-  return recipe.type === 'empty'
-    ? [{ value: 'empty' as const, label: 'Columna vacía (configuración existente)' }, ...outputRecipeTypeOptions]
-    : outputRecipeTypeOptions;
-}
 
 export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
 export const recipeEditorModalCancelLabel = 'Cancelar';
@@ -63,26 +169,6 @@ export const manualRangeDetectionModeOptions: Array<{ value: ManualRangeDetectio
   { value: 'textStarts', label: 'Cada dato inicia un rango' },
   { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
 ];
-
-export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
-  return recipe.type === 'combine' || recipe.type === 'manualRange' ? draftRecipe ?? recipe : null;
-}
-
-export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: EditableCustomRecipe | null): OutputColumn {
-  return draftRecipe ? { ...column, recipe: draftRecipe } : column;
-}
-
-export function clearManualRangeValues(recipe: Extract<OutputRecipe, { type: 'manualRange' }>): Extract<OutputRecipe, { type: 'manualRange' }> {
-  return { ...recipe, ranges: [] };
-}
-
-export function hasRecipeEditorDraftChanges(originalRecipe: EditableCustomRecipe, draftRecipe: EditableCustomRecipe | null) {
-  return Boolean(draftRecipe) && JSON.stringify(originalRecipe) !== JSON.stringify(draftRecipe);
-}
-
-export function getOutputRecipeTypeSelectorValue(recipe: OutputRecipe): Exclude<OutputRecipe['type'], 'manualRange'> {
-  return recipe.type === 'manualRange' ? 'combine' : recipe.type;
-}
 
 export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows = [], sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
@@ -364,35 +450,6 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     </div>
   );
 }
-
-export function buildRecipeForSelectedType(
-  type: OutputRecipe['type'],
-  column: OutputColumn,
-  activeInputColumns: InputColumn[],
-): OutputRecipe {
-  if (type === 'direct') {
-    return { type: 'direct', inputColumnId: getDirectInputColumnId(column, activeInputColumns) };
-  }
-
-  if (type === 'fixedText') {
-    return { type: 'fixedText', value: '' };
-  }
-
-  if (type === 'combine') {
-    return {
-      type: 'combine',
-      parts: [],
-      separator: '',
-    };
-  }
-
-  if (type === 'manualRange') {
-    return createManualRangeRecipe();
-  }
-
-  return { type: 'empty' };
-}
-
 function ManualRangeSummary({
   recipe,
   inputColumns,
@@ -1379,16 +1436,6 @@ function formatAdjustmentForDisplay(adjustment: string) {
   return labels[adjustment] ?? adjustment.charAt(0).toUpperCase() + adjustment.slice(1);
 }
 
-function getInputColumnSummary(inputColumn: InputColumn) {
-  const name = (inputColumn.alias || inputColumn.header || '').trim();
-
-  if (name && name !== inputColumn.columnLetter) {
-    return `Columna ${inputColumn.columnLetter} (${name})`;
-  }
-
-  return `Columna ${inputColumn.columnLetter}`;
-}
-
 function describePartAdjustments(part: RecipePart, inputColumns: InputColumn[]) {
   const partLabel = part.type === 'text'
     ? `Texto: "${part.value || ''}"`
@@ -1696,27 +1743,6 @@ export function getPreviousStepPreviewValue(
 
   const previousSteps = getVisibleRecipeSteps(recipe).slice(0, stepIndex);
   return buildCombinePreview({ ...recipe, steps: previousSteps }, sampleInputValues);
-}
-
-export type CustomValueMode = '' | PersistedCustomValueMode;
-
-type ValueConstructionMode = '' | 'steps' | 'concat';
-
-export const valueConstructionOptions: Array<{ value: Exclude<ValueConstructionMode, ''>; label: string }> = [
-  { value: 'steps', label: 'Un valor con pasos' },
-  { value: 'concat', label: 'Concatenar / unir partes' },
-];
-
-export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
-  { value: 'text', label: 'Trabajar con texto' },
-  { value: 'number', label: 'Trabajar con número' },
-  { value: 'conversion', label: 'Conversión' },
-  { value: 'date', label: 'Trabajar con fechas' },
-  { value: 'manualRange', label: 'Trabajar con rangos' },
-];
-
-export function getStepModeOptions({ allowManualRange = true }: { allowManualRange?: boolean } = {}) {
-  return allowManualRange ? stepModeOptions : stepModeOptions.filter((option) => option.value !== 'manualRange');
 }
 
 function CustomValueEditor({
@@ -2248,57 +2274,6 @@ function StepSourceFields({
   );
 }
 
-export function getDatePickerValue(value: string, inputFormat: DateInputFormat = defaultDateInputFormat) {
-  const parsedAsIso = parseDateValue(value, 'YYYY-MM-DD');
-  if (parsedAsIso) {
-    return formatDateValue(parsedAsIso, 'YYYY-MM-DD');
-  }
-
-  const parsedWithInputFormat = parseDateValue(value, inputFormat);
-  return parsedWithInputFormat ? formatDateValue(parsedWithInputFormat, 'YYYY-MM-DD') : '';
-}
-
-export function getStepSourceDropdownValue(source: StepSource) {
-  if (source.type === 'previousResult') {
-    return 'previousResult';
-  }
-
-  if (source.type === 'fixedText') {
-    return 'fixedText';
-  }
-
-  return source.inputColumnId ? `input:${source.inputColumnId}` : '';
-}
-
-export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
-  return [
-    ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
-    { value: 'fixedText', label: 'Texto fijo' },
-    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: pickColumnTextLabel }] : []),
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
-  ];
-}
-
-export function getStepSourceFromDropdownValue(value: string, currentSource: StepSource): StepSource {
-  if (value === 'previousResult') {
-    return { type: 'previousResult' };
-  }
-
-  if (value === 'fixedText') {
-    return { type: 'fixedText', value: currentSource.type === 'fixedText' ? currentSource.value : '' };
-  }
-
-  if (value.startsWith('input:')) {
-    return { type: 'input', inputColumnId: value.slice('input:'.length) };
-  }
-
-  return currentSource;
-}
-
-export function shouldShowPreviousResultSourceHelp(source: StepSource) {
-  return source.type === 'previousResult';
-}
-
 function StepOperandFields({
   label,
   operand,
@@ -2642,111 +2617,6 @@ function clearPrimaryStepSource(steps: TransformStep[]) {
   return [primaryStep, ...additionalSteps];
 }
 
-const stepTypes: Array<{ value: TransformStepType; label: string }> = [
-  { value: 'noop', label: useValueAsIsLabel },
-  { value: 'trim', label: 'Limpiar espacios' },
-  { value: 'uppercase', label: 'Convertir a mayúsculas' },
-  { value: 'lowercase', label: 'Convertir a minúsculas' },
-  { value: 'addPrefix', label: 'Agregar prefijo' },
-  { value: 'addSuffix', label: 'Agregar sufijo' },
-  { value: 'removeText', label: 'Quitar texto' },
-  { value: 'replaceText', label: 'Reemplazar texto' },
-  { value: 'manualRange', label: 'Trabajar con rangos' },
-  { value: 'concat', label: 'Concatenar' },
-  { value: 'extractNumber', label: 'Extraer número del texto' },
-  { value: 'toNumber', label: 'Convertir a número' },
-  { value: 'toText', label: 'Convertir a texto' },
-  { value: 'formatDate', label: 'Formatear fecha' },
-  { value: 'numericOperation', label: 'Operación numérica' },
-];
-
-const textStepTypes = stepTypes.filter((stepType) => [
-  'noop',
-  'trim',
-  'uppercase',
-  'lowercase',
-  'addPrefix',
-  'addSuffix',
-  'removeText',
-  'replaceText',
-  'concat',
-].includes(stepType.value));
-
-export type StepTextSourceAction = 'useFixedText' | 'useInputColumn' | 'pickColumnText' | 'usePreviousResult';
-type StepTextAction = TransformStepType | StepTextSourceAction;
-
-export function getStepTextSourceActionOptions(allowPreviousResult: boolean): Array<{ value: StepTextSourceAction; label: string }> {
-  return [
-    { value: 'useInputColumn', label: 'Usar columna de entrada' },
-    { value: 'useFixedText', label: 'Usar texto fijo' },
-    { value: 'pickColumnText', label: pickColumnTextLabel },
-    ...(allowPreviousResult ? [{ value: 'usePreviousResult' as const, label: 'Usar resultado anterior' }] : []),
-  ];
-}
-
-export function isStepTextSourceAction(value: StepTextAction): value is StepTextSourceAction {
-  return ['useFixedText', 'useInputColumn', 'pickColumnText', 'usePreviousResult'].includes(value);
-}
-
-export function getStepTextSourceAction(source: StepSource, columnTextPickerOpen = false): StepTextSourceAction {
-  if (columnTextPickerOpen) return 'pickColumnText';
-  if (source.type === 'fixedText') return 'useFixedText';
-  if (source.type === 'previousResult') return 'usePreviousResult';
-  return 'useInputColumn';
-}
-
-export function getStepSourceForTextAction(action: StepTextSourceAction, currentSource: StepSource, inputColumns: InputColumn[]): StepSource {
-  if (action === 'usePreviousResult') return { type: 'previousResult' };
-  if (action === 'useInputColumn') {
-    return currentSource.type === 'input'
-      ? currentSource
-      : { type: 'input', inputColumnId: inputColumns[0]?.id ?? '' };
-  }
-
-  return currentSource.type === 'fixedText' ? currentSource : { type: 'fixedText', value: '' };
-}
-
-const dateStepTypes = stepTypes.filter((stepType) => [
-  'noop',
-  'formatDate',
-].includes(stepType.value));
-
-const numberStepTypes = stepTypes.filter((stepType) => [
-  'noop',
-  'numericOperation',
-].includes(stepType.value));
-
-const conversionStepTypes = stepTypes.filter((stepType) => [
-  'noop',
-  'extractNumber',
-  'toNumber',
-  'toText',
-].includes(stepType.value));
-
-function getStepTypeOptions({ allowConcat = true }: { allowConcat?: boolean } = {}) {
-  return allowConcat ? stepTypes : stepTypes.filter((stepType) => stepType.value !== 'concat');
-}
-
-export function getStepTypesForMode(mode: TransformStepMode, { allowConcat = true }: { allowConcat?: boolean } = {}) {
-  if (mode === 'manualRange') {
-    return stepTypes.filter((stepType) => stepType.value === 'manualRange');
-  }
-
-  if (mode === 'number') {
-    return numberStepTypes;
-  }
-
-  if (mode === 'conversion') {
-    return conversionStepTypes;
-  }
-
-  if (mode === 'date') {
-    return dateStepTypes;
-  }
-
-  return allowConcat ? textStepTypes : textStepTypes.filter((stepType) => stepType.value !== 'concat');
-}
-
 type StepFieldLabels = 'default' | 'workflow';
 
 function StepFields({
@@ -3069,837 +2939,4 @@ export function StepConditionFields({
       ) : null}
     </div>
   );
-}
-
-const conditionOperators: Array<{ value: ConditionOperator; label: string }> = [
-  { value: 'isEmpty', label: 'esta vacio' },
-  { value: 'isNotEmpty', label: 'no esta vacio' },
-  { value: 'contains', label: 'contiene' },
-  { value: 'notContains', label: 'no contiene' },
-  { value: 'equals', label: 'es igual a' },
-  { value: 'notEquals', label: 'no es igual a' },
-  { value: 'startsWith', label: 'empieza con' },
-  { value: 'endsWith', label: 'termina con' },
-  { value: 'greaterThan', label: 'mayor que' },
-  { value: 'greaterThanOrEqual', label: 'mayor o igual que' },
-  { value: 'lessThan', label: 'menor que' },
-  { value: 'lessThanOrEqual', label: 'menor o igual que' },
-  { value: 'numericEquals', label: 'igual numérico' },
-  { value: 'numericNotEquals', label: 'distinto numérico' },
-];
-
-const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
-  add: 'Sumar valor',
-  subtract: 'Restar valor',
-  multiply: 'Multiplicar por',
-  divide: 'Dividir por',
-  addPercentage: 'Sumar %',
-  subtractPercentage: 'Restar %',
-  removeIncludedPercentage: 'Quitar % incluido',
-};
-
-export const numericOperationOptions = Object.entries(numericOperationLabels).map(([value, label]) => ({
-  value: value as NonNullable<TransformStep['operation']>,
-  label,
-}));
-
-export const dateInputFormatOptions: Array<{ value: DateInputFormat; label: string }> = supportedDateInputFormats.map((format) => ({
-  value: format,
-  label: getDateInputFormatLabel(format),
-}));
-
-export const dateOutputFormatOptions: Array<{ value: DateOutputFormat; label: string }> = supportedDateOutputFormats.map((format) => ({
-  value: format,
-  label: getDateOutputFormatLabel(format),
-}));
-
-const dateInvalidFallbackOptions: Array<{ value: DateInvalidFallback; label: string }> = [
-  { value: 'empty', label: 'Dejar vacío' },
-  { value: 'original', label: 'Mantener valor original' },
-  { value: 'fixedText', label: 'Usar texto fijo' },
-];
-
-function getDateInputFormatLabel(format: DateInputFormat) {
-  const labels: Record<DateInputFormat, string> = {
-    'DD/MM/YYYY': 'DD/MM/AAAA',
-    'D/M/YYYY': 'D/M/AAAA',
-    'YYYY-MM-DD': 'AAAA-MM-DD',
-    'MM/DD/YYYY': 'MM/DD/AAAA',
-    'M/D/YYYY': 'M/D/AAAA',
-    'DD-MM-YYYY': 'DD-MM-AAAA',
-    'YYYY/MM/DD': 'AAAA/MM/DD',
-    'DD/MM/YY': 'DD/MM/AA',
-    'D/M/YY': 'D/M/AA',
-    'MM/DD/YY': 'MM/DD/AA',
-    'M/D/YY': 'M/D/AA',
-  };
-
-  return labels[format];
-}
-
-function getDateOutputFormatLabel(format: DateOutputFormat) {
-  const labels: Record<DateOutputFormat, string> = {
-    'DD/MM/YYYY': 'DD/MM/AAAA',
-    'YYYY-MM-DD': 'AAAA-MM-DD',
-    'MM/DD/YYYY': 'MM/DD/AAAA',
-    'DD-MM-YYYY': 'DD-MM-AAAA',
-    'YYYY/MM/DD': 'AAAA/MM/DD',
-  };
-
-  return labels[format];
-}
-
-function createDefaultCondition(inputColumns: InputColumn[]): TransformCondition {
-  return {
-    target: 'input',
-    columnId: inputColumns[0]?.id ?? '',
-    operator: 'isNotEmpty',
-    value: '',
-    valueType: 'text',
-  };
-}
-
-function normalizeConditionToInput(condition: TransformCondition, inputColumns: InputColumn[]): TransformCondition {
-  return {
-    ...condition,
-    target: 'input',
-    columnId: inputColumns.some((column) => column.id === condition.columnId)
-      ? condition.columnId
-      : inputColumns[0]?.id ?? '',
-  };
-}
-
-function conditionNeedsValue(operator: ConditionOperator) {
-  return operator !== 'isEmpty' && operator !== 'isNotEmpty';
-}
-
-function isNumericConditionOperator(operator: ConditionOperator) {
-  return [
-    'greaterThan',
-    'greaterThanOrEqual',
-    'lessThan',
-    'lessThanOrEqual',
-    'numericEquals',
-    'numericNotEquals',
-  ].includes(operator);
-}
-
-export function updateStep(steps: TransformStep[], id: string, patch: Partial<TransformStep>) {
-  return steps.map((step) => (step.id === id ? { ...step, ...patch } : step));
-}
-
-export function getSimpleStepValue(steps: TransformStep[], type: 'addPrefix' | 'addSuffix') {
-  return steps.find((step) => step.type === type)?.value ?? '';
-}
-
-export function setSimpleStep(steps: TransformStep[], type: 'addPrefix' | 'addSuffix', value: string): TransformStep[] {
-  const nextSteps = steps.filter((step) => step.type !== type);
-  if (value === '') {
-    return nextSteps;
-  }
-
-  const nextStep: TransformStep = {
-    id: crypto.randomUUID(),
-    type,
-    value,
-  };
-
-  return type === 'addPrefix' ? [nextStep, ...nextSteps] : [...nextSteps, nextStep];
-}
-
-function parseRounding(value: string): TransformStep['rounding'] {
-  if (value === 'none') {
-    return 'none';
-  }
-
-  if (value === '0') {
-    return 0;
-  }
-
-  if (value === '4') {
-    return 4;
-  }
-
-  return 2;
-}
-
-function getCustomValueMode(recipe: Extract<OutputRecipe, { type: 'combine' }>): CustomValueMode {
-  if (recipe.customMode) {
-    return recipe.customMode;
-  }
-
-  if (recipe.parts.length === 0 && (recipe.steps ?? []).length === 0) {
-    return '';
-  }
-
-  if (isSimpleInputRecipe(recipe)) {
-    const steps = recipe.steps ?? [];
-    if (steps.length > 0 && steps.some((step) => getStepMode(step) === 'number')) {
-      return 'number';
-    }
-
-    if (steps.length > 0) {
-      return 'text';
-    }
-  }
-
-  return 'concat';
-}
-
-function isCustomValueConfigured(recipe: Extract<OutputRecipe, { type: 'combine' }>, modeOverride?: CustomValueMode) {
-  const mode = modeOverride ?? getCustomValueMode(recipe);
-
-  if (mode === '') {
-    return false;
-  }
-
-  if (mode === 'number' || mode === 'text') {
-    const hasBaseSource = Boolean(getSimpleInputPart(recipe).inputColumnId || getFirstStepSource(recipe) || hasConfiguredManualRangeStep(recipe));
-    return Boolean(recipe.steps?.[0] && (hasBaseSource || (mode === 'number' && hasConfiguredNumericStepOperands(recipe))));
-  }
-
-  return (
-    recipe.parts.length > 0 &&
-    recipe.parts.every((part) => part.type === 'text' || Boolean(part.inputColumnId))
-  ) || hasConfiguredConcatStep(recipe);
-}
-
-function getFirstStepSource(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return recipe.steps?.[0]?.source;
-}
-
-function hasConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return (recipe.steps ?? []).some((step) => step.type === 'concat' && (step.parts ?? []).length > 0);
-}
-
-function hasConfiguredNumericStepOperands(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return (recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand));
-}
-
-function hasConfiguredManualRangeStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return (recipe.steps ?? []).some((step) => step.type === 'manualRange' && (step.ranges ?? []).length > 0);
-}
-
-function canPreviewNumericValue(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
-  const part = getSimpleInputPart(recipe);
-  const firstStepSource = getFirstStepSource(recipe);
-  if ((recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand))) {
-    return true;
-  }
-
-  if (!sampleInputValues || (!part.inputColumnId && !firstStepSource)) {
-    return true;
-  }
-
-  const firstStep = recipe.steps?.[0];
-  if (firstStep?.type === 'noop' || firstStep?.type === 'extractNumber' || firstStep?.type === 'toText' || (firstStep && isTextStepType(firstStep.type))) {
-    return true;
-  }
-
-  if (firstStepSource?.type === 'fixedText') {
-    return parseNumericValue(firstStepSource.value) !== null;
-  }
-
-  const inputColumnId = firstStepSource?.type === 'input' ? firstStepSource.inputColumnId : part.inputColumnId;
-  return parseNumericValue(sampleInputValues[inputColumnId]) !== null;
-}
-
-export function createCustomValueRecipeForMode(mode: CustomValueMode, current: Extract<OutputRecipe, { type: 'combine' }>): Extract<OutputRecipe, { type: 'combine' }> {
-  if (mode === '') {
-    return { type: 'combine', parts: [], separator: '' };
-  }
-
-  if (mode === 'number') {
-    return buildSimpleCustomValueRecipe('number', getSimpleInputPart(current).inputColumnId, current.steps?.[0] ?? createNoopStep(), current);
-  }
-
-  if (mode === 'text') {
-    return buildSimpleCustomValueRecipe('text', getSimpleInputPart(current).inputColumnId, current.steps?.[0] ?? createNoopStep(), current);
-  }
-
-  return {
-    ...current,
-    customMode: 'concat',
-    separator: current.separator ?? '',
-    steps: current.steps ?? [],
-  };
-}
-
-export function getVisibleRecipeSteps(recipe: Extract<OutputRecipe, { type: 'combine' }>, modeOverride?: CustomValueMode): TransformStep[] {
-  const mode = modeOverride ?? getCustomValueMode(recipe);
-
-  if (isStepBasedConcatRecipe(recipe)) {
-    return ensureAtLeastOneStep(recipe.steps ?? [], 'text');
-  }
-
-  if (mode === 'concat') {
-    return ensureAtLeastOneStep([
-      createConcatStepFromLegacyRecipe(recipe),
-      ...(recipe.steps ?? []),
-    ], 'text');
-  }
-
-  return ensureAtLeastOneStep(recipe.steps ?? [], getDefaultStepModeForRecipe(recipe, mode));
-}
-
-function ensureAtLeastOneStep(steps: TransformStep[], fallbackMode: TransformStepMode) {
-  return steps.length > 0 ? steps : [createNoopStep(fallbackMode)];
-}
-
-function getDefaultStepModeForRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>, modeOverride?: CustomValueMode): TransformStepMode {
-  const mode = modeOverride ?? getCustomValueMode(recipe);
-  if (mode === 'number') {
-    return 'number';
-  }
-
-  return 'text';
-}
-
-function isStepBasedConcatRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return recipe.parts.length === 0 && (recipe.steps ?? []).some((step) => step.type === 'concat');
-}
-
-function createConcatStepFromLegacyRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>): TransformStep {
-  return {
-    id: recipe.parts[0]?.id ? `concat-${recipe.parts[0].id}` : crypto.randomUUID(),
-    mode: 'text',
-    type: 'concat',
-    parts: recipePartsToConcatParts(recipe.parts, recipe.separator),
-    applyToEmptyValues: false,
-  };
-}
-
-function recipePartsToConcatParts(parts: RecipePart[], globalSeparator?: string): ConcatPart[] {
-  return parts.map((part, index) => {
-    const previousPart = parts[index - 1];
-    return {
-      id: part.id,
-      source: recipePartToStepSource(part),
-      ...(index > 0 ? { separatorBefore: previousPart?.separatorAfter ?? globalSeparator ?? '' } : {}),
-      ...(part.steps ? { steps: part.steps } : {}),
-    };
-  });
-}
-
-function recipePartToStepSource(part: RecipePart): StepSource {
-  if (part.type === 'input') {
-    return { type: 'input', inputColumnId: part.inputColumnId };
-  }
-
-  return { type: 'fixedText', value: part.value };
-}
-
-export function getSafeSelectedConcatPartId(parts: ConcatPart[], selectedPartId: string | null) {
-  if (parts.some((part) => part.id === selectedPartId)) {
-    return selectedPartId;
-  }
-
-  return parts[0]?.id ?? null;
-}
-
-export function getNextSelectedConcatPartIdAfterRemove(
-  parts: ConcatPart[],
-  removedPartId: string,
-  selectedPartId: string | null,
-) {
-  if (selectedPartId !== removedPartId) {
-    return getSafeSelectedConcatPartId(parts.filter((part) => part.id !== removedPartId), selectedPartId);
-  }
-
-  const removedIndex = parts.findIndex((part) => part.id === removedPartId);
-  const nextParts = parts.filter((part) => part.id !== removedPartId);
-  return nextParts[removedIndex]?.id ?? nextParts[removedIndex - 1]?.id ?? nextParts[0]?.id ?? null;
-}
-
-export function normalizeConcatPartsAfterReorder(parts: ConcatPart[]) {
-  const [firstPart, secondPart, ...restParts] = parts;
-  if (!firstPart?.separatorBefore || !secondPart || secondPart.separatorBefore) {
-    return parts;
-  }
-
-  return [
-    omitSeparatorBefore(firstPart),
-    { ...secondPart, separatorBefore: firstPart.separatorBefore },
-    ...restParts,
-  ];
-}
-
-export function updateConcatPartSteps(parts: ConcatPart[], partId: string, steps: TransformStep[]) {
-  return parts.map((part) => (part.id === partId ? { ...part, steps } : part));
-}
-
-function omitSeparatorBefore(part: ConcatPart): ConcatPart {
-  const { separatorBefore: _separatorBefore, ...nextPart } = part;
-  return nextPart;
-}
-
-export function describeConcatPartSource(part: ConcatPart, inputColumns: InputColumn[]) {
-  const manualRangeStep = findManualRangeStep(part.steps ?? []);
-
-  if (manualRangeStep) {
-    return describeManualRangeStepSummary(manualRangeStep, inputColumns);
-  }
-
-  const { source } = part;
-
-  if (source.type === 'previousResult') {
-    return 'Resultado del paso anterior';
-  }
-
-  if (source.type === 'fixedText') {
-    return `Texto fijo "${source.value || ''}"`;
-  }
-
-  if (source.type === 'input') {
-    const inputColumnId = source.inputColumnId;
-    const inputColumn = inputColumns.find((column) => column.id === inputColumnId);
-    return inputColumn ? getInputColumnSummary(inputColumn) : 'Columna de entrada';
-  }
-
-  return 'Columna de entrada';
-}
-
-function findManualRangeStep(steps: TransformStep[]): TransformStep | undefined {
-  for (const step of steps) {
-    if (step.type === 'manualRange') {
-      return step;
-    }
-
-    if (step.type === 'concat') {
-      const nestedStep = (step.parts ?? []).reduce<TransformStep | undefined>(
-        (foundStep, part) => foundStep ?? findManualRangeStep(part.steps ?? []),
-        undefined,
-      );
-
-      if (nestedStep) {
-        return nestedStep;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-export function getVisibleConcatPartPrimaryStep(steps: TransformStep[]) {
-  return steps[0] ?? createNoopStep('text');
-}
-
-export function updateConcatPartPrimaryStep(steps: TransformStep[], patch: Partial<TransformStep>) {
-  const primaryStep = getVisibleConcatPartPrimaryStep(steps);
-  return [{ ...primaryStep, ...patch }, ...steps.slice(1)];
-}
-
-export function appendConcatPartAdditionalStep(steps: TransformStep[]): TransformStep[] {
-  const nextStep = createNoopStep('text');
-  return steps.length === 0
-    ? [getVisibleConcatPartPrimaryStep(steps), nextStep]
-    : [...steps, nextStep];
-}
-
-export function createDefaultConcatPart(index: number, preferPreviousResult = false): ConcatPart {
-  return {
-    id: crypto.randomUUID(),
-    source: preferPreviousResult ? { type: 'previousResult' } : { type: 'input', inputColumnId: '' },
-    ...(index > 0 ? { separatorBefore: '' } : {}),
-  };
-}
-
-function buildStepBasedCustomValueRecipe(
-  current: Extract<OutputRecipe, { type: 'combine' }>,
-  steps: TransformStep[],
-  fallbackMode: TransformStepMode,
-): Extract<OutputRecipe, { type: 'combine' }> {
-  const firstStep = steps[0];
-
-  if (firstStep?.type === 'concat') {
-    return {
-      type: 'combine',
-      customMode: 'concat',
-      parts: [],
-      separator: '',
-      steps,
-    };
-  }
-
-  const inferredMode = inferCustomModeFromSteps(steps, fallbackMode);
-  return buildSimpleCustomValueRecipeWithSteps(
-    inferredMode,
-    getSimpleInputPart(current).inputColumnId,
-    steps,
-    current,
-  );
-}
-
-function inferCustomModeFromSteps(steps: TransformStep[], fallbackMode: TransformStepMode): 'number' | 'text' {
-  if (steps.some((step) => getStepMode(step, fallbackMode) === 'number' || step.type === 'numericOperation')) {
-    return 'number';
-  }
-
-  return 'text';
-}
-
-export function createRecipeForConstructionMode(mode: ValueConstructionMode, current: Extract<OutputRecipe, { type: 'combine' }>): Extract<OutputRecipe, { type: 'combine' }> {
-  if (mode === '') {
-    return { type: 'combine', parts: [], separator: '' };
-  }
-
-  if (mode === 'concat') {
-    if (current.customMode === 'concat') {
-      return { ...current, customMode: 'concat', separator: current.separator ?? '' };
-    }
-
-    return { type: 'combine', customMode: 'concat', parts: [], separator: '', steps: [] };
-  }
-
-  if (current.customMode === 'number' || current.customMode === 'text') {
-    return current;
-  }
-
-  return buildSimpleCustomValueRecipeWithSteps('text', '', [createNoopStep('text')], current);
-}
-
-export function buildSimpleCustomValueRecipe(
-  mode: 'number' | 'text',
-  inputColumnId: string,
-  step: TransformStep,
-  current?: Extract<OutputRecipe, { type: 'combine' }>,
-): Extract<OutputRecipe, { type: 'combine' }> {
-  return buildSimpleCustomValueRecipeWithSteps(mode, inputColumnId, [step], current);
-}
-
-function buildSimpleCustomValueRecipeWithSteps(
-  mode: 'number' | 'text',
-  inputColumnId: string,
-  steps: TransformStep[],
-  current?: Extract<OutputRecipe, { type: 'combine' }>,
-): Extract<OutputRecipe, { type: 'combine' }> {
-  const existingPart = current?.parts.find((part) => part.type === 'input');
-  const nextSteps = steps.map((step, index) => ({
-    ...step,
-    id: step.id || current?.steps?.[index]?.id || crypto.randomUUID(),
-    mode: getStepMode(step, mode),
-  }));
-
-  return {
-    type: 'combine',
-    customMode: mode,
-    parts: [{
-      id: existingPart?.id ?? crypto.randomUUID(),
-      type: 'input',
-      inputColumnId,
-    }],
-    separator: '',
-    steps: nextSteps,
-  };
-}
-
-function getSimpleInputPart(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  const part = recipe.parts.find((item) => item.type === 'input');
-  return part?.type === 'input' ? part : { id: crypto.randomUUID(), type: 'input' as const, inputColumnId: '' };
-}
-
-function createNumericOperationStep(operation: NonNullable<TransformStep['operation']> = 'add'): TransformStep {
-  return {
-    id: crypto.randomUUID(),
-    mode: 'number',
-    type: 'numericOperation',
-    operation,
-    amount: 10,
-    rounding: 2,
-    applyToEmptyValues: false,
-  };
-}
-
-function createNoopStep(modeHint: TransformStepMode = 'text'): TransformStep {
-  return {
-    id: crypto.randomUUID(),
-    mode: modeHint,
-    type: 'noop',
-    applyToEmptyValues: false,
-  };
-}
-
-function createTextOperationStep(type: TransformStepType, condition?: TransformCondition, stepIndex = 0): TransformStep {
-  if (type === 'concat') {
-    return {
-      id: crypto.randomUUID(),
-      mode: 'text',
-      type: 'concat',
-      parts: [createDefaultConcatPart(0, stepIndex > 0)],
-      condition,
-      applyToEmptyValues: false,
-    };
-  }
-
-  if (type === 'formatDate') {
-    return {
-      id: crypto.randomUUID(),
-      mode: 'date',
-      type,
-      value: '',
-      searchValue: '',
-      replaceValue: '',
-      dateInputFormat: defaultDateInputFormat,
-      dateOutputFormat: defaultDateOutputFormat,
-      dateInvalidFallback: defaultDateInvalidFallback,
-      dateInvalidFallbackText: '',
-      condition,
-      applyToEmptyValues: false,
-    };
-  }
-
-  if (type === 'manualRange') {
-    return createManualRangeStep(condition);
-  }
-
-  return {
-    id: crypto.randomUUID(),
-    mode: inferStepModeFromType(type),
-    type,
-    value: '',
-    searchValue: '',
-    replaceValue: '',
-    condition,
-    applyToEmptyValues: false,
-  };
-}
-
-function createManualRangeStep(condition?: TransformCondition): TransformStep {
-  return {
-    id: crypto.randomUUID(),
-    mode: 'manualRange',
-    type: 'manualRange',
-    ranges: [],
-    condition,
-    applyToEmptyValues: false,
-  };
-}
-
-function replaceStepType(
-  step: TransformStep,
-  type: TransformStepType,
-  mode: TransformStepMode,
-  operation?: NonNullable<TransformStep['operation']>,
-  stepIndex = 0,
-): Partial<TransformStep> {
-  if (type === 'numericOperation') {
-    if (step.type === 'numericOperation') {
-      return {
-        operation: operation ?? step.operation ?? 'add',
-        mode,
-      };
-    }
-
-    return {
-      ...createNumericOperationStep(operation),
-      id: step.id,
-      mode,
-      condition: step.condition,
-      applyToEmptyValues: step.applyToEmptyValues,
-    };
-  }
-
-  if (type === 'manualRange') {
-    return {
-      ...createManualRangeStep(step.condition),
-      id: step.id,
-      mode,
-      applyToEmptyValues: step.applyToEmptyValues,
-    };
-  }
-
-  return {
-    ...createTextOperationStep(type, step.condition, stepIndex),
-    id: step.id,
-    mode,
-    applyToEmptyValues: step.applyToEmptyValues,
-  };
-}
-
-export function normalizeStepsForMode(steps: TransformStep[], fallbackMode: TransformStepMode): TransformStep[] {
-  return steps.map((step) => {
-    const mode = getStepMode(step, fallbackMode);
-    return isStepAllowedForMode(step.type, mode) ? { ...step, mode } : createNoopStepFromStep(step, mode);
-  });
-}
-
-function isStepAllowedForMode(type: TransformStepType, mode: TransformStepMode) {
-  return getStepTypesForMode(mode).some((stepType) => stepType.value === type);
-}
-
-function getVisibleStepSource(step: TransformStep, index: number, baseInputColumnId: string): StepSource {
-  if (step.source) {
-    if (index === 0 && step.source.type === 'previousResult') {
-      return { type: 'input', inputColumnId: baseInputColumnId };
-    }
-
-    return step.source;
-  }
-
-  if (index === 0) {
-    return { type: 'input', inputColumnId: baseInputColumnId };
-  }
-
-  return { type: 'previousResult' };
-}
-
-export function getVisibleLeftOperand(step: TransformStep, stepSource: StepSource): StepOperand {
-  if (step.leftOperand) {
-    return step.leftOperand;
-  }
-
-  return stepSourceToOperand(stepSource);
-}
-
-export function getVisibleRightOperand(step: TransformStep): StepOperand {
-  if (step.rightOperand) {
-    return step.rightOperand;
-  }
-
-  const amount = Number(step.amount ?? 0);
-  return {
-    type: 'fixedText',
-    value: String(step.amount ?? 0),
-    ...(Number.isFinite(amount) ? { numericFallback: amount } : {}),
-  };
-}
-
-function stepSourceToOperand(source: StepSource): StepOperand {
-  if (source.type === 'previousResult') {
-    return { type: 'previousResult' };
-  }
-
-  if (source.type === 'input') {
-    return { type: 'input', inputColumnId: source.inputColumnId };
-  }
-
-  if (source.type === 'rangeText') {
-    return {
-      type: 'rangeText',
-      inputColumnId: source.inputColumnId,
-      selectedText: source.selectedText,
-      numericFallback: Number(source.selectedText),
-    };
-  }
-
-  return {
-    type: 'fixedText',
-    value: source.value,
-    numericFallback: Number(source.value),
-  };
-}
-
-export function shouldShowTextSourceFields(type: TransformStepType) {
-  return [
-    'noop',
-    'trim',
-    'uppercase',
-    'lowercase',
-    'addPrefix',
-    'addSuffix',
-    'removeText',
-    'replaceText',
-    'extractNumber',
-    'toNumber',
-    'toText',
-    'formatDate',
-  ].includes(type);
-}
-
-export function getTextStepSourceLabel(type: TransformStepType) {
-  if (type === 'trim') {
-    return 'Valor a limpiar';
-  }
-
-  if (type === 'uppercase' || type === 'lowercase') {
-    return 'Valor a convertir';
-  }
-
-  if (type === 'addPrefix' || type === 'addSuffix' || type === 'removeText' || type === 'replaceText') {
-    return 'Valor base';
-  }
-
-  if (type === 'extractNumber') {
-    return 'Valor del que extraer número';
-  }
-
-  if (type === 'toNumber' || type === 'toText') {
-    return 'Valor a convertir';
-  }
-
-  if (type === 'formatDate') {
-    return 'Fecha a formatear';
-  }
-
-  return valueSourceLabel;
-}
-
-export function changeStepMode(step: TransformStep, mode: TransformStepMode): Partial<TransformStep> {
-  if (mode === 'manualRange') {
-    if (step.type === 'manualRange') {
-      return { mode };
-    }
-
-    return {
-      ...createManualRangeStep(step.condition),
-      id: step.id,
-      applyToEmptyValues: step.applyToEmptyValues ?? false,
-    };
-  }
-
-  return isStepAllowedForMode(step.type, mode) ? { mode } : createNoopStepFromStep(step, mode);
-}
-
-function createNoopStepFromStep(step: TransformStep, mode: TransformStepMode): TransformStep {
-  return {
-    id: step.id,
-    mode,
-    type: 'noop',
-    condition: step.condition,
-    applyToEmptyValues: step.applyToEmptyValues ?? false,
-  };
-}
-
-export function getStepMode(step: TransformStep, fallbackMode: TransformStepMode = 'text'): TransformStepMode {
-  return normalizeStepMode(step.mode) ?? (step.type === 'noop' ? fallbackMode : inferStepModeFromType(step.type));
-}
-
-function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' || mode === 'manualRange' ? mode : undefined;
-}
-
-export function inferStepModeFromType(type: TransformStepType): TransformStepMode {
-  if (type === 'manualRange') {
-    return 'manualRange';
-  }
-
-  if (type === 'numericOperation') {
-    return 'number';
-  }
-
-  if (type === 'extractNumber' || type === 'toNumber' || type === 'toText') {
-    return 'conversion';
-  }
-
-  if (type === 'formatDate') {
-    return 'date';
-  }
-
-  return 'text';
-}
-
-function isSimpleInputRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return recipe.parts.length === 1 && recipe.parts[0]?.type === 'input' && (recipe.steps ?? []).length > 0;
-}
-
-function isTextStepType(type: TransformStepType) {
-  return ['trim', 'uppercase', 'lowercase', 'addPrefix', 'addSuffix', 'removeText', 'replaceText', 'toText'].includes(type);
-}
-
-function getDirectInputColumnId(column: OutputColumn, inputColumns: InputColumn[]) {
-  if (column.recipe.type === 'direct' && column.recipe.inputColumnId) {
-    return column.recipe.inputColumnId;
-  }
-
-  return inputColumns[0]?.id ?? '';
 }

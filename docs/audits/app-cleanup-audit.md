@@ -179,3 +179,42 @@ Decisión: conservar documentado; no reconectar ni eliminar en esta tarea.
 - `npm run build`: OK — Vite completó build; mantiene warning no bloqueante por chunk JS de 840.40 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK. Git sólo informa conversión futura LF→CRLF por configuración local; no hay errores de whitespace.
+
+## Etapa posterior: modularización de helpers del editor
+
+Se modularizaron helpers puros y casi puros de `OutputColumnRecipeEditor.tsx` sin extraer componentes ni cambiar markup.
+
+### Helpers movidos
+
+- `OutputColumnRecipeEditor.optionHelpers.ts`:
+  - opciones de modos, tipos de steps, operaciones numéricas, fechas y condiciones;
+  - conversión entre fuentes y valores de dropdown;
+  - acciones de fuente de texto;
+  - normalización de condiciones;
+  - updates simples de steps y parsing de redondeo.
+- `OutputColumnRecipeEditor.recipeHelpers.ts`:
+  - selección de tipo de receta y manejo de draft;
+  - detección y normalización de modo personalizado;
+  - construcción de recetas simples y basadas en steps;
+  - creación/cambio/normalización de steps;
+  - operaciones puras sobre partes concatenadas;
+  - resolución de operandos, fuentes visibles y modos de step.
+
+`OutputColumnRecipeEditor.tsx` mantiene re-exports temporales de seams usados por tests. Esto evita una reescritura masiva de imports y permite migrarlos gradualmente a los módulos nuevos.
+
+### Código conservado dentro del editor
+
+- Componentes JSX y estado React.
+- Generador, tabla y edición visual de `manualRange`.
+- Previews y summaries acoplados a `buildProcessedRows`, datos de muestra o estructura renderizada.
+- Helpers usados únicamente por presentación local cuando moverlos no reducía acoplamiento.
+
+El archivo principal bajó de 3.905 a 2.942 líneas, una reducción aproximada de 963 líneas. No hubo cambios visuales, de markup, settings, dominio, `manualRange`, remap/references, filtros, preview normalizada ni exportación.
+
+### Validaciones de modularización
+
+- Test específico `OutputColumnRecipeEditor.test.tsx`: OK — 252 tests.
+- `npm run test:run`: OK — 41 archivos, 620 tests.
+- `npm run build`: OK — Vite completó build; warning conocido por chunk JS de 840.39 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK. Archivos nuevos también revisados con `git diff --no-index --check`.
