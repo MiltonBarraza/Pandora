@@ -14,6 +14,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
 import { RangeValueEditor } from './RangeValueEditor';
 
 type OutputColumnRecipeEditorProps = {
@@ -2249,6 +2250,7 @@ function StepSourceFields({
   label = 'Desde donde toma el valor',
   source,
   inputColumns,
+  inputRows = [],
   allowPreviousResult,
   previousResultPreviewValue,
   fixedTextInputType = 'text',
@@ -2258,18 +2260,21 @@ function StepSourceFields({
   label?: string;
   source: StepSource;
   inputColumns: InputColumn[];
+  inputRows?: InputRow[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
   fixedTextInputType?: 'text' | 'date';
   fixedTextDateInputFormat?: DateInputFormat;
   onChange: (source: StepSource) => void;
 }) {
+  const [isColumnTextPickerOpen, setIsColumnTextPickerOpen] = useState(false);
   const safeSource = !allowPreviousResult && source.type === 'previousResult'
     ? { type: 'input' as const, inputColumnId: '' }
     : source;
-  const showPreviousResultHelp = shouldShowPreviousResultSourceHelp(safeSource);
+  const showPreviousResultHelp = !isColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
   const showPreviousResultPreview = showPreviousResultHelp && previousResultPreviewValue !== null && previousResultPreviewValue !== undefined && previousResultPreviewValue !== '';
-  const sourceValue = getStepSourceDropdownValue(safeSource);
+  const canPickColumnText = fixedTextInputType === 'text';
+  const sourceValue = isColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
 
   return (
     <>
@@ -2278,10 +2283,18 @@ function StepSourceFields({
         label={label}
         labelInfo={<InfoTooltip content="Indica de donde sale el valor de este paso." />}
         value={sourceValue}
-        options={getStepSourceDropdownOptions(inputColumns, allowPreviousResult)}
+        options={getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText)}
         placeholder="Seleccionar fuente"
         scrollStrategy="close"
-        onChange={(value) => onChange(getStepSourceFromDropdownValue(value, safeSource))}
+        onChange={(value) => {
+          if (value === 'columnTextPicker') {
+            setIsColumnTextPickerOpen(true);
+            return;
+          }
+
+          setIsColumnTextPickerOpen(false);
+          onChange(getStepSourceFromDropdownValue(value, safeSource));
+        }}
       />
 
       {showPreviousResultHelp ? (
@@ -2293,7 +2306,14 @@ function StepSourceFields({
         </div>
       ) : null}
 
-      {safeSource.type === 'fixedText' ? (
+      {isColumnTextPickerOpen ? (
+        <ColumnTextPicker
+          inputColumns={inputColumns}
+          rows={inputRows}
+          value={safeSource.type === 'fixedText' ? safeSource.value : ''}
+          onSelect={(value) => onChange(createFixedTextSourceFromColumnText(value))}
+        />
+      ) : safeSource.type === 'fixedText' ? (
         <label className="field compact">
           <span className="labelWithInfo">
             <span>{fixedTextInputType === 'date' ? 'Fecha fija' : 'Texto fijo'}</span>
@@ -2332,10 +2352,11 @@ export function getStepSourceDropdownValue(source: StepSource) {
   return source.inputColumnId ? `input:${source.inputColumnId}` : '';
 }
 
-export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean): DropdownOption[] {
+export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
   return [
     ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
     { value: 'fixedText', label: 'Texto fijo' },
+    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: 'Elegir texto desde columna' }] : []),
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
   ];
 }
@@ -3030,6 +3051,7 @@ function StepFields({
       label="Desde donde toma el valor"
       source={stepSource}
       inputColumns={inputColumns}
+      inputRows={manualRangeRows}
       allowPreviousResult={canUsePreviousResultSource}
       previousResultPreviewValue={previousResultPreviewValue}
       fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}

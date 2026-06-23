@@ -6,6 +6,8 @@ import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../..
 import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
 import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceFromDropdownValue, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes } from '../RangeValueEditor';
+import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
+import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 
 const inputColumns: InputColumn[] = [
   {
@@ -1374,11 +1376,18 @@ describe('constructor helpers', () => {
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 2), true)).toEqual([
       { value: 'previousResult', label: 'Resultado del paso anterior' },
       { value: 'fixedText', label: 'Texto fijo' },
+      { value: 'columnTextPicker', label: 'Elegir texto desde columna' },
       { value: 'input:input-code', label: 'A' },
       { value: 'input:input-name', label: 'D - Nombre' },
     ]);
 
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 1), false)).toEqual([
+      { value: 'fixedText', label: 'Texto fijo' },
+      { value: 'columnTextPicker', label: 'Elegir texto desde columna' },
+      { value: 'input:input-code', label: 'A' },
+    ]);
+
+    expect(getStepSourceDropdownOptions(inputColumns.slice(0, 1), false, false)).toEqual([
       { value: 'fixedText', label: 'Texto fijo' },
       { value: 'input:input-code', label: 'A' },
     ]);
@@ -1654,6 +1663,7 @@ describe('constructor helpers', () => {
     expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
       'Texto fijo',
       'Texto encontrado en el rango',
+      'Elegir texto desde columna',
       'A',
       'D - Nombre',
       'F - Presentacion',
@@ -1662,6 +1672,7 @@ describe('constructor helpers', () => {
     expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.value)).toEqual([
       'fixedText',
       'rangeText',
+      'columnTextPicker',
       'input:input-code',
       'input:input-name',
       'input:input-pack',
@@ -1697,6 +1708,19 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Buscar textos en');
     expect(markup).toContain('Texto encontrado');
     expect(markup).toContain('PINCELES SERIE 304');
+  });
+
+  it('shows a short empty range-text label without a duplicated helper', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-without-texts',
+      startRowNumber: 50,
+      endRowNumber: 60,
+      valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' }, steps: [] },
+    });
+
+    expect(markup).toContain('Sin textos en el rango');
+    expect(markup).not.toContain('No se encontraron textos en este rango.');
+    expect(markup).toContain('Usa el valor tal cual.');
   });
 
   it('renders fixed text sources inside the range value operation editor', () => {
@@ -1749,6 +1773,89 @@ describe('constructor helpers', () => {
     expect(markup.match(/Pasos adicionales/g)).toHaveLength(1);
   });
 
+  it('lists unique non-empty column texts in Excel appearance order', () => {
+    expect(getUniqueColumnTextOptions([
+      { rowNumber: 1, values: { 'input-code': 'BLANCO' } },
+      { rowNumber: 2, values: { 'input-code': '' } },
+      { rowNumber: 3, values: { 'input-code': ' NEGRO ' } },
+      { rowNumber: 4, values: { 'input-code': 'BLANCO' } },
+      { rowNumber: 5, values: { 'input-code': '   ' } },
+      { rowNumber: 6, values: { 'input-code': 'ROJO' } },
+    ], 'input-code')).toEqual([
+      { value: 'BLANCO', label: 'BLANCO' },
+      { value: ' NEGRO ', label: ' NEGRO ' },
+      { value: 'ROJO', label: 'ROJO' },
+    ]);
+  });
+
+  it('filters text choices partially and case-insensitively without reordering them', () => {
+    const options = [
+      { value: 'white-black', label: 'BLANCO - NEGRO' },
+      { value: 'aerosol', label: 'AEROSOL SINTEPLAST BRILLANTE' },
+      { value: 'black', label: 'NEGRO' },
+    ];
+
+    expect(filterDropdownOptions(options, 'negro')).toEqual([options[0], options[2]]);
+    expect(filterDropdownOptions(options, 'AeRo')).toEqual([options[1]]);
+    expect(filterDropdownOptions(options, 'inexistente')).toEqual([]);
+    expect(filterDropdownOptions(options, '   ')).toBe(options);
+    expect(getDropdownEmptyMessage(true)).toBe('No hay coincidencias.');
+  });
+
+  it('renders searchable text selection as one primary combobox without an inner search input', () => {
+    const searchableMarkup = renderToStaticMarkup(
+      <ColumnTextPicker
+        inputColumns={inputColumns.slice(0, 1)}
+        rows={[{ rowNumber: 1, values: { 'input-code': 'NEGRO' } }]}
+        value=""
+        onSelect={() => undefined}
+      />,
+    );
+    const normalMarkup = renderToStaticMarkup(
+      <Dropdown
+        value=""
+        options={[{ value: 'one', label: 'Uno' }]}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(searchableMarkup.match(/dropdownSearchableInput/g)).toHaveLength(1);
+    expect(searchableMarkup).toContain('role="combobox"');
+    expect(searchableMarkup).not.toContain('dropdownSearchWrap');
+    expect(normalMarkup).toContain('dropdownTrigger');
+    expect(normalMarkup).not.toContain('role="combobox"');
+  });
+
+  it('persists a selected column text as fixed text', () => {
+    expect(createFixedTextSourceFromColumnText('NEGRO')).toEqual({ type: 'fixedText', value: 'NEGRO' });
+
+    const recipe = updateManualRangeFixedTextValue({
+      type: 'manualRange',
+      ranges: [{
+        id: 'range',
+        startRowNumber: 1,
+        endRowNumber: 2,
+        valueSource: { type: 'fixedText', value: '' },
+      }],
+    }, 'range', 'NEGRO');
+    expect(recipe.ranges[0].valueRecipe?.source).toEqual({ type: 'fixedText', value: 'NEGRO' });
+  });
+
+  it('shows a clear empty state when a column has no available texts', () => {
+    const markup = renderToStaticMarkup(
+      <ColumnTextPicker
+        inputColumns={inputColumns.slice(0, 1)}
+        rows={[{ rowNumber: 1, values: { 'input-code': '   ' } }]}
+        value=""
+        onSelect={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Sin textos disponibles');
+    expect(markup).not.toContain('No hay textos disponibles en esta columna.');
+    expect(markup).not.toContain('textSourceHelperRow');
+  });
+
   it('starts range concat with one clear previous-result part', () => {
     expect(createDefaultRangeValueConcatParts()).toEqual([
       expect.objectContaining({ source: { type: 'previousResult' } }),
@@ -1767,6 +1874,7 @@ describe('constructor helpers', () => {
     expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
       'Resultado anterior',
       'Texto fijo',
+      'Elegir texto desde columna',
       'Texto encontrado en el rango',
       'A',
       'D - Nombre',
