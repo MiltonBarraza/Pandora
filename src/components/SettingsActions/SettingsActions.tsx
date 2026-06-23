@@ -6,9 +6,6 @@ import { showErrorToast, showInfoToast, showSuccessToast } from '../../services/
 import type {
   ColumnAnalysis,
   ExportedImportSettings,
-  FileNameSettings,
-  IgnoreRule,
-  OutputColumn,
   RawRow,
   SettingsCompatibilityResult,
   SourceSnapshot,
@@ -24,11 +21,6 @@ type SettingsActionsProps = {
   headerRowIndex: number | null;
   startRowIndex: number;
   columnAnalysis: ColumnAnalysis[];
-  inputColumnAliases: Record<string, string>;
-  inputIgnoreRules: IgnoreRule[];
-  outputColumns: OutputColumn[];
-  outputIgnoreRules: IgnoreRule[];
-  fileNameSettings: FileNameSettings;
   onSaveSettings: () => { ok: true } | { ok: false; error: string };
   onApplySettings: (settings: ExportedImportSettings, compatibility: SettingsCompatibilityResult) => { ok: true } | { ok: false; error: string };
   onSettingsImported?: () => void;
@@ -54,11 +46,6 @@ export function SettingsActions({
   headerRowIndex,
   startRowIndex,
   columnAnalysis,
-  inputColumnAliases,
-  inputIgnoreRules,
-  outputColumns,
-  outputIgnoreRules,
-  fileNameSettings,
   onSaveSettings,
   onApplySettings,
   onSettingsImported,

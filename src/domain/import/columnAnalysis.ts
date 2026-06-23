@@ -90,10 +90,6 @@ export function getColumnSampleValues(rows: RawRow[], columnIndex: number, start
   return sample;
 }
 
-export function applyColumnVisibility(rows: RawRow[], activeColumns: number[]): RawRow[] {
-  return rows.map((row) => activeColumns.map((columnIndex) => row[columnIndex] ?? ''));
-}
-
 export function columnLetter(index: number) {
   let dividend = index + 1;
   let name = '';

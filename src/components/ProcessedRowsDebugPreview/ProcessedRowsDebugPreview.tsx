@@ -6,6 +6,8 @@ export const normalizedPreviewRowLimit = 30;
 type ProcessedRowsPreviewProps = {
   rows: ProcessedRow[];
   outputColumns: OutputColumn[];
+  // Reserved while row selection/status controls stay intentionally hidden from section 8.
+  // Overrides still apply upstream and remain available to audit export.
   rowOverrides?: RowOverrides;
   onRowOverridesChange?: (overrides: RowOverrides) => void;
   title?: string;
@@ -64,10 +66,6 @@ export function ProcessedRowsPreview({
       ) : null}
     </section>
   );
-}
-
-export function ProcessedRowsDebugPreview(props: ProcessedRowsPreviewProps) {
-  return <ProcessedRowsPreview title="Preview experimental del nuevo modelo" {...props} />;
 }
 
 export function getNormalizedPreviewRows(rows: ProcessedRow[]) {

@@ -132,11 +132,6 @@ export function applyRowOverridesToProcessedRows(rows: ProcessedRow[], rowOverri
   });
 }
 
-export function matchesProcessedIgnoreRule(row: ProcessedRow, rule: IgnoreRule) {
-  const sourceValues = rule.target === 'input' ? row.inputValues : row.outputValues;
-  return evaluateIgnoreRule(sourceValues, rule);
-}
-
 export function evaluateIgnoreRule(values: Record<string, string>, rule: IgnoreRule) {
   if (!isIgnoreRuleComplete(rule)) {
     return false;

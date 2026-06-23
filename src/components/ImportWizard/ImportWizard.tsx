@@ -611,11 +611,6 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             headerRowIndex={headerRowIndex}
             startRowIndex={startRowIndex}
             columnAnalysis={columnAnalysis}
-            inputColumnAliases={inputColumnAliases}
-            inputIgnoreRules={inputIgnoreRules}
-            outputColumns={outputColumns}
-            outputIgnoreRules={outputIgnoreRules}
-            fileNameSettings={fileNameSettings}
             onSaveSettings={saveCurrentSettings}
             onApplySettings={applyImportedSettings}
             onSettingsImported={() => setIsConfigurationDirty(true)}

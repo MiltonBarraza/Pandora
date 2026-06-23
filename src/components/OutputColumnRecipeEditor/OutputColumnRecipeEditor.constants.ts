@@ -1,0 +1,6 @@
+export const noActiveColumnsLabel = 'Sin columnas activas';
+export const useValueAsIsLabel = 'Usar valor tal cual';
+export const pickColumnTextLabel = 'Elegir texto desde columna';
+export const operationTypeLabel = 'Tipo de operación';
+export const valueSourceLabel = 'Fuente del valor';
+export const addPartLabel = 'Agregar parte';

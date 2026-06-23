@@ -527,10 +527,6 @@ export function filterColumnsBySearch(columns: ColumnAnalysis[], search: string)
   return columns.filter((column) => columnMatchesSearch(column, query));
 }
 
-export function getColumnSearchText(column: ColumnAnalysis) {
-  return getColumnSearchTerms(column).join(' ');
-}
-
 export function columnMatchesSearch(column: ColumnAnalysis, normalizedQuery: string) {
   return getColumnSearchTerms(column).some((term) => term.includes(normalizedQuery));
 }
@@ -592,13 +588,6 @@ export function setColumnVisibility(column: ColumnAnalysis, ignored: boolean) {
   return automaticReasons.length > 0
     ? setColumnIgnoredByReasons(column, automaticReasons)
     : { ...column, ignored: true, ignoredReason: 'manual' as const, ignoredReasons: ['manual' as const] };
-}
-
-export function ignoreColumnsByAutomaticReasons(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
-  return columns.map((column) => {
-    const matchingReasons = getColumnAutomaticReasons(column).filter((reason) => reasons.includes(reason));
-    return matchingReasons.length > 0 ? setColumnIgnoredByReasons(column, matchingReasons) : column;
-  });
 }
 
 export function toggleColumnsByAutomaticReasons(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {

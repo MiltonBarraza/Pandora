@@ -16,6 +16,7 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
+import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 
 type RangeValueEditorProps = {
   range: ManualRangeValue;
@@ -45,7 +46,7 @@ export const rangeValueModeOptions: Array<{ value: Exclude<TransformStepMode, 'm
 
 export const rangeValueStepTypes: Record<Exclude<TransformStepMode, 'manualRange'>, Array<{ value: TransformStepType; label: string }>> = {
   text: [
-    { value: 'noop', label: 'Usar valor tal cual' },
+    { value: 'noop', label: useValueAsIsLabel },
     { value: 'trim', label: 'Limpiar espacios' },
     { value: 'uppercase', label: 'Convertir a mayúsculas' },
     { value: 'lowercase', label: 'Convertir a minúsculas' },
@@ -56,17 +57,17 @@ export const rangeValueStepTypes: Record<Exclude<TransformStepMode, 'manualRange
     { value: 'concat', label: 'Concatenar' },
   ],
   number: [
-    { value: 'noop', label: 'Usar valor tal cual' },
+    { value: 'noop', label: useValueAsIsLabel },
     { value: 'numericOperation', label: 'Operación numérica' },
   ],
   conversion: [
-    { value: 'noop', label: 'Usar valor tal cual' },
+    { value: 'noop', label: useValueAsIsLabel },
     { value: 'extractNumber', label: 'Extraer número del texto' },
     { value: 'toNumber', label: 'Convertir a número' },
     { value: 'toText', label: 'Convertir a texto' },
   ],
   date: [
-    { value: 'noop', label: 'Usar valor tal cual' },
+    { value: 'noop', label: useValueAsIsLabel },
     { value: 'formatDate', label: 'Formatear fecha' },
   ],
 };
@@ -74,7 +75,7 @@ export const rangeValueStepTypes: Record<Exclude<TransformStepMode, 'manualRange
 export const rangeValueTextSourceActionOptions: Array<{ value: RangeValueTextAction; label: string }> = [
   { value: 'useInputColumn', label: 'Usar columna de entrada' },
   { value: 'useFixedText', label: 'Usar texto fijo' },
-  { value: 'pickColumnText', label: 'Elegir texto desde columna' },
+  { value: 'pickColumnText', label: pickColumnTextLabel },
   { value: 'useRangeText', label: 'Texto encontrado en el rango' },
 ];
 
@@ -107,7 +108,7 @@ export function RangeValueEditor({
   const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
   const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
   const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: 'Sin columnas activas' }]
+    ? [{ value: '', label: noActiveColumnsLabel }]
     : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
   const hasSourceDetails = true;
 
@@ -207,7 +208,7 @@ export function RangeValueEditor({
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
   return [
     ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input'),
-    { value: 'columnTextPicker' as const, label: 'Elegir texto desde columna' },
+    { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
   ];
 }
@@ -362,7 +363,7 @@ function RangeValueStepControls({
     <>
       <Dropdown<Exclude<TransformStepMode, 'manualRange'>>
         className="compact"
-        label="Tipo de operación"
+        label={operationTypeLabel}
         value={mode}
         options={rangeValueModeOptions}
         scrollStrategy="close"
@@ -424,7 +425,7 @@ function RangeValueStepEditor({
       <div className="simpleCustomValueGrid">
         <Dropdown<Exclude<TransformStepMode, 'manualRange'>>
           className="compact"
-          label="Tipo de operación"
+          label={operationTypeLabel}
           value={mode}
           options={rangeValueModeOptions}
           scrollStrategy="close"
@@ -600,7 +601,7 @@ function RangeValueConcatEditor({
           </div>
         ))}
         <button type="button" className="secondary concatAddPartButton" onClick={addPart}>
-          Agregar parte
+          {addPartLabel}
         </button>
       </div>
       {selectedPart ? (
@@ -696,14 +697,14 @@ function RangeValueConcatPartSourceFields({
     ? getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource)
     : '';
   const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: 'Sin columnas activas' }]
+    ? [{ value: '', label: noActiveColumnsLabel }]
     : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
 
   return (
     <>
       {!hideSourceSelector ? <Dropdown<RangeValueConcatPartSourceDropdownValue>
         className="compact manualRangeValueSourceField"
-        label="Fuente del valor"
+        label={valueSourceLabel}
         value={sourceValue}
         options={getRangeValueConcatPartSourceDropdownOptions(inputColumns)}
         scrollStrategy="close"
@@ -777,7 +778,7 @@ export function getRangeValueConcatPartSourceDropdownOptions(inputColumns: Input
   return [
     { value: 'previousResult' as const, label: 'Resultado anterior' },
     { value: 'fixedText' as const, label: 'Texto fijo' },
-    { value: 'columnTextPicker' as const, label: 'Elegir texto desde columna' },
+    { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
     { value: 'rangeText' as const, label: 'Texto encontrado en el rango' },
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
   ];

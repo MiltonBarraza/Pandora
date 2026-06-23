@@ -80,34 +80,6 @@ export function formatNumericResult(value: number, rounding: TransformStep['roun
   return rounding === 'none' ? String(value) : value.toFixed(rounding ?? 2);
 }
 
-export function getSuggestedNumericColumnName(sourceColumn: string, operation: NumericOperation, amount: number) {
-  if (operation === 'add') {
-    return `${sourceColumn} +${amount}`;
-  }
-
-  if (operation === 'subtract') {
-    return `${sourceColumn} -${amount}`;
-  }
-
-  if (operation === 'multiply') {
-    return `${sourceColumn} x${amount}`;
-  }
-
-  if (operation === 'divide') {
-    return `${sourceColumn} /${amount}`;
-  }
-
-  if (operation === 'addPercentage') {
-    return `${sourceColumn} +${amount}%`;
-  }
-
-  if (operation === 'subtractPercentage') {
-    return `${sourceColumn} -${amount}%`;
-  }
-
-  return `${sourceColumn} sin ${amount}%`;
-}
-
 function normalizeSingleSeparator(value: string, separator: ',' | '.') {
   const parts = value.split(separator);
   if (parts.length === 2 && parts[1].length <= 2) {

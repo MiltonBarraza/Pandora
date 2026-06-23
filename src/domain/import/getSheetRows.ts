@@ -36,10 +36,6 @@ export function getSheetRowsWithMetadata(workbook: XLSX.WorkBook, sheetName: str
   return { rows, rowMetadata };
 }
 
-export function getSheetPreview(rows: RawRow[], limit = 12): RawRow[] {
-  return rows.slice(0, limit);
-}
-
 function formatSheetCell(cell: XLSX.CellObject) {
   const dateParts = getCellDateParts(cell);
   if (dateParts) {
