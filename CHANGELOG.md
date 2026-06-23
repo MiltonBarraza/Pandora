@@ -5,6 +5,33 @@ Todos los cambios importantes de este proyecto se documentaran en este archivo.
 El formato esta basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Generador simplificado de rangos sugeridos con criterios para crear un rango por dato o detectar bloques consecutivos, limites abiertos Inicio/Fin y preview de filas.
+- Selector searchable para elegir textos unicos desde una columna completa o desde las filas de un rango; la seleccion desde columna se conserva como texto fijo compatible.
+- Referencias utiles para rangos manuales, preview alineada con filas procesables y contador de filas visibles en la vista normalizada.
+
+### Changed
+
+- Editor de valores por rango reorganizado para alinear controles, mantener operacion y valor numerico en una fila y mostrar helpers sin romper la grilla.
+- Fuentes textuales integradas en `Que quiero hacer`: usar columna de entrada, texto fijo, texto elegido desde columna, resultado anterior o texto encontrado en el rango segun contexto.
+- Concatenacion y pasos adicionales unificados visualmente, sin inputs duplicados para prefijo/sufijo ni contenedores especiales de condicion.
+- Generador de rangos enfocado en opciones esenciales; controles avanzados y filas posteriores quedan ocultos con defaults seguros.
+- Columnas disponibles ahora excluyen columnas sin datos, manteniendo columnas ocultas que contienen informacion.
+- Resumen de valores personalizados simplificado: elimina `Partes configuradas`, mejora origen/referencia y describe correctamente acciones como `Usar texto fijo` o `Usar valor tal cual`.
+- Opcion visible `Columna vacia` retirada para configuraciones nuevas, conservando compatibilidad con recetas existentes.
+
+### Fixed
+
+- Rangos sugeridos de `Cada dato inicia un rango` ya no arrastran filas vacias posteriores; bloques consecutivos cortan correctamente ante huecos reales.
+- Generacion, preview y textos encontrados en rangos usan filas procesables y respetan filtros externos.
+- Preview normalizada se actualiza al cambiar filtros de salida y su contador refleja filas efectivamente visibles.
+- Corregidos defaults de rangos manuales incompletos, insercion arriba/abajo, referencias vacias y selecciones de texto obsoletas al cambiar limites o columna.
+- Cambiar fuente de valor en manualRange ya no modifica silenciosamente el tipo de operacion.
+- Primer agregado de paso y configuracion inicial de concat funcionan sin clicks dobles ni partes inesperadas.
+
 ## [0.2.6] - 2026-06-12
 
 ### Added

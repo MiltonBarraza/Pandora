@@ -10,6 +10,7 @@ import type {
   OutputRecipe,
   RangeValueRecipe,
   RangeValueSource,
+  StepSource,
   TransformStep,
 } from '../../types/import';
 
@@ -73,11 +74,11 @@ export function manualRangeRecipeToStepPatch(recipe: Extract<OutputRecipe, { typ
 }
 
 export function createDefaultManualRangeValue(index: number): ManualRangeValue {
-  const rowNumber = Math.max(1, index + 1);
+  void index;
   return {
     id: crypto.randomUUID(),
-    startRowNumber: rowNumber,
-    endRowNumber: rowNumber,
+    startRowNumber: 0,
+    endRowNumber: 0,
     valueRecipe: { source: { type: 'fixedText', value: '' }, steps: [] },
     valueSource: { type: 'fixedText', value: '' },
   };
@@ -127,10 +128,14 @@ export function hasOverlappingManualRanges(ranges: ManualRangeValue[]) {
   });
 }
 
-export function addManualRangeValue(recipe: Extract<OutputRecipe, { type: 'manualRange' }>): Extract<OutputRecipe, { type: 'manualRange' }> {
+export function addManualRangeValue(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  position: 'start' | 'end' = 'end',
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  const nextRange = createDefaultManualRangeValue(recipe.ranges.length);
   return {
     ...recipe,
-    ranges: [...recipe.ranges, createDefaultManualRangeValue(recipe.ranges.length)],
+    ranges: position === 'start' ? [nextRange, ...recipe.ranges] : [...recipe.ranges, nextRange],
   };
 }
 
@@ -194,6 +199,52 @@ export function getManualRangeFixedTextValue(range: ManualRangeValue) {
   return range.value ?? '';
 }
 
+export function getManualRangeReferenceText(range: ManualRangeValue) {
+  const source = getManualRangeValueRecipeSource(range);
+  const sourceText = getRangeReferenceSourceText(source);
+  if (source.type === 'rangeText') {
+    if (sourceText) {
+      return sourceText;
+    }
+  }
+
+  if (source.type === 'fixedText') {
+    if (sourceText) {
+      return sourceText;
+    }
+  }
+
+  const concatStep = range.valueRecipe?.steps?.find((step) => step.type === 'concat');
+  if (concatStep?.parts?.length) {
+    let concatText = '';
+    concatStep.parts.forEach((part) => {
+      const partText = part.source.type === 'previousResult'
+        ? sourceText
+        : getRangeReferenceSourceText(part.source);
+      if (!partText) {
+        return;
+      }
+      concatText += `${concatText ? part.separatorBefore ?? '' : ''}${partText}`;
+    });
+    if (concatText.trim()) {
+      return concatText.trim();
+    }
+    return 'Valor concatenado';
+  }
+
+  return range.suggestedFromText?.trim() ?? '';
+}
+
+function getRangeReferenceSourceText(source: StepSource) {
+  if (source.type === 'rangeText') {
+    return source.selectedText.trim();
+  }
+  if (source.type === 'fixedText') {
+    return source.value.trim();
+  }
+  return '';
+}
+
 export function getManualRangeValueSourceType(range: ManualRangeValue): ManualRangeValueSourceType {
   if (range.valueRecipe?.source.type === 'fixedText' || range.valueRecipe?.source.type === 'rangeText' || range.valueRecipe?.source.type === 'input') {
     return range.valueRecipe.source.type;
@@ -252,7 +303,7 @@ export function updateManualRangeValueSourceType(
         };
         return {
           ...rangeWithoutValueSource,
-          valueRecipe: { source, steps: [] },
+          valueRecipe: { source, steps: range.valueRecipe?.steps ?? [] },
         };
       }
 
@@ -265,7 +316,7 @@ export function updateManualRangeValueSourceType(
         };
         return {
           ...nextRange,
-          valueRecipe: { source, steps: [] },
+          valueRecipe: { source, steps: range.valueRecipe?.steps ?? [] },
           valueSource: source,
         };
       }
@@ -273,7 +324,7 @@ export function updateManualRangeValueSourceType(
       const source = { type: 'fixedText' as const, value: getManualRangeFixedTextValue(range) };
       return {
         ...nextRange,
-        valueRecipe: { source, steps: [] },
+        valueRecipe: { source, steps: range.valueRecipe?.steps ?? [] },
         valueSource: source,
       };
     }),
@@ -338,7 +389,7 @@ export function updateManualRangeInputValue(
         ...nextRange,
         valueRecipe: {
           source: { type: 'input' as const, inputColumnId },
-          steps: [],
+          steps: range.valueRecipe?.steps ?? [],
         },
       };
     }),
@@ -361,7 +412,7 @@ export function updateManualRangeFixedTextValue(
       const source = { type: 'fixedText' as const, value };
       return {
         ...nextRange,
-        valueRecipe: { source, steps: [] },
+        valueRecipe: { source, steps: range.valueRecipe?.steps ?? [] },
         valueSource: source,
       };
     }),
@@ -389,7 +440,7 @@ export function updateManualRangeRangeTextValue(
       };
       return {
         ...nextRange,
-        valueRecipe: { source, steps: [] },
+        valueRecipe: { source, steps: range.valueRecipe?.steps ?? [] },
         valueSource: source,
       };
     }),
@@ -496,8 +547,21 @@ export function generateManualRangesFromDataBlocks(rows: InputRow[], config: Man
   const detectedBlocks: Array<{ startRowNumber: number; endRowNumber: number }> = [];
   let blockStartRowNumber: number | null = null;
   let lastUsefulRowNumber: number | null = null;
+  let previousRowNumber: number | null = null;
 
   sortedRows.forEach((row) => {
+    if (previousRowNumber !== null && row.rowNumber > previousRowNumber + 1) {
+      if (blockStartRowNumber !== null && lastUsefulRowNumber !== null) {
+        detectedBlocks.push({
+          startRowNumber: blockStartRowNumber,
+          endRowNumber: lastUsefulRowNumber,
+        });
+      }
+      blockStartRowNumber = null;
+      lastUsefulRowNumber = null;
+    }
+    previousRowNumber = row.rowNumber;
+
     const isUsefulRow = Boolean(String(row.values[dataColumnId] ?? '').trim());
     if (isUsefulRow) {
       blockStartRowNumber ??= row.rowNumber;
@@ -686,9 +750,88 @@ export function getManualRangeSelectedTextOptions(
   range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
   source: Extract<ManualRangeValueSource, { type: 'rangeText' }>,
 ) {
+  return getManualRangeTextOptions(rows, range, source.inputColumnId);
+}
+
+export function reconcileManualRangeTextSelections(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  rows: InputRow[],
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  let recipeChanged = false;
+  const ranges = recipe.ranges.map((range) => {
+    if (range.id !== rangeId) {
+      return range;
+    }
+
+    const nextSource = range.valueRecipe
+      ? clearInvalidRangeTextSource(range.valueRecipe.source, range, rows)
+      : undefined;
+    const nextSteps = range.valueRecipe
+      ? clearInvalidRangeTextSteps(range.valueRecipe.steps ?? [], range, rows)
+      : undefined;
+    const nextLegacySource = range.valueSource?.type === 'rangeText'
+      ? clearInvalidRangeTextSource(range.valueSource, range, rows)
+      : range.valueSource;
+    const changed = nextSource !== range.valueRecipe?.source
+      || nextSteps !== range.valueRecipe?.steps
+      || nextLegacySource !== range.valueSource;
+    if (!changed) {
+      return range;
+    }
+
+    recipeChanged = true;
+    return {
+      ...range,
+      ...(range.valueRecipe ? { valueRecipe: { source: nextSource!, steps: nextSteps } } : {}),
+      valueSource: nextLegacySource,
+    };
+  });
+
+  return recipeChanged ? { ...recipe, ranges } : recipe;
+}
+
+function clearInvalidRangeTextSource<TSource extends StepSource>(
+  source: TSource,
+  range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+  rows: InputRow[],
+): TSource {
+  if (source.type !== 'rangeText' || !source.selectedText) {
+    return source;
+  }
+
   const options = getManualRangeTextOptions(rows, range, source.inputColumnId);
-  const selectedText = source.selectedText.trim();
-  return selectedText && !options.includes(selectedText) ? [selectedText, ...options] : options;
+  return options.includes(source.selectedText) ? source : { ...source, selectedText: '' };
+}
+
+function clearInvalidRangeTextSteps(
+  steps: TransformStep[],
+  range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+  rows: InputRow[],
+) {
+  let stepsChanged = false;
+  const nextSteps = steps.map((step) => {
+    if (step.type !== 'concat' || !step.parts) {
+      return step;
+    }
+
+    let partsChanged = false;
+    const parts = step.parts.map((part) => {
+      const source = clearInvalidRangeTextSource(part.source, range, rows);
+      if (source === part.source) {
+        return part;
+      }
+      partsChanged = true;
+      return { ...part, source };
+    });
+    if (!partsChanged) {
+      return step;
+    }
+    stepsChanged = true;
+    return { ...step, parts };
+  });
+
+  return stepsChanged ? nextSteps : steps;
 }
 
 export function getManualRangeRangeTextHelpText(

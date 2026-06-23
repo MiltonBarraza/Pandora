@@ -5,6 +5,7 @@ import {
   getHeaderRowOptions,
   getInternalDataStartIndexForExcelRowNumber,
   getInternalIndexForExcelRowNumber,
+  getManualRangeRowsForVisibleOutput,
   getRawPreviewRows,
   getRawPreviewRowNumbers,
   getRowConfigurationError,
@@ -195,6 +196,28 @@ describe('ImportWizard active column visual order', () => {
     ];
 
     expect(applyActiveColumnVisualOrder(inputColumns, []).map((column) => column.columnIndex)).toEqual([0, 1, 2]);
+  });
+});
+
+describe('ImportWizard manual range rows', () => {
+  it('excludes rows removed by input/output filters and row overrides', () => {
+    const inputRows = [
+      { rowNumber: 42, values: { 'input-0': 'A' } },
+      { rowNumber: 44, values: { 'input-0': 'B' } },
+      { rowNumber: 46, values: { 'input-0': 'C' } },
+    ];
+    const processedRows = [
+      { rowNumber: 42, inputValues: {}, outputValues: {}, status: 'included' as const },
+      { rowNumber: 44, inputValues: {}, outputValues: {}, status: 'ignored' as const },
+      { rowNumber: 46, inputValues: {}, outputValues: {}, status: 'included' as const },
+    ];
+
+    expect(getManualRangeRowsForVisibleOutput(inputRows, processedRows).map((row) => row.rowNumber)).toEqual([42, 46]);
+  });
+
+  it('keeps input-filtered rows available before output rows exist', () => {
+    const inputRows = [{ rowNumber: 42, values: { 'input-0': 'A' } }];
+    expect(getManualRangeRowsForVisibleOutput(inputRows, [])).toBe(inputRows);
   });
 });
 

@@ -14,6 +14,7 @@ import {
   getAppliedSuggestionGroups,
   getActiveColumnDragId,
   getAvailableColumnDetails,
+  getAvailableColumns,
   getColumnBaseDisplayLabel,
   getColumnAutomaticReasons,
   getColumnCurrentIgnoredReasons,
@@ -38,6 +39,14 @@ import {
 } from '../ColumnVisibilityManager';
 
 describe('ColumnVisibilityManager quick actions', () => {
+  it('keeps only ignored columns with data in the available list, including hidden ones', () => {
+    const empty = createColumn(0, 'empty');
+    const hidden = createColumn(1, 'hidden', { isHidden: true, nonEmptyCount: 3 });
+    const active = createColumn(2);
+
+    expect(getAvailableColumns([empty, hidden, active])).toEqual([hidden]);
+  });
+
   it('uses simplified visible labels for suggested filters and reasons', () => {
     expect(getColumnReasonLabel('empty')).toBe('Sin datos');
     expect(getColumnReasonLabel('hidden')).toBe('Oculta');
