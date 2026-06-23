@@ -12,6 +12,7 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
+  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { AppIcon } from '../AppIcon/AppIcon';
@@ -20,10 +21,11 @@ import './InfoTooltip.css';
 type InfoTooltipPlacement = 'top' | 'right' | 'bottom' | 'left';
 
 type InfoTooltipProps = {
-  content: string;
+  content: ReactNode;
   ariaLabel?: string;
   placement?: InfoTooltipPlacement;
   className?: string;
+  interaction?: 'hover' | 'click';
   children?: ReactElement;
 };
 
@@ -41,6 +43,7 @@ export function InfoTooltip({
   ariaLabel = 'Ver ayuda',
   placement = 'top',
   className = '',
+  interaction = 'hover',
   children,
 }: InfoTooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,6 +53,7 @@ export function InfoTooltip({
   const bubbleRef = useRef<HTMLSpanElement | null>(null);
   const tooltipId = useId();
   const hasCustomTrigger = isValidElement(children);
+  const opensOnClick = interaction === 'click';
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -146,15 +150,15 @@ export function InfoTooltip({
           triggerRef.current = node;
         }}
         className={`infoTooltip infoTooltipCustomTrigger${isOpen ? ' isOpen' : ''}${className ? ` ${className}` : ''}`}
-        onMouseEnter={open}
-        onMouseLeave={close}
+        onMouseEnter={opensOnClick ? undefined : open}
+        onMouseLeave={opensOnClick ? undefined : close}
         onFocus={(event) => {
-          if (event.target instanceof HTMLElement) {
+          if (!opensOnClick && event.target instanceof HTMLElement) {
             openOnVisibleFocus(event.target);
           }
         }}
         onBlur={close}
-        onClick={close}
+        onClick={opensOnClick ? () => setIsOpen((current) => !current) : close}
         onPointerCancel={close}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
@@ -165,6 +169,7 @@ export function InfoTooltip({
         {cloneElement(child, {
           className: childProps.className,
           'aria-describedby': mergeAriaDescribedBy(childProps['aria-describedby'], isOpen ? tooltipId : undefined),
+          'aria-expanded': opensOnClick ? isOpen : undefined,
           onMouseEnter: (event: MouseEvent<HTMLElement>) => {
             childProps.onMouseEnter?.(event);
           },
