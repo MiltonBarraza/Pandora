@@ -63,6 +63,15 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
         </div>
       </div>
 
+      {rules.length > 0 ? (
+        <div className="ignoreRulesHeader" aria-hidden="true">
+          <span>Columna</span>
+          <span>Condición</span>
+          <span>Valor</span>
+          <span />
+        </div>
+      ) : null}
+
       {rules.map((rule) => {
         const needsValue = ignoreRuleNeedsValue(rule.operator);
         const target = mode;
@@ -114,7 +123,11 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
               )}
 
             </div>
-            <DeleteButton onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
+            <div className="ignoreRuleAction">
+              <InfoTooltip content="Eliminar regla">
+                <DeleteButton title="Eliminar regla" onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
+              </InfoTooltip>
+            </div>
           </div>
         );
       })}

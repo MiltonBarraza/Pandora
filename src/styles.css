@@ -872,7 +872,7 @@ tbody tr:hover {
 
 .rules {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .managerSummaryRow {
@@ -891,6 +891,19 @@ tbody tr:hover {
 .rulesActions {
   display: flex;
   justify-content: flex-end;
+}
+
+.ignoreRulesHeader {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 8px;
+  grid-template-columns: minmax(180px, 1.15fr) minmax(170px, 0.95fr) minmax(150px, 1fr) 34px;
+  min-width: 0;
+  padding: 0 8px;
+  text-transform: uppercase;
 }
 
 .ruleRow {
@@ -1166,6 +1179,16 @@ tbody tr:hover {
   gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   min-width: 0;
+}
+
+.ignoreRuleFields {
+  gap: 8px;
+  grid-template-columns: minmax(180px, 1.15fr) minmax(170px, 0.95fr) minmax(150px, 1fr);
+}
+
+.ignoreRuleFields .dropdownLabel,
+.ignoreRuleFields .field > .labelWithInfo {
+  display: none;
 }
 
 .recipeSubBlock {
@@ -2603,14 +2626,22 @@ tbody tr:hover {
 
 .ignoreRuleCard {
   align-items: end;
-  background: var(--color-magic-bg);
-  border: 1px solid var(--color-magic-border);
-  border-radius: 8px;
+  border-top: 1px solid var(--color-border-subtle);
   display: grid;
-  gap: 10px;
+  gap: 8px;
   grid-template-columns: minmax(0, 1fr) 34px;
   min-width: 0;
-  padding: 10px;
+  padding: 6px 0;
+}
+
+.ignoreRuleAction {
+  align-items: end;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ignoreRuleAction .infoTooltipCustomTrigger {
+  display: inline-flex;
 }
 
 .rowActions {
@@ -3306,6 +3337,23 @@ tbody tr:hover {
 
   .inlineForm {
     grid-template-columns: 1fr;
+  }
+
+  .ignoreRulesHeader {
+    display: none;
+  }
+
+  .ignoreRuleFields {
+    grid-template-columns: 1fr;
+  }
+
+  .ignoreRuleFields .dropdownLabel,
+  .ignoreRuleFields .field > .labelWithInfo {
+    display: inline-flex;
+  }
+
+  .ignoreRuleAction {
+    justify-content: flex-start;
   }
 
   .outputColumnsHeaderActions {
