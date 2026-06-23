@@ -34,7 +34,7 @@ export function ColumnVisibilityManager({ columns, activeColumnOrder, onActiveCo
   const [selectedColumnIndex, setSelectedColumnIndex] = useState<number | null>(null);
   const [localActiveColumnOrder, setLocalActiveColumnOrder] = useState<number[]>([]);
   const activeColumns = columns.filter((column) => !column.ignored);
-  const ignoredColumns = columns.filter((column) => column.ignored);
+  const ignoredColumns = getAvailableColumns(columns);
   const effectiveActiveColumnOrder = activeColumnOrder ?? localActiveColumnOrder;
   const orderedActiveColumns = getOrderedActiveColumns(activeColumns, effectiveActiveColumnOrder);
   const visibleIgnoredColumns = filterColumnsBySearch(ignoredColumns, availableSearch);
@@ -569,6 +569,10 @@ export function getColumnTransferEmptyMessage({
 
 export function activateAllColumns(columns: ColumnAnalysis[]) {
   return columns.map((column) => ({ ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined }));
+}
+
+export function getAvailableColumns(columns: ColumnAnalysis[]) {
+  return columns.filter((column) => column.ignored && !column.isEmpty && column.nonEmptyCount > 0);
 }
 
 export function deactivateAllColumns(columns: ColumnAnalysis[]) {

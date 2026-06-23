@@ -19,13 +19,17 @@ export function ProcessedRowsPreview({
   note = 'Esta vista muestra el resultado final de las columnas de salida configuradas.',
 }: ProcessedRowsPreviewProps) {
   const columns = getEnabledOutputColumns(outputColumns);
+  const visibleRows = getVisibleNormalizedPreviewRows(rows);
   const previewRows = getNormalizedPreviewRows(rows);
   const previewSummary = getNormalizedPreviewSummary(rows);
-  const previewLimitText = getNormalizedPreviewLimitText(rows.length, previewRows.length);
+  const previewLimitText = getNormalizedPreviewLimitText(visibleRows.length, previewRows.length);
 
   return (
     <section className="panel slim">
-      <h3>{title}</h3>
+      <div className="normalizedPreviewTitleRow">
+        <strong className="normalizedPreviewRowCount">{getNormalizedPreviewRowCountLabel(visibleRows.length)}</strong>
+        <h3>{title}</h3>
+      </div>
       {note ? <p className="muted">{note}</p> : null}
       <p className="muted normalizedPreviewSummary">{previewSummary}</p>
       <p className="muted normalizedPreviewLimit">{previewLimitText}</p>
@@ -67,7 +71,15 @@ export function ProcessedRowsDebugPreview(props: ProcessedRowsPreviewProps) {
 }
 
 export function getNormalizedPreviewRows(rows: ProcessedRow[]) {
-  return rows.slice(0, normalizedPreviewRowLimit);
+  return getVisibleNormalizedPreviewRows(rows).slice(0, normalizedPreviewRowLimit);
+}
+
+export function getVisibleNormalizedPreviewRows(rows: ProcessedRow[]) {
+  return rows.filter((row) => row.status !== 'ignored');
+}
+
+export function getNormalizedPreviewRowCountLabel(rowCount: number) {
+  return `${rowCount} ${rowCount === 1 ? 'fila' : 'filas'}`;
 }
 
 export function getNormalizedPreviewLimitText(totalRows: number, shownRows: number) {

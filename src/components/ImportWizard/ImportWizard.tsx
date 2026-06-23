@@ -18,7 +18,7 @@ import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { downloadImportSettingsFile } from '../../services/settingsFileService';
 import { showInfoToast } from '../../services/toastService';
-import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputColumn, OutputColumn, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputColumn, InputRow, OutputColumn, ProcessedRow, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
 import { ColumnVisibilityManager, syncActiveColumnOrder } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -36,6 +36,17 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
 export const headerRowOptionsHelpText = 'Seleccioná la fila que contiene los nombres de las columnas. Solo se muestran filas con contenido.';
+
+export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], processedRows: ProcessedRow[]) {
+  if (processedRows.length === 0) {
+    return inputRows;
+  }
+
+  const visibleRowNumbers = new Set(
+    processedRows.filter((row) => row.status === 'included').map((row) => row.rowNumber),
+  );
+  return inputRows.filter((row) => visibleRowNumbers.has(row.rowNumber));
+}
 
 export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactNode }) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -187,6 +198,10 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   const processedRowsWithStatus = useMemo(
     () => applyRowOverridesToProcessedRows(outputFilteredRows, rowOverrides),
     [outputFilteredRows, rowOverrides],
+  );
+  const manualRangeRows = useMemo(
+    () => getManualRangeRowsForVisibleOutput(processedPipeline.includedInputRows, processedRowsWithStatus),
+    [processedPipeline.includedInputRows, processedRowsWithStatus],
   );
   const auditRows = useMemo(
     () => [
@@ -707,8 +722,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
             inputColumnsForGeneration={inputColumnsForGeneration}
-            manualRangeRows={processedPipeline.inputRows}
-            sampleInputValues={processedPipeline.includedInputRows[0]?.values ?? processedPipeline.inputRows[0]?.values}
+            manualRangeRows={manualRangeRows}
+            sampleInputValues={manualRangeRows[0]?.values ?? processedPipeline.includedInputRows[0]?.values}
             outputColumns={outputColumns}
             onChange={updateOutputColumns}
           />
