@@ -109,3 +109,24 @@ button.dropdownOption.isSelected {
   color: var(--color-text-placeholder);
   padding: 9px;
 }
+
+.dropdownSearchableControl {
+  min-width: 0;
+  position: relative;
+}
+
+.dropdownSearchableInput {
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 34px 0 10px;
+  width: 100%;
+}
+
+.dropdownSearchableControl .dropdownChevron {
+  pointer-events: none;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}

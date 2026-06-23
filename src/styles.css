@@ -2325,6 +2325,13 @@ tbody tr:hover {
   margin: 0;
 }
 
+.textSourceHelperRow {
+  align-self: start;
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
 .manualRangeActionsField {
   display: grid;
   min-width: 0;
@@ -2412,32 +2419,22 @@ tbody tr:hover {
 
 .rangeValuePrimaryLayout {
   align-items: end;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 10px;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   min-width: 0;
 }
 
 .rangeValuePrimaryControls {
-  align-items: end;
-  display: grid;
-  flex: 1 1 500px;
-  gap: 10px;
-  grid-template-columns: repeat(2, minmax(210px, 1fr));
-  min-width: min(100%, 440px);
+  display: contents;
 }
 
 .rangeValueSourceControls {
-  align-items: end;
-  display: grid;
-  flex: 1.5 1 680px;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  min-width: min(100%, 560px);
+  display: contents;
 }
 
 .rangeValuePrimaryStepFields {
-  flex: 1 0 100%;
+  grid-column: 1 / -1;
   min-width: 0;
 }
 
@@ -3273,10 +3270,8 @@ tbody tr:hover {
     justify-content: flex-start;
   }
 
-  .rangeValuePrimaryControls,
-  .rangeValueSourceControls {
+  .rangeValuePrimaryLayout {
     grid-template-columns: 1fr;
-    min-width: 100%;
   }
 
   .exportBlock {

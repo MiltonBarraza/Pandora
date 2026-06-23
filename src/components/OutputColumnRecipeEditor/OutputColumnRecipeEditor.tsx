@@ -14,6 +14,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
 import { RangeValueEditor } from './RangeValueEditor';
 
 type OutputColumnRecipeEditorProps = {
@@ -27,8 +28,6 @@ type OutputColumnRecipeEditorProps = {
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
 type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 export type ManualRangeDetectionMode = 'textStarts' | 'dataBlocks';
-const manualRangeTrailingRowMin = 0;
-const manualRangeTrailingRowMax = 10;
 export const manualRangeUsageHelpText = 'Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada.';
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
@@ -55,14 +54,9 @@ const manualRangeInitialValueModeOptions: Array<{ value: ManualRangeInitialValue
   { value: 'lastValueInColumn', label: 'Usar último valor con datos de columna' },
 ];
 
-const manualRangeStartFilterOperatorOptions: Array<{ value: ManualRangeStartFilter['operator']; label: string }> = [
-  { value: 'isEmpty', label: 'está vacía' },
-  { value: 'isNotEmpty', label: 'no está vacía' },
-];
-
 export const manualRangeDetectionModeOptions: Array<{ value: ManualRangeDetectionMode; label: string }> = [
-  { value: 'textStarts', label: 'Campos con datos' },
-  { value: 'dataBlocks', label: 'Bloques separados por filas vacías' },
+  { value: 'textStarts', label: 'Cada dato inicia un rango' },
+  { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
 ];
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
@@ -551,7 +545,7 @@ export function ManualRangeTextGenerator({
   initialEndRowInput = '',
   initialValueMode: initialGeneratorValueMode = 'empty',
   initialValueColumnId: initialGeneratorValueColumnId,
-  initialTrailingRowCount = 0,
+  initialTrailingRowCount: _initialTrailingRowCount = 0,
   onClose,
   onChange,
 }: {
@@ -569,7 +563,6 @@ export function ManualRangeTextGenerator({
 }) {
   const defaultInputColumnId = inputColumns[0]?.id ?? '';
   const defaultInitialValueColumnId = initialGeneratorValueColumnId ?? defaultInputColumnId;
-  const defaultTrailingRowInput = String(clampManualRangeTrailingRowCount(initialTrailingRowCount));
   const [inputColumnId, setInputColumnId] = useState(defaultInputColumnId);
   const [startRowInput, setStartRowInput] = useState(initialStartRowInput);
   const [endRowInput, setEndRowInput] = useState(initialEndRowInput);
@@ -577,13 +570,12 @@ export function ManualRangeTextGenerator({
   const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>(initialGeneratorValueMode);
   const [initialValueColumnId, setInitialValueColumnId] = useState(defaultInitialValueColumnId);
   const [validRowsColumnId, setValidRowsColumnId] = useState('none');
-  const [trailingRowInput, setTrailingRowInput] = useState(defaultTrailingRowInput);
   const [startFilterColumnId, setStartFilterColumnId] = useState('none');
   const [startFilterOperator, setStartFilterOperator] = useState<ManualRangeStartFilter['operator']>('isEmpty');
   const [isClearGeneratorConfirmationOpen, setIsClearGeneratorConfirmationOpen] = useState(false);
   const shouldShowInitialValueColumn = initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn';
   const effectiveValidRowsColumnId = validRowsColumnId === 'none' ? undefined : validRowsColumnId;
-  const trailingRowCount = clampManualRangeTrailingRowCount(parseOptionalNumberInput(trailingRowInput) ?? 0);
+  const trailingRowCount = 0;
   const startFilter = startFilterColumnId === 'none'
     ? undefined
     : { inputColumnId: startFilterColumnId, operator: startFilterOperator };
@@ -594,12 +586,19 @@ export function ManualRangeTextGenerator({
     || initialValueMode !== initialGeneratorValueMode
     || initialValueColumnId !== defaultInitialValueColumnId
     || validRowsColumnId !== 'none'
-    || trailingRowInput !== defaultTrailingRowInput
     || startFilterColumnId !== 'none'
     || startFilterOperator !== 'isEmpty';
-  const startRowNumber = parseManualRangeRowInput(startRowInput);
-  const endRowNumber = parseManualRangeRowInput(endRowInput);
-  const canPreview = Boolean(inputColumnId && startRowNumber !== undefined && endRowNumber !== undefined && endRowNumber >= startRowNumber);
+  const { startRowNumber, endRowNumber } = resolveManualRangeGeneratorRowBounds(
+    manualRangeRows,
+    startRowInput,
+    endRowInput,
+  );
+  const canPreview = Boolean(
+    inputColumnId
+    && startRowNumber !== undefined
+    && endRowNumber !== undefined
+    && endRowNumber >= startRowNumber,
+  );
   const generateRanges = (preview: boolean) => {
     if (!canPreview) {
       return [];
@@ -704,7 +703,6 @@ export function ManualRangeTextGenerator({
     setInitialValueMode(initialGeneratorValueMode);
     setInitialValueColumnId(defaultInitialValueColumnId);
     setValidRowsColumnId('none');
-    setTrailingRowInput(defaultTrailingRowInput);
     setStartFilterColumnId('none');
     setStartFilterOperator('isEmpty');
     setIsClearGeneratorConfirmationOpen(false);
@@ -752,12 +750,12 @@ export function ManualRangeTextGenerator({
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-detection">
           <Dropdown
             className="compact"
-            label={detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar nombres o grupos en'}
+            label={detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar inicios de rango en'}
             labelInfo={(
               <InfoTooltip
                 content={detectionMode === 'dataBlocks'
                   ? 'Elegí una columna que tenga datos en las filas que forman cada bloque. Una fila vacía corta el bloque.'
-                  : 'Elegí la columna donde aparecen los nombres que identifican cada grupo o rango.'}
+                  : 'Elegí la columna donde cada celda con dato marca el inicio de un rango.'}
               />
             )}
             value={inputColumnId}
@@ -772,7 +770,7 @@ export function ManualRangeTextGenerator({
             <input
               type="number"
               min="1"
-              placeholder="42"
+              placeholder="Inicio"
               value={startRowInput}
               onChange={(event) => setStartRowInput(event.target.value)}
             />
@@ -782,14 +780,14 @@ export function ManualRangeTextGenerator({
             <input
               type="number"
               min="1"
-              placeholder="50"
+              placeholder="Fin"
               value={endRowInput}
               onChange={(event) => setEndRowInput(event.target.value)}
             />
           </label>
           <Dropdown
             className="compact"
-            label="Detectar"
+            label="Criterio para sugerir rangos"
             labelInfo={(
               <InfoTooltip
                 ariaLabel="Ayuda: detectar rangos"
@@ -802,103 +800,11 @@ export function ManualRangeTextGenerator({
             onChange={setDetectionMode}
           />
         </div>
-        {detectionMode === 'textStarts' ? (
-          <>
-            <div className="manualRangeGeneratorRow manualRangeGeneratorRow-filters">
-              <Dropdown
-                className="compact"
-                label="Aceptar como grupo sólo si"
-                labelInfo={(
-                  <InfoTooltip
-                    ariaLabel="Ayuda: aceptar como grupo"
-                    content="Primero Pandora busca posibles grupos en la columna elegida. Esta condición sólo descarta algunos de esos grupos; no crea grupos nuevos."
-                  />
-                )}
-                value={startFilterColumnId}
-                options={[
-                  { value: 'none', label: 'Sin filtro' },
-                  ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
-                ]}
-                scrollStrategy="close"
-                onChange={setStartFilterColumnId}
-              />
-              <Dropdown<ManualRangeStartFilter['operator']>
-                className="compact"
-                label="Condición de grupo"
-                value={startFilterOperator}
-                options={manualRangeStartFilterOperatorOptions}
-                disabled={startFilterColumnId === 'none'}
-                scrollStrategy="close"
-                onChange={setStartFilterOperator}
-              />
-              <Dropdown
-                className="compact"
-                label="El grupo llega hasta la última fila con dato en"
-                labelInfo={(
-                  <InfoTooltip
-                    ariaLabel="Ayuda: fin del grupo"
-                    content="Útil cuando el nombre del grupo está arriba y las filas de productos tienen datos debajo."
-                  />
-                )}
-                value={validRowsColumnId}
-                options={[
-                  { value: 'none', label: 'Sin ajuste' },
-                  ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
-                ]}
-                scrollStrategy="close"
-                onChange={setValidRowsColumnId}
-              />
-              <label className="field compact">
-                <span className="labelWithInfo">
-                  <span>Incluir filas posteriores</span>
-                  <InfoTooltip
-                    ariaLabel="Ayuda: incluir filas posteriores"
-                    content="Suma filas despues de la ultima fila detectada, sin pasar el proximo grupo ni el limite final."
-                  />
-                </span>
-                <input
-                  type="number"
-                  min={manualRangeTrailingRowMin}
-                  max={manualRangeTrailingRowMax}
-                  value={trailingRowInput}
-                  onChange={(event) => setTrailingRowInput(normalizeNumberInputWhileTyping(trailingRowInput, event.target.value))}
-                  onBlur={() => setTrailingRowInput(String(normalizeNumberInputOnBlur(trailingRowInput, {
-                    fallback: 0,
-                    min: manualRangeTrailingRowMin,
-                    max: manualRangeTrailingRowMax,
-                    integer: true,
-                  })))}
-                />
-              </label>
-            </div>
-          </>
-        ) : null}
-        {detectionMode === 'dataBlocks' ? (
-          <div className="manualRangeGeneratorRow manualRangeGeneratorRow-trailing">
-            <label className="field compact">
-              <span className="labelWithInfo">
-                <span>Incluir filas posteriores</span>
-                <InfoTooltip
-                  ariaLabel="Ayuda: incluir filas posteriores"
-                  content="Suma filas despues de la ultima fila detectada, sin pasar el proximo grupo ni el limite final."
-                />
-              </span>
-              <input
-                type="number"
-                min={manualRangeTrailingRowMin}
-                max={manualRangeTrailingRowMax}
-                value={trailingRowInput}
-                onChange={(event) => setTrailingRowInput(normalizeNumberInputWhileTyping(trailingRowInput, event.target.value))}
-                onBlur={() => setTrailingRowInput(String(normalizeNumberInputOnBlur(trailingRowInput, {
-                  fallback: 0,
-                  min: manualRangeTrailingRowMin,
-                  max: manualRangeTrailingRowMax,
-                  integer: true,
-                })))}
-              />
-            </label>
-          </div>
-        ) : null}
+        <p className="manualRangeValueHelp manualRangeDetectionHelp">
+          {detectionMode === 'dataBlocks'
+            ? 'Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.'
+            : 'Cada celda con dato en la columna elegida inicia un rango. El rango termina antes del próximo dato encontrado.'}
+        </p>
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-value">
           <Dropdown<ManualRangeInitialValueMode>
             className="compact"
@@ -1023,11 +929,10 @@ export function buildManualRangeGeneratorSummary({
   conditionSummary?: string;
 }) {
   const columnLabel = getManualRangeSummaryColumnLabel(inputColumn);
-  const startLabel = startRowInput || '?';
-  const endLabel = endRowInput || '?';
+  const intervalSummary = getManualRangeGeneratorIntervalSummary(startRowInput, endRowInput);
   const parts = detectionMode === 'dataBlocks'
-    ? [`Pandora agrupará filas consecutivas con datos en ${columnLabel} entre las filas ${startLabel} y ${endLabel}. Cada fila vacía en ${columnLabel} inicia un nuevo bloque.`]
-    : [`Pandora buscará grupos en ${columnLabel} entre las filas ${startLabel} y ${endLabel}.`];
+    ? [`Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, ${intervalSummary}.`]
+    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalSummary}.`];
 
   if (detectionMode === 'textStarts' && startFilterColumn) {
     parts.push(`Aceptará sólo grupos donde ${getManualRangeSummaryColumnLabel(startFilterColumn)} ${startFilterOperator === 'isEmpty' ? 'está vacía' : 'no está vacía'}.`);
@@ -1048,6 +953,29 @@ export function buildManualRangeGeneratorSummary({
   }
 
   return parts.join(' ');
+}
+
+export function resolveManualRangeGeneratorRowBounds(
+  rows: InputRow[],
+  startRowInput: string,
+  endRowInput: string,
+) {
+  const availableRowNumbers = rows
+    .map((row) => row.rowNumber)
+    .filter((rowNumber) => Number.isInteger(rowNumber) && rowNumber > 0);
+  const firstAvailableRowNumber = availableRowNumbers.length > 0 ? Math.min(...availableRowNumbers) : undefined;
+  const lastAvailableRowNumber = availableRowNumbers.length > 0 ? Math.max(...availableRowNumbers) : undefined;
+
+  return {
+    startRowNumber: startRowInput.trim() === '' ? firstAvailableRowNumber : parseManualRangeRowInput(startRowInput),
+    endRowNumber: endRowInput.trim() === '' ? lastAvailableRowNumber : parseManualRangeRowInput(endRowInput),
+  };
+}
+
+export function getManualRangeGeneratorIntervalSummary(startRowInput: string, endRowInput: string) {
+  const startSummary = startRowInput.trim() === '' ? 'desde el inicio' : `desde la fila ${startRowInput.trim()}`;
+  const endSummary = endRowInput.trim() === '' ? 'hasta el final' : `hasta la fila ${endRowInput.trim()}`;
+  return `${startSummary} ${endSummary}`;
 }
 
 export function getManualRangeGeneratorWarnings({
@@ -1089,14 +1017,6 @@ export function getManualRangeGeneratorWarnings({
   }
 
   return warnings;
-}
-
-function clampManualRangeTrailingRowCount(value: number) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.min(manualRangeTrailingRowMax, Math.max(manualRangeTrailingRowMin, Math.trunc(value)));
 }
 
 function getManualRangeGeneratedValueText(range: ManualRangeValue) {
@@ -2330,6 +2250,7 @@ function StepSourceFields({
   label = 'Desde donde toma el valor',
   source,
   inputColumns,
+  inputRows = [],
   allowPreviousResult,
   previousResultPreviewValue,
   fixedTextInputType = 'text',
@@ -2339,18 +2260,21 @@ function StepSourceFields({
   label?: string;
   source: StepSource;
   inputColumns: InputColumn[];
+  inputRows?: InputRow[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
   fixedTextInputType?: 'text' | 'date';
   fixedTextDateInputFormat?: DateInputFormat;
   onChange: (source: StepSource) => void;
 }) {
+  const [isColumnTextPickerOpen, setIsColumnTextPickerOpen] = useState(false);
   const safeSource = !allowPreviousResult && source.type === 'previousResult'
     ? { type: 'input' as const, inputColumnId: '' }
     : source;
-  const showPreviousResultHelp = shouldShowPreviousResultSourceHelp(safeSource);
+  const showPreviousResultHelp = !isColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
   const showPreviousResultPreview = showPreviousResultHelp && previousResultPreviewValue !== null && previousResultPreviewValue !== undefined && previousResultPreviewValue !== '';
-  const sourceValue = getStepSourceDropdownValue(safeSource);
+  const canPickColumnText = fixedTextInputType === 'text';
+  const sourceValue = isColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
 
   return (
     <>
@@ -2359,10 +2283,18 @@ function StepSourceFields({
         label={label}
         labelInfo={<InfoTooltip content="Indica de donde sale el valor de este paso." />}
         value={sourceValue}
-        options={getStepSourceDropdownOptions(inputColumns, allowPreviousResult)}
+        options={getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText)}
         placeholder="Seleccionar fuente"
         scrollStrategy="close"
-        onChange={(value) => onChange(getStepSourceFromDropdownValue(value, safeSource))}
+        onChange={(value) => {
+          if (value === 'columnTextPicker') {
+            setIsColumnTextPickerOpen(true);
+            return;
+          }
+
+          setIsColumnTextPickerOpen(false);
+          onChange(getStepSourceFromDropdownValue(value, safeSource));
+        }}
       />
 
       {showPreviousResultHelp ? (
@@ -2374,7 +2306,14 @@ function StepSourceFields({
         </div>
       ) : null}
 
-      {safeSource.type === 'fixedText' ? (
+      {isColumnTextPickerOpen ? (
+        <ColumnTextPicker
+          inputColumns={inputColumns}
+          rows={inputRows}
+          value={safeSource.type === 'fixedText' ? safeSource.value : ''}
+          onSelect={(value) => onChange(createFixedTextSourceFromColumnText(value))}
+        />
+      ) : safeSource.type === 'fixedText' ? (
         <label className="field compact">
           <span className="labelWithInfo">
             <span>{fixedTextInputType === 'date' ? 'Fecha fija' : 'Texto fijo'}</span>
@@ -2413,10 +2352,11 @@ export function getStepSourceDropdownValue(source: StepSource) {
   return source.inputColumnId ? `input:${source.inputColumnId}` : '';
 }
 
-export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean): DropdownOption[] {
+export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
   return [
     ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
     { value: 'fixedText', label: 'Texto fijo' },
+    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: 'Elegir texto desde columna' }] : []),
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
   ];
 }
@@ -2917,7 +2857,7 @@ function ConcatPartStepsEditor({
     onBaseSourceChange(source, primaryStep.source ? clearPrimaryStepSource(steps) : undefined);
   };
   const addAdditionalStep = () => {
-    onChange([...steps, createNoopStep('text')]);
+    onChange(appendConcatPartAdditionalStep(steps));
   };
   const updateAdditionalStep = (stepId: string, patch: Partial<TransformStep>) => {
     onChange([
@@ -3111,6 +3051,7 @@ function StepFields({
       label="Desde donde toma el valor"
       source={stepSource}
       inputColumns={inputColumns}
+      inputRows={manualRangeRows}
       allowPreviousResult={canUsePreviousResultSource}
       previousResultPreviewValue={previousResultPreviewValue}
       fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}
@@ -3810,6 +3751,13 @@ export function getVisibleConcatPartPrimaryStep(steps: TransformStep[]) {
 export function updateConcatPartPrimaryStep(steps: TransformStep[], patch: Partial<TransformStep>) {
   const primaryStep = getVisibleConcatPartPrimaryStep(steps);
   return [{ ...primaryStep, ...patch }, ...steps.slice(1)];
+}
+
+export function appendConcatPartAdditionalStep(steps: TransformStep[]): TransformStep[] {
+  const nextStep = createNoopStep('text');
+  return steps.length === 0
+    ? [getVisibleConcatPartPrimaryStep(steps), nextStep]
+    : [...steps, nextStep];
 }
 
 export function createDefaultConcatPart(index: number, preferPreviousResult = false): ConcatPart {

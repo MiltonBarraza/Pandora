@@ -19,6 +19,9 @@ type DropdownProps<T extends string = string> = {
   disabled?: boolean;
   className?: string;
   scrollStrategy?: 'close' | 'lock';
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  noMatchesText?: string;
 };
 
 type MenuPosition = {
@@ -42,17 +45,22 @@ export function Dropdown<T extends string = string>({
   disabled = false,
   className = '',
   scrollStrategy = 'close',
+  searchable = false,
+  searchPlaceholder = 'Buscar…',
+  noMatchesText = 'No hay coincidencias.',
 }: DropdownProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const searchableInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const listboxId = useId();
   const labelId = useId();
-  const selectedIndex = options.findIndex((option) => option.value === value);
-  const selectedOption = options[selectedIndex];
+  const visibleOptions = searchable ? filterDropdownOptions(options, searchQuery) : options;
+  const selectedOption = options.find((option) => option.value === value);
   const portalTarget = getDropdownPortalTarget(rootRef.current, document.body);
 
   useDocumentScrollLock(isOpen && scrollStrategy === 'lock');
@@ -60,21 +68,24 @@ export function Dropdown<T extends string = string>({
   const close = () => {
     setIsOpen(false);
     setMenuPosition(null);
+    setSearchQuery('');
   };
 
-  const open = () => {
+  const open = (initialQuery = '') => {
     if (disabled) {
       return;
     }
 
-    const button = buttonRef.current;
-    if (!button) {
+    const anchor = searchable ? searchableInputRef.current : buttonRef.current;
+    if (!anchor) {
       return;
     }
 
-    setActiveIndex(getInitialDropdownIndex(options, selectedIndex));
+    const initialOptions = searchable ? filterDropdownOptions(options, initialQuery) : options;
+    setSearchQuery(initialQuery);
+    setActiveIndex(getInitialDropdownIndex(initialOptions, initialOptions.findIndex((option) => option.value === value)));
     setMenuPosition(getDropdownMenuPosition(
-      button.getBoundingClientRect(),
+      anchor.getBoundingClientRect(),
       window.innerWidth,
       window.innerHeight,
       getDropdownPreferredMenuHeight(options.length),
@@ -90,7 +101,7 @@ export function Dropdown<T extends string = string>({
 
     onChange(option.value);
     close();
-    buttonRef.current?.focus();
+    (searchable ? searchableInputRef.current : buttonRef.current)?.focus();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -112,7 +123,7 @@ export function Dropdown<T extends string = string>({
 
     if ((event.key === 'Enter' || event.key === ' ') && isOpen) {
       event.preventDefault();
-      const option = options[activeIndex];
+      const option = visibleOptions[activeIndex];
       if (option) {
         selectOption(option);
       }
@@ -125,10 +136,10 @@ export function Dropdown<T extends string = string>({
     }
 
     const updatePosition = () => {
-      const button = buttonRef.current;
-      if (button) {
+      const anchor = searchable ? searchableInputRef.current : buttonRef.current;
+      if (anchor) {
         setMenuPosition(getDropdownMenuPosition(
-          button.getBoundingClientRect(),
+          anchor.getBoundingClientRect(),
           window.innerWidth,
           window.innerHeight,
           getDropdownPreferredMenuHeight(options.length),
@@ -145,7 +156,7 @@ export function Dropdown<T extends string = string>({
     const handleDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         close();
-        buttonRef.current?.focus();
+        (searchable ? searchableInputRef.current : buttonRef.current)?.focus();
       }
     };
     const handleScroll = (event: Event) => {
@@ -171,7 +182,7 @@ export function Dropdown<T extends string = string>({
         window.removeEventListener('scroll', handleScroll, true);
       }
     };
-  }, [isOpen, options.length, scrollStrategy]);
+  }, [isOpen, options.length, searchable, scrollStrategy]);
 
   const menu = (
     <div
@@ -182,9 +193,10 @@ export function Dropdown<T extends string = string>({
       style={menuPosition as CSSProperties}
       aria-labelledby={label ? labelId : undefined}
     >
-      {options.length === 0 ? <div className="dropdownEmpty">Sin opciones</div> : null}
-      {options.map((option, index) => (
+      {visibleOptions.length === 0 ? <div className="dropdownEmpty">{getDropdownEmptyMessage(searchable, noMatchesText)}</div> : null}
+      {visibleOptions.map((option, index) => (
         <button
+          id={`${listboxId}-option-${index}`}
           key={option.value}
           type="button"
           role="option"
@@ -209,23 +221,90 @@ export function Dropdown<T extends string = string>({
           {labelInfo}
         </span>
       ) : null}
-      <button
-        ref={buttonRef}
-        type="button"
-        className="dropdownTrigger"
-        disabled={disabled}
-        aria-labelledby={label ? labelId : undefined}
-        aria-haspopup="listbox"
-        aria-controls={isOpen ? listboxId : undefined}
-        aria-expanded={isOpen}
-        onClick={() => (isOpen ? close() : open())}
-        onKeyDown={handleKeyDown}
-      >
-        <span className={selectedOption ? 'dropdownValue' : 'dropdownValue dropdownPlaceholder'}>
-          {selectedOption?.label ?? placeholder}
-        </span>
-        <span className="dropdownChevron" aria-hidden="true">▾</span>
-      </button>
+      {searchable ? (
+        <div className="dropdownSearchableControl">
+          <input
+            ref={searchableInputRef}
+            type="text"
+            role="combobox"
+            className="dropdownSearchableInput"
+            disabled={disabled}
+            aria-labelledby={label ? labelId : undefined}
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-controls={isOpen ? listboxId : undefined}
+            aria-expanded={isOpen}
+            aria-activedescendant={isOpen && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined}
+            placeholder={searchPlaceholder || placeholder}
+            value={isOpen ? searchQuery : selectedOption?.label ?? ''}
+            onFocus={(event) => {
+              if (!isOpen) {
+                open(selectedOption?.label ?? '');
+              }
+              event.currentTarget.select();
+            }}
+            onClick={(event) => event.currentTarget.select()}
+            onChange={(event) => {
+              const nextQuery = event.target.value;
+              const nextOptions = filterDropdownOptions(options, nextQuery);
+              if (!isOpen) {
+                open(nextQuery);
+                return;
+              }
+              setSearchQuery(nextQuery);
+              setActiveIndex(getInitialDropdownIndex(nextOptions, -1));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                close();
+                return;
+              }
+
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (!isOpen) {
+                  open(selectedOption?.label ?? '');
+                  return;
+                }
+                setActiveIndex((current) => getNextDropdownIndex(visibleOptions, current, event.key === 'ArrowDown' ? 1 : -1));
+                return;
+              }
+
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                if (!isOpen) {
+                  open(selectedOption?.label ?? '');
+                  return;
+                }
+                const option = visibleOptions[activeIndex];
+                if (option) {
+                  selectOption(option);
+                }
+              }
+            }}
+          />
+          <span className="dropdownChevron" aria-hidden="true">▾</span>
+        </div>
+      ) : (
+        <button
+          ref={buttonRef}
+          type="button"
+          className="dropdownTrigger"
+          disabled={disabled}
+          aria-labelledby={label ? labelId : undefined}
+          aria-haspopup="listbox"
+          aria-controls={isOpen ? listboxId : undefined}
+          aria-expanded={isOpen}
+          onClick={() => (isOpen ? close() : open())}
+          onKeyDown={handleKeyDown}
+        >
+          <span className={selectedOption ? 'dropdownValue' : 'dropdownValue dropdownPlaceholder'}>
+            {selectedOption?.label ?? placeholder}
+          </span>
+          <span className="dropdownChevron" aria-hidden="true">▾</span>
+        </button>
+      )}
       {isOpen && menuPosition
         ? createPortal(menu, portalTarget)
         : null}
@@ -268,6 +347,19 @@ export function getDropdownBoundaryRect(root: HTMLElement | null, viewportWidth:
 
 export function getDropdownOptionNativeTitle() {
   return undefined;
+}
+
+export function filterDropdownOptions<T extends string>(options: DropdownOption<T>[], query: string) {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) {
+    return options;
+  }
+
+  return options.filter((option) => option.label.toLocaleLowerCase().includes(normalizedQuery));
+}
+
+export function getDropdownEmptyMessage(searchable: boolean, noMatchesText = 'No hay coincidencias.') {
+  return searchable ? noMatchesText : 'Sin opciones';
 }
 
 export function getInitialDropdownIndex(options: DropdownOption[], selectedIndex: number) {
