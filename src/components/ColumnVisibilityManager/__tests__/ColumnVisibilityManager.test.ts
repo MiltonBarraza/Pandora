@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ColumnAnalysis, IgnoredReason } from '../../../types/import';
 import {
   ColumnVisibilityManager,
+  ColumnExamplesTooltipContent,
   activateAllColumns,
   clearColumnSearchValue,
   containsEveryNumber,
@@ -483,11 +484,21 @@ describe('ColumnVisibilityManager quick actions', () => {
     }
 
     expect(markup).toContain('aria-label="Ver ejemplos"');
-    expect(markup).toContain('title="Ver ejemplos"');
+    expect(markup).not.toContain('title="Ver ejemplos"');
+    expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain('aria-label="Quitar columna A"');
     expect(markup).toContain('columnTransferIconAction');
     expect(markup).not.toContain('>Ver ejemplos</button>');
     expect(markup).not.toContain('>Quitar</button>');
+  });
+
+  it('labels the examples payload', () => {
+    const markup = renderToStaticMarkup(createElement(ColumnExamplesTooltipContent, {
+      column: createColumn(0, undefined, { sampleValues: ['A-1'] }),
+    }));
+
+    expect(markup).toContain('<strong>Datos de columna:</strong>');
+    expect(markup).toContain('<span>A-1</span>');
   });
 
   it('shows an empty examples message when active column has no samples', () => {

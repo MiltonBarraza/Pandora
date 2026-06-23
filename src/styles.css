@@ -92,8 +92,9 @@
   --color-toast-border: var(--color-border-default);
   --shadow-toast: var(--shadow-dropdown);
 
-  --color-scrollbar-track: var(--color-bg-surface-muted);
+  --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: var(--color-border-control);
+  --color-scrollbar-thumb-hover: var(--color-text-placeholder);
 
   --opacity-disabled: 0.45;
 
@@ -193,12 +194,58 @@
   --color-toast-border: #3a4b63;
   --shadow-toast: 0 18px 42px rgba(0, 0, 0, 0.42);
 
-  --color-scrollbar-track: #101827;
+  --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: #3a4b63;
+  --color-scrollbar-thumb-hover: var(--color-text-placeholder);
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  background-color: transparent;
+  height: 8px;
+  width: 8px;
+}
+
+*::-webkit-scrollbar-button {
+  background-color: transparent;
+  border: 0;
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+*::-webkit-scrollbar-track {
+  background-color: var(--color-scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track:vertical {
+  margin-block: 4px;
+}
+
+*::-webkit-scrollbar-track:horizontal {
+  margin-inline: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-scrollbar-thumb);
+  background-clip: padding-box;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 html,
@@ -2897,7 +2944,8 @@ tbody tr:hover {
   border-radius: 8px;
   display: grid;
   gap: 12px;
-  grid-template-rows: auto auto minmax(0, auto);
+  align-content: start;
+  grid-template-rows: minmax(24px, auto) auto minmax(0, auto);
   min-width: 0;
   padding: 12px;
 }
@@ -2970,7 +3018,8 @@ tbody tr:hover {
   border-radius: 8px;
   color: var(--color-text-muted);
   display: grid;
-  min-height: 0;
+  box-sizing: border-box;
+  min-height: var(--column-transfer-item-min-height);
   place-items: center;
   margin: 0;
   padding: 16px;
@@ -3168,6 +3217,15 @@ tbody tr:hover {
   max-width: min(320px, calc(100vw - 32px));
   overflow: auto;
   white-space: pre-line;
+}
+
+.columnExamplesTooltipContent {
+  display: grid;
+  gap: 6px;
+}
+
+.columnExamplesTooltipContent > strong {
+  font-weight: 700;
 }
 
 .mutedRow {

@@ -365,7 +365,7 @@ function ColumnTransferItem({
       </button>
       {showAliasInput ? (
         <label className="columnTransferAlias">
-          <span>Alias visual</span>
+          <span>Alias</span>
           <input
             aria-label={`Alias para columna ${column.columnLetter}`}
             value={aliasValue}
@@ -376,12 +376,15 @@ function ColumnTransferItem({
       ) : null}
       <div className="columnTransferActions">
         {showExamples ? (
-          <InfoTooltip content={getColumnExamplesTooltipContent(column)} className="columnExamplesTooltip">
+          <InfoTooltip
+            content={<ColumnExamplesTooltipContent column={column} />}
+            className="columnExamplesTooltip"
+            interaction="click"
+          >
             <button
               type="button"
               className="secondary columnTransferIconAction columnTransferExampleAction"
               aria-label="Ver ejemplos"
-              title="Ver ejemplos"
             >
               <AppIcon name="eye" aria-hidden="true" focusable="false" />
             </button>
@@ -499,6 +502,15 @@ export function getColumnExamples(column: Pick<ColumnAnalysis, 'sampleValues'>, 
 export function getColumnExamplesTooltipContent(column: Pick<ColumnAnalysis, 'sampleValues'>, limit = 10) {
   const examples = getColumnExamples(column, limit);
   return examples.length > 0 ? examples.join('\n') : 'Sin ejemplos disponibles.';
+}
+
+export function ColumnExamplesTooltipContent({ column }: { column: Pick<ColumnAnalysis, 'sampleValues'> }) {
+  return (
+    <span className="columnExamplesTooltipContent">
+      <strong>Datos de columna:</strong>
+      <span>{getColumnExamplesTooltipContent(column)}</span>
+    </span>
+  );
 }
 
 export function shouldRenderColumnDetailPanel() {
