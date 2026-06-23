@@ -218,3 +218,37 @@ El archivo principal bajó de 3.905 a 2.942 líneas, una reducción aproximada d
 - `npm run build`: OK — Vite completó build; warning conocido por chunk JS de 840.39 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK. Archivos nuevos también revisados con `git diff --no-index --check`.
+
+## Etapa posterior: extracción de subcomponentes del editor
+
+Se extrajeron subcomponentes presentacionales pequeños de `OutputColumnRecipeEditor.tsx` sin cambiar UI, markup, textos, clases, settings ni dominio.
+
+### Componentes extraídos
+
+- `OutputColumnRecipeEditor.components.tsx`:
+  - `RecipeMainFields`: selector de tipo de receta, selector de columna directa y campo de texto fijo.
+  - `CustomValueSummary`: resumen visible de valor personalizado y acción de edición.
+- `OutputColumnRecipeEditor.StepFields.tsx`:
+  - `StepTypeSelect` y `StepModeSelect`.
+  - `StepSourceFields`, `StepOperandFields` e `InputColumnSelect`.
+  - `StepConditionFields` y `shouldShowStepTypeSelectForStep`, re-exportados desde el editor para mantener imports actuales de tests.
+
+`recipeEditorPreviousResultHelpText` se movió a `OutputColumnRecipeEditor.constants.ts` y se re-exporta desde `OutputColumnRecipeEditor.tsx` para evitar ciclos entre componentes.
+
+### Código conservado dentro del editor
+
+- Estado/hooks del editor y control de modales.
+- `CustomValueEditor`, `StepBlocksEditor`, `SimpleStepBlock`, `StepDetailPanel` y `StepFields`, porque coordinan modo, steps, previews y callbacks locales.
+- Workspace de concatenación (`ConcatStepFields`/`ConcatPartStepsEditor`), porque extraerlo en esta pasada obligaba a pasar `StepDetailPanel` o aumentar demasiado el contrato de props.
+- Generador, tabla, edición visual y comportamiento de `manualRange`.
+- Previews y summaries acoplados a `buildProcessedRows`, datos de muestra o estructura renderizada.
+
+`OutputColumnRecipeEditor.tsx` bajó de 2.728 a 2.284 líneas en esta etapa, una reducción aproximada de 444 líneas. No hubo cambios visuales, de markup, comportamiento, settings, dominio, `manualRange`, remap/references, filtros, preview normalizada, exportación, columnas virtuales ni anchos normalizados.
+
+### Validaciones de extracción
+
+- Test específico `OutputColumnRecipeEditor.test.tsx`: OK — 252 tests.
+- `npm run test:run`: OK.
+- `npm run build`: OK — mantiene warning conocido por chunk JS mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK.
