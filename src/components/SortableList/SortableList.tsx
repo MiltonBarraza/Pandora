@@ -6,6 +6,8 @@ import { CSS } from '@dnd-kit/utilities';
 type SortableListProps<T extends { id: string }> = {
   items: T[];
   onChange: (items: T[]) => void;
+  handleContent?: ReactNode;
+  handleLabel?: string;
   renderItem: (item: T, handle: ReactNode) => ReactNode;
 };
 
@@ -16,7 +18,7 @@ type SortableTransform = {
   scaleY: number;
 };
 
-export function SortableList<T extends { id: string }>({ items, onChange, renderItem }: SortableListProps<T>) {
+export function SortableList<T extends { id: string }>({ items, onChange, handleContent, handleLabel = 'Arrastrar para ordenar', renderItem }: SortableListProps<T>) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -34,7 +36,7 @@ export function SortableList<T extends { id: string }>({ items, onChange, render
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         {items.map((item) => (
-          <SortableRow key={item.id} id={item.id}>
+          <SortableRow key={item.id} id={item.id} handleContent={handleContent} handleLabel={handleLabel}>
             {(handle) => renderItem(item, handle)}
           </SortableRow>
         ))}
@@ -45,9 +47,13 @@ export function SortableList<T extends { id: string }>({ items, onChange, render
 
 function SortableRow({
   id,
+  handleContent,
+  handleLabel,
   children,
 }: {
   id: string;
+  handleContent?: ReactNode;
+  handleLabel: string;
   children: (handle: ReactNode) => ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -60,11 +66,12 @@ function SortableRow({
     <button
       type="button"
       className="dragHandle"
-      aria-label="Arrastrar para ordenar"
+      aria-label={handleLabel}
+      title={handleLabel}
       {...attributes}
       {...listeners}
     >
-      ☰
+      {handleContent ?? '☰'}
     </button>
   );
 

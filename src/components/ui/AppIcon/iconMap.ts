@@ -8,6 +8,7 @@ import {
   FileUp,
   Eye,
   Files,
+  GripVertical,
   Info,
   Save,
   Settings,
@@ -35,6 +36,7 @@ export const appIconMap = {
   save: Save,
   upload: FileUp,
   warning: TriangleAlert,
+  reorder: GripVertical,
 } satisfies Record<string, LucideIcon>;
 
 export type AppIconName = keyof typeof appIconMap;

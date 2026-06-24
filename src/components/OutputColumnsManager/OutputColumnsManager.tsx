@@ -7,8 +7,10 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
@@ -178,9 +180,12 @@ export function OutputColumnsManager({
             <SortableList
               items={ordered}
               onChange={reorderColumns}
+              handleContent={<AppIcon name="reorder" aria-hidden="true" focusable="false" />}
+              handleLabel="Reordenar"
               renderItem={(outputColumn, handle) => {
                 const index = ordered.findIndex((item) => item.id === outputColumn.id);
                 const isSelected = outputColumn.id === selectedColumn?.id;
+                const recipeSummary = getOutputColumnRecipeListSummary(outputColumn);
 
                 return (
                   <div className={`outputColumnListItem${isSelected ? ' selected' : ''}`}>
@@ -188,21 +193,23 @@ export function OutputColumnsManager({
                     <OutputColumnSelectButton
                       index={index}
                       label={outputColumn.label || 'Sin nombre'}
+                      recipeSummary={recipeSummary}
                       onClick={() => setSelectedColumnId(outputColumn.id)}
                     />
-                    <InfoTooltip content="Duplicar columna">
-                      <ActionButton
-                        action="duplicate"
-                        variant="icon"
-                        size="sm"
-                        className="outputColumnDuplicateButton"
-                        aria-label="Duplicar columna"
-                        onClick={() => duplicateColumn(outputColumn.id)}
-                      />
-                    </InfoTooltip>
-                    <InfoTooltip content="Eliminar columna">
-                      <DeleteButton title="Eliminar columna" onClick={() => removeColumn(outputColumn.id)} />
-                    </InfoTooltip>
+                    <div className="outputColumnActions">
+                      <InfoTooltip content="Duplicar columna">
+                        <ActionButton
+                          action="duplicate"
+                          variant="icon"
+                          size="sm"
+                          aria-label="Duplicar columna"
+                          onClick={() => duplicateColumn(outputColumn.id)}
+                        />
+                      </InfoTooltip>
+                      <InfoTooltip content="Eliminar columna">
+                        <DeleteButton title="Eliminar columna" onClick={() => removeColumn(outputColumn.id)} />
+                      </InfoTooltip>
+                    </div>
                   </div>
                 );
               }}
@@ -251,10 +258,12 @@ function reorder(columns: OutputColumn[]) {
 function OutputColumnSelectButton({
   index,
   label,
+  recipeSummary,
   onClick,
 }: {
   index: number;
   label: string;
+  recipeSummary: string;
   onClick: () => void;
 }) {
   const button = (
@@ -263,7 +272,12 @@ function OutputColumnSelectButton({
       className="outputColumnSelectButton"
       onClick={onClick}
     >
-      <span className="columnItemText">{index + 1}. {label}</span>
+      <span className="outputColumnListMain">
+        <span className="outputColumnTitleRow">
+          <span className="columnItemText">{index + 1}. {label}</span>
+        </span>
+        <TruncatedText text={recipeSummary} className="outputColumnRecipeSummary" tooltipThreshold={32} />
+      </span>
     </button>
   );
 
@@ -276,6 +290,28 @@ function OutputColumnSelectButton({
       {button}
     </InfoTooltip>
   );
+}
+
+export function getOutputColumnRecipeListSummary(column: OutputColumn) {
+  const { recipe } = column;
+
+  if (recipe.type === 'direct') {
+    return 'Desde columna de entrada';
+  }
+
+  if (recipe.type === 'fixedText') {
+    return recipe.value.trim() ? `Texto fijo: ${recipe.value}` : 'Texto fijo';
+  }
+
+  if (recipe.type === 'combine') {
+    return 'Valor personalizado';
+  }
+
+  if (recipe.type === 'manualRange') {
+    return 'Rangos manuales';
+  }
+
+  return 'Sin valor';
 }
 
 export function shouldShowOutputColumnNameTooltip(label: string) {

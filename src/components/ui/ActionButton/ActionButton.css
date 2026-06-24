@@ -44,14 +44,14 @@
 }
 
 .actionButton-sm {
-  min-height: 34px;
+  min-height: 40px;
 }
 
 .actionButton-iconOnly {
-  height: 34px;
-  min-height: 34px;
+  height: 40px;
+  min-height: 40px;
   padding: 0;
-  width: 34px;
+  width: 40px;
 }
 
 .actionButtonIcon {

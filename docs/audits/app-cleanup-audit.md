@@ -252,3 +252,71 @@ Se extrajeron subcomponentes presentacionales pequeños de `OutputColumnRecipeEd
 - `npm run build`: OK — mantiene warning conocido por chunk JS mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK.
+
+## Cierre de integración visual posterior
+
+Se revisó e integró el trabajo visual posterior sobre las secciones 4, 5, 6, 7 y 8 sin abrir nuevos cambios de dominio.
+
+### Cambios visuales consolidados
+
+- Secciones 5 y 7 (`IgnoreRules`):
+  - reglas compactas en filas horizontales;
+  - header común `Columna / Condición / Valor`;
+  - labels repetidos ocultos en desktop y conservados en mobile;
+  - botón eliminar icon-only danger con tooltip;
+  - divider único bajo el header común, sin separadores repetidos entre filas.
+- Sección 6 (`OutputColumnsManager`):
+  - lista de columnas compactada;
+  - acciones icon-only para duplicar, eliminar y reordenar;
+  - se retiraron chip `Generada/Manual` y botón extra `Editar receta`;
+  - panel izquierdo ampliado para aprovechar mejor el espacio;
+  - resumen de receta truncado con `TruncatedText`;
+  - tooltip largo corregido para cadenas sin espacios;
+  - hover alineado con el lenguaje visual de la sección 3;
+  - botones e icon-buttons alineados a la altura de inputs/dropdowns.
+- Sección 4 (`RawPreview`):
+  - valores largos de celdas truncados con tooltip.
+- Sección 8 (`ProcessedRowsPreview`):
+  - tabla normalizada con columnas fijas, scroll horizontal y truncado;
+  - headers y celdas largas usan `TruncatedText`.
+- UI global:
+  - `ActionButton`, `iconButton`, `dragHandle` y acciones icon-only usan altura de 40 px;
+  - `InfoTooltip` permite wrap fuerte y mayor ancho máximo para textos largos.
+
+### Archivos principales tocados
+
+- `src/components/IgnoreRules/IgnoreRules.tsx`
+- `src/components/OutputColumnsManager/OutputColumnsManager.tsx`
+- `src/components/RawPreview/RawPreview.tsx`
+- `src/components/ProcessedRowsDebugPreview/ProcessedRowsDebugPreview.tsx`
+- `src/components/SortableList/SortableList.tsx`
+- `src/components/ui/ActionButton/ActionButton.css`
+- `src/components/ui/InfoTooltip/InfoTooltip.css`
+- `src/components/ui/AppIcon/iconMap.ts`
+- `src/styles.css`
+
+### Estado del editor
+
+`OutputColumnRecipeEditor.tsx` quedó en 2.284 líneas. La baja posterior a la modularización de helpers se explica por la extracción de subcomponentes presentacionales a:
+
+- `OutputColumnRecipeEditor.components.tsx`
+- `OutputColumnRecipeEditor.StepFields.tsx`
+
+El cierre visual posterior no modificó `OutputColumnRecipeEditor.tsx`.
+
+### Límites confirmados
+
+No hubo cambios de dominio, settings, exportación, importación, remap/references, procesamiento, columnas virtuales, `manualRange` ni comportamiento de filtros. Los cambios de preview son sólo de presentación: truncado, tooltip, anchos fijos y scroll horizontal; los datos procesados/exportados no cambian.
+
+### Pendientes para otra PR
+
+- Evaluar tooltips basados en overflow real si se necesita precisión total en lugar del umbral actual de `TruncatedText`.
+- Revisar con captura visual en navegadores/tamaños específicos si se quiere ajustar fino de spacing, sin mezclarlo con dominio.
+
+### Validaciones de cierre visual
+
+- Test específico `OutputColumnRecipeEditor.test.tsx`: OK.
+- `npm run test:run`: OK.
+- `npm run build`: OK — mantiene warning conocido por chunk JS mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK.

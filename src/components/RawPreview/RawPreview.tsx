@@ -63,7 +63,9 @@ export function RawPreview({
                 <tr key={rowIndex}>
                   <td>{getRawPreviewRowNumber(rowIndex, rowNumberOffset, rowNumbers)}</td>
                   {columns.map((column) => (
-                    <td key={column}>{String(row[column] ?? '')}</td>
+                    <td key={column}>
+                      <TruncatedText text={String(row[column] ?? '')} tooltipThreshold={24} />
+                    </td>
                   ))}
                 </tr>
               ))}
