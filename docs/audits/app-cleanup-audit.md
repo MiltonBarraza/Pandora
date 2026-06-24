@@ -439,6 +439,8 @@ No hubo cambios visibles ni funcionales de UI. No se modificaron dominio de rece
 
 ## Unificacion inicial de logica de fuentes del editor
 
+Branch revisada: `52-rework-modal-v2`.
+
 Se detecto duplicacion real entre el editor principal de recetas y `RangeValueEditor` alrededor de labels, acciones visuales y opciones de fuentes: `Usar texto fijo`, `Usar columna de entrada`, `Elegir texto desde columna`, `Usar resultado anterior`, `Texto encontrado en el rango`, valores `fixedText` persistidos y la regla visual que evita mostrar `Texto fijo` como una fuente variable dentro de `Fuente del valor`.
 
 ### Helpers creados o ampliados
@@ -467,6 +469,56 @@ No hubo cambios de dominio, shape de recetas, settings, export/import, remap/ref
 
 - Test especifico `OutputColumnRecipeEditor.test.tsx`: OK - 257 tests.
 - `npm run test:run`: OK - 40 archivos, 628 tests.
+- `npm run build`: OK - sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.
+
+## Rangos sugeridos V1
+
+Branch revisada: `52-rework-modal-v2`.
+
+Se agrego una primera version controlada de sugerencias para `manualRange`. Las sugerencias se calculan desde `manualRangeRows` usando `rowNumber` real y no se aplican automaticamente.
+
+### Heuristica implementada
+
+- En modo `Cada dato inicia un rango`, cada texto no vacio de la columna guia inicia un rango que llega hasta la fila anterior al siguiente texto detectado.
+- En modo `Bloques consecutivos con datos`, se conserva la deteccion existente por bloques separados por filas vacias.
+- El valor sugerido por defecto usa `rangeText` con el texto detectado, porque ya es compatible con el modelo actual y permite seguir editando el valor desde `RangeValueEditor`.
+- Las sugerencias exactas ya configuradas no se agregan de nuevo.
+- Las sugerencias superpuestas con rangos existentes se ocultan por seguridad.
+
+### Uso actual
+
+- El generador muestra cantidad de sugerencias disponibles y avisos por duplicados/superposiciones ocultas.
+- Cada sugerencia tiene accion individual `Agregar`.
+- La accion `Agregar todas` agrega solo sugerencias disponibles y seguras.
+- Aceptar una sugerencia crea una entrada normal de `manualRange`; no se persiste ningun tipo nuevo de sugerencia.
+
+### Limites
+
+- No se intenta inferencia compleja ni IA.
+- No se aplican sugerencias automaticamente.
+- No se borran ni sobrescriben rangos manuales existentes.
+- Si hay superposicion, V1 prefiere ocultar la sugerencia antes que arriesgar overwrite.
+
+### Pendientes V2
+
+- Permitir revisar sugerencias ocultas con detalle.
+- Mejorar criterios para ignorar candidatos de una sola fila cuando el archivo no tiene filas de datos debajo.
+- Evaluar controles mas finos para columna guia y columna de datos sin agrandar el modal.
+
+### Cierre QA de rangos sugeridos
+
+- Se reviso el helper de sugerencias, la UI del generador, la integracion con `RangeValueEditor` y la compatibilidad con settings/export/import.
+- Se confirmo que las sugerencias usan `rowNumber` real desde `manualRangeRows`, no se aplican en render inicial y solo crean rangos normales cuando el usuario acciona `Agregar` o `Agregar todas`.
+- Se agrego un ajuste defensivo para que el lote de sugerencias tambien descarte duplicados/superposiciones contra sugerencias ya aceptadas dentro del mismo lote, no solo contra rangos existentes.
+- No se cambio la heuristica V1 ni el shape persistido de `manualRange`.
+- Limitacion vigente: V1 oculta conflictos en vez de ofrecer una revision detallada de cada sugerencia descartada.
+
+### Validaciones ejecutadas
+
+- Test especifico `OutputColumnRecipeEditor.test.tsx`: OK - 260 tests.
+- `npm run test:run`: OK - 40 archivos, 631 tests.
 - `npm run build`: OK - sin warning de chunk mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.

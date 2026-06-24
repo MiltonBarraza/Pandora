@@ -15,6 +15,7 @@ import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
+import { appendManualRangeSuggestion, appendManualRangeSuggestions, buildManualRangeSuggestions } from './OutputColumnRecipeEditor.manualRangeSuggestions';
 import {
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
@@ -88,6 +89,8 @@ export {
 } from './OutputColumnRecipeEditor.optionHelpers';
 export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelpers';
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
+export { appendManualRangeSuggestion, appendManualRangeSuggestions, buildManualRangeSuggestions } from './OutputColumnRecipeEditor.manualRangeSuggestions';
+export type { ManualRangeSuggestionsResult } from './OutputColumnRecipeEditor.manualRangeSuggestions';
 export {
   getSourceForValueSourceAction,
   getSourceFromVariableDropdownValue,
@@ -606,7 +609,7 @@ export function ManualRangeTextGenerator({
   initialDetectionMode = 'textStarts',
   initialStartRowInput = '',
   initialEndRowInput = '',
-  initialValueMode: initialGeneratorValueMode = 'empty',
+  initialValueMode: initialGeneratorValueMode = 'detectedText',
   initialValueColumnId: initialGeneratorValueColumnId,
   initialTrailingRowCount: _initialTrailingRowCount = 0,
   onClose,
@@ -662,22 +665,19 @@ export function ManualRangeTextGenerator({
     && endRowNumber !== undefined
     && endRowNumber >= startRowNumber,
   );
-  const generateRanges = (preview: boolean) => {
+  const generateRanges = () => {
     if (!canPreview) {
       return [];
     }
 
     const effectiveInitialValueColumnId = shouldShowInitialValueColumn ? initialValueColumnId : undefined;
-    const previewValueMode = preview && detectionMode === 'textStarts' && initialValueMode === 'empty'
-      ? 'detectedText'
-      : initialValueMode;
 
     if (detectionMode === 'dataBlocks') {
       return generateManualRangesFromDataBlocks(manualRangeRows, {
         dataColumnId: inputColumnId,
         startRowNumber: startRowNumber!,
         endRowNumber: endRowNumber!,
-        initialValueMode: previewValueMode,
+        initialValueMode,
         initialValueColumnId: effectiveInitialValueColumnId,
         trailingRowCount,
       });
@@ -687,21 +687,21 @@ export function ManualRangeTextGenerator({
       inputColumnId,
       startRowNumber: startRowNumber!,
       endRowNumber: endRowNumber!,
-      mode: 'singleRow',
-      initialValueMode: previewValueMode,
+      mode: 'untilNextText',
+      initialValueMode,
       initialValueColumnId: effectiveInitialValueColumnId,
       validRowsColumnId: effectiveValidRowsColumnId,
       trailingRowCount,
       startFilter,
     });
   };
-  const generatedPreviewRanges = generateRanges(true);
+  const generatedPreviewRanges = generateRanges();
   const generatedPreviewRangesWithoutStartFilter = detectionMode === 'textStarts' && canPreview && startFilter
     ? generateManualRangesFromTexts(manualRangeRows, {
       inputColumnId,
       startRowNumber: startRowNumber!,
       endRowNumber: endRowNumber!,
-      mode: 'singleRow',
+      mode: 'untilNextText',
       initialValueMode,
       initialValueColumnId: shouldShowInitialValueColumn ? initialValueColumnId : undefined,
       validRowsColumnId: effectiveValidRowsColumnId,
@@ -733,8 +733,11 @@ export function ManualRangeTextGenerator({
     trailingRowCount,
     appliesToAllRows: !recipe.condition,
   });
-  const visiblePreviewRanges = generatedPreviewRanges.slice(0, 6);
-  const hiddenPreviewRangeLabels = generatedPreviewRanges.slice(6).map((range) => getManualRangeGeneratedExampleLabel(range));
+  const suggestionResult = buildManualRangeSuggestions(generatedPreviewRanges, recipe.ranges);
+  const availableSuggestionRanges = suggestionResult.suggestions;
+  const hiddenSuggestionCount = suggestionResult.duplicateCount + suggestionResult.overlappingCount;
+  const visiblePreviewRanges = availableSuggestionRanges.slice(0, 6);
+  const hiddenPreviewRangeLabels = availableSuggestionRanges.slice(6).map((range) => getManualRangeGeneratedExampleLabel(range));
   const previewMessage = !inputColumnId
     ? (detectionMode === 'dataBlocks' ? 'Elegí una columna con datos.' : 'Elegí una columna para buscar textos.')
     : !canPreview
@@ -742,21 +745,28 @@ export function ManualRangeTextGenerator({
       : generatedPreviewRanges.length === 0
         ? 'No se encontraron rangos con esta configuración. Revisá la columna elegida, el intervalo de filas o los filtros aplicados.'
         : '';
+  const safePreviewMessage = previewMessage || (generatedPreviewRanges.length > 0 && availableSuggestionRanges.length === 0
+    ? 'No hay sugerencias nuevas para agregar con esta configuracion.'
+    : '');
+  const suggestionConflictMessages = [
+    ...(suggestionResult.duplicateCount > 0 ? [`${suggestionResult.duplicateCount} ${suggestionResult.duplicateCount === 1 ? 'sugerencia ya coincide' : 'sugerencias ya coinciden'} con rangos configurados.`] : []),
+    ...(suggestionResult.overlappingCount > 0 ? [`${suggestionResult.overlappingCount} ${suggestionResult.overlappingCount === 1 ? 'sugerencia se oculto' : 'sugerencias se ocultaron'} porque se superponen con rangos existentes.`] : []),
+  ];
   const confirmGeneratedRanges = () => {
     if (!canPreview) {
       return;
     }
 
-    const nextRanges = generateRanges(false);
+    const nextRecipe = appendManualRangeSuggestions(recipe, generateRanges());
 
-    if (nextRanges.length === 0) {
+    if (nextRecipe === recipe) {
       return;
     }
 
-    onChange({
-      ...recipe,
-      ranges: [...recipe.ranges, ...nextRanges],
-    });
+    onChange(nextRecipe);
+  };
+  const confirmGeneratedRange = (range: ManualRangeValue) => {
+    onChange(appendManualRangeSuggestion(recipe, range));
   };
   const clearGenerator = () => {
     setInputColumnId(defaultInputColumnId);
@@ -794,10 +804,10 @@ export function ManualRangeTextGenerator({
           <ActionButton
             action="add"
             variant="secondary"
-            disabled={generatedPreviewRanges.length === 0}
+            disabled={availableSuggestionRanges.length === 0}
             onClick={confirmGeneratedRanges}
           >
-            Agregar rangos sugeridos
+            Agregar todas
           </ActionButton>
           <ActionButton action="clear" variant="secondary" disabled={!isGeneratorDirty} onClick={requestClearGenerator}>
             Limpiar
@@ -866,7 +876,7 @@ export function ManualRangeTextGenerator({
         <p className="manualRangeValueHelp manualRangeDetectionHelp">
           {detectionMode === 'dataBlocks'
             ? 'Las filas consecutivas con datos forman un bloque. Una fila vacía corta el bloque.'
-            : 'Cada celda con dato en la columna elegida crea un rango de una fila.'}
+            : 'Cada celda con dato en la columna elegida inicia un rango hasta el texto siguiente.'}
         </p>
         <div className="manualRangeGeneratorRow manualRangeGeneratorRow-value">
           <Dropdown<ManualRangeInitialValueMode>
@@ -911,18 +921,31 @@ export function ManualRangeTextGenerator({
           ))}
         </div>
       ) : null}
-      {previewMessage ? (
+      {suggestionConflictMessages.length > 0 ? (
         <div className="manualRangeGeneratorWarnings" role="status">
-          <p>{previewMessage}</p>
+          {suggestionConflictMessages.map((message) => (
+            <p key={message}>{message}</p>
+          ))}
         </div>
-      ) : generatedPreviewRanges.length > 0 ? (
+      ) : null}
+      {safePreviewMessage ? (
+        <div className="manualRangeGeneratorWarnings" role="status">
+          <p>{safePreviewMessage}</p>
+        </div>
+      ) : availableSuggestionRanges.length > 0 ? (
         <div className="manualRangeGeneratorExamples">
-          <span className="manualRangeGeneratorExamplesLabel">Ejemplos</span>
+          <span className="manualRangeGeneratorExamplesLabel">
+            {availableSuggestionRanges.length} {availableSuggestionRanges.length === 1 ? 'sugerencia encontrada' : 'sugerencias encontradas'}
+            {hiddenSuggestionCount > 0 ? ` (${hiddenSuggestionCount} ocultas por seguridad)` : ''}
+          </span>
           <div className="manualRangeGeneratorPreview" aria-label="Ejemplos de rangos sugeridos">
             {visiblePreviewRanges.map((range, index) => (
-              <span key={`${range.startRowNumber}-${range.endRowNumber}-${index}`}>
-                {getManualRangeGeneratedExampleLabel(range)}
-              </span>
+              <div className="manualRangeGeneratorSuggestion" key={`${range.startRowNumber}-${range.endRowNumber}-${index}`}>
+                <span>{getManualRangeGeneratedExampleLabel(range)}</span>
+                <button type="button" className="secondary sm" onClick={() => confirmGeneratedRange(range)}>
+                  Agregar
+                </button>
+              </div>
             ))}
             {hiddenPreviewRangeLabels.length > 0 ? (
               <span className="manualRangeGeneratorMoreExamples" tabIndex={0}>
