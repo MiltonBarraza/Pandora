@@ -154,6 +154,74 @@ export const manualRangeDetectionModeOptions: Array<{ value: ManualRangeDetectio
   { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
 ];
 
+type RecipeEditorVisualMode = 'take' | 'combine' | 'range' | 'advanced';
+
+const recipeEditorVisualModes: Array<{ value: RecipeEditorVisualMode; label: string }> = [
+  { value: 'take', label: 'Tomar valor' },
+  { value: 'combine', label: 'Combinar valores' },
+  { value: 'range', label: 'Asignar por rangos' },
+  { value: 'advanced', label: 'Transformar valor / Avanzado' },
+];
+
+export function getRecipeEditorVisualMode(recipe: EditableCustomRecipe, modeOverride?: CustomValueMode): RecipeEditorVisualMode {
+  if (recipe.type === 'manualRange') {
+    return 'range';
+  }
+
+  const mode = modeOverride ?? getCustomValueMode(recipe);
+  const visibleSteps = getVisibleRecipeSteps(recipe, mode);
+  if (hasConfiguredManualRangeStep(recipe) || visibleSteps.some((step) => step.type === 'manualRange')) {
+    return 'range';
+  }
+
+  if (mode === 'concat' || hasConfiguredConcatStep(recipe) || recipe.parts.length > 1) {
+    return 'combine';
+  }
+
+  if (visibleSteps.some((step) => step.type !== 'noop')) {
+    return 'advanced';
+  }
+
+  return 'take';
+}
+
+function RecipePreviewBar({ preview }: { preview: string }) {
+  return (
+    <div className="recipePreviewBar">
+      <strong>Vista previa:</strong>
+      <span title={preview}>{preview}</span>
+    </div>
+  );
+}
+
+function RecipeModeTabs({ activeMode }: { activeMode: RecipeEditorVisualMode }) {
+  return (
+    <div className="recipeModeTabs" aria-label="Modo de construcción de valor">
+      {recipeEditorVisualModes.map((mode) => (
+        <span
+          key={mode.value}
+          className={`recipeModeTab${mode.value === activeMode ? ' isActive' : ''}`}
+          aria-current={mode.value === activeMode ? 'step' : undefined}
+        >
+          {mode.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RecipeEditorShell({ mode, children }: { mode: RecipeEditorVisualMode; children: ReactNode }) {
+  return (
+    <div className="recipeEditorShell">
+      {/* Clasificador visual derivado: la receta y su comportamiento siguen viviendo en los editores actuales. */}
+      <RecipeModeTabs activeMode={mode} />
+      <div className="recipeEditorContent">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows = [], sampleInputValues, onChange }: OutputColumnRecipeEditorProps) {
   const activeInputColumns = inputColumns.filter((inputColumn) => inputColumn.active);
   const [isConstructorOpen, setIsConstructorOpen] = useState(false);
@@ -265,10 +333,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
-                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
-              </div>
+              <RecipePreviewBar preview={modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview} />
             )}
             footer={(
               <div className="constructorModalFooterContent">
@@ -286,14 +351,16 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           >
             <div className="constructorModalContent">
               {modalCombineRecipe ? (
-                <CustomValueEditor
-                  recipe={modalCombineRecipe}
-                  inputColumns={activeInputColumns}
-                  manualRangeRows={manualRangeRows}
-                  sampleInputValues={sampleInputValues}
-                  mode={effectiveModalCustomValueMode}
-                  onChange={setDraftRecipe}
-                />
+                <RecipeEditorShell mode={getRecipeEditorVisualMode(modalCombineRecipe, effectiveModalCustomValueMode)}>
+                  <CustomValueEditor
+                    recipe={modalCombineRecipe}
+                    inputColumns={activeInputColumns}
+                    manualRangeRows={manualRangeRows}
+                    sampleInputValues={sampleInputValues}
+                    mode={effectiveModalCustomValueMode}
+                    onChange={setDraftRecipe}
+                  />
+                </RecipeEditorShell>
               ) : null}
             </div>
           </Modal>
@@ -328,10 +395,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
-                <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
-              </div>
+              <RecipePreviewBar preview={modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'} />
             )}
             footer={(
               <div className="constructorModalFooterContent">
@@ -349,12 +413,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           >
             <div className="constructorModalContent">
               {modalManualRangeRecipe ? (
-                <ManualRangeRecipeEditor
-                  recipe={modalManualRangeRecipe}
-                  inputColumns={activeInputColumns}
-                  manualRangeRows={manualRangeRows}
-                  onChange={setDraftRecipe}
-                />
+                <RecipeEditorShell mode={getRecipeEditorVisualMode(modalManualRangeRecipe)}>
+                  <ManualRangeRecipeEditor
+                    recipe={modalManualRangeRecipe}
+                    inputColumns={activeInputColumns}
+                    manualRangeRows={manualRangeRows}
+                    onChange={setDraftRecipe}
+                  />
+                </RecipeEditorShell>
               ) : null}
             </div>
           </Modal>
