@@ -7,7 +7,6 @@ import {
   getManualRangeRangeTextSource,
   getManualRangeSelectedTextOptions,
   getManualRangeValueSourceType,
-  manualRangeValueSourceOptions,
   type ManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
 import { useState, type ReactNode } from 'react';
@@ -16,7 +15,20 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
-import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  getSourceForValueSourceAction,
+  getSourceFromVariableDropdownValue,
+  getValueSourceAction,
+  getValueSourceActionOptions,
+  getVariableSourceDropdownOptions,
+  getVariableSourceDropdownValue,
+  previousResultShortSourceLabel,
+  rangeTextSourceLabel,
+  shouldShowValueSourceSelector,
+  type ValueSourceAction,
+  type VariableSourceDropdownValue,
+} from './OutputColumnRecipeEditor.valueActionHelpers';
 
 type RangeValueEditorProps = {
   range: ManualRangeValue;
@@ -30,8 +42,9 @@ type RangeValueEditorProps = {
 };
 
 export type RangeValueSourceDropdownValue = ManualRangeValueSourceType | 'columnTextPicker' | `input:${string}`;
-export type RangeValueConcatPartSourceDropdownValue = 'previousResult' | 'fixedText' | 'rangeText' | 'columnTextPicker' | `input:${string}`;
-export type RangeValueTextAction = TransformStepType | 'useFixedText' | 'useInputColumn' | 'pickColumnText' | 'useRangeText' | 'usePreviousResult';
+export type RangeValueConcatPartSourceDropdownValue = VariableSourceDropdownValue;
+export type RangeValueTextSourceAction = ValueSourceAction;
+export type RangeValueTextAction = TransformStepType | RangeValueTextSourceAction;
 
 export type RangeValueSourceSelection =
   | { type: 'valueSourceType'; value: ManualRangeValueSourceType }
@@ -73,10 +86,7 @@ export const rangeValueStepTypes: Record<Exclude<TransformStepMode, 'manualRange
 };
 
 export const rangeValueTextSourceActionOptions: Array<{ value: RangeValueTextAction; label: string }> = [
-  { value: 'useInputColumn', label: 'Usar columna de entrada' },
-  { value: 'useFixedText', label: 'Usar texto fijo' },
-  { value: 'pickColumnText', label: pickColumnTextLabel },
-  { value: 'useRangeText', label: 'Texto encontrado en el rango' },
+  ...getValueSourceActionOptions({ allowRangeText: true }),
 ];
 
 const numericOperationOptions: Array<{ value: NumericOperation; label: string }> = [
@@ -206,11 +216,7 @@ export function RangeValueEditor({
 }
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
-  return [
-    ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input' && option.value !== 'fixedText'),
-    { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
-  ];
+  return getVariableSourceDropdownOptions(inputColumns, { allowRangeText: true, rangeTextFirst: true });
 }
 
 export function getRangeValueSourceSelection(value: Exclude<RangeValueSourceDropdownValue, 'columnTextPicker'>): RangeValueSourceSelection {
@@ -242,7 +248,7 @@ function RangeValueStepsEditor({
   sourceFields?: ReactNode;
   hasSourceDetails?: boolean;
   textActionValue?: RangeValueTextAction;
-  onTextSourceAction?: (action: RangeValueTextAction) => void;
+  onTextSourceAction?: (action: RangeValueTextSourceAction) => void;
   allowPreviousResultTextAction?: boolean;
   allowConcat?: boolean;
   showAdditionalStepsHeader?: boolean;
@@ -345,7 +351,7 @@ function RangeValueStepControls({
   step: TransformStep;
   allowConcat: boolean;
   textActionValue?: RangeValueTextAction;
-  onTextSourceAction?: (action: RangeValueTextAction) => void;
+  onTextSourceAction?: (action: RangeValueTextSourceAction) => void;
   allowPreviousResultTextAction?: boolean;
   onChange: (step: TransformStep) => void;
 }) {
@@ -389,7 +395,7 @@ function RangeValueStepControls({
   );
 }
 
-export function isRangeValueTextSourceAction(value: RangeValueTextAction): value is Exclude<RangeValueTextAction, TransformStepType> {
+export function isRangeValueTextSourceAction(value: RangeValueTextAction): value is RangeValueTextSourceAction {
   return ['useFixedText', 'useInputColumn', 'pickColumnText', 'useRangeText', 'usePreviousResult'].includes(value);
 }
 
@@ -636,25 +642,11 @@ function RangeValueConcatEditor({
             )}
             textActionValue={columnTextPickerPartId === selectedPart.id
               ? 'pickColumnText'
-              : selectedPart.source.type === 'fixedText'
-                ? 'useFixedText'
-                : selectedPart.source.type === 'previousResult'
-                  ? 'usePreviousResult'
-                  : selectedPart.source.type === 'rangeText'
-                    ? 'useRangeText'
-                    : 'useInputColumn'}
+              : getValueSourceAction(selectedPart.source)}
             allowPreviousResultTextAction
             onTextSourceAction={(action) => {
               setColumnTextPickerPartId(action === 'pickColumnText' ? selectedPart.id : null);
-              const source: StepSource = action === 'usePreviousResult'
-                ? { type: 'previousResult' }
-                : action === 'useInputColumn'
-                  ? { type: 'input', inputColumnId: selectedPart.source.type === 'input' ? selectedPart.source.inputColumnId : inputColumns[0]?.id ?? '' }
-                  : action === 'useRangeText'
-                    ? getRangeValueConcatPartRangeTextSource(selectedPart.source, inputColumns)
-                    : selectedPart.source.type === 'fixedText'
-                      ? selectedPart.source
-                      : { type: 'fixedText', value: '' };
+              const source = getSourceForValueSourceAction(action, selectedPart.source, inputColumns);
               updatePart(selectedPart.id, { source });
             }}
             allowConcat={false}
@@ -699,10 +691,11 @@ function RangeValueConcatPartSourceFields({
   const inputColumnOptions = inputColumns.length === 0
     ? [{ value: '', label: noActiveColumnsLabel }]
     : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
+  const showSourceSelector = shouldShowValueSourceSelector(source, { hidden: hideSourceSelector });
 
   return (
     <>
-      {!hideSourceSelector ? <Dropdown<RangeValueConcatPartSourceDropdownValue>
+      {showSourceSelector ? <Dropdown<RangeValueConcatPartSourceDropdownValue>
         className="compact manualRangeValueSourceField"
         label={valueSourceLabel}
         value={sourceValue}
@@ -775,12 +768,11 @@ function RangeValueConcatPartSourceFields({
 }
 
 export function getRangeValueConcatPartSourceDropdownOptions(inputColumns: InputColumn[]) {
-  return [
-    { value: 'previousResult' as const, label: 'Resultado anterior' },
-    { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
-    { value: 'rangeText' as const, label: 'Texto encontrado en el rango' },
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
-  ];
+  return getVariableSourceDropdownOptions(inputColumns, {
+    allowPreviousResult: true,
+    allowRangeText: true,
+    previousResultLabel: previousResultShortSourceLabel,
+  });
 }
 
 function getRangeValueConcatPartRangeTextSource(source: StepSource, inputColumns: InputColumn[]): Extract<StepSource, { type: 'rangeText' }> {
@@ -801,7 +793,7 @@ function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: Inpu
   }
 
   if (source.type === 'rangeText') {
-    return source.selectedText ? `Texto encontrado "${source.selectedText}"` : 'Texto encontrado en el rango';
+    return source.selectedText ? `Texto encontrado "${source.selectedText}"` : rangeTextSourceLabel;
   }
 
   const inputColumn = inputColumns.find((column) => column.id === source.inputColumnId);
@@ -881,41 +873,11 @@ export function appendRangeValueStep(steps: TransformStep[]): TransformStep[] {
 }
 
 function getConcatPartSourceDropdownValue(source: StepSource): RangeValueConcatPartSourceDropdownValue | '' {
-  if (source.type === 'previousResult') {
-    return 'previousResult';
-  }
-
-  if (source.type === 'fixedText') {
-    return 'fixedText';
-  }
-
-  if (source.type === 'rangeText') {
-    return 'rangeText';
-  }
-
-  return source.inputColumnId ? `input:${source.inputColumnId}` : '';
+  return getVariableSourceDropdownValue(source);
 }
 
 function getConcatPartSourceFromDropdownValue(value: string, currentSource: StepSource): StepSource {
-  if (value === 'previousResult') {
-    return { type: 'previousResult' };
-  }
-
-  if (value === 'fixedText') {
-    return { type: 'fixedText', value: currentSource.type === 'fixedText' ? currentSource.value : '' };
-  }
-
-  if (value === 'rangeText') {
-    return currentSource.type === 'rangeText'
-      ? currentSource
-      : { type: 'rangeText', inputColumnId: '', selectedText: '' };
-  }
-
-  if (value.startsWith('input:')) {
-    return { type: 'input', inputColumnId: value.slice('input:'.length) };
-  }
-
-  return currentSource;
+  return getSourceFromVariableDropdownValue(value, currentSource);
 }
 
 function getRangeValueStepMode(step: TransformStep): Exclude<TransformStepMode, 'manualRange'> {

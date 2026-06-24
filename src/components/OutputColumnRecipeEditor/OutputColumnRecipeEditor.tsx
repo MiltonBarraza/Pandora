@@ -88,6 +88,20 @@ export {
 } from './OutputColumnRecipeEditor.optionHelpers';
 export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelpers';
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
+export {
+  getSourceForValueSourceAction,
+  getSourceFromVariableDropdownValue,
+  getValueSourceAction,
+  getValueSourceActionOptions,
+  getVariableSourceDropdownOptions,
+  getVariableSourceDropdownValue,
+  previousResultShortSourceLabel,
+  previousResultSourceLabel,
+  rangeTextSourceLabel,
+  shouldShowValueSourceSelector,
+  valueSourceActionLabels,
+} from './OutputColumnRecipeEditor.valueActionHelpers';
+export type { ValueSourceAction, VariableSourceDropdownValue } from './OutputColumnRecipeEditor.valueActionHelpers';
 export { StepConditionFields, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 export {
   appendConcatPartAdditionalStep,

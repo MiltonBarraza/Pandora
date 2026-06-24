@@ -27,6 +27,7 @@ import {
   type StepTextAction,
   type StepTextSourceAction,
 } from './OutputColumnRecipeEditor.optionHelpers';
+import { shouldShowValueSourceSelector } from './OutputColumnRecipeEditor.valueActionHelpers';
 
 export function StepTypeSelect({
   step,
@@ -162,10 +163,11 @@ export function StepSourceFields({
   const showPreviousResultPreview = showPreviousResultHelp && previousResultPreviewValue !== null && previousResultPreviewValue !== undefined && previousResultPreviewValue !== '';
   const canPickColumnText = fixedTextInputType === 'text';
   const sourceValue = effectiveColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
+  const showSourceSelector = shouldShowValueSourceSelector(safeSource, { hidden: hideSourceSelector });
 
   return (
     <>
-      {!hideSourceSelector ? (
+      {showSourceSelector ? (
         <Dropdown
           className="compact"
           label={label}

@@ -436,3 +436,37 @@ No hubo cambios visibles ni funcionales de UI. No se modificaron dominio de rece
 - `npm run build`: OK — sin warning de chunk mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK — con avisos de conversión LF a CRLF en archivos tocados.
+
+## Unificacion inicial de logica de fuentes del editor
+
+Se detecto duplicacion real entre el editor principal de recetas y `RangeValueEditor` alrededor de labels, acciones visuales y opciones de fuentes: `Usar texto fijo`, `Usar columna de entrada`, `Elegir texto desde columna`, `Usar resultado anterior`, `Texto encontrado en el rango`, valores `fixedText` persistidos y la regla visual que evita mostrar `Texto fijo` como una fuente variable dentro de `Fuente del valor`.
+
+### Helpers creados o ampliados
+
+- Se creo `OutputColumnRecipeEditor.valueActionHelpers.ts`.
+- El helper centraliza labels de acciones/fuentes, opciones de acciones de texto, opciones de fuentes variables, mapeo desde `StepSource` hacia accion visual, mapeo desde accion visual hacia `StepSource`, mapeo de valores de dropdown y `shouldShowValueSourceSelector`.
+- `OutputColumnRecipeEditor.optionHelpers.ts` conserva sus exports publicos existentes, pero ahora delega en el helper compartido para fuentes y acciones de texto.
+
+### Uso actual
+
+- El editor principal usa la logica compartida a traves de `optionHelpers` y `StepSourceFields`. `StepSourceFields` ahora usa `shouldShowValueSourceSelector` para no mostrar el selector cuando la fuente persistida es `fixedText`.
+- `RangeValueEditor` usa el helper compartido para labels de acciones, opciones de fuentes variables, mapeo de fuentes de partes de concat y la misma regla de visibilidad del selector.
+- Se mantuvo el orden historico de opciones donde ya estaba cubierto por tests: en valores de rango, `Texto encontrado en el rango` sigue apareciendo antes que `Elegir texto desde columna`; en partes de concat, `Resultado anterior` sigue usando el label corto.
+
+### Pendiente
+
+- La fuente primaria de `manualRange` todavia conserva un mapeo local pequeno porque parte de `ManualRangeValueSourceType`, no de `StepSource` puro.
+- `RangeValueEditor` todavia tiene JSX propio para campos de detalle (`input`, `fixedText`, `rangeText`) y no se unifico con `StepSourceFields`.
+- Summaries y textos descriptivos mas complejos quedan para una segunda etapa si se decide unificar presentacion, no solo helpers.
+
+### Limites confirmados
+
+No hubo cambios de dominio, shape de recetas, settings, export/import, remap/references, filtros, preview a nivel datos, columnas virtuales ni procesamiento. No se cambio funcionalmente `manualRange`; solo se reemplazo logica UI duplicada por helpers compartidos.
+
+### Validaciones ejecutadas
+
+- Test especifico `OutputColumnRecipeEditor.test.tsx`: OK - 257 tests.
+- `npm run test:run`: OK - 40 archivos, 628 tests.
+- `npm run build`: OK - sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.
