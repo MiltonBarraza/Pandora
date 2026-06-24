@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
@@ -22,6 +22,7 @@ import {
   getDatePickerValue,
   getStepSourceForTextAction,
   getStepTextSourceAction,
+  getStepTextSourceActionOptions,
   parseRounding,
   updateStep,
   type StepTextSourceAction,
@@ -443,15 +444,16 @@ function ManualRangeRecipeEditor({
       <div className="sectionHeader">
         <div>
           <strong className="manualRangeTitleGroup labelWithInfo">
-            <span>Valores por rangos</span>
+            <span>Rangos configurados</span>
             <InfoTooltip
               ariaLabel="Ayuda: valores por rangos"
               content={manualRangeUsageHelpText}
             />
           </strong>
+          <p className="muted">{getManualRangeCountLabel(recipe)}. Cada rango asigna un valor a un grupo de filas.</p>
         </div>
         <div className="manualRangeHeaderActions">
-          <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'start'))}>
+          <ActionButton action="add" onClick={() => onChange(addManualRangeValue(recipe, 'start'))}>
             Agregar rango
           </ActionButton>
           <InfoTooltip content="Ordena los rangos por la fila de inicio.">
@@ -495,13 +497,14 @@ function ManualRangeRecipeEditor({
             <p className="manualRangeWarning">Hay rangos superpuestos. En filas repetidas se usará el primer rango configurado.</p>
           ) : null}
           <div className="manualRangeList">
-            {recipe.ranges.map((range) => (
+            {recipe.ranges.map((range, index) => (
               <ManualRangeTableRow
                 key={range.id}
                 recipe={recipe}
                 range={range}
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
+                initiallyExpanded={index === 0}
                 onChange={onChange}
               />
             ))}
@@ -1045,6 +1048,7 @@ export function ManualRangeTableRow({
   range,
   inputColumns,
   manualRangeRows,
+  initiallyExpanded = true,
   initiallyShowRowsPreview = false,
   onChange,
 }: {
@@ -1052,15 +1056,25 @@ export function ManualRangeTableRow({
   range: ManualRangeValue;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  initiallyExpanded?: boolean;
   initiallyShowRowsPreview?: boolean;
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   const [startRowInput, setStartRowInput] = useState(formatManualRangeRowInput(range.startRowNumber));
   const [endRowInput, setEndRowInput] = useState(formatManualRangeRowInput(range.endRowNumber));
+  const [isEditorOpen, setIsEditorOpen] = useState(initiallyExpanded);
   const [showRowsPreview, setShowRowsPreview] = useState(initiallyShowRowsPreview);
   const rowCount = getManualRangeRowCountFromInputs(startRowInput, endRowInput);
-  const referenceText = getManualRangeReferenceText(range);
+  const rangeLabel = getManualRangeCardRangeLabel(startRowInput, endRowInput);
+  const valueSummary = getManualRangeCardValueSummary(range, inputColumns);
+  const sourceSummary = getManualRangeCardSourceSummary(range, inputColumns);
+  const conditionSummary = recipe.condition
+    ? describeManualRangeCondition(recipe, inputColumns)
+    : 'Todas las filas del rango';
+  const transformationCount = (range.valueRecipe?.steps ?? []).filter((step) => step.type !== 'noop').length;
   const rowsPreviewActionLabel = showRowsPreview ? 'Ocultar filas' : 'Ver filas';
+  const editorActionLabel = isEditorOpen ? 'Ocultar edición' : 'Editar rango';
+  const editorId = `manual-range-editor-${range.id}`;
 
   useEffect(() => {
     setStartRowInput(formatManualRangeRowInput(range.startRowNumber));
@@ -1093,83 +1107,103 @@ export function ManualRangeTableRow({
 
   return (
     <div className="manualRangeRangeItem">
-      <div className="manualRangeMetadataRow">
-        <label className="field compact manualRangeCellField">
-          <span>Inicio</span>
-          <input
-            aria-label="Inicio"
-            type="number"
-            min="1"
-            value={startRowInput}
-            onChange={(event) => updateStartRowInput(event.target.value)}
-          />
-        </label>
-        <label className="field compact manualRangeCellField">
-          <span>Fin</span>
-          <input
-            aria-label="Fin"
-            type="number"
-            min="1"
-            value={endRowInput}
-            onChange={(event) => updateEndRowInput(event.target.value)}
-          />
-        </label>
-        <div className="field compact manualRangeCellField manualRangeRowCountField">
-          <span>Filas</span>
-          <strong>{rowCount || '-'}</strong>
-        </div>
-        <div className="field compact manualRangeReferenceField">
-          <span>Referencia</span>
-          <strong>{referenceText || '-'}</strong>
-        </div>
-        <div className="manualRangeActionsField">
-          <span>Acciones</span>
-          <div className="manualRangeRowActions">
-            <InfoTooltip content={rowsPreviewActionLabel}>
-              <button
-                type="button"
-                className="secondary sm manualRangeIconAction"
-                aria-label={rowsPreviewActionLabel}
-                title={rowsPreviewActionLabel}
-                onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
-              >
-                <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
-              </button>
-            </InfoTooltip>
-            <InfoTooltip content="Duplicar rango">
-              <ActionButton
-                action="duplicate"
-                variant="secondary"
-                size="sm"
-                title="Duplicar rango"
-                aria-label="Duplicar rango"
-                onClick={() => onChange(duplicateManualRangeValue(recipe, range.id))}
-              />
-            </InfoTooltip>
-            <InfoTooltip content="Eliminar rango">
-              <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
-            </InfoTooltip>
+      <div className="manualRangeCardHeader">
+        <div className="manualRangeCardSummary">
+          <div className="manualRangeCardTitleRow">
+            <span>{rangeLabel}</span>
+            <span className="manualRangeCardCount">{rowCount ? `${rowCount} ${rowCount === '1' ? 'fila' : 'filas'}` : 'Rango incompleto'}</span>
+          </div>
+          <strong>Para {rangeLabel.toLowerCase()}, usar {valueSummary}</strong>
+          <div className="manualRangeCardBadges">
+            <span>{sourceSummary}</span>
+            <span>{conditionSummary}</span>
+            {transformationCount > 0 ? (
+              <span>{transformationCount} transformación{transformationCount === 1 ? '' : 'es'}</span>
+            ) : null}
           </div>
         </div>
+        <div className="manualRangeRowActions">
+          <button
+            type="button"
+            className="secondary sm manualRangeCardAction"
+            aria-controls={editorId}
+            aria-expanded={isEditorOpen}
+            onClick={() => setIsEditorOpen((isOpen) => !isOpen)}
+          >
+            {editorActionLabel}
+          </button>
+          <button
+            type="button"
+            className="secondary sm manualRangeCardAction"
+            aria-expanded={showRowsPreview}
+            onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
+          >
+            <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
+            <span>{rowsPreviewActionLabel}</span>
+          </button>
+          <InfoTooltip content="Duplicar rango">
+            <ActionButton
+              action="duplicate"
+              variant="secondary"
+              size="sm"
+              title="Duplicar rango"
+              aria-label="Duplicar rango"
+              onClick={() => onChange(duplicateManualRangeValue(recipe, range.id))}
+            />
+          </InfoTooltip>
+          <InfoTooltip content="Eliminar rango">
+            <DeleteButton title="Eliminar rango" onClick={() => onChange(removeManualRangeValue(recipe, range.id))} />
+          </InfoTooltip>
+        </div>
       </div>
-      <div className="manualRangeEditorRow">
-        <RangeValueEditor
-          range={range}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          onValueSourceTypeChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
-          onFixedTextChange={(value) => onChange(updateManualRangeFixedTextValue(recipe, range.id, value))}
-          onInputColumnChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
-          onRangeTextChange={(patch) => {
-            const nextPatch = patch.inputColumnId !== undefined && patch.selectedText === undefined
-              ? { ...patch, selectedText: '' }
-              : patch;
-            const nextRecipe = updateManualRangeRangeTextValue(recipe, range.id, nextPatch);
-            onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
-          }}
-          onStepsChange={(steps) => onChange(updateManualRangeValueRecipeSteps(recipe, range.id, steps))}
-        />
-      </div>
+      {isEditorOpen ? (
+        <div id={editorId} className="manualRangeCardEditor">
+          <div className="manualRangeBoundsEditor">
+            <label className="field compact manualRangeCellField">
+              <span>Desde la fila</span>
+              <input
+                aria-label="Inicio"
+                type="number"
+                min="1"
+                value={startRowInput}
+                onChange={(event) => updateStartRowInput(event.target.value)}
+              />
+            </label>
+            <label className="field compact manualRangeCellField">
+              <span>Hasta la fila</span>
+              <input
+                aria-label="Fin"
+                type="number"
+                min="1"
+                value={endRowInput}
+                onChange={(event) => updateEndRowInput(event.target.value)}
+              />
+            </label>
+            <div className="manualRangeAffectedCount" role="status">
+              <span>Filas afectadas</span>
+              <strong>{rowCount || '-'}</strong>
+            </div>
+          </div>
+          <div className="manualRangeEditorRow">
+            <RangeValueEditor
+              range={range}
+              inputColumns={inputColumns}
+              manualRangeRows={manualRangeRows}
+              onValueSourceTypeChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
+              onFixedTextChange={(value) => onChange(updateManualRangeFixedTextValue(recipe, range.id, value))}
+              onInputColumnChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
+              onRangeTextChange={(patch) => {
+                const nextPatch = patch.inputColumnId !== undefined && patch.selectedText === undefined
+                  ? { ...patch, selectedText: '' }
+                  : patch;
+                const nextRecipe = updateManualRangeRangeTextValue(recipe, range.id, nextPatch);
+                onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
+              }}
+              onStepsChange={(steps) => onChange(updateManualRangeValueRecipeSteps(recipe, range.id, steps))}
+            />
+          </div>
+        </div>
+      ) : null}
       {showRowsPreview ? (
         <ManualRangeRowsPreview
           range={range}
@@ -1775,6 +1809,7 @@ function StepBlocksEditor({
               baseInputColumnId={baseInputColumnId}
               canDelete={!requireAtLeastOne || steps.length > 1}
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+              currentStepPreviewValue={getPreviousStepPreviewValue?.(index + 1) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
               onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
               onDelete={() => deleteStep(index)}
@@ -1800,6 +1835,7 @@ function SimpleStepBlock({
   baseInputColumnId,
   canDelete,
   previousResultPreviewValue,
+  currentStepPreviewValue,
   onBaseInputColumnChange,
   onChange,
   onDelete,
@@ -1812,6 +1848,7 @@ function SimpleStepBlock({
   baseInputColumnId: string;
   canDelete: boolean;
   previousResultPreviewValue?: string | null;
+  currentStepPreviewValue?: string | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
@@ -1875,6 +1912,7 @@ function SimpleStepBlock({
             manualRangeRows={manualRangeRows}
             labels="workflow"
             previousResultPreviewValue={previousResultPreviewValue}
+            concatPreviewValue={currentStepPreviewValue}
             textSourceAction={textSourceAction}
             onSourceChange={updateStepSource}
             onChange={onChange}
@@ -1914,6 +1952,7 @@ function StepDetailPanel({
   onChange,
   onDelete,
   concatPart = false,
+  transformOnly = false,
 }: {
   step: TransformStep;
   index: number;
@@ -1928,13 +1967,14 @@ function StepDetailPanel({
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
   concatPart?: boolean;
+  transformOnly?: boolean;
 }) {
   const [textSourceActionOverride, setTextSourceActionOverride] = useState<StepTextSourceAction | null>(null);
   const summary = getStepSummary(step, inputColumns);
   const stepMode = getStepMode(step);
   const isManualRangeStep = step.type === 'manualRange';
   const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
-  const textSourceAction = textSourceActionOverride ?? getStepTextSourceAction(stepSource);
+  const textSourceAction = transformOnly ? undefined : textSourceActionOverride ?? getStepTextSourceAction(stepSource);
   const updateTextSourceAction = (action: StepTextSourceAction) => {
     setTextSourceActionOverride(action);
     const source = getStepSourceForTextAction(action, stepSource, inputColumns);
@@ -1964,7 +2004,7 @@ function StepDetailPanel({
                   allowConcat={allowConcat}
                   textSourceAction={textSourceAction}
                   allowPreviousResultSource={Boolean(allowPreviousResultSource)}
-                  onTextSourceAction={updateTextSourceAction}
+                  onTextSourceAction={transformOnly ? undefined : updateTextSourceAction}
                   onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
                 />
               ) : null}
@@ -1979,7 +2019,7 @@ function StepDetailPanel({
               allowConcat={allowConcat}
               textSourceAction={textSourceAction}
               allowPreviousResultSource={Boolean(allowPreviousResultSource)}
-              onTextSourceAction={updateTextSourceAction}
+              onTextSourceAction={transformOnly ? undefined : updateTextSourceAction}
               onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
             />
           </>
@@ -1994,7 +2034,7 @@ function StepDetailPanel({
           allowPreviousResultSource={allowPreviousResultSource}
           previousResultPreviewValue={previousResultPreviewValue}
           textSourceAction={textSourceAction}
-          showSourceFields={!(concatPart && (step.type === 'addPrefix' || step.type === 'addSuffix'))}
+          showSourceFields={!transformOnly && !(concatPart && (step.type === 'addPrefix' || step.type === 'addSuffix'))}
           hideFixedTextInput={concatPart && (step.type === 'addPrefix' || step.type === 'addSuffix')}
           onSourceChange={onSourceChange ?? ((source) => onChange({ source }))}
           onChange={onChange}
@@ -2018,6 +2058,7 @@ function ConcatStepFields({
   manualRangeRows,
   allowPreviousResult,
   previousResultPreviewValue,
+  previewValue,
   onChange,
 }: {
   parts: ConcatPart[];
@@ -2025,6 +2066,7 @@ function ConcatStepFields({
   manualRangeRows: InputRow[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
+  previewValue?: string | null;
   onChange: (parts: ConcatPart[]) => void;
 }) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null);
@@ -2056,50 +2098,73 @@ function ConcatStepFields({
   };
 
   return (
-    <div className="concatStepFields">
+    <section className="concatStepFields concatCompositionEditor">
+      <div className="concatCompositionHeader">
+        <div>
+          <span>Composición del valor</span>
+          <strong>Armá el resultado con piezas</strong>
+          <p>Las piezas se combinan de izquierda a derecha en el orden mostrado.</p>
+        </div>
+        <InfoTooltip content="Agrega otro dato o texto a combinar.">
+          <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
+        </InfoTooltip>
+      </div>
       {parts.length === 0 ? (
         <div className="concatPartsEmptyState">
-          <p className="muted">Agrega una parte para construir el valor.</p>
-          <InfoTooltip content="Agrega otro dato o texto a combinar.">
-            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-          </InfoTooltip>
+          <strong>Agregá la primera pieza</strong>
+          <p className="muted">Puede ser una columna, un texto fijo o un resultado anterior.</p>
         </div>
       ) : null}
       {parts.length > 0 ? (
-        <div className="concatPartsWorkspace">
-          <div className="concatPartsSidebar">
+        <>
+          <div className="concatCompositionTrack" aria-label="Piezas de la composición">
             <SortableList
               items={parts}
+              orientation="horizontal"
+              handleLabel="Mover pieza"
               onChange={(nextParts) => onChange(normalizeConcatPartsAfterReorder(nextParts))}
               renderItem={(part, handle) => {
                 const index = parts.findIndex((item) => item.id === part.id);
+                const transformationCount = getConcatPartTransformationCount(part);
 
                 return (
-                  <div className={`concatPartListItem${part.id === safeSelectedPartId ? ' selected' : ''}`}>
-                    {handle}
-                    <button
-                      type="button"
-                      className="concatPartSelectButton"
-                      onClick={() => setSelectedPartId(part.id)}
-                    >
-                      <strong>Parte {index + 1}</strong>
-                      <span>{describeConcatPartSource(part, inputColumns)}</span>
-                    </button>
+                  <div className="concatCompositionItem">
+                    {index > 0 ? (
+                      <span className="concatCompositionConnector" aria-label={`Separador antes de la pieza ${index + 1}`}>
+                        {getConcatPartConnectorText(part, index)}
+                      </span>
+                    ) : null}
+                    <div className={`concatPartPiece${part.id === safeSelectedPartId ? ' selected' : ''}`}>
+                      {handle}
+                      <button
+                        type="button"
+                        className="concatPartSelectButton"
+                        aria-pressed={part.id === safeSelectedPartId}
+                        onClick={() => setSelectedPartId(part.id)}
+                      >
+                        <span className="concatPartPieceNumber">Pieza {index + 1}</span>
+                        <strong>{describeConcatPartSource(part, inputColumns)}</strong>
+                        <small>{transformationCount > 0
+                          ? `${transformationCount} transformación${transformationCount === 1 ? '' : 'es'}`
+                          : 'Sin transformaciones'}</small>
+                      </button>
+                    </div>
                   </div>
                 );
               }}
             />
-            <InfoTooltip content="Agrega otro dato o texto a combinar.">
-              <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-            </InfoTooltip>
+          </div>
+          <div className="concatCompositionPreview">
+            <span>Resultado de esta composición</span>
+            <strong>{previewValue || 'Completá las piezas para ver el resultado.'}</strong>
           </div>
           {selectedPart ? (
-            <div className="concatPartDetailPanel">
+            <div className="concatPartDetailPanel concatCompositionDetail">
               <div className="concatPartHeader">
-                <strong className="headingWithInfo">
-                  <span>Parte {selectedPartIndex + 1}</span>
-                  <InfoTooltip content="Configurá el dato o texto de esta parte." />
-                </strong>
+                <div>
+                  <strong>Configurar pieza {selectedPartIndex + 1}</strong>
+                  <span>{describeConcatPartSource(selectedPart, inputColumns)}</span>
+                </div>
                 <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
               </div>
               <ConcatPartStepsEditor
@@ -2111,8 +2176,8 @@ function ConcatStepFields({
                   <div className="concatPartFields">
                     <label className="field compact">
                       <span className="labelWithInfo">
-                        <span>Separador antes de esta parte</span>
-                        <InfoTooltip content="Texto que separa esta parte de la anterior." />
+                        <span>Separador antes de esta pieza</span>
+                        <InfoTooltip content="Texto que separa esta pieza de la anterior." />
                       </span>
                       <input
                         value={selectedPart.separatorBefore ?? ''}
@@ -2134,10 +2199,55 @@ function ConcatStepFields({
               />
             </div>
           ) : null}
-        </div>
+        </>
       ) : null}
-    </div>
+    </section>
   );
+}
+
+export function getManualRangeCardRangeLabel(startRowInput: string, endRowInput: string) {
+  return `Filas ${startRowInput || '?'} a ${endRowInput || '?'}`;
+}
+
+export function getManualRangeCardValueSummary(range: ManualRangeValue, inputColumns: InputColumn[]) {
+  const referenceText = getManualRangeReferenceText(range).trim();
+  if (referenceText) {
+    return `“${referenceText}”`;
+  }
+
+  if (getManualRangeValueSourceType(range) === 'input') {
+    const inputColumn = inputColumns.find((column) => column.id === getManualRangeInputSource(range).inputColumnId);
+    return inputColumn ? `el valor de ${getInputColumnLabel(inputColumn)}` : 'un valor de columna';
+  }
+
+  return 'un valor sin completar';
+}
+
+export function getManualRangeCardSourceSummary(range: ManualRangeValue, inputColumns: InputColumn[]) {
+  const sourceType = getManualRangeValueSourceType(range);
+  if (sourceType === 'rangeText') {
+    const inputColumn = inputColumns.find((column) => column.id === getManualRangeRangeTextSource(range).inputColumnId);
+    return inputColumn ? `Texto encontrado en ${getInputColumnLabel(inputColumn)}` : 'Texto encontrado en el rango';
+  }
+
+  if (sourceType === 'input') {
+    const inputColumn = inputColumns.find((column) => column.id === getManualRangeInputSource(range).inputColumnId);
+    return inputColumn ? `Columna ${getInputColumnLabel(inputColumn)}` : 'Columna de entrada';
+  }
+
+  return 'Texto fijo';
+}
+
+export function getConcatPartTransformationCount(part: Pick<ConcatPart, 'steps'>) {
+  return (part.steps ?? []).filter((step) => step.type !== 'noop').length;
+}
+
+export function getConcatPartConnectorText(part: Pick<ConcatPart, 'separatorBefore'>, index: number) {
+  if (index <= 0) {
+    return '';
+  }
+
+  return part.separatorBefore ? `“${part.separatorBefore}”` : '+';
 }
 
 function ConcatPartStepsEditor({
@@ -2179,6 +2289,9 @@ function ConcatPartStepsEditor({
   const deleteAdditionalStep = (stepId: string) => {
     onChange([primaryStep, ...additionalSteps.filter((step) => step.id !== stepId)]);
   };
+  const effectiveSource = primaryStep.source ?? baseSource;
+  const transformationCount = (steps ?? []).filter((step) => step.type !== 'noop').length;
+  const hasSavedTransformations = steps.length > 0;
 
   return (
     <div className="concatPartStepsEditor">
@@ -2188,52 +2301,116 @@ function ConcatPartStepsEditor({
         </div>
       ) : null}
 
-      <StepDetailPanel
-        step={primaryStep}
-        index={0}
+      <ConcatPartSourceEditor
+        source={effectiveSource}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
-        canDelete={false}
-        allowConcat={false}
-        stepSource={primaryStep.source ?? baseSource}
-        allowPreviousResultSource
         previousResultPreviewValue={baseSource.type === 'previousResult' ? previousResultPreviewValue : null}
-        concatPart
-        onSourceChange={updatePrimaryStepSource}
-        onChange={updatePrimaryStep}
-        onDelete={() => undefined}
+        onChange={updatePrimaryStepSource}
       />
 
-      <div className="concatPartStepsBlock">
-        {additionalSteps.length > 0 ? (
-          <div className="concatPartTransformList">
-            {additionalSteps.map((step, index) => {
-              const transformIndex = index + 1;
+      <details className="concatPartAdvancedOptions" open={hasSavedTransformations ? true : undefined}>
+        <summary>
+          <span>Transformaciones de esta pieza</span>
+          <small>{transformationCount > 0
+            ? `${transformationCount} configurada${transformationCount === 1 ? '' : 's'}`
+            : 'Opcional'}</small>
+        </summary>
+        <div className="concatPartAdvancedBody">
+          <StepDetailPanel
+            step={primaryStep}
+            index={0}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            canDelete={false}
+            allowConcat={false}
+            stepSource={effectiveSource}
+            allowPreviousResultSource
+            previousResultPreviewValue={baseSource.type === 'previousResult' ? previousResultPreviewValue : null}
+            concatPart
+            transformOnly
+            onSourceChange={updatePrimaryStepSource}
+            onChange={updatePrimaryStep}
+            onDelete={() => undefined}
+          />
 
-              return (
-                <StepDetailPanel
-                  key={step.id}
-                  step={step}
-                  index={transformIndex}
-                  inputColumns={inputColumns}
-                  manualRangeRows={manualRangeRows}
-                  canDelete
-                  allowConcat={false}
-                  allowPreviousResultSource
-                  previousResultPreviewValue={previousResultPreviewValue}
-                  concatPart
-                  onChange={(patch) => updateAdditionalStep(step.id, patch)}
-                  onDelete={() => deleteAdditionalStep(step.id)}
-                />
-              );
-            })}
+          <div className="concatPartStepsBlock">
+            {additionalSteps.length > 0 ? (
+              <div className="concatPartTransformList">
+                {additionalSteps.map((step, index) => {
+                  const transformIndex = index + 1;
+
+                  return (
+                    <StepDetailPanel
+                      key={step.id}
+                      step={step}
+                      index={transformIndex}
+                      inputColumns={inputColumns}
+                      manualRangeRows={manualRangeRows}
+                      canDelete
+                      allowConcat={false}
+                      allowPreviousResultSource
+                      previousResultPreviewValue={previousResultPreviewValue}
+                      concatPart
+                      onChange={(patch) => updateAdditionalStep(step.id, patch)}
+                      onDelete={() => deleteAdditionalStep(step.id)}
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
+            <div className="concatPartStepsActions">
+              <InfoTooltip content="Agrega una transformación adicional a esta pieza.">
+                <button type="button" className="secondary concatAddAdjustmentButton" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
+              </InfoTooltip>
+            </div>
           </div>
-        ) : null}
-        <div className="concatPartStepsActions">
-          <InfoTooltip content="Agrega una transformacion adicional a esta parte.">
-            <button type="button" className="secondary concatAddAdjustmentButton" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
-          </InfoTooltip>
         </div>
+      </details>
+    </div>
+  );
+}
+
+function ConcatPartSourceEditor({
+  source,
+  inputColumns,
+  manualRangeRows,
+  previousResultPreviewValue,
+  onChange,
+}: {
+  source: StepSource;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  previousResultPreviewValue?: string | null;
+  onChange: (source: StepSource) => void;
+}) {
+  const [actionOverride, setActionOverride] = useState<StepTextSourceAction | null>(null);
+  const action = actionOverride ?? getStepTextSourceAction(source);
+
+  return (
+    <div className="concatPartSourceEditor">
+      <Dropdown<StepTextSourceAction>
+        className="compact"
+        label="Esta pieza usa"
+        value={action}
+        options={getStepTextSourceActionOptions(true)}
+        scrollStrategy="close"
+        onChange={(nextAction) => {
+          setActionOverride(nextAction);
+          onChange(getStepSourceForTextAction(nextAction, source, inputColumns));
+        }}
+      />
+      <div className="concatPartSourceFields">
+        <StepSourceFields
+          source={source}
+          inputColumns={inputColumns}
+          inputRows={manualRangeRows}
+          allowPreviousResult
+          previousResultPreviewValue={previousResultPreviewValue}
+          hideSourceSelector={source.type !== 'rangeText'}
+          columnTextPickerOpen={action === 'pickColumnText'}
+          onChange={onChange}
+        />
       </div>
     </div>
   );
@@ -2260,6 +2437,7 @@ function StepFields({
   showSourceFields = true,
   allowPreviousResultSource,
   previousResultPreviewValue,
+  concatPreviewValue,
   hideFixedTextInput = false,
   textSourceAction,
   onSourceChange,
@@ -2274,6 +2452,7 @@ function StepFields({
   showSourceFields?: boolean;
   allowPreviousResultSource?: boolean;
   previousResultPreviewValue?: string | null;
+  concatPreviewValue?: string | null;
   hideFixedTextInput?: boolean;
   textSourceAction?: StepTextSourceAction;
   onSourceChange: (source: StepSource) => void;
@@ -2427,6 +2606,7 @@ function StepFields({
         manualRangeRows={manualRangeRows}
         allowPreviousResult={canUsePreviousResultSource}
         previousResultPreviewValue={previousResultPreviewValue}
+        previewValue={concatPreviewValue}
         onChange={(parts) => onChange({ parts })}
       />
     );

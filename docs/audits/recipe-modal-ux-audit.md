@@ -622,3 +622,107 @@ Fecha de implementación: 2026-06-24
 1. Fase 2: concatenación como secuencia visual, sin cambiar `ConcatPart` ni steps internos.
 2. Fase 3: rangos como cards resumidas/expandibles, preservando `manualRange` y `valueRecipe`.
 3. Mantener ambas fases en PR separadas y repetir QA con planillas reales.
+
+## Fase 2 implementada: concatenación por partes
+
+Fecha de implementación: 2026-06-24
+
+### Cambios aplicados
+
+- `Concatenar` se presenta como `Composición del valor`, con una explicación explícita del orden de izquierda a derecha.
+- Las partes existentes se muestran como una secuencia horizontal de piezas compactas, numeradas y seleccionables.
+- Cada pieza muestra su fuente actual y la cantidad de transformaciones configuradas.
+- Los separadores se representan visualmente entre piezas sin modificar `separatorBefore`.
+- El drag & drop existente se adapta a orientación horizontal; el comportamiento vertical previo queda como valor por defecto.
+- `Agregar parte` queda como acción principal de la composición y `Eliminar parte` permanece en el detalle de la pieza seleccionada.
+- El detalle separa la fuente simple (`Esta pieza usa`) de sus transformaciones.
+- Las transformaciones internas se conservan dentro de una sección expandible. Si una receta ya tiene steps guardados, la sección inicia abierta.
+- Se agrega un preview local destacado `Resultado de esta composición`, alimentado por el mismo preview ya calculado por el editor.
+- El track usa overflow horizontal interno en anchos reducidos, sin producir overflow global del modal o la página.
+
+### Compatibilidad interna preservada
+
+- Se mantienen `concat.parts`, orden, `source`, `separatorBefore`, steps internos y nombres de propiedades persistidas.
+- Agregar, eliminar, seleccionar y reordenar siguen usando los callbacks y helpers existentes.
+- El preview nuevo sólo presenta el resultado ya calculado; no incorpora otro motor ni cambia el cálculo.
+- La apertura/cierre de transformaciones es estado presentacional y no modifica la receta.
+- Recetas existentes con texto fijo, columna, resultado anterior y transformaciones continúan usando el mismo modelo.
+- No se modificaron apply, cancel ni confirmación de descarte.
+
+### Fuera de alcance
+
+- Rediseño de `manualRange`, `RangeValueEditor`, cards, tabla, generador o previews de rangos.
+- Cambios en dominio, settings, export/import, remap/references, filtros, preview a nivel datos, columnas virtuales o procesamiento.
+- Reescritura del editor, cambios funcionales de transformaciones o librerías nuevas.
+
+### Tests y validaciones
+
+- Se agregaron tests para la sección de composición, piezas existentes, fuentes visibles, conectores, transformaciones y preview local.
+- Se agregó cobertura del transform horizontal del `SortableList`, manteniendo el transform vertical existente.
+- Los tests previos de alta, eliminación, selección segura, reorder, sources, steps internos y cálculo de concat permanecen activos.
+- `OutputColumnRecipeEditor.test.tsx`: OK — 262 tests.
+- `OutputColumnRecipeEditor.test.tsx` + `SortableList.test.ts`: OK — 265 tests.
+- `npm run test:run`: OK — 40 archivos, 634 tests.
+- `npm run build`: OK.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- QA visual manual: escritorio y breakpoint de 760 px; secuencia, preview, alta/eliminación y overflow horizontal interno — OK.
+- `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.
+
+### Próximos pasos recomendados
+
+1. Fase 3: rediseñar rangos como cards resumidas/expandibles.
+2. Preservar `manualRange`, `valueRecipe`, generación, solapamientos y previews actuales como contratos funcionales.
+3. Repetir QA con recetas legacy, labels largos, dark mode y planillas reales.
+
+## Fase 3 implementada: rangos como cards
+
+Fecha de implementación: 2026-06-24
+
+### Cambios aplicados
+
+- La sección principal se presenta como `Rangos configurados`, con cantidad total y explicación breve.
+- `Agregar rango` pasa a ser la acción visual primaria; ordenar, borrar y generar sugeridos conservan sus acciones existentes.
+- Cada rango se muestra como card resumida con una regla legible: `Para filas X a Y, usar valor Z`.
+- El resumen permanente incluye intervalo, cantidad de filas, fuente del valor, condición aplicable y cantidad de transformaciones cuando existe.
+- Texto fijo, texto encontrado dentro del rango y columna de entrada tienen resúmenes específicos.
+- El primer rango inicia expandido; los siguientes conservan información crítica visible y ofrecen `Editar rango`.
+- La edición expandida ordena primero `Desde la fila`, `Hasta la fila` y `Filas afectadas`, seguida por el editor de valor existente.
+- `Ver filas` / `Ocultar filas` usa texto visible y estado `aria-expanded`, manteniendo la tabla de filas existente.
+- Duplicar y eliminar conservan callbacks y ayudas actuales.
+- Estilos nuevos usan tokens existentes y colapsan a una columna en 760 px, sin overflow horizontal global.
+
+### Compatibilidad interna preservada
+
+- Se mantienen `startRowNumber`, `endRowNumber`, `valueSource`, `valueRecipe`, condiciones, orden e IDs.
+- Se reutilizan `RangeValueEditor`, helpers de `manualRangeModel`, callbacks de alta/edición/duplicado/eliminación y preview existentes.
+- Expandir o colapsar una card sólo modifica estado visual local; no modifica receta ni settings.
+- El preview de filas sigue usando mismas filas, columnas, límite de 30 y cálculo actual.
+- Superposiciones, generador de rangos sugeridos, reconciliación de textos, apply, cancel y descarte permanecen intactos.
+
+### Fuera de alcance
+
+- Cambios funcionales de `manualRange`, `RangeValueEditor` o `manualRangeModel`.
+- Rediseño del generador, pipeline, procesamiento o cálculo de preview.
+- Cambios de concat, dominio, settings, export/import, remap/references, filtros o columnas virtuales.
+- Librerías nuevas, code splitting o ESLint.
+
+### Tests y validaciones
+
+- Se actualizaron contratos visuales que antes exigían la tabla plana `Referencia` y una acción de preview sólo con icono.
+- Se agregaron tests para resumen colapsado, intervalo/cantidad, condición, cards de recetas existentes y fuentes de texto fijo, texto encontrado y columna.
+- Tests previos de agregar, eliminar, duplicar, editar, reconciliar textos, previews y cálculo funcional permanecen activos.
+- `OutputColumnRecipeEditor.test.tsx`: OK — 265 tests.
+- `npm run test:run`: OK — 40 archivos, 637 tests.
+- `npm run build`: OK.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- QA visual desktop light: cards, texto fijo y texto encontrado — OK.
+- QA visual desktop dark: contraste de card, badges, controles y footer — OK.
+- QA visual 760 px dark: layout apilado y sin overflow global — OK.
+- QA interactiva: editar, ver/ocultar filas y agregar/eliminar rango — OK.
+- `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.
+
+### Próximos pasos recomendados
+
+1. Fase 4: mejorar previews y ayudas contextuales sin cambiar motores de datos.
+2. Ejecutar QA con planillas reales, recetas legacy, rangos superpuestos y labels largos.
+3. Revisar accesibilidad por teclado y lector de pantalla sobre cards, acciones y tablas de preview.

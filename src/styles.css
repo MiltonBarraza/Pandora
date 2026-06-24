@@ -1630,6 +1630,146 @@ tbody tr:hover {
   width: 100%;
 }
 
+.concatCompositionEditor {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.concatCompositionHeader {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.concatCompositionHeader > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.concatCompositionHeader > div > span,
+.concatCompositionPreview > span {
+  color: var(--color-accent-text);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.concatCompositionHeader > div > strong {
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.concatCompositionHeader p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.concatCompositionTrack {
+  align-items: stretch;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 10px;
+}
+
+.concatCompositionTrack > .sortableRow {
+  flex: 0 0 auto;
+}
+
+.concatCompositionItem {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.concatCompositionConnector {
+  align-items: center;
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-accent-text);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 4px 8px;
+  white-space: pre;
+}
+
+.concatPartPiece {
+  align-items: stretch;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 36px minmax(170px, 230px);
+  min-width: 0;
+  padding: 5px;
+}
+
+.concatPartPiece.selected {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.concatPartPiece .dragHandle {
+  align-self: center;
+}
+
+.concatPartPiece .concatPartSelectButton {
+  gap: 2px;
+  padding: 3px 5px;
+}
+
+.concatPartPiece .concatPartSelectButton strong,
+.concatPartPiece .concatPartSelectButton small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concatPartPieceNumber {
+  color: var(--color-accent-text);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.concatPartPiece .concatPartSelectButton small {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.concatCompositionPreview {
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.concatCompositionPreview > strong {
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
 .concatPartsWorkspace {
   align-items: start;
   display: grid;
@@ -1735,6 +1875,20 @@ tbody tr:hover {
   justify-content: space-between;
 }
 
+.concatCompositionDetail .concatPartHeader > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.concatCompositionDetail .concatPartHeader > div > span {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .concatPartFields {
   align-items: end;
   display: grid;
@@ -1753,6 +1907,85 @@ tbody tr:hover {
   gap: 12px;
   min-width: 0;
   padding-top: 10px;
+}
+
+.concatCompositionDetail .concatPartStepsEditor {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.concatPartSourceEditor {
+  align-items: end;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(220px, 1.2fr);
+  min-width: 0;
+  padding: 10px;
+}
+
+.concatPartSourceFields {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  min-width: 0;
+}
+
+.concatPartAdvancedOptions {
+  border-top: 1px solid var(--color-border-subtle);
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.concatPartAdvancedOptions > summary {
+  align-items: center;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  min-height: 34px;
+}
+
+.concatPartAdvancedOptions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.concatPartAdvancedOptions > summary::before {
+  color: var(--color-accent-text);
+  content: '›';
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.concatPartAdvancedOptions[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.concatPartAdvancedOptions > summary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.concatPartAdvancedOptions > summary span {
+  font-weight: 800;
+}
+
+.concatPartAdvancedOptions > summary small {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.concatPartAdvancedBody {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .concatPartSeparatorBlock {
@@ -2473,6 +2706,105 @@ tbody tr:hover {
   gap: 10px;
   min-width: 0;
   padding: 10px;
+}
+
+.manualRangeCardHeader {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.manualRangeCardSummary {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manualRangeCardSummary > strong {
+  color: var(--color-text);
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.manualRangeCardTitleRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manualRangeCardTitleRow > span:first-child {
+  color: var(--color-accent-text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.manualRangeCardCount,
+.manualRangeCardBadges > span {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 7px;
+}
+
+.manualRangeCardBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manualRangeCardAction {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.manualRangeCardEditor {
+  border-top: 1px solid var(--color-border-subtle);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 10px;
+}
+
+.manualRangeBoundsEditor {
+  align-items: end;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(120px, 180px) minmax(120px, 180px) minmax(110px, 150px);
+  justify-content: start;
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeAffectedCount {
+  display: grid;
+  gap: 5px;
+}
+
+.manualRangeAffectedCount span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.manualRangeAffectedCount strong {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
 }
 
 .manualRangeMetadataRow {
@@ -3486,6 +3818,7 @@ tbody tr:hover {
   .recipeIntentControls,
   .recipeContextFields,
   .concatPartFields,
+  .concatPartSourceEditor,
   .concatPartsWorkspace,
   .constructorWorkspace,
   .stepsWorkspace,
@@ -3499,6 +3832,15 @@ tbody tr:hover {
   .ignoreRuleCard,
   .stats {
     grid-template-columns: 1fr;
+  }
+
+  .concatCompositionHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .concatCompositionHeader .concatAddPartButton {
+    justify-self: start;
   }
 
   .outputColumnHeader .iconButton {
@@ -3550,6 +3892,22 @@ tbody tr:hover {
 
   .manualRangeMetadataRow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manualRangeCardHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .manualRangeRowActions {
+    justify-content: flex-start;
+  }
+
+  .manualRangeBoundsEditor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manualRangeAffectedCount {
+    grid-column: 1 / -1;
   }
 
   .manualRangeReferenceField,
