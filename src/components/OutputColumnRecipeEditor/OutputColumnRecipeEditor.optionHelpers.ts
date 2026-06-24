@@ -58,7 +58,6 @@ export function getStepSourceDropdownValue(source: StepSource) {
 export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
   return [
     ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
-    { value: 'fixedText', label: 'Texto fijo' },
     ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: pickColumnTextLabel }] : []),
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
   ];

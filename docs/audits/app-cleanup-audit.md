@@ -340,3 +340,62 @@ No se aplicaron correcciones de UI. No se detectó un problema menor, evidente y
 - `npm run build`: OK — mantiene warning conocido por chunk JS mayor a 500 kB (`842.62 kB`).
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK — con aviso de conversión LF a CRLF en `docs/audits/app-cleanup-audit.md`.
+
+## Optimización inicial de bundle
+
+Se revisaron los puntos con mayor probabilidad de peso en el bundle: lectura Excel (`xlsx`), exportación XLSX, editor de recetas, previews/tablas y componentes que no son necesarios antes de cargar un archivo. El build base emitía un único chunk JS principal de `842.61 kB` y mantenía el warning de Vite por superar 500 kB.
+
+### Cambios aplicados
+
+- Se agregó `manualChunks` en `vite.config.ts` para aislar `xlsx` en un chunk propio.
+- Se movió la importación de exportadores XLSX en `ExportActions` a imports dinámicos bajo demanda, ejecutados recién al descargar Excel o auditoría.
+- CSV quedó igual, porque no depende de `xlsx` y ya era liviano.
+
+### No tocado por riesgo
+
+- No se convirtió `getSheetRows` a async ni se reimplementó `XLSX.utils.format_cell`, porque podía cambiar formato de celdas y comportamiento de lectura.
+- No se aplicó lazy loading al editor de recetas ni a secciones visuales, porque el split de `xlsx` ya eliminó el warning y fragmentar más aumentaba riesgo sin necesidad.
+- No se tocó dominio, settings, `manualRange`, remap/references, filtros, previews a nivel datos, columnas virtuales, procesamiento ni comportamiento de export/import.
+
+### Resultado de build
+
+- Antes: `dist/assets/index-CfvXyENM.js` — `842.61 kB` gzip `266.65 kB`, con warning.
+- Después: `dist/assets/index-DsLzFzet.js` — `416.26 kB` gzip `124.09 kB`.
+- Después: `dist/assets/xlsx-C1Uu-mq-.js` — `424.85 kB` gzip `141.83 kB`.
+- Después: `dist/assets/exportXlsx-DoZHytE2.js` — `0.97 kB` gzip `0.56 kB`.
+- El warning de chunk mayor a 500 kB desapareció.
+
+### Validaciones ejecutadas
+
+- `npm run test:run`: OK — 41 archivos, 620 tests.
+- `npm run build`: OK — sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK — con avisos de conversión LF a CRLF en archivos tocados.
+
+### Pendientes futuros
+
+- Evaluar diferir `xlsx` de la carga inicial si se acepta una refactorización específica de lectura Excel y `getSheetRows`.
+- Considerar `React.lazy` para el editor de recetas sólo si el bundle principal vuelve a crecer por encima del umbral.
+
+## Corrección conceptual: texto fijo como acción
+
+Se corrigió la presentación conceptual de `Texto fijo` en el editor de recetas para que no aparezca como una fuente variable dentro de `Fuente del valor`. La acción textual queda representada como `Usar texto fijo` dentro de `Qué quiero hacer`, junto a `Usar columna de entrada`, `Elegir texto desde columna` y `Usar resultado anterior` cuando aplica.
+
+### Cambios aplicados
+
+- `Fuente del valor` dejó de listar `Texto fijo` en los helpers de fuentes de steps.
+- Las fuentes `fixedText` ya persistidas siguen renderizando su input de texto sin mostrar el selector redundante.
+- Los valores de `manualRange` y partes de concat mantienen `Usar texto fijo` como acción textual y dejan `Texto fijo` fuera de los dropdowns de fuentes variables.
+
+### Compatibilidad preservada
+
+- Internamente las recetas y valores existentes siguen usando `fixedText`.
+- No se cambió el shape de dominio, settings, remap/references, export/import, filtros, previews de datos, columnas virtuales, procesamiento ni comportamiento funcional de `manualRange`.
+
+### Validaciones ejecutadas
+
+- Test específico `OutputColumnRecipeEditor.test.tsx`: OK — 254 tests.
+- `npm run test:run`: OK — 41 archivos, 622 tests.
+- `npm run build`: OK — sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK — con avisos de conversión LF a CRLF en archivos tocados.

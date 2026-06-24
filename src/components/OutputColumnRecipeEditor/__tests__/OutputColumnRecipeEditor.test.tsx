@@ -8,6 +8,7 @@ import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator
 import { appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes, rangeValueTextSourceActionOptions } from '../RangeValueEditor';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
+import { StepSourceFields, StepTypeSelect } from '../OutputColumnRecipeEditor.StepFields';
 
 const inputColumns: InputColumn[] = [
   {
@@ -1458,25 +1459,23 @@ describe('constructor helpers', () => {
     expect(getStepSourceFromDropdownValue('input:input-name', { type: 'previousResult' })).toEqual({ type: 'input', inputColumnId: 'input-name' });
   });
 
-  it('builds unified source dropdown options with input column labels', () => {
+  it('builds unified source dropdown options with variable sources only', () => {
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 2), true)).toEqual([
       { value: 'previousResult', label: 'Resultado del paso anterior' },
-      { value: 'fixedText', label: 'Texto fijo' },
       { value: 'columnTextPicker', label: 'Elegir texto desde columna' },
       { value: 'input:input-code', label: 'A' },
       { value: 'input:input-name', label: 'D - Nombre' },
     ]);
 
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 1), false)).toEqual([
-      { value: 'fixedText', label: 'Texto fijo' },
       { value: 'columnTextPicker', label: 'Elegir texto desde columna' },
       { value: 'input:input-code', label: 'A' },
     ]);
 
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 1), false, false)).toEqual([
-      { value: 'fixedText', label: 'Texto fijo' },
       { value: 'input:input-code', label: 'A' },
     ]);
+    expect(getStepSourceDropdownOptions(inputColumns, true).map((option) => option.label)).not.toContain('Texto fijo');
   });
 
   it('builds an empty custom value recipe when no operation mode is selected', () => {
@@ -1746,9 +1745,8 @@ describe('constructor helpers', () => {
     expect(markup).not.toMatch(/>Valor<\/span>/);
   });
 
-  it('builds a single range value source dropdown with base sources and input columns', () => {
+  it('builds range value source dropdown options with variable sources only', () => {
     expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
-      'Texto fijo',
       'Texto encontrado en el rango',
       'Elegir texto desde columna',
       'A',
@@ -1757,7 +1755,6 @@ describe('constructor helpers', () => {
       'AN - Precio',
     ]);
     expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.value)).toEqual([
-      'fixedText',
       'rangeText',
       'columnTextPicker',
       'input:input-code',
@@ -1765,6 +1762,7 @@ describe('constructor helpers', () => {
       'input:input-pack',
       'input:input-price',
     ]);
+    expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.label)).not.toContain('Texto fijo');
   });
 
   it('maps range value source dropdown column selections to input sources', () => {
@@ -1871,6 +1869,40 @@ describe('constructor helpers', () => {
     expect(getStepSourceForTextAction('useFixedText', { type: 'input', inputColumnId: 'input-code' }, inputColumns)).toEqual({ type: 'fixedText', value: '' });
     expect(getStepSourceForTextAction('useInputColumn', { type: 'fixedText', value: 'Legacy' }, inputColumns)).toEqual({ type: 'input', inputColumnId: 'input-code' });
     expect(getStepSourceForTextAction('pickColumnText', { type: 'fixedText', value: 'NEGRO' }, inputColumns)).toEqual({ type: 'fixedText', value: 'NEGRO' });
+  });
+
+  it('shows fixed text as a text action instead of a value source option', () => {
+    const fixedSource = { type: 'fixedText' as const, value: 'Legacy' };
+    const markup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'fixed-text-step', mode: 'text', type: 'noop', source: fixedSource }}
+        mode="text"
+        textSourceAction="useFixedText"
+        onTextSourceAction={() => undefined}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Que quiero hacer');
+    expect(markup).toContain('Usar texto fijo');
+    expect(getStepSourceDropdownOptions(inputColumns, false).map((option) => option.label)).not.toContain('Texto fijo');
+  });
+
+  it('renders persisted fixed text sources without a redundant source selector', () => {
+    const markup = renderToStaticMarkup(
+      <StepSourceFields
+        source={{ type: 'fixedText', value: 'Legacy' }}
+        inputColumns={inputColumns}
+        allowPreviousResult={false}
+        hideSourceSelector
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Texto fijo');
+    expect(markup).toContain('value="Legacy"');
+    expect(markup).not.toContain('Fuente del valor');
+    expect(markup).not.toContain('Seleccionar fuente');
   });
 
   it('offers textual value sources as actions instead of a second source selector', () => {
@@ -2008,10 +2040,9 @@ describe('constructor helpers', () => {
     expect(nextSteps[1]).toMatchObject({ mode: 'text', type: 'noop' });
   });
 
-  it('builds concat part source options for range values without the old source field label', () => {
+  it('builds concat part source options for range values without fixed text as a source', () => {
     expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
       'Resultado anterior',
-      'Texto fijo',
       'Elegir texto desde columna',
       'Texto encontrado en el rango',
       'A',
@@ -2019,6 +2050,7 @@ describe('constructor helpers', () => {
       'F - Presentacion',
       'AN - Precio',
     ]);
+    expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).not.toContain('Texto fijo');
   });
 
   it('renders range text configuration inside concat range value parts', () => {

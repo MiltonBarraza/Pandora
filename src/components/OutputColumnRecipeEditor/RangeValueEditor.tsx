@@ -207,7 +207,7 @@ export function RangeValueEditor({
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
   return [
-    ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input'),
+    ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input' && option.value !== 'fixedText'),
     { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
   ];
@@ -777,7 +777,6 @@ function RangeValueConcatPartSourceFields({
 export function getRangeValueConcatPartSourceDropdownOptions(inputColumns: InputColumn[]) {
   return [
     { value: 'previousResult' as const, label: 'Resultado anterior' },
-    { value: 'fixedText' as const, label: 'Texto fijo' },
     { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
     { value: 'rangeText' as const, label: 'Texto encontrado en el rango' },
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),

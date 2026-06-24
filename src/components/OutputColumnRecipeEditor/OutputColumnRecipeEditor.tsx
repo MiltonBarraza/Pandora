@@ -2290,7 +2290,7 @@ function StepFields({
       fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}
       fixedTextDateInputFormat={step.dateInputFormat ?? defaultDateInputFormat}
       hideFixedTextInput={hideFixedTextInput}
-      hideSourceSelector={step.type === 'noop' && Boolean(textSourceAction)}
+      hideSourceSelector={(step.type === 'noop' && Boolean(textSourceAction)) || stepSource.type === 'fixedText'}
       columnTextPickerOpen={step.type === 'noop' && textSourceAction === 'pickColumnText'}
       onChange={updateSource}
     />
