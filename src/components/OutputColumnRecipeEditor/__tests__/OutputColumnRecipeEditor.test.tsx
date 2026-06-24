@@ -780,13 +780,21 @@ describe('constructor helpers', () => {
       { id: 'generated-overlap', startRowNumber: 22, endRowNumber: 30, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo B') },
       { id: 'generated-safe', startRowNumber: 31, endRowNumber: 40, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo C') },
       { id: 'generated-safe-duplicate', startRowNumber: 31, endRowNumber: 40, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo C') },
+      { id: 'generated-safe-overlap', startRowNumber: 35, endRowNumber: 45, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo D') },
     ];
+    const result = buildManualRangeSuggestions(generatedRanges, existingRanges);
 
-    expect(buildManualRangeSuggestions(generatedRanges, existingRanges).suggestions).toEqual([generatedRanges[2]]);
-    expect(buildManualRangeSuggestions(generatedRanges, existingRanges)).toMatchObject({
+    expect(result.suggestions).toEqual([generatedRanges[2]]);
+    expect(result).toMatchObject({
       duplicateCount: 2,
-      overlappingCount: 1,
+      overlappingCount: 2,
     });
+    expect(result.omittedSuggestions).toMatchObject([
+      { range: generatedRanges[0], reason: 'duplicate' },
+      { range: generatedRanges[1], reason: 'overlapExisting' },
+      { range: generatedRanges[3], reason: 'duplicate' },
+      { range: generatedRanges[4], reason: 'overlapGenerated' },
+    ]);
   });
 
   it('accepts suggested ranges as normal manualRange entries only when requested', () => {
@@ -801,8 +809,18 @@ describe('constructor helpers', () => {
       suggestedFromText: 'PINCELES SERIE 404',
       valueRecipe: expectedRangeTextValueRecipe('input-name', 'PINCELES SERIE 404'),
     };
+    const overlappingSuggestion = {
+      ...suggestion,
+      id: 'suggested-overlap',
+      startRowNumber: 18,
+      endRowNumber: 22,
+    };
 
     expect(appendManualRangeSuggestion(recipe, suggestion)).toEqual({
+      type: 'manualRange',
+      ranges: [...recipe.ranges, suggestion],
+    });
+    expect(appendManualRangeSuggestions(recipe, [suggestion, overlappingSuggestion])).toEqual({
       type: 'manualRange',
       ranges: [...recipe.ranges, suggestion],
     });
@@ -831,9 +849,12 @@ describe('constructor helpers', () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(markup).toContain('1 sugerencia encontrada');
-    expect(markup).toContain('1 sugerencia se oculto');
+    expect(markup).toContain('Se oculto 1 sugerencia por duplicado o superposicion.');
+    expect(markup).toContain('Ver 1 sugerencia omitida');
+    expect(markup).toContain('8-14: Grupo existente');
+    expect(markup).toContain('Se superpone con un rango configurado.');
     expect(markup).toContain('15-20: Grupo nuevo');
-    expect(markup).toContain('Agregar</button>');
+    expect(markup.match(/>Agregar<\/button>/g)).toHaveLength(1);
     expect(markup).toContain('Agregar todas');
   });
 

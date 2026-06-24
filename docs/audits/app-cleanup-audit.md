@@ -522,3 +522,36 @@ Se agrego una primera version controlada de sugerencias para `manualRange`. Las 
 - `npm run build`: OK - sin warning de chunk mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.
+
+## Rangos sugeridos V2 - transparencia
+
+Branch revisada: `52-rework-modal-v2`.
+
+Se agrego una capa informativa para que el usuario vea que sugerencias fueron omitidas y por que, sin habilitar su aplicacion directa.
+
+### Cambios
+
+- El helper de sugerencias mantiene la lista aplicable y agrega `omittedSuggestions` con el rango omitido y su motivo.
+- Motivos actuales: `duplicate`, `overlapExisting`, `overlapGenerated`.
+- La UI conserva las sugerencias aplicables con `Agregar` y `Agregar todas`.
+- Si hay omitidas, se muestra un aviso breve y un detalle colapsable con inicio, fin, texto detectado y motivo.
+- Las sugerencias omitidas no tienen boton `Agregar`.
+
+### Limites
+
+- No se permite aplicar omitidas desde la lista informativa.
+- No se cambio la heuristica de deteccion de V1.
+- No se cambio el shape persistido de `manualRange` ni settings/export/import.
+
+### Pendientes futuros
+
+- Permitir revision asistida de conflictos si se necesita V3.
+- Mostrar contra que rango configurado se produce la superposicion.
+
+### Validaciones ejecutadas
+
+- Test especifico `OutputColumnRecipeEditor.test.tsx`: OK - 260 tests.
+- `npm run test:run`: OK - 40 archivos, 631 tests.
+- `npm run build`: OK - sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.

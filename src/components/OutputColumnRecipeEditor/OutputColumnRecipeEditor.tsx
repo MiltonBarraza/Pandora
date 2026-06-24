@@ -16,6 +16,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import { appendManualRangeSuggestion, appendManualRangeSuggestions, buildManualRangeSuggestions } from './OutputColumnRecipeEditor.manualRangeSuggestions';
+import type { ManualRangeOmittedSuggestionReason } from './OutputColumnRecipeEditor.manualRangeSuggestions';
 import {
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
@@ -90,7 +91,7 @@ export {
 export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelpers';
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
 export { appendManualRangeSuggestion, appendManualRangeSuggestions, buildManualRangeSuggestions } from './OutputColumnRecipeEditor.manualRangeSuggestions';
-export type { ManualRangeSuggestionsResult } from './OutputColumnRecipeEditor.manualRangeSuggestions';
+export type { ManualRangeOmittedSuggestion, ManualRangeOmittedSuggestionReason, ManualRangeSuggestionsResult } from './OutputColumnRecipeEditor.manualRangeSuggestions';
 export {
   getSourceForValueSourceAction,
   getSourceFromVariableDropdownValue,
@@ -735,7 +736,8 @@ export function ManualRangeTextGenerator({
   });
   const suggestionResult = buildManualRangeSuggestions(generatedPreviewRanges, recipe.ranges);
   const availableSuggestionRanges = suggestionResult.suggestions;
-  const hiddenSuggestionCount = suggestionResult.duplicateCount + suggestionResult.overlappingCount;
+  const omittedSuggestionRanges = suggestionResult.omittedSuggestions;
+  const hiddenSuggestionCount = omittedSuggestionRanges.length;
   const visiblePreviewRanges = availableSuggestionRanges.slice(0, 6);
   const hiddenPreviewRangeLabels = availableSuggestionRanges.slice(6).map((range) => getManualRangeGeneratedExampleLabel(range));
   const previewMessage = !inputColumnId
@@ -748,10 +750,9 @@ export function ManualRangeTextGenerator({
   const safePreviewMessage = previewMessage || (generatedPreviewRanges.length > 0 && availableSuggestionRanges.length === 0
     ? 'No hay sugerencias nuevas para agregar con esta configuracion.'
     : '');
-  const suggestionConflictMessages = [
-    ...(suggestionResult.duplicateCount > 0 ? [`${suggestionResult.duplicateCount} ${suggestionResult.duplicateCount === 1 ? 'sugerencia ya coincide' : 'sugerencias ya coinciden'} con rangos configurados.`] : []),
-    ...(suggestionResult.overlappingCount > 0 ? [`${suggestionResult.overlappingCount} ${suggestionResult.overlappingCount === 1 ? 'sugerencia se oculto' : 'sugerencias se ocultaron'} porque se superponen con rangos existentes.`] : []),
-  ];
+  const suggestionConflictMessage = hiddenSuggestionCount > 0
+    ? `Se ${hiddenSuggestionCount === 1 ? 'oculto' : 'ocultaron'} ${hiddenSuggestionCount} ${hiddenSuggestionCount === 1 ? 'sugerencia' : 'sugerencias'} por duplicado o superposicion.`
+    : '';
   const confirmGeneratedRanges = () => {
     if (!canPreview) {
       return;
@@ -921,11 +922,9 @@ export function ManualRangeTextGenerator({
           ))}
         </div>
       ) : null}
-      {suggestionConflictMessages.length > 0 ? (
+      {suggestionConflictMessage ? (
         <div className="manualRangeGeneratorWarnings" role="status">
-          {suggestionConflictMessages.map((message) => (
-            <p key={message}>{message}</p>
-          ))}
+          <p>{suggestionConflictMessage}</p>
         </div>
       ) : null}
       {safePreviewMessage ? (
@@ -959,6 +958,19 @@ export function ManualRangeTextGenerator({
             ) : null}
           </div>
         </div>
+      ) : null}
+      {omittedSuggestionRanges.length > 0 ? (
+        <details className="manualRangeGeneratorOmitted">
+          <summary>Ver {omittedSuggestionRanges.length} {omittedSuggestionRanges.length === 1 ? 'sugerencia omitida' : 'sugerencias omitidas'}</summary>
+          <div className="manualRangeGeneratorOmittedList" aria-label="Sugerencias omitidas">
+            {omittedSuggestionRanges.map(({ range, reason }, index) => (
+              <div className="manualRangeGeneratorOmittedItem" key={`${range.startRowNumber}-${range.endRowNumber}-${reason}-${index}`}>
+                <span>{getManualRangeGeneratedExampleLabel(range)}</span>
+                <span>{describeManualRangeOmittedSuggestionReason(reason)}</span>
+              </div>
+            ))}
+          </div>
+        </details>
       ) : null}
       <ConfirmDialog
         open={isClearGeneratorConfirmationOpen}
@@ -2575,4 +2587,16 @@ function StepFields({
   }
 
   return sourceFields;
+}
+
+function describeManualRangeOmittedSuggestionReason(reason: ManualRangeOmittedSuggestionReason) {
+  if (reason === 'duplicate') {
+    return 'Ya existe un rango igual.';
+  }
+
+  if (reason === 'overlapExisting') {
+    return 'Se superpone con un rango configurado.';
+  }
+
+  return 'Se superpone con otra sugerencia generada.';
 }

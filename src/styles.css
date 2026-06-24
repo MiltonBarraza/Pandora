@@ -2349,6 +2349,37 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.manualRangeGeneratorOmitted {
+  margin-top: 8px;
+}
+
+.manualRangeGeneratorOmitted summary {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.86rem;
+}
+
+.manualRangeGeneratorOmittedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.manualRangeGeneratorOmittedItem {
+  background: var(--color-bg-subtle);
+  border: 1px dashed var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  gap: 2px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 6px 8px;
+}
+
 .manualRangeGeneratorMoreExamples {
   cursor: help;
   display: inline-flex;
