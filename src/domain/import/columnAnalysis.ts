@@ -1,5 +1,6 @@
 import type * as XLSX from 'xlsx';
 import type { ColumnAnalysis, ColumnDetectionOptions, IgnoredReason, RawRow } from '../../types/import';
+import { cellHasData } from './columnData';
 
 export const defaultColumnDetectionOptions: ColumnDetectionOptions = {
   hideHiddenColumns: true,
@@ -27,7 +28,7 @@ export function analyzeSheetColumns(
     const width = getColumnWidth(columnMetadata);
     const isNarrow = isColumnNarrow(columnMetadata, options);
     const sampleValues = getColumnSampleValues(rows, columnIndex, startRowIndex);
-    const nonEmptyCount = productRows.filter((row) => cellText(row[columnIndex]) !== '').length;
+    const nonEmptyCount = productRows.filter((row) => cellHasData(row[columnIndex])).length;
     const isEmpty = nonEmptyCount === 0;
     const header = headerRowIndex === null ? '' : cellText(rows[headerRowIndex]?.[columnIndex]);
     const autoIgnoredReasons = getAutoIgnoredReasons({
@@ -80,9 +81,9 @@ export function getColumnSampleValues(rows: RawRow[], columnIndex: number, start
   const sample: string[] = [];
 
   rows.slice(startRowIndex).some((row) => {
-    const value = cellText(row[columnIndex]);
-    if (value) {
-      sample.push(value);
+    const value = row[columnIndex];
+    if (cellHasData(value)) {
+      sample.push(cellText(value));
     }
     return sample.length >= limit;
   });

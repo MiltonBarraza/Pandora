@@ -8,7 +8,7 @@ Branch indicada en el pedido: `37-review-visual-e-iconos`
 
 Se auditó el árbol TypeScript/React completo mediante inventario de archivos, búsquedas con `rg`, grafo de imports, análisis de símbolos con TypeScript, compilación con `noUnusedLocals`/`noUnusedParameters`, tests y build.
 
-La aplicación no tenía componentes o módulos de runtime desconectados, salvo cuatro módulos consumidos sólo por tests (`columnData`, `wizardConfiguration`, `settingsRemap`) o sin consumidor (`parseCurrency`). Se eliminó únicamente el último. TypeScript detectó además un subárbol de UI reemplazado dentro del editor de recetas; se eliminó sin alterar recetas, settings, remap, references, `manualRange`, preview, filtros ni exportación.
+La aplicación no tenía componentes o módulos de runtime desconectados, salvo cuatro módulos consumidos sólo por tests (`columnData`, `wizardConfiguration`, `settingsRemap`) o sin consumidor (`parseCurrency`). Se eliminó inicialmente sólo el último; en una etapa posterior `columnData` se integró al análisis real de columnas y `wizardConfiguration` se eliminó tras migrar su cobertura al flujo vigente del wizard. TypeScript detectó además un subárbol de UI reemplazado dentro del editor de recetas; se eliminó sin alterar recetas, settings, remap, references, `manualRange`, preview, filtros ni exportación.
 
 Resultado tras cierre: no quedan símbolos exportados totalmente huérfanos. `actionIconsAlternate.saveDone`, único pendiente sin referencia, se eliminó después de confirmar que duplicaba `actionIcons.done` y no tenía roadmap documentado. La suite completa y el build pasan.
 
@@ -54,7 +54,8 @@ Resultado tras cierre: no quedan símbolos exportados totalmente huérfanos. `ac
 - `localTemplatesService` y migración de `ignoreRules` a filtros de entrada/salida: compatibilidad activa y testeada.
 - Valores legacy de `manualRange`, `valueSource`, condiciones internas, remap y collectors de references: mantener. Tienen tests de compatibilidad, exportación o diagnóstico.
 - `settingsRemap.ts`: hoy no entra al grafo de runtime, pero está cubierto por tests y reservado para flujo de remapeo explícitamente pendiente.
-- `columnData.ts` y `wizardConfiguration.ts`: sólo tests. No se eliminaron porque sus pruebas documentan conducta; revisar junto con tests en PR separada.
+- `columnData.ts`: consolidado posteriormente como helper usado por `columnAnalysis.ts`.
+- `wizardConfiguration.ts`: eliminado posteriormente tras migrar la cobertura al flujo actual de descarte del wizard.
 - `showOutputModelDebug`: feature oculta activada por localStorage; útil para diagnóstico interno.
 - Tipos exportados que documentan contratos de settings, importación y auditoría aunque no tengan import directo.
 
@@ -84,7 +85,7 @@ Resultado tras cierre: no quedan símbolos exportados totalmente huérfanos. `ac
 ### E. Requiere decisión humana — resuelto en cierre
 
 - `actionIconsAlternate.saveDone`: resuelto; eliminado por no tener referencias, comentario ni roadmap, y duplicar exactamente `actionIcons.done` desde la migración al sistema `AppIcon`.
-- `columnData.ts` y `wizardConfiguration.ts`: resuelto para esta etapa; conservar documentados. Cualquier integración o eliminación queda para otra PR con migración explícita de sus tests.
+- `columnData.ts` y `wizardConfiguration.ts`: resueltos posteriormente; `columnData` quedó conectado al runtime y `wizardConfiguration` fue reemplazado por helpers del wizard vigente.
 - Branch: pedido nombró `37-review-visual-e-iconos`, pero auditoría se ejecutó sobre `49-componentizar-componentes` (`8d9662f`). Confirmar branch destino antes de commit/PR.
 
 ## Textos hardcodeados y constantes
@@ -132,7 +133,7 @@ Textos repetidos no centralizados:
 
 ## Segunda etapa recomendada
 
-1. Mantener `columnData.ts` y `wizardConfiguration.ts` hasta una PR que consolide su conducta o migre sus tests al runtime vigente.
+1. Resuelto posteriormente: `columnData.ts` se consolidó con el runtime y `wizardConfiguration.ts` se eliminó tras migrar sus tests al flujo vigente.
 2. Crear PR exclusiva para modularizar editor de recetas, con tests de equivalencia de markup y comportamiento.
 3. Unificar builders de opciones/fuentes entre editor principal y rangos.
 4. Evaluar code splitting y presupuesto de bundle.
@@ -150,26 +151,25 @@ Decisión: eliminar.
 
 ### `columnData.ts`
 
-Decisión: conservar documentado; no reconectar ni eliminar en esta tarea.
+Decisión inicial: conservar documentado; resuelto posteriormente con integración al runtime.
 
 - No es fixture ni helper de test: es un módulo puro de dominio consumido actualmente sólo por su test.
 - Sus tests documentan semántica útil y real de presencia de datos: `null`, `undefined` y strings en blanco son vacíos; `0`, `false`, fechas y strings con contenido son datos.
 - Esa semántica coincide con necesidades de detección de columnas, aunque runtime hoy usa lógica equivalente dentro de `columnAnalysis.ts`.
-- Pendiente para otra PR: consolidar una única implementación y mover tests al consumidor vigente; sólo entonces evaluar borrar este módulo.
+- Resolución posterior: `columnAnalysis.ts` usa `cellHasData`, por lo que la semántica de presencia de datos tiene una fuente compartida y cubierta por tests.
 
 ### `wizardConfiguration.ts`
 
-Decisión: conservar documentado; no reconectar ni eliminar en esta tarea.
+Decisión inicial: conservar documentado; resuelto posteriormente con migración al flujo vigente.
 
 - Representa un intento anterior de centralizar la política de descarte del wizard.
 - Runtime actual usa `requestConfigurationDiscard` y un modal asíncrono con acción pendiente, por lo que el helper booleano ya no modela toda la implementación.
 - Sus tests todavía documentan una regla válida: configuración limpia no confirma; configuración sucia respeta decisión de descarte.
-- Pendiente para otra PR: trasladar esa regla a tests del flujo runtime o a un modelo de estado vigente; después retirar módulo y tests viejos juntos.
+- Resolución posterior: la cobertura se migró a `ImportWizard.test.ts`, y el módulo/test viejo se eliminó.
 
 ### Pendientes para otra PR
 
-- Consolidar `columnData.ts` con detección real de columnas sin cambiar semántica de valores falsy.
-- Migrar cobertura de `wizardConfiguration.ts` al flujo actual del modal de descarte.
+- Consolidación de `columnData.ts` y migración de `wizardConfiguration.ts`: resueltas posteriormente.
 - Componentización, división del editor y code splitting siguen fuera de alcance.
 
 ### Validaciones de cierre
@@ -396,6 +396,43 @@ Se corrigió la presentación conceptual de `Texto fijo` en el editor de recetas
 
 - Test específico `OutputColumnRecipeEditor.test.tsx`: OK — 254 tests.
 - `npm run test:run`: OK — 41 archivos, 622 tests.
+- `npm run build`: OK — sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK — con avisos de conversión LF a CRLF en archivos tocados.
+
+## Consolidación de módulos documentales
+
+Se consolidaron los dos módulos que habían quedado documentados como pendientes por estar cubiertos sólo por tests o por representar una política anterior.
+
+### `columnData.ts`
+
+`columnData.ts` se conservó y dejó de ser sólo documental: `columnAnalysis.ts` ahora usa `cellHasData` para contar datos y recolectar muestras. La semántica queda compartida entre helper y runtime:
+
+- `null`, `undefined` y strings vacíos o con sólo espacios se consideran vacíos.
+- `0`, `false`, `Date` y strings con contenido se consideran datos.
+
+Los tests de `columnData` se conservaron como cobertura del helper, y `columnAnalysis.test.ts` ahora cubre que la detección real de columnas usa esa misma semántica.
+
+### `wizardConfiguration.ts`
+
+`wizardConfiguration.ts` se eliminó junto con su test viejo. Su regla útil se migró a helpers exportados desde el flujo vigente de `ImportWizard`:
+
+- estado limpio continúa la acción pendiente sin confirmación;
+- estado protegido abre confirmación;
+- confirmar ejecuta la acción pendiente;
+- cancelar no ejecuta la acción pendiente.
+
+La cobertura ahora vive en `ImportWizard.test.ts`, cerca del flujo real de descarte/configuración.
+
+### Límites confirmados
+
+No hubo cambios visibles ni funcionales de UI. No se modificaron dominio de recetas, settings, export/import, remap/references, filtros, previews a nivel datos, `manualRange`, columnas virtuales ni procesamiento funcional.
+
+### Validaciones ejecutadas
+
+- Tests específicos `columnData` / `columnAnalysis`: OK — 2 archivos, 6 tests.
+- Test específico `ImportWizard.test.ts`: OK — 25 tests.
+- `npm run test:run`: OK — 40 archivos, 625 tests.
 - `npm run build`: OK — sin warning de chunk mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK — con avisos de conversión LF a CRLF en archivos tocados.

@@ -316,12 +316,13 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const requestConfigurationDiscard = (onConfirm: () => void) => {
-    if (!hasWizardStateToProtect) {
+    const nextConfirmation = getWizardDiscardConfirmationState(hasWizardStateToProtect, onConfirm);
+    if (!nextConfirmation) {
       onConfirm();
       return;
     }
 
-    setDiscardConfirmation({ onConfirm });
+    setDiscardConfirmation(nextConfirmation);
   };
 
   const cancelConfigurationDiscard = () => {
@@ -329,7 +330,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const confirmConfigurationDiscard = () => {
-    const nextAction = discardConfirmation?.onConfirm;
+    const nextAction = getWizardDiscardConfirmationAction(discardConfirmation);
     setDiscardConfirmation(null);
     nextAction?.();
   };
@@ -787,6 +788,17 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 type DiscardConfirmationState = {
   onConfirm: () => void;
 };
+
+export function getWizardDiscardConfirmationState(
+  hasWizardStateToProtect: boolean,
+  onConfirm: () => void,
+): DiscardConfirmationState | null {
+  return hasWizardStateToProtect ? { onConfirm } : null;
+}
+
+export function getWizardDiscardConfirmationAction(discardConfirmation: DiscardConfirmationState | null) {
+  return discardConfirmation?.onConfirm;
+}
 
 type SettingsBaselineState = {
   loaded?: string;
