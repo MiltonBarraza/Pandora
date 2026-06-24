@@ -187,6 +187,11 @@ describe('buildRecipeForSelectedType', () => {
 describe('constructor helpers', () => {
   it('keeps work with ranges out of the main recipe type selector', () => {
     expect(outputRecipeTypeOptions.map((option) => option.value)).toEqual(['direct', 'fixedText', 'combine']);
+    expect(outputRecipeTypeOptions.map((option) => option.label)).toEqual([
+      'Usar una columna de entrada',
+      'Usar el mismo texto',
+      'Crear un valor personalizado',
+    ]);
     expect(outputRecipeTypeOptions.map((option) => option.label)).not.toContain('Trabajar con rangos');
     expect(getOutputRecipeTypeOptions({ type: 'empty' })[0]).toEqual({
       value: 'empty',
@@ -1872,6 +1877,60 @@ describe('constructor helpers', () => {
     expect(getStepSourceForTextAction('pickColumnText', { type: 'fixedText', value: 'NEGRO' }, inputColumns)).toEqual({ type: 'fixedText', value: 'NEGRO' });
   });
 
+  it('renders the phase one hierarchy with a clear intent and prominent result', () => {
+    const markup = renderRecipeEditorMarkup(combineColumn);
+
+    expect(markup).toContain('¿Qué querés construir?');
+    expect(markup).toContain('Crear valor para “Codigo”');
+    expect(markup).toContain('Resultado esperado');
+    expect(markup).toContain('recipeEditorSectionIntro');
+    expect(markup).toContain('recipeIntentControls');
+    expect(markup).toContain('recipeContextFields');
+    expect(markup).toContain('<details class="recipeAdvancedOptions">');
+    expect(markup).toContain('Aplicar este paso sólo en algunos casos');
+  });
+
+  it('keeps advanced options visible when an existing step has a condition', () => {
+    const markup = renderRecipeEditorMarkup({
+      ...combineColumn,
+      recipe: {
+        type: 'combine',
+        parts: [],
+        separator: '',
+        steps: [{
+          id: 'conditional-step',
+          mode: 'text',
+          type: 'uppercase',
+          source: { type: 'input', inputColumnId: 'input-name' },
+          condition: {
+            target: 'input',
+            columnId: 'input-code',
+            operator: 'isNotEmpty',
+            value: '',
+            valueType: 'text',
+          },
+        }],
+      },
+    });
+
+    expect(markup).toContain('<details class="recipeAdvancedOptions" open="">');
+    expect(markup).toContain('Condición configurada');
+  });
+
+  it('uses a range-specific modal title without changing the range editor', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-range',
+      label: 'Categoría',
+      order: 0,
+      enabled: true,
+      recipe: { type: 'manualRange', ranges: [] },
+    });
+
+    expect(markup).toContain('Asignar valores por rangos a “Categoría”');
+    expect(markup).toContain('Resultado esperado');
+    expect(markup).toContain('Valores por rangos');
+  });
+
   it('preserves compatible source data while shared value actions change', () => {
     const fixedTextSource = { type: 'fixedText' as const, value: 'NEGRO' };
     const inputSource = { type: 'input' as const, inputColumnId: 'input-name' };
@@ -1923,7 +1982,7 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('Que quiero hacer');
+    expect(markup).toContain('¿Qué querés hacer?');
     expect(markup).toContain('Usar texto fijo');
     expect(getStepSourceDropdownOptions(inputColumns, false).map((option) => option.label)).not.toContain('Texto fijo');
   });

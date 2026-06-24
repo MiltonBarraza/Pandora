@@ -33,6 +33,7 @@ export function StepTypeSelect({
   step,
   mode,
   allowConcat = true,
+  label = '¿Qué querés hacer?',
   textSourceAction,
   allowPreviousResultSource = false,
   onTextSourceAction,
@@ -42,6 +43,7 @@ export function StepTypeSelect({
   step: TransformStep;
   mode?: TransformStepMode;
   allowConcat?: boolean;
+  label?: string;
   textSourceAction?: StepTextSourceAction;
   allowPreviousResultSource?: boolean;
   onTextSourceAction?: (action: StepTextSourceAction) => void;
@@ -52,7 +54,7 @@ export function StepTypeSelect({
     return (
       <Dropdown<NonNullable<TransformStep['operation']> | ''>
         className="compact"
-        label="Que quiero hacer"
+        label={label}
         labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
         value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
         options={[
@@ -82,7 +84,7 @@ export function StepTypeSelect({
     <div className="stepTypeFieldGroup">
       <Dropdown<StepTextAction>
         className="compact"
-        label="Que quiero hacer"
+        label={label}
         labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
         value={value}
         options={mode === 'text' && onTextSourceAction ? textOptions : options}
@@ -108,16 +110,18 @@ export function shouldShowStepTypeSelectForStep(step: TransformStep) {
 export function StepModeSelect({
   mode,
   allowManualRange = true,
+  label = operationTypeLabel,
   onChange,
 }: {
   mode: TransformStepMode;
   allowManualRange?: boolean;
+  label?: string;
   onChange: (mode: TransformStepMode) => void;
 }) {
   return (
     <Dropdown<TransformStepMode>
       className="compact"
-      label={operationTypeLabel}
+      label={label}
       labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
       value={mode}
       options={getStepModeOptions({ allowManualRange })}

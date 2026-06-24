@@ -560,3 +560,65 @@ Orden recomendado:
 5. QA con planillas reales.
 
 Este orden reduce riesgo: mejora comprensión primero y mantiene dominio actual como contrato estable.
+
+## Fase 1 implementada: jerarquía visual
+
+Fecha de implementación: 2026-06-24
+
+### Cambios aplicados
+
+- Selector principal renombrado a `¿Qué querés construir?`, con opciones redactadas como intenciones de usuario:
+  - `Usar una columna de entrada`;
+  - `Usar el mismo texto`;
+  - `Crear un valor personalizado`.
+- Títulos del modal contextualizados:
+  - `Crear valor para “{columna}”`;
+  - `Asignar valores por rangos a “{columna}”`.
+- Preview del header convertido en bloque destacado `Resultado esperado`, conservando cálculo y datos actuales.
+- Área principal separada visualmente en:
+  - introducción de configuración;
+  - controles de intención;
+  - campos contextuales;
+  - opciones avanzadas.
+- Primer paso usa `¿Qué querés construir?` y `¿Qué querés hacer con ese valor?`.
+- Pasos posteriores usan `Tipo de transformación` y `¿Qué transformación querés aplicar?`.
+- Condición de cada step principal movida a un `<details>` nativo `Opciones avanzadas`.
+- Una condición existente inicia expandida y muestra `Condición configurada`; una receta sin condición inicia colapsada pero mantiene acceso explícito.
+- CSS limitado a clases del modal/editor, con soporte light, dark y responsive.
+- Footer existente permanece fijo con `Cancelar` y `Aplicar`.
+
+### Fuera de alcance
+
+- Rediseño interno de concatenación, partes, separadores y transformaciones por parte.
+- Rediseño de cards, tabla, generador y previews específicos de rangos.
+- Cambio profundo de fuentes/acciones o modelo simple/avanzado.
+- Cambios de dominio, settings, export/import, remap/references, filtros, preview de datos, `manualRange`, columnas virtuales o procesamiento.
+
+### Compatibilidad funcional preservada
+
+- Shapes de recetas y settings sin cambios.
+- Callbacks de edición, apply, cancel y confirmación de descarte intactos.
+- Mismo cálculo de preview; sólo cambió presentación.
+- Steps, conditions, concat y rangos conservan estructura y datos.
+- Sección avanzada usa `<details>` presentacional; abrir/cerrar no modifica receta.
+- Configuraciones existentes con condición mantienen información visible al abrir editor.
+
+### Tests y validaciones
+
+- Se agregaron 3 tests de jerarquía visual y compatibilidad:
+  - intención, título, preview y áreas visuales;
+  - apertura inicial de opciones avanzadas con condición existente;
+  - título específico para rangos sin cambiar editor de rangos.
+- Se actualizó expectativa del label `¿Qué querés hacer?` y copy del selector principal.
+- `OutputColumnRecipeEditor.test.tsx`: OK — 260 tests.
+- `npm run test:run`: OK — 40 archivos, 631 tests.
+- `npm run build`: OK.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- QA visual manual: escritorio, dark mode, breakpoint de 760 px y expansión de opciones avanzadas — OK.
+- `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.
+
+### Próximos pasos recomendados
+
+1. Fase 2: concatenación como secuencia visual, sin cambiar `ConcatPart` ni steps internos.
+2. Fase 3: rangos como cards resumidas/expandibles, preservando `manualRange` y `valueRecipe`.
+3. Mantener ambas fases en PR separadas y repetir QA con planillas reales.

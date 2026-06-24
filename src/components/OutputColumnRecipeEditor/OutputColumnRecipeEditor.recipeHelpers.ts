@@ -27,9 +27,9 @@ export type CustomValueMode = '' | PersistedCustomValueMode;
 export type ValueConstructionMode = '' | 'steps' | 'concat';
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
-  { value: 'direct', label: 'Directa desde entrada' },
-  { value: 'fixedText', label: 'Texto fijo' },
-  { value: 'combine', label: 'Crear valor personalizado' },
+  { value: 'direct', label: 'Usar una columna de entrada' },
+  { value: 'fixedText', label: 'Usar el mismo texto' },
+  { value: 'combine', label: 'Crear un valor personalizado' },
 ];
 
 export const valueConstructionOptions: Array<{ value: Exclude<ValueConstructionMode, ''>; label: string }> = [

@@ -13,7 +13,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { addPartLabel, noActiveColumnsLabel, recipeIntentLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
   dateInputFormatOptions,
@@ -185,6 +185,12 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
   const customValueAdjustments = column.recipe.type === 'combine'
     ? getConstructorAdjustmentLabels(column.recipe, activeInputColumns)
     : [];
+  const customValueModalTitle = column.label
+    ? `Crear valor para “${column.label}”`
+    : 'Crear valor personalizado';
+  const manualRangeModalTitle = column.label
+    ? `Asignar valores por rangos a “${column.label}”`
+    : 'Asignar valores por rangos';
   const updateRecipe = (recipe: OutputRecipe) => {
     onChange({ ...column, recipe });
   };
@@ -260,13 +266,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
-            titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
+            title={customValueModalTitle}
+            titleInfo="Elegí el valor principal y, si hace falta, agregá transformaciones."
             size="xl"
+            className="recipeConstructorModal"
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Resultado esperado</strong>
                 <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
               </div>
             )}
@@ -323,13 +330,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
-            titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
+            title={manualRangeModalTitle}
+            titleInfo="Definí qué valor corresponde a cada grupo de filas."
             size="xl"
+            className="recipeConstructorModal"
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Resultado esperado</strong>
                 <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
               </div>
             )}
@@ -1697,6 +1705,11 @@ function CustomValueEditor({
 
   return (
     <div className="recipeSubBlock customValueEditor">
+      <div className="recipeEditorSectionIntro">
+        <span>Configuración principal</span>
+        <strong>Construí el resultado paso a paso</strong>
+        <p>Elegí primero el tipo de valor. Después configurá sólo los datos necesarios para obtenerlo.</p>
+      </div>
       <StepBlocksEditor
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
@@ -1810,6 +1823,7 @@ function SimpleStepBlock({
   const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
   const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
   const textSourceAction = textSourceActionOverride ?? getStepTextSourceAction(stepSource);
+  const hasAdvancedConfiguration = Boolean(step.condition);
   const updateStepSource = (source: StepSource) => {
     if (index === 0 && source.type === 'input') {
       onBaseInputColumnChange(source.inputColumnId);
@@ -1834,54 +1848,53 @@ function SimpleStepBlock({
         {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
       </div>
       <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
-        {step.type === 'concat' || isManualRangeStep ? (
-          <div className="concatStepTopRow">
-            <div className="concatStepTopControls">
-              <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-              {showStepTypeSelect ? (
-                <StepTypeSelect
-                  step={step}
-                  mode={stepMode}
-                  textSourceAction={textSourceAction}
-                  allowPreviousResultSource={index > 0}
-                  onTextSourceAction={updateTextSourceAction}
-                  onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-                />
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <>
-            <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+        <div className="recipeIntentControls">
+          <StepModeSelect
+            mode={stepMode}
+            label={index === 0 ? recipeIntentLabel : 'Tipo de transformación'}
+            onChange={(mode) => onChange(changeStepMode(step, mode))}
+          />
+          {showStepTypeSelect ? (
             <StepTypeSelect
               step={step}
               mode={stepMode}
+              label={index === 0 ? '¿Qué querés hacer con ese valor?' : '¿Qué transformación querés aplicar?'}
               textSourceAction={textSourceAction}
               allowPreviousResultSource={index > 0}
               onTextSourceAction={updateTextSourceAction}
               onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
             />
-          </>
-        )}
-        <StepFields
-          step={step}
-          stepIndex={index}
-          stepSource={stepSource}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          labels="workflow"
-          previousResultPreviewValue={previousResultPreviewValue}
-          textSourceAction={textSourceAction}
-          onSourceChange={updateStepSource}
-          onChange={onChange}
-        />
-        {isManualRangeStep ? (
-          <div className="manualRangeStepCondition">
-            <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
+          ) : null}
+        </div>
+        <div className="recipeContextFields">
+          <StepFields
+            step={step}
+            stepIndex={index}
+            stepSource={stepSource}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            labels="workflow"
+            previousResultPreviewValue={previousResultPreviewValue}
+            textSourceAction={textSourceAction}
+            onSourceChange={updateStepSource}
+            onChange={onChange}
+          />
+        </div>
+        <details className="recipeAdvancedOptions" open={hasAdvancedConfiguration ? true : undefined}>
+          <summary>
+            <span>Opciones avanzadas</span>
+            <small>{hasAdvancedConfiguration ? 'Condición configurada' : 'Aplicar este paso sólo en algunos casos'}</small>
+          </summary>
+          <div className="recipeAdvancedOptionsBody">
+            {isManualRangeStep ? (
+              <div className="manualRangeStepCondition">
+                <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
+              </div>
+            ) : (
+              <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
+            )}
           </div>
-        ) : (
-          <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
-        )}
+        </details>
       </div>
     </div>
   );

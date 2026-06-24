@@ -2,7 +2,7 @@ import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../types/import';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import { noActiveColumnsLabel, operationTypeLabel } from './OutputColumnRecipeEditor.constants';
+import { noActiveColumnsLabel, recipeIntentLabel } from './OutputColumnRecipeEditor.constants';
 import { getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue } from './OutputColumnRecipeEditor.recipeHelpers';
 
 export function RecipeMainFields({
@@ -22,8 +22,8 @@ export function RecipeMainFields({
     <div className="recipeMainFields">
       <Dropdown<OutputRecipe['type']>
         className="compact"
-        label={operationTypeLabel}
-        labelInfo={<InfoTooltip content="Definí cómo se va a llenar esta columna." />}
+        label={recipeIntentLabel}
+        labelInfo={<InfoTooltip content="Elegí cómo querés construir el valor de esta columna." />}
         scrollStrategy="close"
         value={getOutputRecipeTypeSelectorValue(column.recipe)}
         options={getOutputRecipeTypeOptions(column.recipe)}
