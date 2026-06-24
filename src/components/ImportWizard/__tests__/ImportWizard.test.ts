@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   applyActiveColumnVisualOrder,
   getExcelRowNumberForInternalIndex,
+  getWizardDiscardConfirmationAction,
+  getWizardDiscardConfirmationState,
   getHeaderRowOptions,
   getInternalDataStartIndexForExcelRowNumber,
   getInternalIndexForExcelRowNumber,
@@ -64,6 +66,48 @@ describe('ImportWizard guard state', () => {
       rowCount: 0,
       columnAnalysisCount: 2,
     })).toBe(true);
+  });
+});
+
+describe('ImportWizard discard confirmation flow', () => {
+  it('continues the pending action without confirmation when wizard state is clean', () => {
+    const pendingAction = () => undefined;
+
+    expect(getWizardDiscardConfirmationState(false, pendingAction)).toBeNull();
+  });
+
+  it('opens confirmation and preserves the pending action when wizard state is protected', () => {
+    const pendingAction = () => undefined;
+    const confirmation = getWizardDiscardConfirmationState(true, pendingAction);
+
+    expect(confirmation).toEqual({ onConfirm: pendingAction });
+    expect(getWizardDiscardConfirmationAction(confirmation)).toBe(pendingAction);
+  });
+
+  it('runs the pending action only when discard is confirmed', () => {
+    let applied = false;
+    const pendingAction = () => {
+      applied = true;
+    };
+    const confirmation = getWizardDiscardConfirmationState(true, pendingAction);
+
+    getWizardDiscardConfirmationAction(confirmation)?.();
+
+    expect(applied).toBe(true);
+  });
+
+  it('keeps configuration untouched when discard is cancelled', () => {
+    let applied = false;
+    const pendingAction = () => {
+      applied = true;
+    };
+    const confirmation = getWizardDiscardConfirmationState(true, pendingAction);
+
+    const cancelledConfirmation = null;
+
+    expect(confirmation).not.toBeNull();
+    expect(getWizardDiscardConfirmationAction(cancelledConfirmation)).toBeUndefined();
+    expect(applied).toBe(false);
   });
 });
 

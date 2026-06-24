@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { InputColumn, InputRow, StepSource } from '../../types/import';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
+import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
 
 type ColumnTextPickerProps = {
   inputColumns: InputColumn[];
@@ -22,7 +23,7 @@ export function ColumnTextPicker({ inputColumns, rows, value, onSelect }: Column
         label="Buscar textos en"
         value={inputColumnId}
         options={inputColumns.length === 0
-          ? [{ value: '', label: 'Sin columnas activas', disabled: true }]
+          ? [{ value: '', label: noActiveColumnsLabel, disabled: true }]
           : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
         disabled={inputColumns.length === 0}
         scrollStrategy="close"

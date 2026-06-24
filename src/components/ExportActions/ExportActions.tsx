@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import { exportCsvFromProcessedRows } from '../../domain/import/exportCsv';
-import { exportAuditXlsxFromProcessedRows, exportXlsxFromProcessedRows } from '../../domain/import/exportXlsx';
 import { shouldDownloadAfterSaveChoice, type SaveBeforeDownloadChoice } from '../../domain/import/settingsBaseline';
 import type { FileNameSettings, InputColumn, OutputColumn, ProcessedRow } from '../../types/import';
 import { Modal } from '../Modal/Modal';
@@ -36,7 +35,8 @@ export function ExportActions({
   const filename = buildOutputFileBaseName({ settings: fileNameSettings, sourceFileName, sheetName });
   const auditFilename = buildAuditFileBaseName(filename);
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
+    const { exportXlsxFromProcessedRows } = await import('../../domain/import/exportXlsx');
     exportXlsxFromProcessedRows(includedRows, outputColumns, filename);
   };
   const requestExcelDownload = () => {
@@ -45,7 +45,7 @@ export function ExportActions({
       return;
     }
 
-    downloadExcel();
+    void downloadExcel();
   };
   const resolveSavePrompt = async (choice: SaveBeforeDownloadChoice) => {
     const shouldDownload = await shouldDownloadAfterSaveChoice(
@@ -55,8 +55,12 @@ export function ExportActions({
     setIsSavePromptOpen(false);
 
     if (shouldDownload) {
-      downloadExcel();
+      await downloadExcel();
     }
+  };
+  const downloadAudit = async () => {
+    const { exportAuditXlsxFromProcessedRows } = await import('../../domain/import/exportXlsx');
+    exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns);
   };
 
   return (
@@ -109,7 +113,7 @@ export function ExportActions({
           <p className="muted exportFileName">Archivo: {auditFilename}.xlsx</p>
         </div>
         <div className="actions">
-          <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns)}>
+          <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => void downloadAudit()}>
             Descargar auditoría
           </ActionButton>
         </div>

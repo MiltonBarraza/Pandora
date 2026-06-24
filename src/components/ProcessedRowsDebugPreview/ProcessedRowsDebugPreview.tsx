@@ -1,11 +1,19 @@
+import type { CSSProperties } from 'react';
 import { getEnabledOutputColumns } from '../../domain/import/outputModel';
 import type { OutputColumn, ProcessedRow, RowOverrides } from '../../types/import';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
 export const normalizedPreviewRowLimit = 30;
+
+type NormalizedPreviewTableStyle = CSSProperties & {
+  '--normalized-preview-column-count': string;
+};
 
 type ProcessedRowsPreviewProps = {
   rows: ProcessedRow[];
   outputColumns: OutputColumn[];
+  // Reserved while row selection/status controls stay intentionally hidden from section 8.
+  // Overrides still apply upstream and remain available to audit export.
   rowOverrides?: RowOverrides;
   onRowOverridesChange?: (overrides: RowOverrides) => void;
   title?: string;
@@ -36,11 +44,21 @@ export function ProcessedRowsPreview({
       {columns.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
       {columns.length > 0 ? (
         <div className="tableWrap small">
-          <table>
+          <table
+            className="normalizedPreviewTable"
+            style={{ '--normalized-preview-column-count': String(columns.length) } as NormalizedPreviewTableStyle}
+          >
+            <colgroup>
+              {columns.map((column) => (
+                <col key={column.id} className="normalizedPreviewDataColumn" />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column.id}>{column.label}</th>
+                  <th key={column.id}>
+                    <TruncatedText text={column.label} tooltipThreshold={14} />
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -53,7 +71,9 @@ export function ProcessedRowsPreview({
                 previewRows.map((row) => (
                   <tr key={row.rowNumber}>
                     {columns.map((column) => (
-                      <td key={column.id}>{row.outputValues[column.id] ?? ''}</td>
+                      <td key={column.id}>
+                        <TruncatedText text={row.outputValues[column.id] ?? ''} tooltipThreshold={24} />
+                      </td>
                     ))}
                   </tr>
                 ))
@@ -64,10 +84,6 @@ export function ProcessedRowsPreview({
       ) : null}
     </section>
   );
-}
-
-export function ProcessedRowsDebugPreview(props: ProcessedRowsPreviewProps) {
-  return <ProcessedRowsPreview title="Preview experimental del nuevo modelo" {...props} />;
 }
 
 export function getNormalizedPreviewRows(rows: ProcessedRow[]) {

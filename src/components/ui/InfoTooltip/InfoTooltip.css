@@ -104,8 +104,9 @@ button.infoTooltipTrigger .infoTooltipIcon {
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.35;
-  max-width: min(240px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
   opacity: 0;
+  overflow-wrap: anywhere;
   padding: 8px 10px;
   pointer-events: none;
   position: fixed;
@@ -113,7 +114,8 @@ button.infoTooltipTrigger .infoTooltipIcon {
   transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
   visibility: hidden;
   white-space: normal;
-  width: max-content;
+  width: fit-content;
+  word-break: break-word;
   z-index: 10020;
 }
 

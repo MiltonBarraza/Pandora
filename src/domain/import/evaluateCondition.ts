@@ -117,7 +117,3 @@ export function evaluateNumericCondition(value: string, operator: ConditionOpera
 
   return { matches: false };
 }
-
-export function conditionNeedsValue(operator: ConditionOperator) {
-  return operator !== 'isEmpty' && operator !== 'isNotEmpty';
-}

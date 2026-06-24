@@ -38,4 +38,25 @@ describe('analyzeSheetColumns', () => {
       'Valor 10',
     ]);
   });
+
+  it('uses shared cell data semantics for empty detection and samples', () => {
+    const [column] = analyzeSheetColumns(undefined, [
+      [null],
+      [undefined],
+      ['   '],
+      [0],
+      [false],
+      [new Date('2026-06-12')],
+      [' dato '],
+    ]);
+
+    expect(column.nonEmptyCount).toBe(4);
+    expect(column.isEmpty).toBe(false);
+    expect(column.sampleValues).toEqual([
+      '0',
+      'false',
+      String(new Date('2026-06-12')),
+      'dato',
+    ]);
+  });
 });

@@ -46,7 +46,3 @@ export const actionIcons: Record<ActionName, ActionIconComponent> = {
   error: createActionIcon('error'),
   done: createActionIcon('done'),
 };
-
-export const actionIconsAlternate = {
-  saveDone: createActionIcon('done'),
-} as const;

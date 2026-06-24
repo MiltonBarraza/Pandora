@@ -330,12 +330,12 @@ button.danger:hover:not(:disabled) {
   color: var(--color-text-secondary);
   cursor: grab;
   display: inline-flex;
-  height: 34px;
+  height: 40px;
   justify-content: center;
-  min-height: 34px;
+  min-height: 40px;
   padding: 0;
   touch-action: none;
-  width: 34px;
+  width: 40px;
 }
 
 .dragHandle:hover {
@@ -364,11 +364,11 @@ button.danger:hover:not(:disabled) {
   border-radius: 6px;
   display: inline-flex;
   font-size: 0.85rem;
-  height: 34px;
+  height: 40px;
   justify-content: center;
-  min-height: 34px;
+  min-height: 40px;
   padding: 0;
-  width: 34px;
+  width: 40px;
 }
 
 .iconButton.danger {
@@ -796,6 +796,8 @@ input[type='checkbox']:disabled {
   width: 72px;
 }
 
+.rawPreviewTable .truncatedText,
+.rawPreviewTable .truncatedTextTooltip,
 .rawPreviewColumnHeader .truncatedTextTooltip {
   max-width: 100%;
 }
@@ -872,7 +874,7 @@ tbody tr:hover {
 
 .rules {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .managerSummaryRow {
@@ -893,6 +895,20 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.ignoreRulesHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 8px;
+  grid-template-columns: minmax(180px, 1.15fr) minmax(170px, 0.95fr) minmax(150px, 1fr) 40px;
+  min-width: 0;
+  padding: 0 8px 6px;
+  text-transform: uppercase;
+}
+
 .ruleRow {
   align-items: end;
   border-top: 1px solid var(--color-border-subtle);
@@ -907,7 +923,7 @@ tbody tr:hover {
   border-top: 1px solid var(--color-border-subtle);
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px repeat(auto-fit, minmax(170px, 1fr)) 34px;
+  grid-template-columns: 40px repeat(auto-fit, minmax(170px, 1fr)) 40px;
   min-width: 0;
   padding: 12px 0;
 }
@@ -932,7 +948,7 @@ tbody tr:hover {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
 }
 
 .ruleMainFields,
@@ -1031,14 +1047,14 @@ tbody tr:hover {
 }
 
 .categoryRow {
-  grid-template-columns: 34px minmax(0, 1fr) auto 34px;
+  grid-template-columns: 40px minmax(0, 1fr) auto 40px;
 }
 
 .outputColumnsWorkspace {
   align-items: start;
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 12px;
+  grid-template-columns: minmax(340px, 480px) minmax(0, 1fr);
   min-width: 0;
 }
 
@@ -1047,9 +1063,9 @@ tbody tr:hover {
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
-  padding: 14px;
+  padding: 8px;
 }
 
 .outputColumnsList > div {
@@ -1060,27 +1076,19 @@ tbody tr:hover {
   align-items: center;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
+  border-radius: 7px;
   display: grid;
-  gap: 10px;
-  grid-template-columns: 34px minmax(0, 1fr) 38px 38px;
-  min-height: 58px;
+  gap: 6px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  min-height: 46px;
   min-width: 0;
-  padding: 10px;
+  padding: 6px;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .outputColumnListItem:hover {
-  background: var(--color-accent-bg-soft);
-  border-color: var(--color-accent-border);
-}
-
-.outputColumnDuplicateButton {
-  justify-self: center;
-}
-
-.outputColumnListItem > .actionButton {
-  justify-self: center;
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
 }
 
 .outputColumnListItem.selected {
@@ -1097,37 +1105,74 @@ tbody tr:hover {
 }
 
 .outputColumnSelectButton {
-  align-items: center;
+  align-items: stretch;
   background: transparent;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   color: inherit;
   display: flex;
-  min-height: 38px;
+  min-height: 40px;
   min-width: 0;
   overflow: hidden;
-  padding: 6px 10px;
+  padding: 4px 6px;
   text-align: left;
   user-select: none;
   width: 100%;
+}
+
+.outputColumnSelectButton:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .infoTooltipCustomTrigger:has(.outputColumnSelectButton) {
   width: 100%;
 }
 
+.outputColumnListMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.outputColumnTitleRow {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
 .columnItemText {
-  display: -webkit-box;
+  display: block;
   flex: 1 1 auto;
-  line-clamp: 2;
-  line-height: 1.25;
-  max-height: 2.7em;
+  line-height: 1.15;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  white-space: normal;
+  white-space: nowrap;
+}
+
+.outputColumnRecipeSummary {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.15;
+}
+
+.infoTooltipCustomTrigger:has(.outputColumnRecipeSummary) {
+  min-width: 0;
+}
+
+.outputColumnActions {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.outputColumnActions .infoTooltipCustomTrigger {
+  display: inline-flex;
 }
 
 .outputColumnDetailPanel {
@@ -1166,6 +1211,16 @@ tbody tr:hover {
   gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   min-width: 0;
+}
+
+.ignoreRuleFields {
+  gap: 8px;
+  grid-template-columns: minmax(180px, 1.15fr) minmax(170px, 0.95fr) minmax(150px, 1fr);
+}
+
+.ignoreRuleFields .dropdownLabel,
+.ignoreRuleFields .field > .labelWithInfo {
+  display: none;
 }
 
 .recipeSubBlock {
@@ -1586,7 +1641,7 @@ tbody tr:hover {
   border-radius: 8px;
   display: grid;
   gap: 8px;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr);
   min-width: 0;
   padding: 6px;
 }
@@ -1758,7 +1813,7 @@ tbody tr:hover {
   border-radius: 8px;
   display: grid;
   gap: 6px;
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   height: 66px;
   min-width: 0;
   overflow: hidden;
@@ -2021,7 +2076,7 @@ tbody tr:hover {
   align-items: center;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(0, 1fr) 34px;
+  grid-template-columns: minmax(0, 1fr) 40px;
 }
 
 .stepCardHeader strong {
@@ -2082,11 +2137,11 @@ tbody tr:hover {
 .manualRangeIconAction {
   align-items: center;
   display: inline-flex;
-  height: 34px;
+  height: 40px;
   justify-content: center;
-  min-height: 34px;
+  min-height: 40px;
   padding: 0;
-  width: 34px;
+  width: 40px;
 }
 
 .manualRangeIconAction svg {
@@ -2381,6 +2436,28 @@ tbody tr:hover {
   flex: 0 0 auto;
 }
 
+.normalizedPreviewTable {
+  min-width: max(100%, calc(var(--normalized-preview-column-count, 1) * 180px));
+  table-layout: fixed;
+  width: 100%;
+}
+
+.normalizedPreviewDataColumn {
+  width: 180px;
+}
+
+.normalizedPreviewTable th,
+.normalizedPreviewTable td {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.normalizedPreviewTable .truncatedText,
+.normalizedPreviewTable .truncatedTextTooltip {
+  max-width: 100%;
+}
+
 .manualRangeActionsField {
   display: grid;
   min-width: 0;
@@ -2507,7 +2584,7 @@ tbody tr:hover {
   align-items: center;
   display: grid;
   gap: 8px;
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   min-width: 0;
 }
 
@@ -2603,14 +2680,21 @@ tbody tr:hover {
 
 .ignoreRuleCard {
   align-items: end;
-  background: var(--color-magic-bg);
-  border: 1px solid var(--color-magic-border);
-  border-radius: 8px;
   display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 40px;
   min-width: 0;
-  padding: 10px;
+  padding: 6px 0;
+}
+
+.ignoreRuleAction {
+  align-items: end;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ignoreRuleAction .infoTooltipCustomTrigger {
+  display: inline-flex;
 }
 
 .rowActions {
@@ -3306,6 +3390,23 @@ tbody tr:hover {
 
   .inlineForm {
     grid-template-columns: 1fr;
+  }
+
+  .ignoreRulesHeader {
+    display: none;
+  }
+
+  .ignoreRuleFields {
+    grid-template-columns: 1fr;
+  }
+
+  .ignoreRuleFields .dropdownLabel,
+  .ignoreRuleFields .field > .labelWithInfo {
+    display: inline-flex;
+  }
+
+  .ignoreRuleAction {
+    justify-content: flex-start;
   }
 
   .outputColumnsHeaderActions {
