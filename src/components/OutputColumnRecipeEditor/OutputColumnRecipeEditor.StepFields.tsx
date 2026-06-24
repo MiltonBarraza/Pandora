@@ -27,6 +27,7 @@ import {
   type StepTextAction,
   type StepTextSourceAction,
 } from './OutputColumnRecipeEditor.optionHelpers';
+import { getValueSourceFieldVisibility } from './OutputColumnRecipeEditor.valueActionHelpers';
 
 export function StepTypeSelect({
   step,
@@ -162,10 +163,15 @@ export function StepSourceFields({
   const showPreviousResultPreview = showPreviousResultHelp && previousResultPreviewValue !== null && previousResultPreviewValue !== undefined && previousResultPreviewValue !== '';
   const canPickColumnText = fixedTextInputType === 'text';
   const sourceValue = effectiveColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
+  const sourceFieldVisibility = getValueSourceFieldVisibility(safeSource.type, {
+    columnTextPickerOpen: effectiveColumnTextPickerOpen,
+    hideFixedTextInput,
+    hideSourceSelector,
+  });
 
   return (
     <>
-      {!hideSourceSelector ? (
+      {sourceFieldVisibility.showSourceSelector ? (
         <Dropdown
           className="compact"
           label={label}
@@ -195,14 +201,14 @@ export function StepSourceFields({
         </div>
       ) : null}
 
-      {effectiveColumnTextPickerOpen ? (
+      {sourceFieldVisibility.showColumnTextPicker ? (
         <ColumnTextPicker
           inputColumns={inputColumns}
           rows={inputRows}
           value={safeSource.type === 'fixedText' ? safeSource.value : ''}
           onSelect={(value) => onChange(createFixedTextSourceFromColumnText(value))}
         />
-      ) : hideSourceSelector && safeSource.type === 'input' ? (
+      ) : sourceFieldVisibility.showInputColumnSelect && safeSource.type === 'input' ? (
         <Dropdown
           className="compact"
           label="Columna de entrada"
@@ -211,7 +217,7 @@ export function StepSourceFields({
           scrollStrategy="close"
           onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })}
         />
-      ) : safeSource.type === 'fixedText' && !hideFixedTextInput ? (
+      ) : sourceFieldVisibility.showFixedTextInput && safeSource.type === 'fixedText' ? (
         <label className="field compact">
           <span className="labelWithInfo">
             <span>{fixedTextInputType === 'date' ? 'Fecha fija' : 'Texto fijo'}</span>

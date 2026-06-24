@@ -20,6 +20,15 @@ import type {
 } from '../../types/import';
 import type { DropdownOption } from '../ui/Dropdown/Dropdown';
 import { pickColumnTextLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  getSourceDropdownValue,
+  getSourceForValueAction,
+  getSourceFromDropdownValue,
+  getValueSourceAction,
+  getValueSourceActionOptions,
+  isCommonValueSourceAction,
+  type ValueSourceAction,
+} from './OutputColumnRecipeEditor.valueActionHelpers';
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
   { value: 'text', label: 'Trabajar con texto' },
@@ -44,15 +53,7 @@ export function getDatePickerValue(value: string, inputFormat: DateInputFormat =
 }
 
 export function getStepSourceDropdownValue(source: StepSource) {
-  if (source.type === 'previousResult') {
-    return 'previousResult';
-  }
-
-  if (source.type === 'fixedText') {
-    return 'fixedText';
-  }
-
-  return source.inputColumnId ? `input:${source.inputColumnId}` : '';
+  return getSourceDropdownValue(source);
 }
 
 export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
@@ -64,19 +65,7 @@ export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowP
 }
 
 export function getStepSourceFromDropdownValue(value: string, currentSource: StepSource): StepSource {
-  if (value === 'previousResult') {
-    return { type: 'previousResult' };
-  }
-
-  if (value === 'fixedText') {
-    return { type: 'fixedText', value: currentSource.type === 'fixedText' ? currentSource.value : '' };
-  }
-
-  if (value.startsWith('input:')) {
-    return { type: 'input', inputColumnId: value.slice('input:'.length) };
-  }
-
-  return currentSource;
+  return getSourceFromDropdownValue(value, currentSource);
 }
 
 export function shouldShowPreviousResultSourceHelp(source: StepSource) {
@@ -113,38 +102,23 @@ const textStepTypes = stepTypes.filter((stepType) => [
   'concat',
 ].includes(stepType.value));
 
-export type StepTextSourceAction = 'useFixedText' | 'useInputColumn' | 'pickColumnText' | 'usePreviousResult';
+export type StepTextSourceAction = ValueSourceAction;
 export type StepTextAction = TransformStepType | StepTextSourceAction;
 
 export function getStepTextSourceActionOptions(allowPreviousResult: boolean): Array<{ value: StepTextSourceAction; label: string }> {
-  return [
-    { value: 'useInputColumn', label: 'Usar columna de entrada' },
-    { value: 'useFixedText', label: 'Usar texto fijo' },
-    { value: 'pickColumnText', label: pickColumnTextLabel },
-    ...(allowPreviousResult ? [{ value: 'usePreviousResult' as const, label: 'Usar resultado anterior' }] : []),
-  ];
+  return getValueSourceActionOptions({ allowPreviousResult });
 }
 
 export function isStepTextSourceAction(value: StepTextAction): value is StepTextSourceAction {
-  return ['useFixedText', 'useInputColumn', 'pickColumnText', 'usePreviousResult'].includes(value);
+  return isCommonValueSourceAction(value);
 }
 
 export function getStepTextSourceAction(source: StepSource, columnTextPickerOpen = false): StepTextSourceAction {
-  if (columnTextPickerOpen) return 'pickColumnText';
-  if (source.type === 'fixedText') return 'useFixedText';
-  if (source.type === 'previousResult') return 'usePreviousResult';
-  return 'useInputColumn';
+  return getValueSourceAction(source, { columnTextPickerOpen });
 }
 
 export function getStepSourceForTextAction(action: StepTextSourceAction, currentSource: StepSource, inputColumns: InputColumn[]): StepSource {
-  if (action === 'usePreviousResult') return { type: 'previousResult' };
-  if (action === 'useInputColumn') {
-    return currentSource.type === 'input'
-      ? currentSource
-      : { type: 'input', inputColumnId: inputColumns[0]?.id ?? '' };
-  }
-
-  return currentSource.type === 'fixedText' ? currentSource : { type: 'fixedText', value: '' };
+  return getSourceForValueAction(action, currentSource, inputColumns);
 }
 
 const dateStepTypes = stepTypes.filter((stepType) => [

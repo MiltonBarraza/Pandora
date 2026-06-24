@@ -180,6 +180,75 @@ Decisión inicial: conservar documentado; resuelto posteriormente con migración
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK. Git sólo informa conversión futura LF→CRLF por configuración local; no hay errores de whitespace.
 
+## Auditoría técnica del modal de recetas
+
+Fecha: 2026-06-24
+
+Branch observada: `51-rework-modal`
+
+Alcance: `OutputColumnRecipeEditor`, `RangeValueEditor`, helpers y tests de la feature.
+
+### Duplicaciones detectadas
+
+- Las acciones de fuente de texto (`Usar columna de entrada`, `Usar texto fijo`, `Elegir texto desde columna` y `Usar resultado anterior`) se construyen por separado en el editor principal y en `RangeValueEditor`. El editor de rangos agrega además `Texto encontrado en el rango`.
+- La resolución de la acción visible desde `StepSource` se repite mediante condicionales equivalentes para `input`, `fixedText`, `previousResult`, `rangeText` y el estado transitorio del selector de texto desde columna.
+- La conversión de una acción de UI a `StepSource` se repite. Ambas implementaciones preservan la fuente actual cuando coincide, usan la primera columna como fallback y conservan el texto fijo al alternar entre texto manual y texto elegido desde columna.
+- La serialización y deserialización de fuentes para dropdown repite el manejo de `previousResult`, `fixedText` e `input:*`; la variante de rangos extiende el mismo patrón con `rangeText`.
+- `rangeValueModeOptions` y `rangeValueStepTypes` duplican los modos y tipos ya definidos por los helpers del editor principal, excluyendo deliberadamente `manualRange`.
+- Las condiciones para mostrar selector de columna, input de texto fijo, selector de texto encontrado y picker de texto desde columna se expresan por separado en `StepSourceFields`, el valor principal de rango y las partes concatenadas de rango.
+- Algunas etiquetas de operaciones numéricas y formatos de fecha son parecidas pero no idénticas. Compartirlas cambiaría texto visible, por lo que no son candidatas en esta etapa.
+
+### Compartible con bajo riesgo
+
+- Tipos, etiquetas y builder puro de acciones de fuente, con flags explícitos para `rangeText` y `previousResult`.
+- Resolución pura `StepSource` → acción visible y acción → `StepSource`, preservando valores existentes y fallbacks actuales.
+- Conversión pura entre `StepSource` y valores de dropdown, habilitando `rangeText` sólo donde ya existe.
+- Cálculo puro de visibilidad de campos de fuente a partir del tipo de fuente y flags actuales.
+- Reutilización de modos y tipos de step existentes para construir las opciones de `RangeValueEditor`, conservando orden y textos.
+- Re-exports temporales desde módulos actuales para no romper seams de tests ni consumidores internos.
+
+### No conviene tocar todavía
+
+- JSX, clases, orden de controles y estructura visual de concatenación, rangos y pasos.
+- `manualRangeModel`, shape de `valueRecipe`, normalización completa de rangos y persistencia legacy.
+- Diferencias visibles entre etiquetas numéricas y de fecha de ambos editores.
+- Componentes visuales nuevos o una reescritura de `RangeValueEditor`.
+- Preview, procesamiento, settings, export/import, remap/references, filtros y columnas virtuales.
+
+### Riesgos
+
+- Perder `fixedText.value`, `inputColumnId` o `rangeText.selectedText` al alternar acciones.
+- Ofrecer `rangeText` o `previousResult` en contextos donde hoy no están permitidos.
+- Convertir `Texto fijo` otra vez en una fuente redundante del dropdown en vez de una acción.
+- Alterar recetas legacy o pasos `concat`/`manualRange` durante la normalización.
+- Cambiar accidentalmente markup, clases o textos al centralizar condiciones.
+
+### Plan aplicado
+
+1. Crear un único módulo feature-local de helpers puros para acciones, fuentes y visibilidad.
+2. Mantener wrappers/re-exports actuales del editor principal para compatibilidad.
+3. Reutilizar esos helpers desde `RangeValueEditor` y desde campos de steps sin mover JSX.
+4. Derivar opciones de modos/tipos de rango desde helpers existentes, manteniendo exclusiones actuales.
+5. Agregar tests puros de preservación y tests de markup para las reglas visibles protegidas.
+6. Ejecutar test específico, suite completa, build, TypeScript estricto y chequeo de whitespace.
+
+### Resultado aplicado
+
+- Se creó `OutputColumnRecipeEditor.valueActionHelpers.ts` como fuente compartida de acciones, conversiones de fuentes/dropdown y visibilidad de campos.
+- `OutputColumnRecipeEditor.optionHelpers.ts` conserva sus exports existentes como wrappers de compatibilidad.
+- `RangeValueEditor` reutiliza acciones, resolución de fuentes, visibilidad y opciones de modos/tipos sin cambiar JSX, clases, textos ni orden visual.
+- Se conservaron sin compartir las etiquetas numéricas y de fecha que difieren visualmente entre contextos.
+- Se agregaron tres tests de compatibilidad para preservar `fixedText`, columna, `rangeText`, resultado anterior, round-trip de dropdown y condiciones de render. La cobertura específica de `RangeValueEditor` vive en `OutputColumnRecipeEditor.test.tsx`; no existe un archivo de test separado.
+
+### Validaciones de esta etapa
+
+- `OutputColumnRecipeEditor.test.tsx`: OK — 257 tests.
+- `npm run test:run`: OK — 40 archivos, 628 tests.
+- `npm run build`: OK.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.
+- El archivo nuevo también se verificó con `git diff --no-index --check`: OK.
+
 ## Etapa posterior: modularización de helpers del editor
 
 Se modularizaron helpers puros y casi puros de `OutputColumnRecipeEditor.tsx` sin extraer componentes ni cambiar markup.

@@ -9,6 +9,7 @@ import { appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValue
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { StepSourceFields, StepTypeSelect } from '../OutputColumnRecipeEditor.StepFields';
+import { getSourceDropdownValue, getSourceForValueAction, getSourceFromDropdownValue, getValueSourceAction, getValueSourceFieldVisibility } from '../OutputColumnRecipeEditor.valueActionHelpers';
 
 const inputColumns: InputColumn[] = [
   {
@@ -1869,6 +1870,45 @@ describe('constructor helpers', () => {
     expect(getStepSourceForTextAction('useFixedText', { type: 'input', inputColumnId: 'input-code' }, inputColumns)).toEqual({ type: 'fixedText', value: '' });
     expect(getStepSourceForTextAction('useInputColumn', { type: 'fixedText', value: 'Legacy' }, inputColumns)).toEqual({ type: 'input', inputColumnId: 'input-code' });
     expect(getStepSourceForTextAction('pickColumnText', { type: 'fixedText', value: 'NEGRO' }, inputColumns)).toEqual({ type: 'fixedText', value: 'NEGRO' });
+  });
+
+  it('preserves compatible source data while shared value actions change', () => {
+    const fixedTextSource = { type: 'fixedText' as const, value: 'NEGRO' };
+    const inputSource = { type: 'input' as const, inputColumnId: 'input-name' };
+    const rangeTextSource = { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' };
+
+    expect(getSourceForValueAction('pickColumnText', fixedTextSource, inputColumns)).toBe(fixedTextSource);
+    expect(getSourceForValueAction('useFixedText', fixedTextSource, inputColumns)).toBe(fixedTextSource);
+    expect(getSourceForValueAction('useInputColumn', inputSource, inputColumns)).toBe(inputSource);
+    expect(getSourceForValueAction('useRangeText', rangeTextSource, inputColumns)).toBe(rangeTextSource);
+    expect(getSourceForValueAction('useRangeText', fixedTextSource, inputColumns)).toEqual({
+      type: 'rangeText',
+      inputColumnId: 'input-code',
+      selectedText: '',
+    });
+    expect(getSourceForValueAction('usePreviousResult', rangeTextSource, inputColumns)).toEqual({ type: 'previousResult' });
+  });
+
+  it('round-trips shared range source dropdown values without losing selected text', () => {
+    const rangeTextSource = { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' };
+
+    expect(getSourceDropdownValue(rangeTextSource, { allowRangeText: true })).toBe('rangeText');
+    expect(getSourceFromDropdownValue('rangeText', rangeTextSource, { allowRangeText: true })).toBe(rangeTextSource);
+    expect(getValueSourceAction(rangeTextSource, { allowRangeText: true })).toBe('useRangeText');
+    expect(getValueSourceAction(rangeTextSource)).toBe('useInputColumn');
+  });
+
+  it('centralizes source field visibility without exposing redundant fixed text sources', () => {
+    expect(getValueSourceFieldVisibility('fixedText', { hideSourceSelector: true })).toEqual({
+      showSourceSelector: false,
+      showColumnTextPicker: false,
+      showInputColumnSelect: false,
+      showFixedTextInput: true,
+      showRangeTextFields: false,
+    });
+    expect(getValueSourceFieldVisibility('rangeText', { hideSourceSelector: true }).showRangeTextFields).toBe(true);
+    expect(getValueSourceFieldVisibility('input', { hideSourceSelector: true }).showInputColumnSelect).toBe(true);
+    expect(getValueSourceFieldVisibility('fixedText', { columnTextPickerOpen: true }).showFixedTextInput).toBe(false);
   });
 
   it('shows fixed text as a text action instead of a value source option', () => {
