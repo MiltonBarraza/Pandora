@@ -1052,6 +1052,7 @@ export function ManualRangeTableRow({
   const [showRowsPreview, setShowRowsPreview] = useState(initiallyShowRowsPreview);
   const rowCount = getManualRangeRowCountFromInputs(startRowInput, endRowInput);
   const referenceText = getManualRangeReferenceText(range);
+  const rowsPreviewActionLabel = showRowsPreview ? 'Ocultar filas' : 'Ver filas';
 
   useEffect(() => {
     setStartRowInput(formatManualRangeRowInput(range.startRowNumber));
@@ -1116,12 +1117,12 @@ export function ManualRangeTableRow({
         <div className="manualRangeActionsField">
           <span>Acciones</span>
           <div className="manualRangeRowActions">
-            <InfoTooltip content="Ver filas">
+            <InfoTooltip content={rowsPreviewActionLabel}>
               <button
                 type="button"
                 className="secondary sm manualRangeIconAction"
-                aria-label={showRowsPreview ? 'Ocultar filas' : 'Ver filas'}
-                title="Ver filas"
+                aria-label={rowsPreviewActionLabel}
+                title={rowsPreviewActionLabel}
                 onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
               >
                 <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
