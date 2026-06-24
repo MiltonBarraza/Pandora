@@ -320,3 +320,23 @@ No hubo cambios de dominio, settings, exportación, importación, remap/referenc
 - `npm run build`: OK — mantiene warning conocido por chunk JS mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK.
+
+## QA visual posterior
+
+Se revisó manualmente la integración visual posterior sobre las secciones 4, 5, 6, 7 y 8, más controles globales relacionados (`ActionButton`, `iconButton`, `dragHandle`, `InfoTooltip`, dark mode y responsive básico). La app se abrió en Vite sobre `http://127.0.0.1:5173/`; el cascarón real se verificó en claro, oscuro y viewport mobile sin overflow lateral global ni errores de consola. La carga real de archivo no pudo automatizarse desde el navegador interno porque esta superficie no expuso carga directa de archivos y el sandbox de evaluación no permitió construir `File`; las secciones dependientes de datos se revisaron por estructura real de componentes y CSS.
+
+### Correcciones menores aplicadas
+
+No se aplicaron correcciones de UI. No se detectó un problema menor, evidente y dentro del alcance que justificara tocar código.
+
+### Problemas no corregidos
+
+- Pendiente fuera de alcance: en `manualRange`, el botón de ojo conserva `title="Ver filas"` aunque el `aria-label` cambia a `Ocultar filas` cuando el preview está abierto. No se corrigió porque la pasada tenía prohibido tocar `manualRange`.
+- Pendiente operativo: repetir una captura visual con archivo real cargado desde un navegador con soporte de upload automatizado si se quiere evidencia visual completa de secciones 4 a 8 con datos largos.
+
+### Validaciones ejecutadas
+
+- `npm run test:run`: OK — 41 archivos, 620 tests.
+- `npm run build`: OK — mantiene warning conocido por chunk JS mayor a 500 kB (`842.62 kB`).
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK — con aviso de conversión LF a CRLF en `docs/audits/app-cleanup-audit.md`.
