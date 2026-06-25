@@ -726,3 +726,88 @@ Fecha de implementación: 2026-06-24
 1. Fase 4: mejorar previews y ayudas contextuales sin cambiar motores de datos.
 2. Ejecutar QA con planillas reales, recetas legacy, rangos superpuestos y labels largos.
 3. Revisar accesibilidad por teclado y lector de pantalla sobre cards, acciones y tablas de preview.
+
+## QA integral del modal
+
+Fecha de QA: 2026-06-24
+
+### Qué se revisó
+
+- Aplicación real en estado inicial y editor real montado con fixtures representativos, porque abrir el modal desde la aplicación requiere importar un Excel.
+- Flujos simples:
+  - columna de entrada;
+  - texto fijo;
+  - elegir texto desde columna;
+  - número y preview calculado;
+  - fecha y formatos;
+  - condición simple;
+  - aplicar, cancelar, cerrar y confirmar descarte.
+- Concatenación:
+  - creación desde cero;
+  - piezas de columna y texto fijo;
+  - resultado anterior en recetas compatibles;
+  - agregar, seleccionar, eliminar y mover;
+  - transformaciones expandibles;
+  - preview local y global;
+  - cinco piezas con scroll horizontal interno.
+- Rangos:
+  - editar inicio/fin;
+  - texto fijo, texto encontrado y columna;
+  - ver/ocultar filas;
+  - duplicar, agregar y eliminar;
+  - warning de superposición;
+  - condición resumida;
+  - primer rango expandido y siguientes resumidos.
+- Accesibilidad:
+  - nombres accesibles de acciones icon-only;
+  - texto dinámico `Ver filas` / `Ocultar filas`;
+  - foco inicial del modal;
+  - labels de inputs fijos, numéricos y separador;
+  - anuncio de reorder provisto por el drag & drop existente.
+- Presentación:
+  - desktop light;
+  - desktop dark;
+  - 760 px;
+  - overflow global, scroll interno y footer persistente;
+  - jerarquía entre `Resultado esperado`, preview local, opciones avanzadas y acciones.
+
+### Problemas encontrados
+
+1. Al abrir un modal con ayuda de título, foco inicial caía en `Ver ayuda`; tooltip aparecía abierto y tapaba parte del header.
+2. Operadores de condición mostraban `esta vacio` / `no esta vacio` sin acentos.
+3. Concat ofrecía `Usar resultado anterior` en el primer step aunque no hubiera resultado previo.
+4. Al cambiar fuente y eliminar la pieza seleccionada, `Esta pieza usa` podía conservar el override visual de la pieza eliminada.
+5. Al agregar un rango al inicio, el rango nuevo y el anterior podían quedar expandidos simultáneamente.
+6. Inputs de texto fijo, separador de concat y operando numérico fijo tenían texto visual, pero no un nombre accesible explícito.
+
+No se detectaron fallos en cálculo de previews, apply/cancel, reorder, fuentes de rangos, dark mode ni responsive. Los warnings de consola observados durante hot reload pertenecían exclusivamente al harness temporal recreando el root; no aparecieron como error funcional de la aplicación.
+
+### Correcciones menores aplicadas
+
+- `Modal` enfoca `Cerrar` después de `showModal()` cuando existe ayuda de título; tooltip ya no abre automáticamente.
+- Labels visibles corregidos a `está vacío` y `no está vacío`; valores persistidos de operadores permanecen iguales.
+- Opciones de fuente de concat respetan si existe resultado anterior; recetas existentes que ya usan `previousResult` continúan mostrándolo.
+- Editor de pieza concat se reinicia visualmente por `part.id`, evitando overrides locales cruzados.
+- Estado expandido de cards de rango se resincroniza cuando cambia cuál es el primer rango.
+- Se agregaron `aria-label` contextuales a texto/fecha fija, operandos numéricos y separador de pieza.
+- Se agregaron 2 tests para nombres accesibles y disponibilidad contextual de resultado anterior; se actualizó expectativa de copy acentuado.
+
+### Pendientes para Fase 4
+
+- QA con planillas reales grandes, recetas legacy y labels extremos.
+- Recorrido completo con teclado y lector de pantalla real. En esta QA se verificaron foco inicial, semántica y nombres accesibles; automatización disponible no permitió validar un ciclo completo de tabulación.
+- Mejorar contexto de previews (`fila usada`, antes/después) sin cambiar motores de datos.
+- Revisar ayudas largas y tooltips en viewports más chicos que 760 px.
+- Evaluar alternativa accesible por teclado para reorder si el drag & drop actual no resulta suficiente con tecnología asistiva.
+
+### Validaciones ejecutadas
+
+- `OutputColumnRecipeEditor.test.tsx`: OK — 267 tests.
+- `npm run test:run`: OK — 40 archivos, 639 tests.
+- `npm run build`: OK.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- QA visual desktop light y dark: OK.
+- QA responsive 760 px: OK; `bodyScrollWidth` igual al viewport.
+- Concat: scroll interno confirmado (`scrollWidth` mayor a `clientWidth`) sin overflow global.
+- Rangos: cards legibles y sin overflow global.
+- `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.

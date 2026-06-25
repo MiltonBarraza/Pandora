@@ -29,12 +29,15 @@ export function Modal({ open, title, size = 'default', className = '', onClose, 
 
     if (open && !dialog.open) {
       dialog.showModal();
+      if (titleInfo) {
+        dialog.querySelector<HTMLButtonElement>('[aria-label="Cerrar"]')?.focus({ preventScroll: true });
+      }
     }
 
     if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, titleInfo]);
 
   useEffect(() => {
     if (!open) {

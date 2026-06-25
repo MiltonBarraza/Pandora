@@ -1085,6 +1085,10 @@ export function ManualRangeTableRow({
   }, [range.id, range.endRowNumber]);
 
   useEffect(() => {
+    setIsEditorOpen(initiallyExpanded);
+  }, [initiallyExpanded, range.id]);
+
+  useEffect(() => {
     const reconciledRecipe = reconcileManualRangeTextSelections(recipe, range.id, manualRangeRows);
     if (reconciledRecipe !== recipe) {
       onChange(reconciledRecipe);
@@ -2168,10 +2172,12 @@ function ConcatStepFields({
                 <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
               </div>
               <ConcatPartStepsEditor
+                key={selectedPart.id}
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
                 steps={selectedPart.steps ?? []}
                 baseSource={selectedPart.source}
+                allowPreviousResult={allowPreviousResult}
                 separatorFields={selectedPartIndex > 0 ? (
                   <div className="concatPartFields">
                     <label className="field compact">
@@ -2180,6 +2186,7 @@ function ConcatStepFields({
                         <InfoTooltip content="Texto que separa esta pieza de la anterior." />
                       </span>
                       <input
+                        aria-label="Separador antes de esta pieza"
                         value={selectedPart.separatorBefore ?? ''}
                         onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
                       />
@@ -2250,11 +2257,16 @@ export function getConcatPartConnectorText(part: Pick<ConcatPart, 'separatorBefo
   return part.separatorBefore ? `“${part.separatorBefore}”` : '+';
 }
 
+export function getConcatPartTextSourceActionOptions(source: StepSource, allowPreviousResult: boolean) {
+  return getStepTextSourceActionOptions(allowPreviousResult || source.type === 'previousResult');
+}
+
 function ConcatPartStepsEditor({
   inputColumns,
   manualRangeRows,
   steps,
   baseSource,
+  allowPreviousResult,
   separatorFields,
   previousResultPreviewValue,
   onBaseSourceChange,
@@ -2264,6 +2276,7 @@ function ConcatPartStepsEditor({
   manualRangeRows: InputRow[];
   steps: TransformStep[];
   baseSource: StepSource;
+  allowPreviousResult: boolean;
   separatorFields?: ReactNode;
   previousResultPreviewValue?: string | null;
   onBaseSourceChange: (source: StepSource, nextSteps?: TransformStep[]) => void;
@@ -2305,6 +2318,7 @@ function ConcatPartStepsEditor({
         source={effectiveSource}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        allowPreviousResult={allowPreviousResult}
         previousResultPreviewValue={baseSource.type === 'previousResult' ? previousResultPreviewValue : null}
         onChange={updatePrimaryStepSource}
       />
@@ -2375,17 +2389,20 @@ function ConcatPartSourceEditor({
   source,
   inputColumns,
   manualRangeRows,
+  allowPreviousResult,
   previousResultPreviewValue,
   onChange,
 }: {
   source: StepSource;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
   onChange: (source: StepSource) => void;
 }) {
   const [actionOverride, setActionOverride] = useState<StepTextSourceAction | null>(null);
   const action = actionOverride ?? getStepTextSourceAction(source);
+  const canUsePreviousResult = allowPreviousResult || source.type === 'previousResult';
 
   return (
     <div className="concatPartSourceEditor">
@@ -2393,7 +2410,7 @@ function ConcatPartSourceEditor({
         className="compact"
         label="Esta pieza usa"
         value={action}
-        options={getStepTextSourceActionOptions(true)}
+        options={getConcatPartTextSourceActionOptions(source, allowPreviousResult)}
         scrollStrategy="close"
         onChange={(nextAction) => {
           setActionOverride(nextAction);
@@ -2405,7 +2422,7 @@ function ConcatPartSourceEditor({
           source={source}
           inputColumns={inputColumns}
           inputRows={manualRangeRows}
-          allowPreviousResult
+          allowPreviousResult={canUsePreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
           hideSourceSelector={source.type !== 'rangeText'}
           columnTextPickerOpen={action === 'pickColumnText'}

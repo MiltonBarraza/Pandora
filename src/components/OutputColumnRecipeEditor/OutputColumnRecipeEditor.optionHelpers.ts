@@ -163,8 +163,8 @@ export function getStepTypesForMode(mode: TransformStepMode, { allowConcat = tru
 }
 
 export const conditionOperators: Array<{ value: ConditionOperator; label: string }> = [
-  { value: 'isEmpty', label: 'esta vacio' },
-  { value: 'isNotEmpty', label: 'no esta vacio' },
+  { value: 'isEmpty', label: 'está vacío' },
+  { value: 'isNotEmpty', label: 'no está vacío' },
   { value: 'contains', label: 'contiene' },
   { value: 'notContains', label: 'no contiene' },
   { value: 'equals', label: 'es igual a' },

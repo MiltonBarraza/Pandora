@@ -228,6 +228,7 @@ export function StepSourceFields({
             <InfoTooltip content={fixedTextInputType === 'date' ? 'Fecha manual usada en este paso.' : 'Valor manual usado en este paso.'} />
           </span>
           <input
+            aria-label={fixedTextInputType === 'date' ? 'Fecha fija' : 'Texto fijo'}
             type={fixedTextInputType}
             value={fixedTextInputType === 'date' ? getDatePickerValue(safeSource.value, fixedTextDateInputFormat) : safeSource.value}
             onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })}
@@ -299,6 +300,7 @@ export function StepOperandFields({
             <InfoTooltip content="Numero manual para usar en la operacion." />
           </span>
           <input
+            aria-label={`${label}: valor fijo`}
             type="number"
             step="any"
             value={safeOperand.value}
