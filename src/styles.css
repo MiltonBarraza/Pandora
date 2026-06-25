@@ -2527,6 +2527,303 @@ tbody tr:hover {
   width: 64px;
 }
 
+.manualRangeSpreadsheet {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-table-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeSpreadsheetHeader {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetHeader strong {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.manualRangeSpreadsheetHeader p,
+.manualRangeSpreadsheetEmpty {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.manualRangeSpreadsheetSelectionBar {
+  align-items: center;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.manualRangeSpreadsheetSelectionActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manualRangeSpreadsheetCreateButton,
+.manualRangeSpreadsheetClearSelectionButton {
+  flex: 0 0 auto;
+}
+
+.manualRangeSpreadsheetScroller {
+  max-height: min(340px, 42vh);
+  min-width: 0;
+  overflow: auto;
+}
+
+.manualRangeSpreadsheetLayout {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetTablePane {
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.84rem;
+  min-width: max(100%, 640px);
+  table-layout: fixed;
+  width: 100%;
+}
+
+.manualRangeSpreadsheetTable th,
+.manualRangeSpreadsheetTable td {
+  border-bottom: 1px solid var(--color-table-border);
+  max-width: 180px;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manualRangeSpreadsheetTable thead th {
+  background: var(--color-table-header-bg);
+  color: var(--color-text-muted);
+  font-weight: 800;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.manualRangeSpreadsheetRowNumberHeader,
+.manualRangeSpreadsheetRowNumber {
+  left: 0;
+  width: 72px;
+}
+
+.manualRangeSpreadsheetTable .manualRangeSpreadsheetRowNumberHeader,
+.manualRangeSpreadsheetTable .manualRangeSpreadsheetRowNumber {
+  background: var(--color-table-header-bg);
+  color: var(--color-text-muted);
+  font-weight: 800;
+  position: sticky;
+  z-index: 2;
+}
+
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRowNumber {
+  background: var(--color-bg-surface-muted);
+}
+
+.manualRangeSpreadsheetRow:hover {
+  background: var(--color-table-row-hover-bg);
+}
+
+.manualRangeSpreadsheetRow-selectable {
+  cursor: pointer;
+}
+
+.manualRangeSpreadsheetRow-selectable:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.manualRangeSpreadsheetRow-covered {
+  background: var(--color-selected-bg);
+}
+
+.manualRangeSpreadsheetRow-covered .manualRangeSpreadsheetRowNumber {
+  background: var(--color-selected-bg);
+  color: var(--color-selected-text);
+}
+
+.manualRangeSpreadsheetRow-lastCreated {
+  box-shadow: inset 0 0 0 2px var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRow-activeRange {
+  box-shadow: inset 4px 0 0 var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRow-activeRange .manualRangeSpreadsheetRowNumber {
+  color: var(--color-text-primary);
+}
+
+.manualRangeSpreadsheetRow-selectionInside {
+  background: var(--color-accent-bg-soft);
+}
+
+.manualRangeSpreadsheetRow-selectionInside .manualRangeSpreadsheetRowNumber {
+  background: var(--color-accent-bg-soft);
+}
+
+.manualRangeSpreadsheetRow-selectionStart,
+.manualRangeSpreadsheetRow-selectionEnd {
+  box-shadow: inset 3px 0 0 var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRow-selectionStart .manualRangeSpreadsheetRowNumber,
+.manualRangeSpreadsheetRow-selectionEnd .manualRangeSpreadsheetRowNumber {
+  color: var(--color-text-primary);
+}
+
+.manualRangeSpreadsheetInspector {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-table-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeSpreadsheetInspectorEmpty {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.manualRangeSpreadsheetInspectorTitle {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetInspectorTitle strong {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.manualRangeSpreadsheetInspectorTitle span {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.manualRangeSpreadsheetInspectorSummary {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetInspectorActions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.manualRangeSpreadsheetRangesList {
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 10px;
+}
+
+.manualRangeSpreadsheetRangesListHeader {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetRangesListHeader strong {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.manualRangeSpreadsheetRangeListActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.manualRangeSpreadsheetSortButton {
+  white-space: nowrap;
+}
+
+.manualRangeSpreadsheetRangesListItems {
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  min-width: 0;
+  overflow: auto;
+}
+
+.manualRangeSpreadsheetRangeItem {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  min-height: 0;
+  min-width: 0;
+  padding: 8px 9px;
+  text-align: left;
+}
+
+.manualRangeSpreadsheetRangeItem:hover {
+  background: var(--color-table-row-hover-bg);
+}
+
+.manualRangeSpreadsheetRangeItemSelected {
+  border-color: var(--color-accent-border);
+  box-shadow: inset 3px 0 0 var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRangeItemOverlap {
+  border-color: var(--color-warning-border);
+}
+
+.manualRangeSpreadsheetRangeItemTitle {
+  font-weight: 800;
+}
+
+.manualRangeSpreadsheetRangeItemSummary {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .rangeValueTransforms {
   display: grid;
   gap: 8px;

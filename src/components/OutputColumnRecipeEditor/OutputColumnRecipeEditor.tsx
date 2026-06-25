@@ -13,6 +13,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
@@ -478,6 +479,13 @@ function ManualRangeRecipeEditor({
           Esta configuración conserva una condición interna heredada: {describeManualRangeCondition(recipe, inputColumns)}. Para nuevas condiciones usá la condición general del paso.
         </p>
       ) : null}
+
+      <ManualRangeSpreadsheetEditor
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={onChange}
+      />
 
       {recipe.ranges.length === 0 ? (
         <p className="muted">No hay rangos configurados.</p>
