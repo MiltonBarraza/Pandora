@@ -555,3 +555,32 @@ Se agrego una capa informativa para que el usuario vea que sugerencias fueron om
 - `npm run build`: OK - sin warning de chunk mayor a 500 kB.
 - `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
 - `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.
+
+## Rangos sugeridos V3 - candidatos de una sola fila
+
+Branch revisada: `52-rework-modal-v2`.
+
+Se agrego una regla defensiva para reducir ruido en sugerencias pobres de una sola fila.
+
+### Criterio implementado
+
+- Si una sugerencia calculada tiene `startRowNumber === endRowNumber`, se considera de baja confianza.
+- Ese candidato se mueve a `omittedSuggestions`.
+- El motivo nuevo es `singleRowWithoutData`.
+- La UI muestra el motivo como `No tiene filas de datos debajo.`
+- Rangos con filas debajo (`startRowNumber < endRowNumber`) siguen siendo aplicables si no chocan con duplicados/superposiciones.
+
+### Limites
+
+- No se agrega configuracion nueva.
+- No se intenta inferir datos por columna adicional en V3.
+- Las sugerencias omitidas siguen siendo solo informativas y no tienen accion `Agregar`.
+- `Agregar todas` sigue agregando solo sugerencias aplicables.
+
+### Validaciones ejecutadas
+
+- Test especifico `OutputColumnRecipeEditor.test.tsx`: OK - 261 tests.
+- `npm run test:run`: OK - 40 archivos, 632 tests.
+- `npm run build`: OK - sin warning de chunk mayor a 500 kB.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK - con avisos de conversion LF a CRLF en archivos tocados.

@@ -781,6 +781,7 @@ describe('constructor helpers', () => {
       { id: 'generated-safe', startRowNumber: 31, endRowNumber: 40, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo C') },
       { id: 'generated-safe-duplicate', startRowNumber: 31, endRowNumber: 40, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo C') },
       { id: 'generated-safe-overlap', startRowNumber: 35, endRowNumber: 45, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo D') },
+      { id: 'generated-single-row', startRowNumber: 50, endRowNumber: 50, valueRecipe: expectedRangeTextValueRecipe('input-name', 'Grupo E') },
     ];
     const result = buildManualRangeSuggestions(generatedRanges, existingRanges);
 
@@ -788,12 +789,14 @@ describe('constructor helpers', () => {
     expect(result).toMatchObject({
       duplicateCount: 2,
       overlappingCount: 2,
+      singleRowWithoutDataCount: 1,
     });
     expect(result.omittedSuggestions).toMatchObject([
       { range: generatedRanges[0], reason: 'duplicate' },
       { range: generatedRanges[1], reason: 'overlapExisting' },
       { range: generatedRanges[3], reason: 'duplicate' },
       { range: generatedRanges[4], reason: 'overlapGenerated' },
+      { range: generatedRanges[5], reason: 'singleRowWithoutData' },
     ]);
   });
 
@@ -849,7 +852,7 @@ describe('constructor helpers', () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(markup).toContain('1 sugerencia encontrada');
-    expect(markup).toContain('Se oculto 1 sugerencia por duplicado o superposicion.');
+    expect(markup).toContain('Se oculto 1 sugerencia por seguridad.');
     expect(markup).toContain('Ver 1 sugerencia omitida');
     expect(markup).toContain('8-14: Grupo existente');
     expect(markup).toContain('Se superpone con un rango configurado.');
@@ -858,9 +861,31 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Agregar todas');
   });
 
+  it('omits single-row suggestions without applying them', () => {
+    const onChange = vi.fn();
+    const markup = renderToStaticMarkup(
+      <ManualRangeTextGenerator
+        recipe={createManualRangeRecipe()}
+        inputColumns={inputColumns}
+        manualRangeRows={[{ rowNumber: 8, values: { 'input-code': 'Titulo aislado' } }]}
+        initialStartRowInput="8"
+        initialEndRowInput="8"
+        onChange={onChange}
+      />,
+    );
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(markup).toContain('Se oculto 1 sugerencia por seguridad.');
+    expect(markup).toContain('Ver 1 sugerencia omitida');
+    expect(markup).toContain('8-8: Titulo aislado');
+    expect(markup).toContain('No tiene filas de datos debajo.');
+    expect(markup.match(/>Agregar<\/button>/g)).toBeNull();
+    expect(markup).toContain('Agregar todas');
+  });
+
   it('labels generated range examples and shows hidden examples in a tooltip title', () => {
     const rows = Array.from({ length: 10 }, (_, index): InputRow => ({
-      rowNumber: index + 1,
+      rowNumber: index * 2 + 1,
       values: { 'input-code': `Ejemplo ${index + 1}` },
     }));
     const markup = renderToStaticMarkup(
@@ -869,19 +894,19 @@ describe('constructor helpers', () => {
         inputColumns={inputColumns}
         manualRangeRows={rows}
         initialStartRowInput="1"
-        initialEndRowInput="10"
+        initialEndRowInput="30"
         onChange={() => undefined}
       />,
     );
 
     expect(markup).toContain('10 sugerencias encontradas');
-    expect(markup).toContain('1-1: Ejemplo 1');
-    expect(markup).toContain('6-6: Ejemplo 6');
+    expect(markup).toContain('1-2: Ejemplo 1');
+    expect(markup).toContain('11-12: Ejemplo 6');
     expect(markup).toContain('4 ejemplos más');
     expect(markup).toContain('manualRangeMoreExamplesTooltip');
-    expect(markup).not.toContain('title="7-7: Ejemplo 7');
-    expect(markup).toContain('<span>7-7: Ejemplo 7</span>');
-    expect(markup).toContain('<span>10-10: Ejemplo 10</span>');
+    expect(markup).not.toContain('title="13-14: Ejemplo 7');
+    expect(markup).toContain('<span>13-14: Ejemplo 7</span>');
+    expect(markup).toContain('<span>19-30: Ejemplo 10</span>');
     expect(markup).toContain('Ver ejemplos restantes');
   });
 

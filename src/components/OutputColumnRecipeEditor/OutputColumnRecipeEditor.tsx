@@ -751,7 +751,7 @@ export function ManualRangeTextGenerator({
     ? 'No hay sugerencias nuevas para agregar con esta configuracion.'
     : '');
   const suggestionConflictMessage = hiddenSuggestionCount > 0
-    ? `Se ${hiddenSuggestionCount === 1 ? 'oculto' : 'ocultaron'} ${hiddenSuggestionCount} ${hiddenSuggestionCount === 1 ? 'sugerencia' : 'sugerencias'} por duplicado o superposicion.`
+    ? `Se ${hiddenSuggestionCount === 1 ? 'oculto' : 'ocultaron'} ${hiddenSuggestionCount} ${hiddenSuggestionCount === 1 ? 'sugerencia' : 'sugerencias'} por seguridad.`
     : '';
   const confirmGeneratedRanges = () => {
     if (!canPreview) {
@@ -2596,6 +2596,10 @@ function describeManualRangeOmittedSuggestionReason(reason: ManualRangeOmittedSu
 
   if (reason === 'overlapExisting') {
     return 'Se superpone con un rango configurado.';
+  }
+
+  if (reason === 'singleRowWithoutData') {
+    return 'No tiene filas de datos debajo.';
   }
 
   return 'Se superpone con otra sugerencia generada.';

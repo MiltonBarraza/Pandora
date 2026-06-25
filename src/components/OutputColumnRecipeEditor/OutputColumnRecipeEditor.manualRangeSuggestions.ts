@@ -1,7 +1,7 @@
 import type { ManualRangeValue, OutputRecipe } from '../../types/import';
 import { hasInvalidManualRange } from '../../domain/import/manualRangeModel';
 
-export type ManualRangeOmittedSuggestionReason = 'duplicate' | 'overlapExisting' | 'overlapGenerated';
+export type ManualRangeOmittedSuggestionReason = 'duplicate' | 'overlapExisting' | 'overlapGenerated' | 'singleRowWithoutData';
 
 export type ManualRangeOmittedSuggestion = {
   range: ManualRangeValue;
@@ -13,6 +13,7 @@ export type ManualRangeSuggestionsResult = {
   omittedSuggestions: ManualRangeOmittedSuggestion[];
   duplicateCount: number;
   overlappingCount: number;
+  singleRowWithoutDataCount: number;
 };
 
 export function buildManualRangeSuggestions(
@@ -39,13 +40,17 @@ export function buildManualRangeSuggestions(
       return omitManualRangeSuggestion(result, range, 'overlapGenerated');
     }
 
+    if (isSingleRowManualRange(range)) {
+      return omitManualRangeSuggestion(result, range, 'singleRowWithoutData');
+    }
+
     acceptedGeneratedRanges.push(range);
 
     return {
       ...result,
       suggestions: [...result.suggestions, range],
     };
-  }, { suggestions: [], omittedSuggestions: [], duplicateCount: 0, overlappingCount: 0 });
+  }, { suggestions: [], omittedSuggestions: [], duplicateCount: 0, overlappingCount: 0, singleRowWithoutDataCount: 0 });
 }
 
 export function appendManualRangeSuggestion(
@@ -91,8 +96,15 @@ function omitManualRangeSuggestion(
     ...result,
     omittedSuggestions: [...result.omittedSuggestions, { range, reason }],
     duplicateCount: reason === 'duplicate' ? result.duplicateCount + 1 : result.duplicateCount,
-    overlappingCount: reason === 'duplicate' ? result.overlappingCount : result.overlappingCount + 1,
+    overlappingCount: reason === 'overlapExisting' || reason === 'overlapGenerated' ? result.overlappingCount + 1 : result.overlappingCount,
+    singleRowWithoutDataCount: reason === 'singleRowWithoutData'
+      ? result.singleRowWithoutDataCount + 1
+      : result.singleRowWithoutDataCount,
   };
+}
+
+function isSingleRowManualRange(range: ManualRangeValue) {
+  return range.startRowNumber === range.endRowNumber;
 }
 
 function doManualRangesOverlap(left: ManualRangeValue, right: ManualRangeValue) {
