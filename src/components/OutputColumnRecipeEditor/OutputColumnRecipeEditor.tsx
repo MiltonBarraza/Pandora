@@ -69,6 +69,7 @@ import {
 import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
 import { RecipeStudioShell } from './RecipeStudio';
+export { createRecipeForStudioMode } from './RecipeStudio';
 import {
   buildCombinePreview,
   buildCustomValuePreview,

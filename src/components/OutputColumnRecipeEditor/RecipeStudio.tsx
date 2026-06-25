@@ -71,32 +71,31 @@ export function RecipeStudioShell({
   customValueMode: CustomValueMode;
   onChange: (recipe: EditableCustomRecipe) => void;
 } & RecipeStudioRenderers) {
-  const activeMode = getRecipeStudioMode(recipe);
+  const derivedMode = getRecipeStudioMode(recipe);
+  const [selectedStudioMode, setSelectedStudioMode] = useState<RecipeStudioMode | null>(null);
+  const activeMode = selectedStudioMode ?? derivedMode;
   const [selectedStudioItemId, setSelectedStudioItemId] = useState<string | null>(null);
   const renderers = { renderCustomValueEditor, renderManualRangeRecipeEditor, renderManualRangeTextGenerator };
+
+  useEffect(() => {
+    if (selectedStudioMode && selectedStudioMode !== 'advanced' && selectedStudioMode === derivedMode) {
+      setSelectedStudioMode(null);
+    }
+  }, [derivedMode, selectedStudioMode]);
+
   const changeMode = (mode: RecipeStudioMode) => {
     if (mode === activeMode) {
       return;
     }
 
-    if (mode === 'takeValue') {
-      onChange(createTakeValueStudioRecipe(recipe, inputColumns));
+    setSelectedStudioItemId(null);
+    setSelectedStudioMode(mode);
+
+    if (mode === 'advanced') {
       return;
     }
 
-    if (mode === 'fixedText') {
-      onChange(createFixedTextStudioRecipe(recipe));
-      return;
-    }
-
-    if (mode === 'compose') {
-      onChange(createComposeStudioRecipe(recipe));
-      return;
-    }
-
-    if (mode === 'ranges') {
-      onChange(recipe.type === 'manualRange' ? recipe : { type: 'manualRange', ranges: [] });
-    }
+    onChange(createRecipeForStudioMode(mode, recipe, inputColumns));
   };
 
   return (
@@ -168,15 +167,13 @@ function RecipeStudioSidebar({
     <nav className="recipeStudioSidebar" aria-label="Modo de construccion">
       {recipeStudioModes.map((item) => {
         const isActive = item.mode === activeMode;
-        const isEnabled = isActive || item.mode === 'takeValue' || item.mode === 'fixedText' || item.mode === 'compose' || item.mode === 'ranges';
         return (
           <button
             key={item.mode}
             type="button"
             className={`recipeStudioModeButton${isActive ? ' active' : ''}`}
             aria-current={isActive ? 'step' : undefined}
-            disabled={!isEnabled}
-            title={isEnabled ? item.label : 'Disponible en el siguiente corte'}
+            title={item.label}
             onClick={() => onModeSelect(item.mode)}
           >
             <span>{item.label}</span>
@@ -211,13 +208,34 @@ function RecipeStudioMain({
   renderers: RecipeStudioRenderers;
   onChange: (recipe: EditableCustomRecipe) => void;
 }) {
+  if (activeMode === 'advanced') {
+    return (
+      <main className="recipeStudioMain">
+        <div className="recipeStudioSectionHeading">
+          <span>{getRecipeStudioModeLabel(activeMode)}</span>
+          <strong>{getRecipeStudioMainTitle(activeMode)}</strong>
+        </div>
+        {recipe.type === 'manualRange'
+          ? renderers.renderManualRangeRecipeEditor({ recipe, inputColumns, manualRangeRows, onChange })
+          : renderers.renderCustomValueEditor({
+            recipe,
+            inputColumns,
+            manualRangeRows,
+            sampleInputValues,
+            mode: customValueMode,
+            onChange,
+          })}
+      </main>
+    );
+  }
+
   return (
     <main className="recipeStudioMain">
       <div className="recipeStudioSectionHeading">
         <span>{getRecipeStudioModeLabel(activeMode)}</span>
         <strong>{getRecipeStudioMainTitle(activeMode)}</strong>
       </div>
-      {recipe.type === 'manualRange' ? (
+      {activeMode === 'ranges' && recipe.type === 'manualRange' ? (
         <RangeValueStudio
           recipe={recipe}
           inputColumns={inputColumns}
@@ -228,7 +246,7 @@ function RecipeStudioMain({
           renderers={renderers}
           onChange={onChange}
         />
-      ) : activeMode === 'takeValue' ? (
+      ) : activeMode === 'takeValue' && recipe.type === 'combine' ? (
         <TakeValueStudio
           recipe={recipe}
           inputColumns={inputColumns}
@@ -238,7 +256,7 @@ function RecipeStudioMain({
           renderers={renderers}
           onChange={onChange}
         />
-      ) : activeMode === 'fixedText' ? (
+      ) : activeMode === 'fixedText' && recipe.type === 'combine' ? (
         <FixedTextStudio
           recipe={recipe}
           inputColumns={inputColumns}
@@ -248,7 +266,7 @@ function RecipeStudioMain({
           renderers={renderers}
           onChange={onChange}
         />
-      ) : activeMode === 'compose' ? (
+      ) : activeMode === 'compose' && recipe.type === 'combine' ? (
         <ComposeValueStudio
           recipe={recipe}
           inputColumns={inputColumns}
@@ -260,16 +278,7 @@ function RecipeStudioMain({
           renderers={renderers}
           onChange={onChange}
         />
-      ) : (
-        renderers.renderCustomValueEditor({
-          recipe,
-          inputColumns,
-          manualRangeRows,
-          sampleInputValues,
-          mode: customValueMode,
-          onChange,
-        })
-      )}
+      ) : <div className="compositionTokenEmpty">Preparando modo...</div>}
     </main>
   );
 }
@@ -945,6 +954,26 @@ function getCombineStudioInspectorDetails(
   ];
 }
 
+export function createRecipeForStudioMode(
+  mode: Exclude<RecipeStudioMode, 'advanced'>,
+  recipe: EditableCustomRecipe,
+  inputColumns: InputColumn[],
+): EditableCustomRecipe {
+  if (mode === 'takeValue') {
+    return createTakeValueStudioRecipe(recipe, inputColumns);
+  }
+
+  if (mode === 'fixedText') {
+    return createFixedTextStudioRecipe(recipe);
+  }
+
+  if (mode === 'compose') {
+    return createComposeStudioRecipe(recipe);
+  }
+
+  return recipe.type === 'manualRange' ? recipe : { type: 'manualRange', ranges: [] };
+}
+
 function createTakeValueStudioRecipe(
   recipe: EditableCustomRecipe,
   inputColumns: InputColumn[],
@@ -952,13 +981,13 @@ function createTakeValueStudioRecipe(
 ): Extract<OutputRecipe, { type: 'combine' }> {
   const currentRecipe = recipe.type === 'combine' ? recipe : { type: 'combine' as const, parts: [], separator: '' };
   const inputColumnId = requestedInputColumnId
-    ?? getSimpleStudioInputColumnId(currentRecipe)
-    ?? inputColumns[0]?.id
-    ?? '';
+    || getSimpleStudioInputColumnId(currentRecipe)
+    || inputColumns[0]?.id
+    || '';
   return buildSimpleCustomValueRecipeWithSteps(
     'text',
     inputColumnId,
-    getReusableSimpleStudioSteps(currentRecipe),
+    [createNoopStep('text')],
     currentRecipe,
   );
 }
@@ -992,8 +1021,27 @@ function createComposeStudioRecipe(recipe: EditableCustomRecipe): Extract<Output
     return { type: 'combine', customMode: 'concat', parts: [], separator: '', steps: [] };
   }
 
-  if (recipe.customMode === 'concat' || recipe.parts.length > 1 || getConfiguredConcatStep(recipe)) {
+  if (recipe.customMode === 'concat' || recipe.parts.length > 0 || getConfiguredConcatStep(recipe)) {
     return { ...recipe, customMode: 'concat', separator: recipe.separator ?? '' };
+  }
+
+  const firstSource = getFirstStepSource(recipe);
+  if (firstSource?.type === 'input') {
+    return {
+      ...recipe,
+      customMode: 'concat',
+      parts: [createComposeInputPart(firstSource.inputColumnId)],
+      separator: recipe.separator ?? '',
+    };
+  }
+
+  if (firstSource?.type === 'fixedText') {
+    return {
+      ...recipe,
+      customMode: 'concat',
+      parts: [createComposeTextPart(firstSource.value)],
+      separator: recipe.separator ?? '',
+    };
   }
 
   return { type: 'combine', customMode: 'concat', parts: [], separator: '', steps: [] };
@@ -1365,7 +1413,7 @@ function RangeRulesList({
   onRemove: (rangeId: string) => void;
 }) {
   if (recipe.ranges.length === 0) {
-    return <div className="rangeRulesEmpty">Agregá un rango.</div>;
+    return <div className="rangeRulesEmpty">No hay rangos configurados.</div>;
   }
 
   return (
