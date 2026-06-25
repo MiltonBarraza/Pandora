@@ -23,7 +23,7 @@ export function RecipeMainFields({
       <Dropdown<OutputRecipe['type']>
         className="compact"
         label={recipeIntentLabel}
-        labelInfo={<InfoTooltip content="Elegí cómo querés construir el valor de esta columna." />}
+        labelInfo={<InfoTooltip content="Elegí si querés copiar una columna, escribir un texto fijo o armar un valor con reglas." />}
         scrollStrategy="close"
         value={getOutputRecipeTypeSelectorValue(column.recipe)}
         options={getOutputRecipeTypeOptions(column.recipe)}
@@ -48,7 +48,7 @@ export function RecipeMainFields({
         <label className="field compact">
           <span className="labelWithInfo">
             <span>Texto fijo</span>
-            <InfoTooltip content="Usa el mismo texto en todas las filas." />
+            <InfoTooltip content="Usá texto fijo cuando todas las filas deban mostrar exactamente este valor." />
           </span>
           <input value={column.recipe.value} onChange={(event) => onFixedTextChange(event.target.value)} />
         </label>

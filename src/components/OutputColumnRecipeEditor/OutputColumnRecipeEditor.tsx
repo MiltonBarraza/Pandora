@@ -275,6 +275,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             headerDetails={(
               <div className="constructorModalHeaderPreview">
                 <strong>Resultado esperado</strong>
+                <small>Vista previa del valor que se va a generar.</small>
                 <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
               </div>
             )}
@@ -339,6 +340,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             headerDetails={(
               <div className="constructorModalHeaderPreview">
                 <strong>Resultado esperado</strong>
+                <small>Vista previa del valor que se va a generar.</small>
                 <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
               </div>
             )}
@@ -450,7 +452,7 @@ function ManualRangeRecipeEditor({
               content={manualRangeUsageHelpText}
             />
           </strong>
-          <p className="muted">{getManualRangeCountLabel(recipe)}. Cada rango asigna un valor a un grupo de filas.</p>
+          <p className="muted">{getManualRangeCountLabel(recipe)}. Cada rango aplica un valor a un grupo de filas; podés abrirlo para ver cuáles afecta.</p>
         </div>
         <div className="manualRangeHeaderActions">
           <ActionButton action="add" onClick={() => onChange(addManualRangeValue(recipe, 'start'))}>
@@ -1925,7 +1927,7 @@ function SimpleStepBlock({
         <details className="recipeAdvancedOptions" open={hasAdvancedConfiguration ? true : undefined}>
           <summary>
             <span>Opciones avanzadas</span>
-            <small>{hasAdvancedConfiguration ? 'Condición configurada' : 'Aplicar este paso sólo en algunos casos'}</small>
+            <small>{hasAdvancedConfiguration ? 'Condición configurada' : 'Condiciones y transformaciones opcionales'}</small>
           </summary>
           <div className="recipeAdvancedOptionsBody">
             {isManualRangeStep ? (
@@ -2106,8 +2108,8 @@ function ConcatStepFields({
       <div className="concatCompositionHeader">
         <div>
           <span>Composición del valor</span>
-          <strong>Armá el resultado con piezas</strong>
-          <p>Las piezas se combinan de izquierda a derecha en el orden mostrado.</p>
+          <strong>Armá el valor final combinando piezas</strong>
+          <p>Usá texto, columnas o resultados anteriores; las piezas se leen de izquierda a derecha.</p>
         </div>
         <InfoTooltip content="Agrega otro dato o texto a combinar.">
           <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
@@ -2116,7 +2118,7 @@ function ConcatStepFields({
       {parts.length === 0 ? (
         <div className="concatPartsEmptyState">
           <strong>Agregá la primera pieza</strong>
-          <p className="muted">Puede ser una columna, un texto fijo o un resultado anterior.</p>
+          <p className="muted">El texto fijo sirve para sumar separadores, palabras o etiquetas que se repiten.</p>
         </div>
       ) : null}
       {parts.length > 0 ? (

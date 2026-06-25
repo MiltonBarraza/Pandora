@@ -1105,6 +1105,8 @@ describe('constructor helpers', () => {
     }, { manualRangeRows });
 
     expect(markup).toContain('Rangos configurados');
+    expect(markup).toContain('Cada rango aplica un valor a un grupo de filas');
+    expect(markup).toContain('podés abrirlo para ver cuáles afecta');
     expect(markup.match(/manualRangeCardSummary/g)).toHaveLength(2);
     expect(markup.match(/manualRangeCardEditor/g)).toHaveLength(1);
     expect(markup).toContain('Para filas 14 a 20, usar “RODILLOS”');
@@ -1986,7 +1988,8 @@ describe('constructor helpers', () => {
     expect(markup).toContain('recipeIntentControls');
     expect(markup).toContain('recipeContextFields');
     expect(markup).toContain('<details class="recipeAdvancedOptions">');
-    expect(markup).toContain('Aplicar este paso sólo en algunos casos');
+    expect(markup).toContain('Vista previa del valor que se va a generar.');
+    expect(markup).toContain('Condiciones y transformaciones opcionales');
   });
 
   it('keeps advanced options visible when an existing step has a condition', () => {
@@ -2027,6 +2030,7 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Asignar valores por rangos a “Categoría”');
     expect(markup).toContain('Resultado esperado');
+    expect(markup).toContain('Vista previa del valor que se va a generar.');
     expect(markup).toContain('Rangos configurados');
   });
 
@@ -2307,8 +2311,10 @@ describe('constructor helpers', () => {
     });
 
     expect(fixedMarkup).toContain('Usar texto fijo');
+    expect(fixedMarkup).toContain('Usá texto fijo cuando todas las filas de este rango deban recibir el mismo valor.');
     expect(fixedMarkup).toContain('Legacy promo');
     expect(rangeTextMarkup).toContain('Texto encontrado en el rango');
+    expect(rangeTextMarkup).toContain('Usá esta opción cuando el valor ya aparece dentro de las filas del rango.');
     expect(rangeTextMarkup).toContain('PINCELES SERIE 304');
   });
 
@@ -4514,7 +4520,8 @@ describe('constructor helpers', () => {
     });
 
     expect(markup).toContain('Composición del valor');
-    expect(markup).toContain('Armá el resultado con piezas');
+    expect(markup).toContain('Armá el valor final combinando piezas');
+    expect(markup).toContain('Usá texto, columnas o resultados anteriores; las piezas se leen de izquierda a derecha.');
     expect(markup).toContain('concatCompositionTrack');
     expect(markup).toContain('Pieza 1');
     expect(markup).toContain('Pieza 4');

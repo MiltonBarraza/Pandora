@@ -811,3 +811,37 @@ No se detectaron fallos en cálculo de previews, apply/cancel, reorder, fuentes 
 - Concat: scroll interno confirmado (`scrollWidth` mayor a `clientWidth`) sin overflow global.
 - Rangos: cards legibles y sin overflow global.
 - `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.
+
+## Fase 4 implementada: ayudas y microcopy
+
+Fecha de implementación: 2026-06-25
+
+### Textos y ayudas mejoradas
+
+- El selector `¿Qué querés construir?` aclara que se puede copiar una columna, escribir texto fijo o armar un valor con reglas.
+- `Resultado esperado` suma una aclaración breve: es una vista previa del valor que se va a generar.
+- Concatenación ahora explica que el valor final se arma con piezas de texto, columnas o resultados anteriores, leídas de izquierda a derecha.
+- El estado vacío de concatenación aclara cuándo conviene usar texto fijo: separadores, palabras o etiquetas que se repiten.
+- Rangos aclara que cada rango aplica un valor a un grupo de filas y que se puede abrir para ver cuáles afecta.
+- El editor de valor de rangos diferencia texto fijo de texto encontrado dentro del rango con ayudas cortas junto al campo.
+- `Opciones avanzadas` queda explicado como lugar para condiciones y transformaciones opcionales, sin presentarlo como obligatorio.
+
+### Fuera de alcance
+
+- QA exhaustiva, QA visual con planillas reales y recorrido completo de lector de pantalla.
+- Rediseño de layout, reestructuración de componentes o cambios de modelo.
+- Cambios en dominio, settings, export/import, remap/references, filtros, preview a nivel datos, `manualRange` funcional, concat funcional, columnas virtuales o procesamiento.
+
+### Compatibilidad funcional preservada
+
+- No hubo cambios funcionales ni cambios de persistencia.
+- Se mantuvieron callbacks, helpers, shapes de recetas, previews existentes y comportamiento de apply/cancel.
+- Las ayudas nuevas son presentacionales y no modifican `manualRange`, concat, fuentes, steps ni rangos.
+
+### Validaciones
+
+- `OutputColumnRecipeEditor.test.tsx`: OK — 267 tests.
+- `npm run test:run`: OK — 40 archivos, 639 tests.
+- `npm run build`: OK.
+- `npx tsc -p tsconfig.app.json --noUnusedLocals --noUnusedParameters --pretty false`: OK.
+- `git diff --check`: OK; sólo avisos locales LF→CRLF, sin errores de whitespace.

@@ -147,15 +147,19 @@ export function RangeValueEditor({
               <p className="manualRangeValueHelp">{rangeTextHelpText}</p>
             </div>
           ) : null}
+          <p className="manualRangeValueHelp">Usá esta opción cuando el valor ya aparece dentro de las filas del rango.</p>
         </>
       ) : sourceFieldVisibility.showFixedTextInput && valueSourceType === 'fixedText' ? (
-        <label className="field compact manualRangeValueDetailField">
-          <span>Texto</span>
-          <input
-            value={getManualRangeFixedTextValue(range)}
-            onChange={(event) => onFixedTextChange(event.target.value)}
-          />
-        </label>
+        <>
+          <label className="field compact manualRangeValueDetailField">
+            <span>Texto</span>
+            <input
+              value={getManualRangeFixedTextValue(range)}
+              onChange={(event) => onFixedTextChange(event.target.value)}
+            />
+          </label>
+          <p className="manualRangeValueHelp">Usá texto fijo cuando todas las filas de este rango deban recibir el mismo valor.</p>
+        </>
       ) : null}
     </>
   );
