@@ -222,7 +222,7 @@ describe('constructor helpers', () => {
       recipe: { type: 'manualRange', ranges: [] },
     });
 
-    expect(markup).toContain('Valores por rangos');
+    expect(markup).toContain('Reglas por rango');
     expect(markup).toContain('Ayuda: valores por rangos');
     expect(markup).not.toContain('<p class="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>');
   });
@@ -286,7 +286,34 @@ describe('constructor helpers', () => {
       condition: recipe.condition,
       ranges: [],
     });
-    expect(markup).toContain('No hay rangos configurados.');
+    expect(markup).toContain('Todavía no configuraste rangos.');
+  });
+
+  it('renders manual ranges as compact rules with one selected editor', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-range',
+      label: 'Rango',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'manualRange',
+        ranges: [
+          { id: 'range-8-13', startRowNumber: 8, endRowNumber: 13, valueRecipe: expectedFixedTextRangeValueRecipe('SINTEPLAST') },
+          { id: 'range-14-20', startRowNumber: 14, endRowNumber: 20, valueRecipe: expectedFixedTextRangeValueRecipe('ALBA') },
+        ],
+      },
+    });
+
+    expect(markup).toContain('manualRangeRulesTable');
+    expect(markup).toContain('Valor asignado');
+    expect(markup).toContain('Texto fijo: SINTEPLAST');
+    expect(markup).toContain('Texto fijo: ALBA');
+    expect(markup.match(/manualRangeRuleRowWrap/g)).toHaveLength(2);
+    expect(markup.match(/manualRangeEditorRow/g)).toHaveLength(1);
+    expect(markup).toContain('Editar rango seleccionado');
+    expect(markup).toContain('aria-label="Ver filas"');
+    expect(markup).toContain('aria-label="Duplicar rango"');
+    expect(markup).toContain('aria-label="Eliminar rango"');
   });
 
   it('defaults suggested range initial values to empty', () => {
@@ -3957,6 +3984,42 @@ describe('constructor helpers', () => {
       steps: [],
     });
     expect(buildCustomValuePreview(recipe, { 'input-price': '100' })).toBe('Agrega una parte para ver la vista previa.');
+  });
+
+  it('renders concat parts as visual fragments with one selected editor', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-combine',
+      label: 'Combinada',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'concat',
+        parts: [],
+        separator: '',
+        steps: [{
+          id: 'concat-step',
+          mode: 'text',
+          type: 'concat',
+          parts: [
+            { id: 'brand', source: { type: 'input', inputColumnId: 'input-name' } },
+            { id: 'separator', source: { type: 'fixedText', value: ' - ' }, separatorBefore: '' },
+            { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' }, separatorBefore: '' },
+          ],
+        }],
+      },
+    });
+
+    expect(markup).toContain('concatFragmentsPreview');
+    expect(markup).toContain('Combinar valores');
+    expect(markup).toContain('Fragmento 1');
+    expect(markup).toContain('Fragmento 2');
+    expect(markup).toContain('Agregar columna');
+    expect(markup).toContain('Agregar texto');
+    expect(markup).toContain('Agregar separador');
+    expect(markup.match(/concatFragmentTokenWrap/g)).toHaveLength(3);
+    expect(markup.match(/concatSelectedFragmentEditor/g)).toHaveLength(1);
+    expect(markup).toContain('Editar fragmento 1');
   });
 
   it('keeps value construction options separate from step modes', () => {

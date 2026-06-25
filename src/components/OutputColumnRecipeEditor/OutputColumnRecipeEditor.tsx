@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
@@ -13,7 +13,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
   dateInputFormatOptions,
@@ -142,6 +142,15 @@ export const recipeEditorDiscardChangesCancelLabel = 'Seguir editando';
 export const recipeEditorDiscardChangesConfirmLabel = 'Descartar cambios';
 export const recipeEditorAdditionalStepLabel = 'Agregar paso';
 
+export type RecipeEditorVisualMode = 'direct' | 'combine' | 'manualRange' | 'advanced';
+
+const recipeEditorVisualModeOptions: Array<{ value: RecipeEditorVisualMode; label: string }> = [
+  { value: 'direct', label: 'Tomar valor' },
+  { value: 'combine', label: 'Combinar valores' },
+  { value: 'manualRange', label: 'Asignar por rangos' },
+  { value: 'advanced', label: 'Transformar valor / Avanzado' },
+];
+
 const manualRangeInitialValueModeOptions: Array<{ value: ManualRangeInitialValueMode; label: string }> = [
   { value: 'empty', label: 'Sin valor' },
   { value: 'detectedText', label: 'Usar valor detectado en la columna guía' },
@@ -229,6 +238,12 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     setDraftRecipe(null);
     setIsConstructorOpen(false);
   };
+  const modalCombinePreview = modalCombineRecipe
+    ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows)
+    : customValuePreview;
+  const modalManualRangePreview = modalManualRangeRecipe
+    ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados'
+    : 'Sin vista previa para los rangos configurados';
 
   return (
     <div className="recipeEditor">
@@ -265,10 +280,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
-                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
-              </div>
+              <RecipePreviewBar preview={modalCombinePreview} />
             )}
             footer={(
               <div className="constructorModalFooterContent">
@@ -284,7 +296,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            <div className="constructorModalContent">
+            <RecipeEditorShell activeMode={getRecipeEditorVisualMode(modalCombineRecipe ?? column.recipe)}>
               {modalCombineRecipe ? (
                 <CustomValueEditor
                   recipe={modalCombineRecipe}
@@ -295,7 +307,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
                   onChange={setDraftRecipe}
                 />
               ) : null}
-            </div>
+            </RecipeEditorShell>
           </Modal>
           <ConfirmDialog
             open={isDiscardConfirmationOpen}
@@ -328,10 +340,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
-                <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
-              </div>
+              <RecipePreviewBar preview={modalManualRangePreview} />
             )}
             footer={(
               <div className="constructorModalFooterContent">
@@ -347,7 +356,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            <div className="constructorModalContent">
+            <RecipeEditorShell activeMode={getRecipeEditorVisualMode(modalManualRangeRecipe ?? column.recipe)}>
               {modalManualRangeRecipe ? (
                 <ManualRangeRecipeEditor
                   recipe={modalManualRangeRecipe}
@@ -356,7 +365,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
                   onChange={setDraftRecipe}
                 />
               ) : null}
-            </div>
+            </RecipeEditorShell>
           </Modal>
           <ConfirmDialog
             open={isDiscardConfirmationOpen}
@@ -373,6 +382,72 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     </div>
   );
 }
+
+export function getRecipeEditorVisualMode(recipe: OutputRecipe): RecipeEditorVisualMode {
+  if (recipe.type === 'direct') {
+    return 'direct';
+  }
+
+  if (recipe.type === 'manualRange') {
+    return 'manualRange';
+  }
+
+  if (recipe.type === 'combine') {
+    const mode = getCustomValueMode(recipe);
+    if (mode === 'concat' || hasConfiguredConcatStep(recipe)) {
+      return 'combine';
+    }
+
+    // Visual-only bridge: simple text/number recipes still use the legacy combine editor until UX is split by mode.
+    return 'advanced';
+  }
+
+  return 'advanced';
+}
+
+function RecipePreviewBar({ preview }: { preview: string }) {
+  return (
+    <div className="recipePreviewBar">
+      <span className="recipePreviewBarLabel">Vista previa</span>
+      <span className="recipePreviewBarValue">{preview}</span>
+    </div>
+  );
+}
+
+function RecipeModeTabs({ activeMode }: { activeMode: RecipeEditorVisualMode }) {
+  return (
+    <div className="recipeModeTabs" role="tablist" aria-label="Modo de construcción de valor">
+      {recipeEditorVisualModeOptions.map((option) => (
+        <span
+          key={option.value}
+          className={`recipeModeTab${option.value === activeMode ? ' isActive' : ''}`}
+          role="tab"
+          aria-selected={option.value === activeMode}
+        >
+          {option.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RecipeEditorShell({
+  activeMode,
+  children,
+}: {
+  activeMode: RecipeEditorVisualMode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="recipeEditorShell">
+      <RecipeModeTabs activeMode={activeMode} />
+      <div className="constructorModalContent recipeEditorContent">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ManualRangeSummary({
   recipe,
   inputColumns,
@@ -424,44 +499,83 @@ function ManualRangeRecipeEditor({
 }) {
   const [showGenerator, setShowGenerator] = useState(false);
   const [isClearRangesConfirmationOpen, setIsClearRangesConfirmationOpen] = useState(false);
+  const [selectedRangeId, setSelectedRangeId] = useState<string | null>(recipe.ranges[0]?.id ?? null);
   const hasOverlappingRanges = hasOverlappingManualRanges(recipe.ranges);
+  const selectedRange = recipe.ranges.find((range) => range.id === selectedRangeId) ?? recipe.ranges[0] ?? null;
   const clearRanges = () => {
     onChange(clearManualRangeValues(recipe));
+    setSelectedRangeId(null);
     setIsClearRangesConfirmationOpen(false);
   };
+  const addRange = (position: 'start' | 'end') => {
+    const nextRecipe = addManualRangeValue(recipe, position);
+    const nextRange = nextRecipe.ranges.find((range) => !recipe.ranges.some((currentRange) => currentRange.id === range.id));
+    setSelectedRangeId(nextRange?.id ?? nextRecipe.ranges[0]?.id ?? null);
+    onChange(nextRecipe);
+  };
+  const duplicateRange = (rangeId: string) => {
+    const nextRecipe = duplicateManualRangeValue(recipe, rangeId);
+    const nextRange = nextRecipe.ranges.find((range) => !recipe.ranges.some((currentRange) => currentRange.id === range.id));
+    setSelectedRangeId(nextRange?.id ?? rangeId);
+    onChange(nextRecipe);
+  };
+  const removeRange = (rangeId: string) => {
+    const currentIndex = recipe.ranges.findIndex((range) => range.id === rangeId);
+    const nextRecipe = removeManualRangeValue(recipe, rangeId);
+    const nextSelectedRange = nextRecipe.ranges[Math.max(0, currentIndex - 1)] ?? nextRecipe.ranges[0] ?? null;
+    setSelectedRangeId(nextSelectedRange?.id ?? null);
+    onChange(nextRecipe);
+  };
+  const sortRanges = () => {
+    const nextRecipe = sortManualRangesByStart(recipe);
+    setSelectedRangeId((currentSelectedRangeId) => (
+      currentSelectedRangeId && nextRecipe.ranges.some((range) => range.id === currentSelectedRangeId)
+        ? currentSelectedRangeId
+        : nextRecipe.ranges[0]?.id ?? null
+    ));
+    onChange(nextRecipe);
+  };
+
+  useEffect(() => {
+    if (!selectedRangeId && recipe.ranges[0]) {
+      setSelectedRangeId(recipe.ranges[0].id);
+      return;
+    }
+
+    if (selectedRangeId && !recipe.ranges.some((range) => range.id === selectedRangeId)) {
+      setSelectedRangeId(recipe.ranges[0]?.id ?? null);
+    }
+  }, [recipe.ranges, selectedRangeId]);
+
+  useEffect(() => {
+    const reconciledRecipe = recipe.ranges.reduce(
+      (currentRecipe, range) => reconcileManualRangeTextSelections(currentRecipe, range.id, manualRangeRows),
+      recipe,
+    );
+    if (reconciledRecipe !== recipe) {
+      onChange(reconciledRecipe);
+    }
+  }, [manualRangeRows, onChange, recipe]);
 
   return (
     <div className="recipeSubBlock manualRangeEditor">
-      <div className="sectionHeader">
+      <div className="sectionHeader manualRangeRulesHeader">
         <div>
           <strong className="manualRangeTitleGroup labelWithInfo">
-            <span>Valores por rangos</span>
+            <span>Reglas por rango</span>
             <InfoTooltip
               ariaLabel="Ayuda: valores por rangos"
               content={manualRangeUsageHelpText}
             />
           </strong>
         </div>
-        <div className="manualRangeHeaderActions">
-          <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'start'))}>
-            Agregar rango
-          </ActionButton>
-          <InfoTooltip content="Ordena los rangos por la fila de inicio.">
-            <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
-              Ordenar por inicio
-            </button>
-          </InfoTooltip>
-          <InfoTooltip content="Elimina todos los rangos configurados.">
-            <button type="button" className="secondary" disabled={recipe.ranges.length === 0} onClick={() => setIsClearRangesConfirmationOpen(true)}>
-              Borrar rangos
-            </button>
-          </InfoTooltip>
-          <InfoTooltip content="Genera rangos automáticamente según los datos detectados.">
-            <button type="button" className="secondary" onClick={() => setShowGenerator(true)}>
-              Generar rangos sugeridos
-            </button>
-          </InfoTooltip>
-        </div>
+        <ManualRangeRulesToolbar
+          hasRanges={recipe.ranges.length > 0}
+          onAddRange={() => addRange('start')}
+          onSort={sortRanges}
+          onClear={() => setIsClearRangesConfirmationOpen(true)}
+          onGenerate={() => setShowGenerator(true)}
+        />
       </div>
       {showGenerator ? (
         <ManualRangeTextGenerator
@@ -480,29 +594,33 @@ function ManualRangeRecipeEditor({
       ) : null}
 
       {recipe.ranges.length === 0 ? (
-        <p className="muted">No hay rangos configurados.</p>
+        <ManualRangeRulesEmptyState
+          onAddRange={() => addRange('start')}
+          onGenerate={() => setShowGenerator(true)}
+        />
       ) : (
         <>
           {hasOverlappingRanges ? (
             <p className="manualRangeWarning">Hay rangos superpuestos. En filas repetidas se usará el primer rango configurado.</p>
           ) : null}
-          <div className="manualRangeList">
-            {recipe.ranges.map((range) => (
-              <ManualRangeTableRow
-                key={range.id}
-                recipe={recipe}
-                range={range}
-                inputColumns={inputColumns}
-                manualRangeRows={manualRangeRows}
-                onChange={onChange}
-              />
-            ))}
-          </div>
-          <div className="manualRangeFooterActions">
-            <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'end'))}>
-              Agregar rango
-            </ActionButton>
-          </div>
+          <ManualRangeRulesTable
+            recipe={recipe}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            selectedRangeId={selectedRange?.id ?? null}
+            onSelectRange={setSelectedRangeId}
+            onDuplicateRange={duplicateRange}
+            onRemoveRange={removeRange}
+          />
+          {selectedRange ? (
+            <ManualRangeSelectedRuleEditor
+              recipe={recipe}
+              range={selectedRange}
+              inputColumns={inputColumns}
+              manualRangeRows={manualRangeRows}
+              onChange={onChange}
+            />
+          ) : null}
         </>
       )}
       <ConfirmDialog
@@ -517,6 +635,232 @@ function ManualRangeRecipeEditor({
       />
     </div>
   );
+}
+
+function ManualRangeRulesToolbar({
+  hasRanges,
+  onAddRange,
+  onSort,
+  onClear,
+  onGenerate,
+}: {
+  hasRanges: boolean;
+  onAddRange: () => void;
+  onSort: () => void;
+  onClear: () => void;
+  onGenerate: () => void;
+}) {
+  return (
+    <div className="manualRangeHeaderActions manualRangeRulesToolbar">
+      <ActionButton action="add" variant="secondary" onClick={onAddRange}>
+        Agregar rango
+      </ActionButton>
+      <InfoTooltip content="Ordena los rangos por la fila de inicio.">
+        <button type="button" className="secondary" disabled={!hasRanges} onClick={onSort}>
+          Ordenar por inicio
+        </button>
+      </InfoTooltip>
+      <InfoTooltip content="Elimina todos los rangos configurados.">
+        <button type="button" className="secondary dangerSubtle" disabled={!hasRanges} onClick={onClear}>
+          Borrar rangos
+        </button>
+      </InfoTooltip>
+      <InfoTooltip content="Genera rangos automáticamente según los datos detectados.">
+        <button type="button" className="secondary" onClick={onGenerate}>
+          Generar rangos sugeridos
+        </button>
+      </InfoTooltip>
+    </div>
+  );
+}
+
+function ManualRangeRulesEmptyState({
+  onAddRange,
+  onGenerate,
+}: {
+  onAddRange: () => void;
+  onGenerate: () => void;
+}) {
+  return (
+    <div className="manualRangeEmptyState">
+      <p>Todavía no configuraste rangos.</p>
+      <div className="manualRangeEmptyActions">
+        <ActionButton action="add" variant="secondary" onClick={onAddRange}>
+          Agregar rango
+        </ActionButton>
+        <button type="button" className="secondary" onClick={onGenerate}>
+          Generar rangos sugeridos
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ManualRangeRulesTable({
+  recipe,
+  inputColumns,
+  manualRangeRows,
+  selectedRangeId,
+  onSelectRange,
+  onDuplicateRange,
+  onRemoveRange,
+}: {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  selectedRangeId: string | null;
+  onSelectRange: (rangeId: string) => void;
+  onDuplicateRange: (rangeId: string) => void;
+  onRemoveRange: (rangeId: string) => void;
+}) {
+  return (
+    <div className="manualRangeRulesTable" role="table" aria-label="Reglas por rango">
+      <div className="manualRangeRulesTableHeader" role="row">
+        <span role="columnheader">Rango</span>
+        <span role="columnheader">Filas</span>
+        <span role="columnheader">Valor asignado</span>
+        <span role="columnheader">Referencia</span>
+        <span role="columnheader">Acciones</span>
+      </div>
+      <div className="manualRangeRulesTableBody">
+        {recipe.ranges.map((range) => (
+          <ManualRangeRuleRow
+            key={range.id}
+            range={range}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            selected={range.id === selectedRangeId}
+            onSelect={() => onSelectRange(range.id)}
+            onDuplicate={() => onDuplicateRange(range.id)}
+            onRemove={() => onRemoveRange(range.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ManualRangeRuleRow({
+  range,
+  inputColumns,
+  manualRangeRows,
+  selected,
+  onSelect,
+  onDuplicate,
+  onRemove,
+}: {
+  range: ManualRangeValue;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  selected: boolean;
+  onSelect: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
+  const [showRowsPreview, setShowRowsPreview] = useState(false);
+  const rangeStart = formatManualRangeRowInput(range.startRowNumber) || '-';
+  const rangeEnd = formatManualRangeRowInput(range.endRowNumber) || '-';
+  const rowCount = getManualRangeRowCountFromInputs(formatManualRangeRowInput(range.startRowNumber), formatManualRangeRowInput(range.endRowNumber)) || '-';
+  const referenceText = getManualRangeReferenceText(range) || '-';
+  const rowsPreviewActionLabel = showRowsPreview ? 'Ocultar filas' : 'Ver filas';
+
+  return (
+    <div className={`manualRangeRuleRowWrap${selected ? ' isSelected' : ''}`}>
+      <div className="manualRangeRuleRow" role="row">
+        <button type="button" className="manualRangeRuleSelectButton" aria-pressed={selected} onClick={onSelect}>
+          <span role="cell" className="manualRangeRuleRange">{rangeStart} - {rangeEnd}</span>
+          <span role="cell">{rowCount}</span>
+          <span role="cell">{describeManualRangeAssignedValue(range, inputColumns)}</span>
+          <span role="cell">{referenceText}</span>
+        </button>
+        <div className="manualRangeRuleActions" role="cell">
+          <InfoTooltip content={rowsPreviewActionLabel}>
+            <button
+              type="button"
+              className="secondary sm manualRangeIconAction"
+              aria-label={rowsPreviewActionLabel}
+              title={rowsPreviewActionLabel}
+              onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
+            >
+              <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
+            </button>
+          </InfoTooltip>
+          <InfoTooltip content="Duplicar rango">
+            <ActionButton
+              action="duplicate"
+              variant="secondary"
+              size="sm"
+              title="Duplicar rango"
+              aria-label="Duplicar rango"
+              onClick={onDuplicate}
+            />
+          </InfoTooltip>
+          <InfoTooltip content="Eliminar rango">
+            <DeleteButton title="Eliminar rango" onClick={onRemove} />
+          </InfoTooltip>
+        </div>
+      </div>
+      {showRowsPreview ? (
+        <ManualRangeRowsPreview
+          range={range}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ManualRangeSelectedRuleEditor({
+  recipe,
+  range,
+  inputColumns,
+  manualRangeRows,
+  onChange,
+}: {
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
+  range: ManualRangeValue;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
+}) {
+  return (
+    <div className="manualRangeSelectedRuleEditor">
+      <div className="manualRangeSelectedRuleHeader">
+        <strong>Editar rango seleccionado</strong>
+        <span>{formatManualRangeRowInput(range.startRowNumber) || '-'} - {formatManualRangeRowInput(range.endRowNumber) || '-'}</span>
+      </div>
+      <ManualRangeTableRow
+        key={range.id}
+        recipe={recipe}
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+function describeManualRangeAssignedValue(range: ManualRangeValue, inputColumns: InputColumn[]) {
+  if ((range.valueRecipe?.steps ?? []).length > 0) {
+    return 'Valor personalizado';
+  }
+
+  const sourceType = getManualRangeValueSourceType(range);
+  if (sourceType === 'input') {
+    const inputColumnId = getManualRangeInputSource(range).inputColumnId;
+    const inputColumn = inputColumns.find((column) => column.id === inputColumnId);
+    return inputColumn ? `Columna: ${getInputColumnLabel(inputColumn)}` : 'Sin configurar';
+  }
+
+  if (sourceType === 'rangeText') {
+    const rangeTextSource = getManualRangeRangeTextSource(range);
+    return rangeTextSource.selectedText ? `Texto del rango: ${rangeTextSource.selectedText}` : 'Texto del rango';
+  }
+
+  const fixedText = getManualRangeFixedTextValue(range).trim();
+  return fixedText ? `Texto fijo: ${fixedText}` : 'Sin configurar';
 }
 
 export function ManualRangeTextGenerator({
@@ -1072,6 +1416,10 @@ export function ManualRangeTableRow({
   const updateStartRowInput = (value: string) => {
     setStartRowInput(value);
     const startRowNumber = parseManualRangeRowInput(value);
+    if (startRowNumber === undefined) {
+      return;
+    }
+
     const nextRecipe = updateManualRangeValue(recipe, range.id, { startRowNumber: startRowNumber ?? 0 });
     onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
   };
@@ -1079,6 +1427,10 @@ export function ManualRangeTableRow({
   const updateEndRowInput = (value: string) => {
     setEndRowInput(value);
     const endRowNumber = parseManualRangeRowInput(value);
+    if (endRowNumber === undefined) {
+      return;
+    }
+
     const nextRecipe = updateManualRangeValue(recipe, range.id, { endRowNumber: endRowNumber ?? 0 });
     onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
   };
@@ -2032,10 +2384,30 @@ function ConcatStepFields({
     onChange(parts.map((part) => (part.id === partId ? nextPart : part)));
   };
   const addPart = () => {
+    const nextPart = createDefaultConcatPart(parts.length, allowPreviousResult);
+    setSelectedPartId(nextPart.id);
     onChange([
       ...parts,
-      createDefaultConcatPart(parts.length, allowPreviousResult),
+      nextPart,
     ]);
+  };
+  const addInputPart = () => {
+    const nextPart: ConcatPart = {
+      id: crypto.randomUUID(),
+      source: { type: 'input', inputColumnId: inputColumns[0]?.id ?? '' },
+      ...(parts.length > 0 ? { separatorBefore: '' } : {}),
+    };
+    setSelectedPartId(nextPart.id);
+    onChange([...parts, nextPart]);
+  };
+  const addTextPart = (value = '') => {
+    const nextPart: ConcatPart = {
+      id: crypto.randomUUID(),
+      source: { type: 'fixedText', value },
+      ...(parts.length > 0 ? { separatorBefore: '' } : {}),
+    };
+    setSelectedPartId(nextPart.id);
+    onChange([...parts, nextPart]);
   };
   const removePart = (partId: string) => {
     setSelectedPartId(getNextSelectedConcatPartIdAfterRemove(parts, partId, safeSelectedPartId));
@@ -2045,16 +2417,34 @@ function ConcatStepFields({
   return (
     <div className="concatStepFields">
       {parts.length === 0 ? (
-        <div className="concatPartsEmptyState">
-          <p className="muted">Agrega una parte para construir el valor.</p>
-          <InfoTooltip content="Agrega otro dato o texto a combinar.">
-            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-          </InfoTooltip>
+        <div className="concatFragmentsEmptyState">
+          <div>
+            <strong>Todavía no agregaste fragmentos.</strong>
+            <p>Armá el resultado final agregando fragmentos en orden.</p>
+          </div>
+          <ConcatFragmentActions
+            onAddInput={addInputPart}
+            onAddText={() => addTextPart()}
+            onAddSeparator={() => addTextPart(' - ')}
+            onAddPart={addPart}
+          />
         </div>
       ) : null}
       {parts.length > 0 ? (
-        <div className="concatPartsWorkspace">
-          <div className="concatPartsSidebar">
+        <div className="concatFragmentsWorkspace">
+          <div className="concatFragmentsHeader">
+            <div>
+              <strong>Combinar valores</strong>
+              <p>Armá el resultado final agregando fragmentos en orden.</p>
+            </div>
+            <ConcatFragmentActions
+              onAddInput={addInputPart}
+              onAddText={() => addTextPart()}
+              onAddSeparator={() => addTextPart(' - ')}
+              onAddPart={addPart}
+            />
+          </div>
+          <div className="concatFragmentsPreview" aria-label="Resultado armado">
             <SortableList
               items={parts}
               onChange={(nextParts) => onChange(normalizeConcatPartsAfterReorder(nextParts))}
@@ -2062,32 +2452,31 @@ function ConcatStepFields({
                 const index = parts.findIndex((item) => item.id === part.id);
 
                 return (
-                  <div className={`concatPartListItem${part.id === safeSelectedPartId ? ' selected' : ''}`}>
+                  <div className={`concatFragmentTokenWrap${part.id === safeSelectedPartId ? ' isSelected' : ''}`}>
                     {handle}
                     <button
                       type="button"
-                      className="concatPartSelectButton"
+                      className="concatFragmentToken"
+                      aria-pressed={part.id === safeSelectedPartId}
                       onClick={() => setSelectedPartId(part.id)}
                     >
-                      <strong>Parte {index + 1}</strong>
+                      <span className="concatFragmentTokenType">{getConcatFragmentTypeLabel(part)}</span>
+                      <strong>Fragmento {index + 1}</strong>
                       <span>{describeConcatPartSource(part, inputColumns)}</span>
                     </button>
                   </div>
                 );
               }}
             />
-            <InfoTooltip content="Agrega otro dato o texto a combinar.">
-              <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-            </InfoTooltip>
           </div>
           {selectedPart ? (
-            <div className="concatPartDetailPanel">
-              <div className="concatPartHeader">
+            <div className="concatSelectedFragmentEditor">
+              <div className="concatSelectedFragmentHeader">
                 <strong className="headingWithInfo">
-                  <span>Parte {selectedPartIndex + 1}</span>
-                  <InfoTooltip content="Configurá el dato o texto de esta parte." />
+                  <span>Editar fragmento {selectedPartIndex + 1}</span>
+                  <InfoTooltip content="Configurá el dato o texto de este fragmento." />
                 </strong>
-                <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
+                <DeleteButton title="Eliminar fragmento" onClick={() => removePart(selectedPart.id)} />
               </div>
               <ConcatPartStepsEditor
                 inputColumns={inputColumns}
@@ -2125,6 +2514,49 @@ function ConcatStepFields({
       ) : null}
     </div>
   );
+}
+
+function ConcatFragmentActions({
+  onAddInput,
+  onAddText,
+  onAddSeparator,
+  onAddPart,
+}: {
+  onAddInput: () => void;
+  onAddText: () => void;
+  onAddSeparator: () => void;
+  onAddPart: () => void;
+}) {
+  return (
+    <div className="concatFragmentActions">
+      <button type="button" className="secondary" onClick={onAddInput}>Agregar columna</button>
+      <button type="button" className="secondary" onClick={onAddText}>Agregar texto</button>
+      <button type="button" className="secondary" onClick={onAddSeparator}>Agregar separador</button>
+      <InfoTooltip content="Agrega otro dato o texto a combinar.">
+        <button type="button" className="secondary concatAddPartButton" onClick={onAddPart}>Agregar fragmento</button>
+      </InfoTooltip>
+    </div>
+  );
+}
+
+function getConcatFragmentTypeLabel(part: ConcatPart) {
+  if ((part.steps ?? []).some((step) => step.type !== 'noop')) {
+    return 'Personalizado';
+  }
+
+  if (part.source.type === 'input') {
+    return 'Columna';
+  }
+
+  if (part.source.type === 'fixedText') {
+    return 'Texto';
+  }
+
+  if (part.source.type === 'previousResult') {
+    return 'Resultado anterior';
+  }
+
+  return 'Avanzado';
 }
 
 function ConcatPartStepsEditor({
