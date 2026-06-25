@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
 import { parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
@@ -19,6 +19,7 @@ import {
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
   dateOutputFormatOptions,
+  conditionOperators,
   getDatePickerValue,
   getStepSourceForTextAction,
   getStepTextSourceAction,
@@ -67,6 +68,16 @@ import {
 } from './OutputColumnRecipeEditor.recipeHelpers';
 import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
+import { RecipeStudioShell } from './RecipeStudio';
+import {
+  buildCombinePreview,
+  buildCustomValuePreview,
+  buildManualRangeRecipePreview,
+  getConstructorAdjustmentLabels,
+  getCustomValuePartsDisplayLabel,
+  getCustomValuePartsDisplaySummary,
+  getStepSummary,
+} from './OutputColumnRecipeEditor.displayHelpers';
 
 export {
   dateInputFormatOptions,
@@ -90,6 +101,18 @@ export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelp
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
 export { StepConditionFields, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 export {
+  buildCombinePreview,
+  buildCustomValuePreview,
+  buildManualRangeAwarePreview,
+  buildManualRangeRecipePreview,
+  describeCombineParts,
+  getConstructorAdjustmentLabels,
+  getConstructorAdjustmentsSummary,
+  getConstructorPartsSummary,
+  getCustomValuePartsDisplayLabel,
+  getCustomValuePartsDisplaySummary,
+} from './OutputColumnRecipeEditor.displayHelpers';
+export {
   appendConcatPartAdditionalStep,
   applyRecipeEditorDraft,
   buildRecipeForSelectedType,
@@ -104,6 +127,7 @@ export {
   getOutputRecipeTypeOptions,
   getOutputRecipeTypeSelectorValue,
   getRecipeEditorModalRecipe,
+  getRecipeStudioMode,
   getSafeSelectedConcatPartId,
   getStepMode,
   getTextStepSourceLabel,
@@ -284,18 +308,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            <div className="constructorModalContent">
-              {modalCombineRecipe ? (
-                <CustomValueEditor
-                  recipe={modalCombineRecipe}
-                  inputColumns={activeInputColumns}
-                  manualRangeRows={manualRangeRows}
-                  sampleInputValues={sampleInputValues}
-                  mode={effectiveModalCustomValueMode}
-                  onChange={setDraftRecipe}
-                />
-              ) : null}
-            </div>
+            {modalCombineRecipe ? (
+              <RecipeStudioShell
+                recipe={modalCombineRecipe}
+                inputColumns={activeInputColumns}
+                manualRangeRows={manualRangeRows}
+                sampleInputValues={sampleInputValues}
+                preview={buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows)}
+                customValueMode={effectiveModalCustomValueMode}
+                renderCustomValueEditor={(props) => <CustomValueEditor {...props} />}
+                renderManualRangeRecipeEditor={(props) => <ManualRangeRecipeEditor {...props} />}
+                renderManualRangeTextGenerator={(props) => <ManualRangeTextGenerator {...props} />}
+                onChange={setDraftRecipe}
+              />
+            ) : null}
           </Modal>
           <ConfirmDialog
             open={isDiscardConfirmationOpen}
@@ -347,16 +373,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            <div className="constructorModalContent">
-              {modalManualRangeRecipe ? (
-                <ManualRangeRecipeEditor
-                  recipe={modalManualRangeRecipe}
-                  inputColumns={activeInputColumns}
-                  manualRangeRows={manualRangeRows}
-                  onChange={setDraftRecipe}
-                />
-              ) : null}
-            </div>
+            {modalManualRangeRecipe ? (
+              <RecipeStudioShell
+                recipe={modalManualRangeRecipe}
+                inputColumns={activeInputColumns}
+                manualRangeRows={manualRangeRows}
+                sampleInputValues={sampleInputValues}
+                preview={buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados'}
+                customValueMode=""
+                renderCustomValueEditor={(props) => <CustomValueEditor {...props} />}
+                renderManualRangeRecipeEditor={(props) => <ManualRangeRecipeEditor {...props} />}
+                renderManualRangeTextGenerator={(props) => <ManualRangeTextGenerator {...props} />}
+                onChange={setDraftRecipe}
+              />
+            ) : null}
           </Modal>
           <ConfirmDialog
             open={isDiscardConfirmationOpen}
@@ -373,6 +403,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     </div>
   );
 }
+
 function ManualRangeSummary({
   recipe,
   inputColumns,
@@ -1251,409 +1282,6 @@ function ManualRangeRowsPreview({
       )}
     </div>
   );
-}
-
-export function describeCombineParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  if (recipe.parts.length === 0) {
-    return 'Sin partes configuradas';
-  }
-
-  return recipe.parts
-    .map((part) => {
-      if (part.type === 'text') {
-        return `Texto: "${part.value || ''}"`;
-      }
-
-      const inputColumn = inputColumns.find((column) => column.id === part.inputColumnId);
-      return inputColumn ? getInputColumnSummary(inputColumn) : 'Columna de entrada';
-    })
-    .join(' | ');
-}
-
-export function getConstructorPartsSummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  return `${recipe.parts.length === 1 ? 'Base' : 'Partes'}: ${describeCombineParts(recipe, inputColumns)}`;
-}
-
-export function getCustomValuePartsDisplayLabel(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  const concatStep = getConfiguredConcatStep(recipe);
-
-  if (!concatStep && recipe.parts.length === 1) {
-    return 'Origen/base';
-  }
-
-  return '';
-}
-
-export function getCustomValuePartsDisplaySummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  const concatStep = getConfiguredConcatStep(recipe);
-
-  if (concatStep?.parts?.length) {
-    return concatStep.parts.map((part) => describeConcatPartSource(part, inputColumns)).join(' | ');
-  }
-
-  if (recipe.parts.length === 0) {
-    return 'Sin partes configuradas';
-  }
-
-  return describeCombineParts(recipe, inputColumns);
-}
-
-export function getConstructorAdjustmentsSummary(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  inputColumns: InputColumn[],
-  limit = 3,
-) {
-  const adjustments = getConstructorAdjustmentDescriptions(recipe, inputColumns);
-
-  if (adjustments.length === 0) {
-    return '';
-  }
-
-  if (adjustments.length <= limit) {
-    return adjustments.join(' · ');
-  }
-
-  return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} pasos más`;
-}
-
-export function getConstructorAdjustmentLabels(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  inputColumns: InputColumn[],
-  limit = 4,
-) {
-  const adjustments = getConstructorAdjustmentDescriptions(recipe, inputColumns);
-
-  if (adjustments.length <= limit) {
-    return adjustments.map(formatAdjustmentForDisplay);
-  }
-
-  return [
-    ...adjustments.slice(0, limit).map(formatAdjustmentForDisplay),
-    `${adjustments.length - limit} pasos más`,
-  ];
-}
-
-function getConstructorAdjustmentDescriptions(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  return [
-    ...recipe.parts.flatMap((part) => describePartAdjustments(part, inputColumns)),
-    ...describeStepAdjustments(recipe.steps ?? [], inputColumns),
-  ];
-}
-
-function getConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return (recipe.steps ?? []).find((step) => step.type === 'concat' && (step.parts?.length ?? 0) > 0);
-}
-
-function formatAdjustmentForDisplay(adjustment: string) {
-  const labels: Record<string, string> = {
-    'limpiar espacios': 'Limpiar espacios',
-    'sin operación seleccionada': 'Sin operación seleccionada',
-    mayúsculas: 'Mayúsculas',
-    minúsculas: 'Minúsculas',
-    concatenar: 'Concatenar',
-    'extraer número': 'Extraer número',
-    'convertir a número': 'Convertir a número',
-    'convertir a texto': 'Convertir a texto',
-    'sin redondeo': 'Sin redondeo',
-  };
-
-  return labels[adjustment] ?? adjustment.charAt(0).toUpperCase() + adjustment.slice(1);
-}
-
-function describePartAdjustments(part: RecipePart, inputColumns: InputColumn[]) {
-  const partLabel = part.type === 'text'
-    ? `Texto: "${part.value || ''}"`
-    : inputColumns.find((column) => column.id === part.inputColumnId)
-      ? getInputColumnSummary(inputColumns.find((column) => column.id === part.inputColumnId)!)
-      : 'Columna de entrada';
-  const stepAdjustments = describeStepAdjustments(part.steps ?? [], inputColumns).map((adjustment) => `${adjustment} en ${partLabel}`);
-  const separatorAdjustment = part.separatorAfter ? [`separador "${part.separatorAfter}" en ${partLabel}`] : [];
-
-  return [...stepAdjustments, ...separatorAdjustment];
-}
-
-function describeStepAdjustments(steps: TransformStep[], inputColumns: InputColumn[] = []) {
-  return steps.flatMap((step) => {
-    if (step.type === 'numericOperation') {
-      return [
-        describeNumericOperation(step),
-        describeRounding(step.rounding ?? 2),
-      ];
-    }
-
-    return describeSimpleStep(step, inputColumns);
-  }).filter(Boolean);
-}
-
-function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = []) {
-  if (step.type === 'trim') {
-    return ['limpiar espacios'];
-  }
-
-  if (step.type === 'noop') {
-    if (step.source?.type === 'fixedText') return ['usar texto fijo'];
-    if (step.source?.type === 'input') return ['usar columna de entrada'];
-    if (step.source?.type === 'previousResult') return ['usar resultado anterior'];
-    return ['usar valor tal cual'];
-  }
-
-  if (step.type === 'uppercase') {
-    return ['mayúsculas'];
-  }
-
-  if (step.type === 'lowercase') {
-    return ['minúsculas'];
-  }
-
-  if (step.type === 'addPrefix') {
-    return [`prefijo "${step.value ?? ''}"`];
-  }
-
-  if (step.type === 'addSuffix') {
-    return [`sufijo "${step.value ?? ''}"`];
-  }
-
-  if (step.type === 'removeText') {
-    return [`quitar "${step.value ?? ''}"`];
-  }
-
-  if (step.type === 'extractNumber') {
-    return ['extraer número'];
-  }
-
-  if (step.type === 'toNumber') {
-    return ['convertir a número'];
-  }
-
-  if (step.type === 'toText') {
-    return ['convertir a texto'];
-  }
-
-  if (step.type === 'formatDate') {
-    return ['formatear fecha'];
-  }
-
-  if (step.type === 'manualRange') {
-    return [describeManualRangeStepSummary(step, inputColumns)];
-  }
-
-  if (step.type === 'concat') {
-    return ['concatenar'];
-  }
-
-  return [`reemplazar "${step.searchValue ?? ''}" por "${step.replaceValue ?? ''}"`];
-}
-
-function describeNumericOperation(step: TransformStep) {
-  const amount = step.amount ?? 0;
-
-  if (step.operation === 'subtract') {
-    return `restar valor ${amount}`;
-  }
-
-  if (step.operation === 'multiply') {
-    return `multiplicar por ${amount}`;
-  }
-
-  if (step.operation === 'divide') {
-    return `dividir por ${amount}`;
-  }
-
-  if (step.operation === 'addPercentage') {
-    return `sumar ${amount}%`;
-  }
-
-  if (step.operation === 'subtractPercentage') {
-    return `restar ${amount}%`;
-  }
-
-  if (step.operation === 'removeIncludedPercentage') {
-    return `quitar ${amount}% incluido`;
-  }
-
-  return `sumar valor ${amount}`;
-}
-
-function describeRounding(rounding: TransformStep['rounding']) {
-  if (rounding === 'none') {
-    return 'sin redondeo';
-  }
-
-  return `${rounding ?? 2} decimales`;
-}
-
-function getStepSummary(step: TransformStep, inputColumns: InputColumn[] = []) {
-  if (step.type === 'numericOperation') {
-    return describeNumericOperation(step);
-  }
-
-  const [summary] = describeSimpleStep(step, inputColumns);
-  return summary;
-}
-
-export function buildCustomValuePreview(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  sampleInputValues?: Record<string, string>,
-  modal = false,
-  modeOverride?: CustomValueMode,
-  manualRangeRows: InputRow[] = [],
-) {
-  const mode = modeOverride ?? getCustomValueMode(recipe);
-
-  if (mode === '') {
-    return modal ? 'Configurá el Paso 1 para ver la vista previa.' : 'Sin valores configurados';
-  }
-
-  const hasNumericOperands = hasConfiguredNumericStepOperands(recipe);
-  const effectiveMode = hasNumericOperands ? 'number' : mode;
-
-  if (effectiveMode === 'number' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasNumericOperands) {
-    return 'Seleccioná una columna numérica.';
-  }
-
-  if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasConfiguredManualRangeStep(recipe)) {
-    return 'Seleccioná una columna de texto.';
-  }
-
-  if (effectiveMode === 'concat' && recipe.parts.length === 0 && !hasConfiguredConcatStep(recipe)) {
-    return 'Agrega una parte para ver la vista previa.';
-  }
-
-  if (!isCustomValueConfigured(recipe, effectiveMode)) {
-    return 'No se han elegido valores suficientes.';
-  }
-
-  if (effectiveMode === 'number' && !canPreviewNumericValue(recipe, sampleInputValues)) {
-    return 'No se pudo calcular: valor no numérico.';
-  }
-
-  if (recipeHasManualRange(recipe)) {
-    return buildManualRangeAwarePreview(recipe, manualRangeRows) ?? 'Sin vista previa para los rangos configurados';
-  }
-
-  return buildCombinePreview(recipe, sampleInputValues) ?? 'Sin datos de ejemplo disponibles';
-}
-
-export function buildCombinePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
-  if (!sampleInputValues) {
-    return null;
-  }
-
-  const previewColumn: OutputColumn = {
-    id: 'constructor-preview',
-    label: 'Vista previa',
-    order: 0,
-    enabled: true,
-    recipe,
-  };
-  const [row] = buildProcessedRows([{ rowNumber: 1, values: sampleInputValues }], [previewColumn]);
-  return row?.outputValues[previewColumn.id] ?? '';
-}
-
-export function buildManualRangeAwarePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
-  const previewRows = getManualRangeAwarePreviewRows(recipe, rows);
-
-  if (previewRows.length === 0) {
-    return null;
-  }
-
-  const previewColumn: OutputColumn = {
-    id: 'constructor-preview',
-    label: 'Vista previa',
-    order: 0,
-    enabled: true,
-    recipe,
-  };
-
-  for (const row of previewRows) {
-    const [processedRow] = buildProcessedRows([row], [previewColumn]);
-    const value = processedRow?.outputValues[previewColumn.id] ?? '';
-    if (value.trim() !== '') {
-      return `Fila ${row.rowNumber}: ${value}`;
-    }
-  }
-
-  return null;
-}
-
-export function buildManualRangeRecipePreview(
-  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
-  rows: InputRow[],
-  sampleInputValues?: Record<string, string>,
-) {
-  const previewRows = getManualRangePreviewRows(recipe, rows, sampleInputValues);
-  if (previewRows.length === 0) {
-    return null;
-  }
-
-  const previewColumn: OutputColumn = {
-    id: 'manual-range-preview',
-    label: 'Vista previa',
-    order: 0,
-    enabled: true,
-    recipe,
-  };
-
-  for (const row of previewRows) {
-    const [processedRow] = buildProcessedRows([row], [previewColumn]);
-    const value = processedRow?.outputValues[previewColumn.id] ?? '';
-    if (value.trim() !== '') {
-      return `Fila ${row.rowNumber}: ${value}`;
-    }
-  }
-
-  return null;
-}
-
-function getManualRangeAwarePreviewRows(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
-  const manualRangeSteps = collectManualRangeSteps(recipe.steps ?? []);
-  recipe.parts.forEach((part) => {
-    manualRangeSteps.push(...collectManualRangeSteps(part.steps ?? []));
-  });
-
-  if (manualRangeSteps.length === 0) {
-    return [];
-  }
-
-  return rows.filter((row) => manualRangeSteps.some((step) => (
-    (step.ranges ?? []).some((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)
-  )));
-}
-
-function collectManualRangeSteps(steps: TransformStep[]): TransformStep[] {
-  return steps.flatMap((step) => {
-    const nestedSteps = step.parts?.flatMap((part) => part.steps ?? []) ?? [];
-    const nestedManualRangeSteps = collectManualRangeSteps(nestedSteps);
-    return step.type === 'manualRange' ? [step, ...nestedManualRangeSteps] : nestedManualRangeSteps;
-  });
-}
-
-function getManualRangePreviewRows(
-  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
-  rows: InputRow[],
-  sampleInputValues?: Record<string, string>,
-) {
-  const rowsInRange = rows.filter((row) => recipe.ranges.some((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber));
-  if (rowsInRange.length > 0 || !sampleInputValues) {
-    return rowsInRange;
-  }
-
-  return recipe.ranges.map((range) => ({
-    rowNumber: range.startRowNumber,
-    values: sampleInputValues,
-  }));
-}
-
-function recipeHasManualRange(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return stepsHaveManualRange(recipe.steps ?? [])
-    || recipe.parts.some((part) => stepsHaveManualRange(part.steps ?? []));
-}
-
-function stepsHaveManualRange(steps: TransformStep[]): boolean {
-  return steps.some((step) => (
-    step.type === 'manualRange'
-    || stepsHaveManualRange(step.parts?.flatMap((part) => part.steps ?? []) ?? [])
-  ));
 }
 
 export function getPreviousStepPreviewValue(

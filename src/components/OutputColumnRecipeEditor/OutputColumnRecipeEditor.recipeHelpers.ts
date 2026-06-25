@@ -25,6 +25,7 @@ import { getStepTypesForMode } from './OutputColumnRecipeEditor.optionHelpers';
 export type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 export type CustomValueMode = '' | PersistedCustomValueMode;
 export type ValueConstructionMode = '' | 'steps' | 'concat';
+export type RecipeStudioMode = 'takeValue' | 'fixedText' | 'compose' | 'ranges' | 'advanced';
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
   { value: 'direct', label: 'Directa desde entrada' },
@@ -45,6 +46,45 @@ export function getOutputRecipeTypeOptions(recipe: OutputRecipe) {
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
   return recipe.type === 'combine' || recipe.type === 'manualRange' ? draftRecipe ?? recipe : null;
+}
+
+export function getRecipeStudioMode(recipe: OutputRecipe): RecipeStudioMode {
+  if (recipe.type === 'direct') {
+    return 'takeValue';
+  }
+
+  if (recipe.type === 'fixedText') {
+    return 'fixedText';
+  }
+
+  if (recipe.type === 'manualRange') {
+    return 'ranges';
+  }
+
+  if (recipe.type !== 'combine') {
+    return 'advanced';
+  }
+
+  if (hasConfiguredManualRangeStep(recipe)) {
+    return 'ranges';
+  }
+
+  if (getCustomValueMode(recipe) === 'concat' || hasConfiguredConcatStep(recipe)) {
+    return 'compose';
+  }
+
+  const simplePart = getSimpleInputPart(recipe);
+  const firstSource = getFirstStepSource(recipe);
+  const hasSingleTextPart = recipe.parts.length === 1 && recipe.parts[0]?.type === 'text';
+  if (firstSource?.type === 'fixedText' || hasSingleTextPart) {
+    return 'fixedText';
+  }
+
+  if (simplePart.inputColumnId || firstSource?.type === 'input') {
+    return 'takeValue';
+  }
+
+  return 'advanced';
 }
 
 export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: EditableCustomRecipe | null): OutputColumn {

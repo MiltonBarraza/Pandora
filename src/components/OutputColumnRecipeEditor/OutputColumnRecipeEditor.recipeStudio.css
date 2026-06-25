@@ -1,0 +1,660 @@
+.recipeStudio {
+  --recipe-studio-sidebar: 208px;
+  --recipe-studio-inspector: 300px;
+  gap: 10px;
+}
+
+.recipeStudioHero {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.recipeStudioHero h4 {
+  font-size: 1.08rem;
+  margin: 2px 0 4px;
+}
+
+.recipeStudioHero p {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.recipeStudioEyebrow,
+.recipeStudioSectionHeading span,
+.recipeStudioInspectorHeader span,
+.composeTokenInspectorHeader span,
+.rangeRuleInspectorHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.recipeStudioPreview {
+  align-content: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.recipeStudioPreview span {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.recipeStudioPreview strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recipeStudioWorkspace {
+  align-items: stretch;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: var(--recipe-studio-sidebar) minmax(0, 1fr) var(--recipe-studio-inspector);
+  min-height: 0;
+  min-width: 0;
+}
+
+.recipeStudioSidebar,
+.recipeStudioInspector,
+.composeTokenInspector,
+.rangeRuleInspector,
+.recipeStudioMain {
+  min-width: 0;
+}
+
+.recipeStudioSidebar {
+  align-self: stretch;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+}
+
+.recipeStudioModeButton {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  padding: 8px;
+  text-align: left;
+}
+
+.recipeStudioModeButton span {
+  color: var(--color-text-primary);
+  font-weight: 800;
+}
+
+.recipeStudioModeButton small {
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  line-height: 1.25;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.recipeStudioModeButton.active {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.recipeStudioModeButton:hover:not(:disabled),
+.recipeStudioModeButton:focus-visible,
+.compositionToken:hover,
+.compositionToken:focus-visible,
+.rangeRuleCard:focus-within {
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.recipeStudioModeButton:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.recipeStudioModeButton.active:disabled {
+  opacity: 1;
+}
+
+.recipeStudioMain {
+  align-self: stretch;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.recipeStudioSectionHeading {
+  align-items: baseline;
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.recipeStudioSectionHeading strong {
+  font-size: 0.95rem;
+}
+
+.recipeStudioMain > .recipeSubBlock {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.simpleStudioMode {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.simpleStudioIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.simpleStudioIntro h4 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.simpleStudioIntro p {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.simpleStudioPrimary {
+  max-width: 520px;
+  min-width: 0;
+}
+
+.simpleStudioPreviewBlock {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.simpleStudioPreviewBlock > strong {
+  font-size: 0.94rem;
+}
+
+.simpleStudioPreviewBlock > p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.simpleStudioPreviewBlock ol {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.simpleStudioPreviewBlock li {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 90px minmax(0, 1fr);
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.simpleStudioPreviewBlock li span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.simpleStudioPreviewBlock li strong {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.simpleStudioAdvanced {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 0;
+}
+
+.simpleStudioAdvanced summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.simpleStudioAdvanced summary:hover {
+  background: var(--color-bg-surface-muted);
+}
+
+.simpleStudioAdvanced summary span {
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+
+.simpleStudioAdvanced summary small {
+  color: var(--color-text-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simpleStudioAdvanced[open] {
+  padding-bottom: 10px;
+}
+
+.simpleStudioAdvanced > .customValueEditor {
+  margin: 0 10px;
+}
+
+.composeStudio {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.composeStudioActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compositionTokenEmpty,
+.composeStudioWarning {
+  background: var(--color-bg-surface-muted);
+  border: 1px dashed var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding: 12px;
+}
+
+.compositionTokenList {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.compositionTokenSlot {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.compositionJoiner {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.compositionToken {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  display: inline-grid;
+  gap: 1px;
+  max-width: min(280px, 100%);
+  min-height: 44px;
+  min-width: 0;
+  padding: 7px 12px;
+  text-align: left;
+}
+
+.compositionToken span,
+.compositionToken small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compositionToken small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.compositionToken-input {
+  border-color: var(--color-selected-border);
+}
+
+.compositionToken-text {
+  border-color: var(--color-accent-border);
+}
+
+.compositionToken-advanced {
+  border-color: var(--color-warning-border);
+}
+
+.compositionToken.selected {
+  background: var(--color-selected-bg);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.composeTokenInspector {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.composeTokenInspectorHeader {
+  display: grid;
+  gap: 3px;
+}
+
+.composeTokenInspectorHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.composeTokenFields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.composeTokenMeta {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.composeTokenMeta > div {
+  display: grid;
+  gap: 2px;
+}
+
+.composeTokenMeta dt {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.composeTokenMeta dd {
+  margin: 0;
+}
+
+.composeTokenInspectorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rangeStudio {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.rangeStudioToolbar,
+.rangeRuleInspectorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rangeSuggestionPanel,
+.rangeStudioWarning,
+.rangeRulesEmpty {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  padding: 12px;
+}
+
+.rangeSuggestionPanel summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.rangeSuggestionPanel .manualRangeGenerator {
+  margin-top: 12px;
+}
+
+.rangeStudioWarning {
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.rangeStudioWorkspace {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.rangeRulesList {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rangeRuleCard {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 8px;
+}
+
+.rangeRuleCard.selected {
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.rangeRuleSelect {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  display: grid;
+  gap: 3px;
+  min-height: auto;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.rangeRuleSelect:hover:not(:disabled) {
+  background: transparent;
+}
+
+.rangeRuleSelect strong,
+.rangeRuleSelect span,
+.rangeRuleSelect small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+
+.rangeRuleSelect strong,
+.rangeRuleSelect small {
+  white-space: nowrap;
+}
+
+.rangeRuleSelect span {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.rangeRuleSelect span {
+  color: var(--color-text-primary);
+}
+
+.rangeRuleSelect small,
+.rangeRuleHelp {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.rangeRuleActions {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+
+.rangeRuleInspector {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.rangeRuleInspectorHeader {
+  display: grid;
+  gap: 3px;
+}
+
+.rangeRuleInspectorHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rangeRuleInspectorFields,
+.rangeConditionFields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rangeConditionPanel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  padding: 0;
+}
+
+.rangeConditionPanel summary {
+  cursor: pointer;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
+.rangeConditionFields {
+  padding: 0 12px 12px;
+}
+
+.recipeStudioInspector,
+.composeTokenInspector,
+.rangeRuleInspector {
+  align-self: stretch;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.recipeStudioInspectorHeader {
+  display: grid;
+  gap: 3px;
+}
+
+.recipeStudioInspector dl {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  min-width: 0;
+}
+
+.recipeStudioInspector dl > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.recipeStudioInspector dt {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.recipeStudioInspector dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.recipeStudioInspector p {
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  margin: 0;
+  padding-top: 10px;
+}
+
