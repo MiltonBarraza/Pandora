@@ -1,14 +1,28 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import type { InputColumn, InputRow, OutputRecipe } from '../../../types/import';
-import { ManualRangeSpreadsheetEditor } from '../ManualRangeSpreadsheetEditor';
+import { ManualRangeAdvancedRangeModal } from '../ManualRangeAdvancedRangeModal';
 import {
+  getManualRangeSuggestedRanges,
+  getManualRangeSuggestedSummary,
+  getManualRangeSuggestedWarnings,
+  ManualRangePreviewPanel,
+  ManualRangeSpreadsheetEditor,
+  ManualRangeSuggestedRangesPanel,
+} from '../ManualRangeSpreadsheetEditor';
+import {
+  applyManualRangeSelectedSuggestions,
+  confirmManualRangeClearAll,
   createManualRangeFromSelection,
   createManualRangeValueFromBounds,
+  getDefaultManualRangeVisibleColumnIds,
   getFirstManualRangeForRowNumber,
   getManualRangeById,
   getManualRangeCompactItemClassName,
+  getManualRangeDisplayValue,
+  getManualRangePreviewRows,
+  getManualRangePreviewValueForRow,
   getManualRangeSpreadsheetCellValue,
   getManualRangeSpreadsheetColumnLabel,
   getManualRangeSpreadsheetRowClassName,
@@ -21,6 +35,7 @@ import {
   isRowInsideManualRangeSelection,
   normalizeManualRangeSelectionBounds,
   patchManualRangeInRecipe,
+  reconcileManualRangeVisibleColumnIds,
   removeManualRangeFromRecipe,
   sortManualRangeRecipeByStart,
   sortManualRangesByStart,
@@ -28,6 +43,7 @@ import {
   updateManualRangeSelection,
   type RangeSelectionDraft,
 } from '../ManualRangeSpreadsheetEditor.helpers';
+import { ManualRangeColumnsModal } from '../ManualRangeColumnsModal';
 
 const inputColumns: InputColumn[] = [
   {
@@ -116,19 +132,27 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).not.toContain('Limpiar selección');
   });
 
+  it('renders the build columns button', () => {
+    const markup = renderSpreadsheet();
+
+    expect(markup).toContain('Armar columnas');
+    expect(markup).toContain('manualRangeColumnsButton');
+  });
+
   it('renders column headers using alias, header, and column letter fallback', () => {
     const markup = renderSpreadsheet();
 
-    expect(markup).toContain('<th>A</th>');
-    expect(markup).toContain('<th>Producto</th>');
-    expect(markup).toContain('<th>Formato</th>');
+    expect(markup).toContain('>A</th>');
+    expect(markup).toContain('>Producto</th>');
+    expect(markup).toContain('>Formato</th>');
+    expect(markup).toContain('>Resultado');
   });
 
   it('renders real row numbers instead of visual indexes', () => {
     const markup = renderSpreadsheet();
 
-    expect(markup).toContain('>8</th>');
-    expect(markup).toContain('>12</th>');
+    expect(markup).toContain('manualRangeSpreadsheetRowNumberCell">8</th>');
+    expect(markup).toContain('manualRangeSpreadsheetRowNumberCell">12</th>');
     expect(markup).not.toContain('>1</th>');
   });
 
@@ -141,6 +165,15 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('Rodillo');
   });
 
+  it('renders the local result preview column by default', () => {
+    const markup = renderSpreadsheet({ recipe: multiRangeRecipe });
+
+    expect(markup).toContain('manualRangeSpreadsheetResultHeader');
+    expect(markup).toContain('manualRangeSpreadsheetResultCell');
+    expect(markup).toContain('Resultado estimado según los rangos configurados.');
+    expect(markup).toContain('Promo');
+  });
+
   it('shows an empty state when there are no rows', () => {
     const markup = renderSpreadsheet({ manualRangeRows: [] });
 
@@ -148,11 +181,12 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).not.toContain('<table class="manualRangeSpreadsheetTable"');
   });
 
-  it('shows an empty state when there are no columns', () => {
+  it('keeps the row and result columns when there are no input columns', () => {
     const markup = renderSpreadsheet({ inputColumns: [] });
 
-    expect(markup).toContain('No hay columnas activas disponibles para mostrar.');
-    expect(markup).not.toContain('<table class="manualRangeSpreadsheetTable"');
+    expect(markup).toContain('>Fila</th>');
+    expect(markup).toContain('>Resultado</th>');
+    expect(markup).toContain('<table class="manualRangeSpreadsheetTable"');
   });
 
   it('adds the configured range class to rows inside an existing range', () => {
@@ -172,6 +206,21 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).not.toContain('onChange');
   });
 
+  it('does not call onChange while rendering the spreadsheet preview state', () => {
+    const onChange = vi.fn();
+
+    renderToStaticMarkup(
+      <ManualRangeSpreadsheetEditor
+        recipe={multiRangeRecipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={onChange}
+      />,
+    );
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('marks rows as selectable without requiring an external change handler', () => {
     const markup = renderSpreadsheet();
 
@@ -180,11 +229,25 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('manualRangeSpreadsheetRow-selectable');
   });
 
-  it('renders the inspector empty state without replacing the range list fallback', () => {
+  it('renders the side panel tabs for range views', () => {
     const markup = renderSpreadsheet();
 
-    expect(markup).toContain('manualRangeSpreadsheetInspector');
-    expect(markup).toContain('Seleccioná un rango configurado o creá uno desde la planilla.');
+    expect(markup).toContain('manualRangeSpreadsheetSidePanel');
+    expect(markup).toContain('manualRangeSpreadsheetSideTabs');
+    expect(markup).toContain('manualRangeSpreadsheetSideTabActive');
+    expect(markup).toContain('Rangos');
+    expect(markup).toContain('Sugeridos');
+    expect(markup).toContain('Vista previa');
+    expect(markup).not.toContain('disabled="" title="Vista preparada para una próxima fase.">Sugeridos</button>');
+    expect(markup).not.toContain('disabled="" title="Vista preparada para una próxima fase.">Vista previa</button>');
+  });
+
+  it('keeps ranges as the initial side panel view', () => {
+    const markup = renderSpreadsheet({ recipe: multiRangeRecipe });
+
+    expect(markup).toContain('Rangos configurados');
+    expect(markup).toContain('manualRangeSpreadsheetSideTabActive');
+    expect(markup).not.toContain('Resultado estimado según los rangos configurados.</p>');
   });
 
   it('shows the compact ranges list empty state when there are no ranges', () => {
@@ -192,6 +255,9 @@ describe('ManualRangeSpreadsheetEditor', () => {
 
     expect(markup).toContain('Rangos configurados');
     expect(markup).toContain('Todavía no hay rangos configurados. Seleccioná filas en la planilla para crear uno.');
+    expect(markup).toContain('Borrar todos');
+    expect(markup).toContain('manualRangeSpreadsheetDeleteAllButton');
+    expect(markup).toContain('disabled="">Borrar todos');
   });
 
   it('renders compact range list items with row bounds and value summaries', () => {
@@ -202,6 +268,18 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('15 - 20');
     expect(markup).toContain('Texto fijo: Promo');
     expect(markup).toContain('Texto encontrado: Marca');
+    expect(markup).toContain('manualRangeSpreadsheetRangeEditButton');
+    expect(markup).toContain('manualRangeSpreadsheetRangeItemMain');
+    expect(markup).toContain('manualRangeSpreadsheetRangeItemActions');
+    expect(markup).toContain('Editar');
+  });
+
+  it('does not render the selected range editor inline in the side panel', () => {
+    const markup = renderSpreadsheet({ recipe: multiRangeRecipe });
+
+    expect(markup).toContain('manualRangeSpreadsheetSideContent');
+    expect(markup).not.toContain('Rango seleccionado');
+    expect(markup).not.toContain('Eliminar rango');
   });
 
   it('renders the sort by start action in the compact ranges list', () => {
@@ -209,6 +287,8 @@ describe('ManualRangeSpreadsheetEditor', () => {
 
     expect(markup).toContain('Ordenar por inicio');
     expect(markup).toContain('manualRangeSpreadsheetSortButton');
+    expect(markup).toContain('Borrar todos');
+    expect(markup).toContain('manualRangeSpreadsheetDeleteAllButton');
   });
 
   it('marks overlapping compact range items', () => {
@@ -224,6 +304,246 @@ describe('ManualRangeSpreadsheetEditor', () => {
 
     expect(markup).toContain('manualRangeSpreadsheetRangeItemOverlap');
     expect(markup).toContain('Se superpone con otro rango');
+  });
+
+  it('marks the row number column as clickable and sticky headers as sticky', () => {
+    const markup = renderSpreadsheet();
+
+    expect(markup).toContain('manualRangeSpreadsheetHeaderSticky');
+    expect(markup).toContain('manualRangeSpreadsheetRowNumberCell');
+    expect(markup).toContain('aria-label="Seleccionar fila 8"');
+  });
+});
+
+describe('ManualRangePreviewPanel', () => {
+  function renderPreviewPanel(
+    overrides: Partial<Parameters<typeof ManualRangePreviewPanel>[0]> = {},
+  ) {
+    return renderToStaticMarkup(
+      <ManualRangePreviewPanel
+        ranges={overrides.ranges ?? multiRangeRecipe.ranges}
+        manualRangeRows={overrides.manualRangeRows ?? manualRangeRows}
+        selectedRangeId={overrides.selectedRangeId ?? null}
+        onSelectRange={overrides.onSelectRange ?? (() => undefined)}
+      />,
+    );
+  }
+
+  it('renders title, copy, summary, and default enabled result-only toggle', () => {
+    const markup = renderPreviewPanel();
+
+    expect(markup).toContain('manualRangePreviewPanel');
+    expect(markup).toContain('Vista previa');
+    expect(markup).toContain('Resultado estimado según los rangos configurados.');
+    expect(markup).toContain('Filas visibles: 4');
+    expect(markup).toContain('Filas con resultado: 4');
+    expect(markup).toContain('Rangos configurados: 2');
+    expect(markup).toContain('Mostrar sólo filas con resultado');
+    expect(markup).toContain('checked=""');
+  });
+
+  it('shows the no-ranges empty state', () => {
+    const markup = renderPreviewPanel({ ranges: [] });
+
+    expect(markup).toContain('Todavía no hay rangos configurados para previsualizar.');
+    expect(markup).toContain('Rangos configurados: 0');
+  });
+
+  it('shows the no visible estimated results state when ranges do not cover visible rows', () => {
+    const markup = renderPreviewPanel({
+      ranges: [{ id: 'range-30-35', startRowNumber: 30, endRowNumber: 35, value: 'Fuera' }],
+    });
+
+    expect(markup).toContain('No hay resultados estimados para las filas visibles.');
+    expect(markup).toContain('Filas con resultado: 0');
+  });
+
+  it('renders compact preview rows with real row numbers, result, and producing range', () => {
+    const markup = renderPreviewPanel();
+
+    expect(markup).toContain('manualRangePreviewList');
+    expect(markup).toContain('Fila 8');
+    expect(markup).toContain('Fila 12');
+    expect(markup).toContain('Resultado: Promo');
+    expect(markup).toContain('Rango: 8 - 13');
+    expect(markup).not.toContain('>Fila 1</span>');
+  });
+
+  it('marks a preview item active when its range is selected', () => {
+    const markup = renderPreviewPanel({ selectedRangeId: 'range-8-13' });
+
+    expect(markup).toContain('manualRangePreviewItemActive');
+    expect(markup).toContain('aria-pressed="true"');
+  });
+});
+
+describe('ManualRangeAdvancedRangeModal', () => {
+  it('renders the selected range fields and reuses the range value editor with draft modal actions', () => {
+    vi.stubGlobal('document', { body: {} });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const markup = renderToStaticMarkup(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={multiRangeRecipe}
+        range={multiRangeRecipe.ranges[0]}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    consoleError.mockRestore();
+
+    expect(markup).toContain('Configurar rango');
+    expect(markup).toContain('Filas 8 - 13');
+    expect(markup).not.toContain('Rango seleccionado');
+    expect(markup).toContain('manualRangeAdvancedRangeModal');
+    expect(markup).toContain('value="8"');
+    expect(markup).toContain('value="13"');
+    expect(markup).toContain('manualRangeValueFields');
+    expect(markup).toContain('Eliminar rango');
+    expect(markup).toContain('Cancelar');
+    expect(markup).toContain('Aceptar');
+    expect(markup).toContain('Paso 1');
+    expect(markup).not.toContain('Pasos adicionales');
+  });
+});
+
+describe('ManualRangeColumnsModal', () => {
+  it('renders the columns modal copy, active columns, quick actions, result toggle, and buttons', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeColumnsModal
+        open
+        inputColumns={inputColumns}
+        visibleColumnIds={['input-code', 'input-pack']}
+        showResultColumn
+        onApply={() => undefined}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Armar columnas');
+    expect(markup).toContain('Elegí qué columnas querés ver en la planilla de rangos. Esto no modifica los datos originales.');
+    expect(markup).toContain('A');
+    expect(markup).toContain('Producto');
+    expect(markup).toContain('Formato');
+    expect(markup).toContain('Seleccionar todas');
+    expect(markup).toContain('Limpiar');
+    expect(markup).toContain('Restaurar recomendadas');
+    expect(markup).toContain('Mostrar resultado');
+    expect(markup).toContain('Cancelar');
+    expect(markup).toContain('Aceptar');
+  });
+
+  it('shows validation when no input column nor result column is selected', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeColumnsModal
+        open
+        inputColumns={inputColumns}
+        visibleColumnIds={[]}
+        showResultColumn={false}
+        onApply={() => undefined}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Seleccioná al menos una columna o activá Resultado.');
+    expect(markup).toContain('disabled=""');
+  });
+});
+
+describe('ManualRangeSuggestedRangesPanel', () => {
+  function renderSuggestedPanel(
+    overrides: Partial<Parameters<typeof ManualRangeSuggestedRangesPanel>[0]> = {},
+  ) {
+    return renderToStaticMarkup(
+      <ManualRangeSuggestedRangesPanel
+        recipe={overrides.recipe ?? recipe}
+        inputColumns={overrides.inputColumns ?? inputColumns}
+        manualRangeRows={overrides.manualRangeRows ?? manualRangeRows}
+        suggestedRanges={overrides.suggestedRanges ?? []}
+        selectedSuggestedRangeIds={overrides.selectedSuggestedRangeIds ?? new Set()}
+        hasSearchedSuggestions={overrides.hasSearchedSuggestions ?? false}
+        onChange={overrides.onChange ?? (() => undefined)}
+        onSideViewChange={overrides.onSideViewChange ?? (() => undefined)}
+        onSuggestedRangesChange={overrides.onSuggestedRangesChange ?? (() => undefined)}
+        onSelectedSuggestedRangeIdsChange={overrides.onSelectedSuggestedRangeIdsChange ?? (() => undefined)}
+        onSuggestionsSearchedChange={overrides.onSuggestionsSearchedChange ?? (() => undefined)}
+        onAppliedRangeSelect={overrides.onAppliedRangeSelect ?? (() => undefined)}
+      />,
+    );
+  }
+
+  it('renders suggested ranges controls and the initial empty state', () => {
+    const markup = renderSuggestedPanel();
+
+    expect(markup).toContain('manualRangeSuggestedControlsCompact');
+    expect(markup).toContain('aria-label="Buscar sugerencias"');
+    expect(markup).toContain('title="Buscar sugerencias"');
+    expect(markup).toContain('Guardar como valor');
+    expect(markup).toContain('Sin valor');
+    expect(markup).toContain('Valor detectado');
+    expect(markup).toContain('manualRangeSuggestedSummary');
+    expect(markup).toContain('Pandora usará cada dato de A como inicio de un rango');
+    expect(markup).toContain('Los rangos se crearán sin valor inicial.');
+    expect(markup).toContain('Rangos sugeridos');
+    expect(markup).toContain('Generá posibles rangos y revisalos antes de aplicarlos.');
+    expect(markup).toContain('Buscar sugerencias');
+    expect(markup).toContain('Todavía no hay sugerencias.');
+    expect(markup).toContain('Cada dato inicia un rango');
+    expect(markup).toContain('Bloques consecutivos con datos');
+  });
+
+  it('renders no-results state after searching without suggestions', () => {
+    const markup = renderSuggestedPanel({ hasSearchedSuggestions: true });
+
+    expect(markup).toContain('No se encontraron sugerencias con esta configuración.');
+  });
+
+  it('renders warnings when suggested ranges cannot be configured', () => {
+    const markup = renderSuggestedPanel({ inputColumns: [], manualRangeRows: [] });
+
+    expect(markup).toContain('manualRangeSuggestedWarnings');
+    expect(markup).toContain('Elegí una columna para buscar sugerencias.');
+    expect(markup).toContain('Ingresá un rango de filas válido.');
+    expect(markup).toContain('No hay filas visibles para generar sugerencias.');
+  });
+
+  it('renders pending suggestions with range, summary, selection, and overlap warning', () => {
+    const suggestedRanges = [
+      { id: 'suggested-8-13', startRowNumber: 8, endRowNumber: 13, valueRecipe: { source: { type: 'fixedText' as const, value: 'PINCELES SERIE 304' }, steps: [] } },
+      { id: 'suggested-20-20', startRowNumber: 20, endRowNumber: 20, value: 'CINTA' },
+    ];
+    const markup = renderSuggestedPanel({
+      suggestedRanges,
+      selectedSuggestedRangeIds: new Set(['suggested-8-13']),
+      hasSearchedSuggestions: true,
+    });
+
+    expect(markup).toContain('Seleccionar todas');
+    expect(markup).toContain('Limpiar selección');
+    expect(markup).toContain('Aplicar seleccionadas');
+    expect(markup).toContain('Se encontraron 2 sugerencias.');
+    expect(markup).toContain('1 seleccionada.');
+    expect(markup).toContain('8 - 13');
+    expect(markup).toContain('20 - 20');
+    expect(markup).toContain('Texto fijo: PINCELES SERIE 304');
+    expect(markup).toContain('manualRangeSuggestedItemSelected');
+    expect(markup).toContain('manualRangeSuggestedItemOverlap');
+    expect(markup).toContain('Se superpone con un rango configurado');
+  });
+
+  it('disables apply and asks for selection when no suggestion is selected', () => {
+    const markup = renderSuggestedPanel({
+      suggestedRanges: [{ id: 'suggested-20-20', startRowNumber: 20, endRowNumber: 20, value: 'CINTA' }],
+      selectedSuggestedRangeIds: new Set(),
+      hasSearchedSuggestions: true,
+    });
+
+    expect(markup).toContain('Se encontró 1 sugerencia.');
+    expect(markup).toContain('Seleccioná al menos una sugerencia para aplicarla.');
+    expect(markup).toContain('disabled="">Aplicar seleccionadas');
   });
 });
 
@@ -246,6 +566,25 @@ describe('ManualRangeSpreadsheetEditor helpers', () => {
   it('reads cell values and falls back to an empty string', () => {
     expect(getManualRangeSpreadsheetCellValue(manualRangeRows[0], 'input-name')).toBe('Pincel');
     expect(getManualRangeSpreadsheetCellValue(manualRangeRows[0], 'missing')).toBe('');
+  });
+
+  it('gets default manual range visible columns deterministically', () => {
+    const manyColumns = Array.from({ length: 8 }, (_, index): InputColumn => ({
+      id: `input-${index}`,
+      columnIndex: index,
+      columnLetter: String.fromCharCode(65 + index),
+      label: `Columna ${index}`,
+      active: true,
+      sampleValues: [],
+      nonEmptyCount: 0,
+    }));
+
+    expect(getDefaultManualRangeVisibleColumnIds(inputColumns)).toEqual(['input-code', 'input-name', 'input-pack']);
+    expect(getDefaultManualRangeVisibleColumnIds(manyColumns)).toEqual(['input-0', 'input-1', 'input-2', 'input-3', 'input-4', 'input-5']);
+  });
+
+  it('reconciles visible column ids without inventing persisted state', () => {
+    expect(reconcileManualRangeVisibleColumnIds(['input-pack', 'missing', 'input-pack', 'input-code'], inputColumns)).toEqual(['input-pack', 'input-code']);
   });
 
   it('detects rows inside manual ranges', () => {
@@ -340,6 +679,133 @@ describe('ManualRangeSpreadsheetEditor helpers', () => {
 
     expect(className).toContain('manualRangeSpreadsheetRow-activeRange');
     expect(className).toContain('manualRangeSpreadsheetRow-covered');
+  });
+
+  it('adds suggested range visual classes without overriding configured range classes', () => {
+    const className = getManualRangeSpreadsheetRowClassName(
+      8,
+      recipe.ranges,
+      { startRowNumber: null, endRowNumber: null },
+      null,
+      null,
+      [{ id: 'suggested-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Sugerido' }],
+      new Set(['suggested-8-13']),
+    );
+
+    expect(className).toContain('manualRangeSpreadsheetRow-suggested');
+    expect(className).toContain('manualRangeSpreadsheetRow-suggestedSelected');
+    expect(className).toContain('manualRangeSpreadsheetRow-covered');
+  });
+
+  it('applies only selected suggestions and preserves existing recipe data', () => {
+    const conditionalRecipe = {
+      ...recipe,
+      condition: { inputColumnId: 'input-code', operator: 'isNotEmpty' as const },
+    };
+    const suggestedRanges = [
+      { id: 'suggested-12-13', startRowNumber: 12, endRowNumber: 13, value: 'Aplicado' },
+      { id: 'suggested-20-20', startRowNumber: 20, endRowNumber: 20, value: 'Pendiente' },
+    ];
+
+    const result = applyManualRangeSelectedSuggestions(
+      conditionalRecipe,
+      suggestedRanges,
+      new Set(['suggested-12-13']),
+    );
+
+    expect(result?.appliedRanges).toEqual([suggestedRanges[0]]);
+    expect(result?.recipe.condition).toEqual(conditionalRecipe.condition);
+    expect(result?.recipe.ranges).toEqual([...conditionalRecipe.ranges, suggestedRanges[0]]);
+  });
+
+  it('does not apply suggestions when none are selected', () => {
+    const result = applyManualRangeSelectedSuggestions(
+      recipe,
+      [{ id: 'suggested-12-13', startRowNumber: 12, endRowNumber: 13, value: 'Aplicado' }],
+      new Set(),
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('builds suggested ranges with the selected initial value mode before applying', () => {
+    const ranges = getManualRangeSuggestedRanges({
+      manualRangeRows,
+      inputColumnId: 'input-code',
+      startRowNumber: 8,
+      endRowNumber: 20,
+      detectionMode: 'textStarts',
+      initialValueMode: 'firstValueInColumn',
+      initialValueColumnId: 'input-name',
+    });
+
+    expect(ranges[0]).toMatchObject({
+      startRowNumber: 8,
+      valueRecipe: {
+        source: {
+          type: 'rangeText',
+          inputColumnId: 'input-name',
+          selectedText: 'Pincel',
+        },
+      },
+    });
+  });
+
+  it('builds dynamic suggested range summary text', () => {
+    expect(getManualRangeSuggestedSummary({
+      detectionMode: 'dataBlocks',
+      inputColumn: inputColumns[0],
+      startRowInput: '3',
+      endRowInput: '137',
+      initialValueMode: 'lastValueInColumn',
+      initialValueColumn: inputColumns[1],
+    })).toBe('Pandora creará un rango por cada bloque consecutivo con datos en A, desde la fila 3 hasta la fila 137. Guardará el último valor con datos de Producto.');
+  });
+
+  it('builds suggested range warnings for invalid and empty configurations', () => {
+    expect(getManualRangeSuggestedWarnings({
+      inputColumnId: '',
+      manualRangeRows: [],
+      startRowNumber: null,
+      endRowNumber: null,
+      suggestedPreviewRanges: [],
+      canSearch: false,
+    })).toEqual([
+      'Elegí una columna para buscar sugerencias.',
+      'Ingresá un rango de filas válido.',
+      'No hay filas visibles para generar sugerencias.',
+    ]);
+  });
+
+  it('confirms before clearing all manual ranges and preserves condition', () => {
+    const conditionalRecipe = {
+      ...recipe,
+      condition: { inputColumnId: 'input-code', operator: 'isNotEmpty' as const },
+    };
+    const confirmClear = vi.fn(() => true);
+    const result = confirmManualRangeClearAll(conditionalRecipe, confirmClear);
+
+    expect(confirmClear).toHaveBeenCalledWith('¿Querés borrar todos los rangos configurados?');
+    expect(result).toEqual({
+      ...conditionalRecipe,
+      ranges: [],
+    });
+  });
+
+  it('does not clear manual ranges when clear-all confirmation is cancelled', () => {
+    const confirmClear = vi.fn(() => false);
+    const result = confirmManualRangeClearAll(recipe, confirmClear);
+
+    expect(confirmClear).toHaveBeenCalledOnce();
+    expect(result).toBeNull();
+  });
+
+  it('does not ask for confirmation when there are no manual ranges to clear', () => {
+    const confirmClear = vi.fn(() => true);
+    const result = confirmManualRangeClearAll({ type: 'manualRange', ranges: [] }, confirmClear);
+
+    expect(confirmClear).not.toHaveBeenCalled();
+    expect(result).toBeNull();
   });
 
   it('creates a default manual range value from normalized bounds', () => {
@@ -482,6 +948,104 @@ describe('ManualRangeSpreadsheetEditor helpers', () => {
       endRowNumber: 2,
       suggestedFromText: 'Grupo',
     })).toBe('Sugerido: Grupo');
+  });
+
+  it('gets local manual range display values without executing runtime transforms', () => {
+    expect(getManualRangeDisplayValue({
+      id: 'fixed',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: { source: { type: 'fixedText', value: 'Promo' }, steps: [] },
+    })).toBe('Promo');
+    expect(getManualRangeDisplayValue({
+      id: 'legacy-fixed',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueSource: { type: 'fixedText', value: 'Legacy' },
+    })).toBe('Legacy');
+    expect(getManualRangeDisplayValue({
+      id: 'legacy-range-text',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Marca' },
+    })).toBe('Marca');
+    expect(getManualRangeDisplayValue({
+      id: 'legacy-value',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      value: 'Viejo',
+    })).toBe('Viejo');
+    expect(getManualRangeDisplayValue({
+      id: 'configured',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: { source: { type: 'input', inputColumnId: 'input-name' }, steps: [] },
+    })).toBe('Configurado');
+  });
+
+  it('gets local manual range preview values by row and respects first overlap', () => {
+    const ranges = [
+      { id: 'first', startRowNumber: 8, endRowNumber: 13, value: 'Primero' },
+      { id: 'second', startRowNumber: 10, endRowNumber: 20, value: 'Segundo' },
+    ];
+
+    expect(getManualRangePreviewValueForRow(7, ranges)).toBe('');
+    expect(getManualRangePreviewValueForRow(12, ranges)).toBe('Primero');
+    expect(getManualRangePreviewValueForRow(18, ranges)).toBe('Segundo');
+  });
+
+  it('builds manual range preview rows from real row numbers and local estimated values', () => {
+    const rows = getManualRangePreviewRows(manualRangeRows, multiRangeRecipe.ranges);
+
+    expect(rows).toEqual([
+      { rowNumber: 8, value: 'Promo', rangeId: 'range-8-13', rangeLabel: '8 - 13' },
+      { rowNumber: 12, value: 'Promo', rangeId: 'range-8-13', rangeLabel: '8 - 13' },
+      { rowNumber: 13, value: 'Promo', rangeId: 'range-8-13', rangeLabel: '8 - 13' },
+      { rowNumber: 20, value: 'Marca', rangeId: 'range-15-20', rangeLabel: '15 - 20' },
+    ]);
+  });
+
+  it('filters manual range preview rows to rows with result when requested', () => {
+    const rows = getManualRangePreviewRows(manualRangeRows, recipe.ranges, { onlyRowsWithResult: true });
+
+    expect(rows.map((row) => row.rowNumber)).toEqual([8]);
+    expect(rows[0].value).toBe('Promo');
+  });
+
+  it('keeps empty preview rows with dash-ready data when result-only filter is disabled', () => {
+    const rows = getManualRangePreviewRows(manualRangeRows, recipe.ranges, { onlyRowsWithResult: false });
+
+    expect(rows).toHaveLength(4);
+    expect(rows[1]).toEqual({ rowNumber: 12, value: '', rangeId: null, rangeLabel: null });
+  });
+
+  it('respects first matching range order when building overlapping preview rows', () => {
+    const ranges = [
+      { id: 'first', startRowNumber: 8, endRowNumber: 13, value: 'Primero' },
+      { id: 'second', startRowNumber: 10, endRowNumber: 20, value: 'Segundo' },
+    ];
+    const rows = getManualRangePreviewRows(manualRangeRows, ranges);
+
+    expect(rows.find((row) => row.rowNumber === 12)).toMatchObject({
+      value: 'Primero',
+      rangeId: 'first',
+      rangeLabel: '8 - 13',
+    });
+    expect(rows.find((row) => row.rowNumber === 20)).toMatchObject({
+      value: 'Segundo',
+      rangeId: 'second',
+      rangeLabel: '10 - 20',
+    });
+  });
+
+  it('does not mutate rows or ranges when building manual range preview rows', () => {
+    const originalRows = structuredClone(manualRangeRows);
+    const originalRanges = structuredClone(multiRangeRecipe.ranges);
+
+    getManualRangePreviewRows(manualRangeRows, multiRangeRecipe.ranges);
+
+    expect(manualRangeRows).toEqual(originalRows);
+    expect(multiRangeRecipe.ranges).toEqual(originalRanges);
   });
 
   it('finds the first manual range for a row number using recipe order', () => {

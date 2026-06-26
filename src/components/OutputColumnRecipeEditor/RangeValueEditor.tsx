@@ -22,6 +22,7 @@ type RangeValueEditorProps = {
   range: ManualRangeValue;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  stepLabelMode?: 'additional' | 'sequential';
   onValueSourceTypeChange: (type: ManualRangeValueSourceType) => void;
   onFixedTextChange: (value: string) => void;
   onInputColumnChange: (inputColumnId: string) => void;
@@ -95,6 +96,7 @@ export function RangeValueEditor({
   range,
   inputColumns,
   manualRangeRows,
+  stepLabelMode = 'additional',
   onValueSourceTypeChange,
   onFixedTextChange,
   onInputColumnChange,
@@ -180,6 +182,7 @@ export function RangeValueEditor({
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
         range={range}
+        stepLabelMode={stepLabelMode}
         sourceFields={sourceFields}
         hasSourceDetails={hasSourceDetails}
         textActionValue={isColumnTextPickerOpen
@@ -233,6 +236,7 @@ function RangeValueStepsEditor({
   allowPreviousResultTextAction = false,
   allowConcat = true,
   showAdditionalStepsHeader = true,
+  stepLabelMode = 'additional',
   onChange,
 }: {
   steps: TransformStep[];
@@ -246,6 +250,7 @@ function RangeValueStepsEditor({
   allowPreviousResultTextAction?: boolean;
   allowConcat?: boolean;
   showAdditionalStepsHeader?: boolean;
+  stepLabelMode?: 'additional' | 'sequential';
   onChange: (steps: TransformStep[]) => void;
 }) {
   const safeSteps = steps
@@ -269,6 +274,11 @@ function RangeValueStepsEditor({
   return (
     <div className="rangeValueTransforms">
       <div className={`rangeValueOperationPanel${hasSourceDetails && !isPrimaryConcat ? ' hasSourceDetails' : ''}`}>
+        {stepLabelMode === 'sequential' ? (
+          <div className="rangeValueStepTitle">
+            <strong>Paso 1</strong>
+          </div>
+        ) : null}
         <div className="rangeValuePrimaryLayout">
           <div className="rangeValuePrimaryControls">
             <RangeValueStepControls
@@ -292,6 +302,7 @@ function RangeValueStepsEditor({
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
                 range={range}
+                stepLabelMode={stepLabelMode}
                 onChange={(patch) => updatePrimaryStep({ ...primaryStep, ...patch })}
               />
             )}
@@ -302,8 +313,8 @@ function RangeValueStepsEditor({
       {showAdditionalStepsHeader ? (
         <div className="sectionHeader compact rangeValueAdditionalHeader">
           <div>
-            <strong>Pasos adicionales</strong>
-            <p className="muted">{additionalSteps.length === 0 ? 'Sin pasos adicionales.' : `${additionalSteps.length} configurado${additionalSteps.length === 1 ? '' : 's'}.`}</p>
+            <strong>{stepLabelMode === 'sequential' ? 'Pasos' : 'Pasos adicionales'}</strong>
+            <p className="muted">{additionalSteps.length === 0 ? (stepLabelMode === 'sequential' ? 'Sin pasos.' : 'Sin pasos adicionales.') : `${additionalSteps.length} configurado${additionalSteps.length === 1 ? '' : 's'}.`}</p>
           </div>
           <ActionButton action="add" variant="secondary" onClick={addStep}>Agregar paso</ActionButton>
         </div>
@@ -324,6 +335,7 @@ function RangeValueStepsEditor({
               manualRangeRows={manualRangeRows}
               range={range}
               allowConcat={allowConcat}
+              stepLabelMode={stepLabelMode}
               onChange={(patch) => updateStep(step.id, patch)}
               onDelete={() => deleteStep(step.id)}
             />
@@ -400,6 +412,7 @@ function RangeValueStepEditor({
   manualRangeRows,
   range,
   allowConcat,
+  stepLabelMode,
   onChange,
   onDelete,
 }: {
@@ -409,6 +422,7 @@ function RangeValueStepEditor({
   manualRangeRows?: InputRow[];
   range?: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>;
   allowConcat: boolean;
+  stepLabelMode: 'additional' | 'sequential';
   onChange: (patch: Partial<TransformStep>) => void;
   onDelete: () => void;
 }) {
@@ -419,7 +433,7 @@ function RangeValueStepEditor({
   return (
     <div className="stepDetailPanel">
       <div className="stepCardHeader">
-        <strong>Paso adicional {index + 1}</strong>
+        <strong>{stepLabelMode === 'sequential' ? `Paso ${index + 2}` : `Paso adicional ${index + 1}`}</strong>
         <DeleteButton title="Eliminar paso" onClick={onDelete} />
       </div>
       <div className="simpleCustomValueGrid">
@@ -444,6 +458,7 @@ function RangeValueStepEditor({
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
           range={range}
+          stepLabelMode={stepLabelMode}
           onChange={onChange}
         />
       </div>
@@ -456,12 +471,14 @@ function RangeValueStepFields({
   inputColumns,
   manualRangeRows = [],
   range,
+  stepLabelMode = 'additional',
   onChange,
 }: {
   step: TransformStep;
   inputColumns: InputColumn[];
   manualRangeRows?: InputRow[];
   range?: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>;
+  stepLabelMode?: 'additional' | 'sequential';
   onChange: (patch: Partial<TransformStep>) => void;
 }) {
   if (step.type === 'addPrefix' || step.type === 'addSuffix' || step.type === 'removeText') {
@@ -537,6 +554,7 @@ function RangeValueStepFields({
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
         range={range}
+        stepLabelMode={stepLabelMode}
         onChange={(parts) => onChange({ parts })}
       />
     );
@@ -550,12 +568,14 @@ function RangeValueConcatEditor({
   inputColumns,
   manualRangeRows,
   range,
+  stepLabelMode,
   onChange,
 }: {
   parts: ConcatPart[];
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   range?: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>;
+  stepLabelMode: 'additional' | 'sequential';
   onChange: (parts: ConcatPart[]) => void;
 }) {
   const safeParts = parts.length > 0 ? parts : createDefaultRangeValueConcatParts();
@@ -623,6 +643,7 @@ function RangeValueConcatEditor({
             inputColumns={inputColumns}
             manualRangeRows={manualRangeRows}
             range={range}
+            stepLabelMode={stepLabelMode}
             sourceFields={selectedPart.steps?.[0]?.type === 'addPrefix' || selectedPart.steps?.[0]?.type === 'addSuffix' ? null : (
               <RangeValueConcatPartSourceFields
                 source={selectedPart.source}

@@ -12,6 +12,13 @@ export type ManualRangeSpreadsheetClickState = {
   selectedRangeId: string | null;
 };
 
+export type ManualRangePreviewRow = {
+  rowNumber: number;
+  value: string;
+  rangeId: string | null;
+  rangeLabel: string | null;
+};
+
 export function getManualRangeSpreadsheetColumnLabel(column: InputColumn): string {
   const alias = column.alias?.trim();
   if (alias) {
@@ -40,6 +47,21 @@ export function getManualRangeSpreadsheetCellValue(row: InputRow, columnId: stri
   return String(row.values[columnId] ?? '');
 }
 
+export function getDefaultManualRangeVisibleColumnIds(inputColumns: InputColumn[]): string[] {
+  return inputColumns.slice(0, 6).map((column) => column.id);
+}
+
+export function reconcileManualRangeVisibleColumnIds(
+  visibleColumnIds: string[],
+  inputColumns: InputColumn[],
+): string[] {
+  const validColumnIds = new Set(inputColumns.map((column) => column.id));
+  return visibleColumnIds.filter((columnId, index) => (
+    validColumnIds.has(columnId)
+    && visibleColumnIds.indexOf(columnId) === index
+  ));
+}
+
 export function isRowInsideManualRange(rowNumber: number, range: ManualRangeValue): boolean {
   return rowNumber >= range.startRowNumber && rowNumber <= range.endRowNumber;
 }
@@ -54,6 +76,44 @@ export function getFirstManualRangeForRowNumber(rowNumber: number, ranges: Manua
 
 export function getManualRangeById(ranges: ManualRangeValue[], rangeId: string | null): ManualRangeValue | null {
   return rangeId ? ranges.find((range) => range.id === rangeId) ?? null : null;
+}
+
+export function applyManualRangeSelectedSuggestions(
+  recipe: ManualRangeRecipe,
+  suggestedRanges: ManualRangeValue[],
+  selectedSuggestedRangeIds: Set<string>,
+): { recipe: ManualRangeRecipe; appliedRanges: ManualRangeValue[] } | null {
+  const appliedRanges = suggestedRanges.filter((range) => selectedSuggestedRangeIds.has(range.id));
+  if (appliedRanges.length === 0) {
+    return null;
+  }
+
+  return {
+    recipe: {
+      ...recipe,
+      ranges: [...recipe.ranges, ...appliedRanges],
+    },
+    appliedRanges,
+  };
+}
+
+export function confirmManualRangeClearAll(
+  recipe: ManualRangeRecipe,
+  confirmClear: (message: string) => boolean,
+): ManualRangeRecipe | null {
+  if (recipe.ranges.length === 0) {
+    return null;
+  }
+
+  const confirmed = confirmClear('¿Querés borrar todos los rangos configurados?');
+  if (!confirmed) {
+    return null;
+  }
+
+  return {
+    ...recipe,
+    ranges: [],
+  };
 }
 
 export function sortManualRangesByStart(ranges: ManualRangeValue[]): ManualRangeValue[] {
@@ -125,6 +185,60 @@ export function getManualRangeValueSummary(range: ManualRangeValue, inputColumns
   }
 
   return 'Sin valor configurado';
+}
+
+export function getManualRangeDisplayValue(range: ManualRangeValue): string {
+  const source = range.valueRecipe?.source;
+
+  if (source?.type === 'fixedText') {
+    return source.value;
+  }
+
+  if (range.valueSource?.type === 'fixedText') {
+    return range.valueSource.value;
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return range.valueSource.selectedText;
+  }
+
+  if (typeof range.value === 'string') {
+    return range.value;
+  }
+
+  return range.valueRecipe || range.valueSource ? 'Configurado' : '';
+}
+
+export function getManualRangePreviewValueForRow(
+  rowNumber: number,
+  ranges: ManualRangeValue[],
+): string {
+  const range = getFirstManualRangeForRowNumber(rowNumber, ranges);
+  return range ? getManualRangeDisplayValue(range) : '';
+}
+
+export function getManualRangePreviewRows(
+  rows: InputRow[],
+  ranges: ManualRangeValue[],
+  options: { onlyRowsWithResult?: boolean } = {},
+): ManualRangePreviewRow[] {
+  const previewRows = rows.map((row) => {
+    const range = getFirstManualRangeForRowNumber(row.rowNumber, ranges);
+    const value = range ? getManualRangeDisplayValue(range) : '';
+
+    return {
+      rowNumber: row.rowNumber,
+      value,
+      rangeId: range?.id ?? null,
+      rangeLabel: range ? `${range.startRowNumber} - ${range.endRowNumber}` : null,
+    };
+  });
+
+  if (options.onlyRowsWithResult) {
+    return previewRows.filter((row) => row.value.trim() !== '');
+  }
+
+  return previewRows;
 }
 
 export function getManualRangeCompactItemClassName(
@@ -205,6 +319,8 @@ export function getManualRangeSpreadsheetRowClassName(
   selection: RangeSelectionDraft,
   lastCreatedRangeId: string | null = null,
   selectedRangeId: string | null = null,
+  suggestedRanges: ManualRangeValue[] = [],
+  selectedSuggestedRangeIds: Set<string> = new Set(),
 ): string {
   const lastCreatedRange = lastCreatedRangeId
     ? ranges.find((range) => range.id === lastCreatedRangeId)
@@ -212,10 +328,14 @@ export function getManualRangeSpreadsheetRowClassName(
   const selectedRange = selectedRangeId
     ? ranges.find((range) => range.id === selectedRangeId)
     : undefined;
+  const suggestedRange = suggestedRanges.find((range) => isRowInsideManualRange(rowNumber, range));
+  const selectedSuggestedRange = suggestedRange && selectedSuggestedRangeIds.has(suggestedRange.id);
 
   return [
     'manualRangeSpreadsheetRow',
     'manualRangeSpreadsheetRow-selectable',
+    suggestedRange ? 'manualRangeSpreadsheetRow-suggested' : '',
+    selectedSuggestedRange ? 'manualRangeSpreadsheetRow-suggestedSelected' : '',
     isRowInsideAnyManualRange(rowNumber, ranges) ? 'manualRangeSpreadsheetRow-covered' : '',
     lastCreatedRange && isRowInsideManualRange(rowNumber, lastCreatedRange) ? 'manualRangeSpreadsheetRow-lastCreated' : '',
     selectedRange && isRowInsideManualRange(rowNumber, selectedRange) ? 'manualRangeSpreadsheetRow-activeRange' : '',

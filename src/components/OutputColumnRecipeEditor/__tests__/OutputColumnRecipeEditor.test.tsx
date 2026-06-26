@@ -198,7 +198,7 @@ describe('constructor helpers', () => {
     expect(stepModeOptions).toContainEqual({ value: 'manualRange', label: 'Trabajar con rangos' });
   });
 
-  it('renders suggested range generation copy instead of generated-from-texts copy', () => {
+  it('renders the suggested ranges tab instead of the old generated-from-texts copy', () => {
     const column: OutputColumn = {
       id: 'output-range',
       label: 'Rango',
@@ -209,7 +209,8 @@ describe('constructor helpers', () => {
 
     const markup = renderRecipeEditorMarkup(column);
 
-    expect(markup).toContain('Generar rangos sugeridos');
+    expect(markup).toContain('manualRangeSpreadsheetSideTab');
+    expect(markup).toContain('Sugeridos');
     expect(markup).not.toContain('Generar desde textos');
   });
 
@@ -250,7 +251,7 @@ describe('constructor helpers', () => {
     expect(directMarkup).not.toContain('Ayuda: valores por rangos');
   });
 
-  it('renders an enabled clear ranges action when manual ranges exist', () => {
+  it('does not render duplicate legacy range header actions in the main visual flow', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-range',
       label: 'Rango',
@@ -262,8 +263,10 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Borrar rangos');
-    expect(markup).not.toContain('disabled="">Borrar rangos');
+    expect(markup).not.toContain('Agregar rango');
+    expect(markup).not.toContain('Borrar rangos');
+    expect(markup).toContain('Rangos configurados');
+    expect(markup).toContain('Ordenar por inicio');
   });
 
   it('clears all manual ranges without changing the rest of the recipe', () => {
@@ -286,7 +289,7 @@ describe('constructor helpers', () => {
       condition: recipe.condition,
       ranges: [],
     });
-    expect(markup).toContain('No hay rangos configurados.');
+    expect(markup).toContain('Todavía no hay rangos configurados. Seleccioná filas en la planilla para crear uno.');
   });
 
   it('defaults suggested range initial values to empty', () => {
