@@ -17,6 +17,7 @@ export type ActionName =
   | 'clear'
   | 'close'
   | 'configure'
+  | 'preview'
   | 'info'
   | 'warning'
   | 'error'
@@ -41,6 +42,7 @@ export const actionIcons: Record<ActionName, ActionIconComponent> = {
   clear: createActionIcon('clear'),
   close: createActionIcon('close'),
   configure: createActionIcon('configure'),
+  preview: createActionIcon('eye'),
   info: createActionIcon('info'),
   warning: createActionIcon('warning'),
   error: createActionIcon('error'),
