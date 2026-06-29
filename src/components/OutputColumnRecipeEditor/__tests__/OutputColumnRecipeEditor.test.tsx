@@ -198,7 +198,7 @@ describe('constructor helpers', () => {
     expect(stepModeOptions).toContainEqual({ value: 'manualRange', label: 'Trabajar con rangos' });
   });
 
-  it('renders the suggested ranges tab instead of the old generated-from-texts copy', () => {
+  it('renders the suggested ranges modal action instead of the old generated-from-texts copy', () => {
     const column: OutputColumn = {
       id: 'output-range',
       label: 'Rango',
@@ -209,8 +209,9 @@ describe('constructor helpers', () => {
 
     const markup = renderRecipeEditorMarkup(column);
 
-    expect(markup).toContain('manualRangeSpreadsheetSideTab');
-    expect(markup).toContain('Sugeridos');
+    expect(markup).toContain('manualRangeSuggestedModalButton');
+    expect(markup).toContain('Rangos sugeridos');
+    expect(markup).not.toContain('manualRangeSpreadsheetSideTab');
     expect(markup).not.toContain('Generar desde textos');
   });
 

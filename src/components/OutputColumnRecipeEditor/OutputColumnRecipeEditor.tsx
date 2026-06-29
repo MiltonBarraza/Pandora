@@ -329,7 +329,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Vista previa del primer elemento:</strong>
                 <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
               </div>
             )}

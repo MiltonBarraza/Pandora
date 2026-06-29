@@ -97,6 +97,17 @@ export function applyManualRangeSelectedSuggestions(
   };
 }
 
+export function clearManualRangeRecipeRanges(recipe: ManualRangeRecipe): ManualRangeRecipe | null {
+  if (recipe.ranges.length === 0) {
+    return null;
+  }
+
+  return {
+    ...recipe,
+    ranges: [],
+  };
+}
+
 export function confirmManualRangeClearAll(
   recipe: ManualRangeRecipe,
   confirmClear: (message: string) => boolean,
@@ -105,15 +116,9 @@ export function confirmManualRangeClearAll(
     return null;
   }
 
-  const confirmed = confirmClear('¿Querés borrar todos los rangos configurados?');
-  if (!confirmed) {
-    return null;
-  }
-
-  return {
-    ...recipe,
-    ranges: [],
-  };
+  return confirmClear('¿Querés borrar todos los rangos configurados?')
+    ? clearManualRangeRecipeRanges(recipe)
+    : null;
 }
 
 export function sortManualRangesByStart(ranges: ManualRangeValue[]): ManualRangeValue[] {

@@ -10,7 +10,7 @@ import type { InputColumn, InputRow, OutputRecipe } from '../../types/import';
 import {
   createManualRangeFromSelection,
   applyManualRangeSelectedSuggestions,
-  confirmManualRangeClearAll,
+  clearManualRangeRecipeRanges,
   getDefaultManualRangeVisibleColumnIds,
   getManualRangeById,
   getManualRangeCompactItemClassName,
@@ -19,11 +19,11 @@ import {
   getManualRangeSpreadsheetCellValue,
   getManualRangeSpreadsheetColumnLabel,
   getManualRangeSpreadsheetRowClassName,
-  getManualRangeSelectionSummary,
   getManualRangeValueSummary,
   getOverlappingManualRangeIds,
   hasCompleteManualRangeSelection,
   reconcileManualRangeVisibleColumnIds,
+  removeManualRangeFromRecipe,
   sortManualRangeRecipeByStart,
   updateManualRangeSpreadsheetClickState,
   type ManualRangeRecipe,
@@ -31,6 +31,9 @@ import {
 } from './ManualRangeSpreadsheetEditor.helpers';
 import { ManualRangeAdvancedRangeModal } from './ManualRangeAdvancedRangeModal';
 import { ManualRangeColumnsModal } from './ManualRangeColumnsModal';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
+import { Modal } from '../Modal/Modal';
 
 type ManualRangeSpreadsheetEditorProps = {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
@@ -39,7 +42,6 @@ type ManualRangeSpreadsheetEditorProps = {
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 };
 
-type ManualRangeSideView = 'ranges' | 'suggested' | 'preview';
 type ManualRangeSuggestedDetectionMode = 'textStarts' | 'dataBlocks';
 
 const manualRangeSuggestedValueModeOptions: Array<{ value: ManualRangeInitialValueMode; label: string }> = [
@@ -62,14 +64,17 @@ export function ManualRangeSpreadsheetEditor({
   const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(() => getDefaultManualRangeVisibleColumnIds(inputColumns));
   const [showResultColumn, setShowResultColumn] = useState(true);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
-  const [sideView, setSideView] = useState<ManualRangeSideView>('ranges');
+  const [isSuggestedRangesModalOpen, setIsSuggestedRangesModalOpen] = useState(false);
   const [suggestedRanges, setSuggestedRanges] = useState<ManualRangeValue[]>([]);
   const [selectedSuggestedRangeIds, setSelectedSuggestedRangeIds] = useState<Set<string>>(new Set());
   const [hasSearchedSuggestions, setHasSearchedSuggestions] = useState(false);
   const [selectedRangeId, setSelectedRangeId] = useState<string | null>(null);
   const [advancedRangeId, setAdvancedRangeId] = useState<string | null>(null);
   const [lastCreatedRangeId, setLastCreatedRangeId] = useState<string | null>(null);
+  const [isClearAllRangesConfirmOpen, setIsClearAllRangesConfirmOpen] = useState(false);
+  const [rangeIdPendingDelete, setRangeIdPendingDelete] = useState<string | null>(null);
   const advancedRange = getManualRangeById(recipe.ranges, advancedRangeId);
+  const rangePendingDelete = getManualRangeById(recipe.ranges, rangeIdPendingDelete);
   const visibleInputColumns = useMemo(() => {
     const visibleColumnIdSet = new Set(visibleColumnIds);
     return inputColumns.filter((inputColumn) => visibleColumnIdSet.has(inputColumn.id));
@@ -111,6 +116,69 @@ export function ManualRangeSpreadsheetEditor({
     onChange(nextRecipe);
     clearSelection();
   };
+  const createRangeFromSingleSelectedRow = () => {
+    if (selection.startRowNumber === null) {
+      return;
+    }
+
+    const nextRecipe = createManualRangeFromSelection(recipe, {
+      startRowNumber: selection.startRowNumber,
+      endRowNumber: selection.startRowNumber,
+    });
+    if (nextRecipe === recipe) {
+      return;
+    }
+
+    const createdRangeId = nextRecipe.ranges[nextRecipe.ranges.length - 1]?.id ?? null;
+    setLastCreatedRangeId(createdRangeId);
+    setSelectedRangeId(createdRangeId);
+    onChange(nextRecipe);
+    clearSelection();
+  };
+  const createRangeFromCurrentSelection = () => {
+    if (!hasSelection) {
+      return;
+    }
+
+    if (hasCompleteSelection) {
+      createRangeFromSelection();
+      return;
+    }
+
+    createRangeFromSingleSelectedRow();
+  };
+  const clearAllRanges = () => {
+    const nextRecipe = clearManualRangeRecipeRanges(recipe);
+    setIsClearAllRangesConfirmOpen(false);
+    if (!nextRecipe) {
+      return;
+    }
+
+    onChange(nextRecipe);
+    setSelectedRangeId(null);
+    setAdvancedRangeId(null);
+    setLastCreatedRangeId(null);
+    clearSelection();
+  };
+  const deleteRange = () => {
+    if (!rangePendingDelete) {
+      setRangeIdPendingDelete(null);
+      return;
+    }
+
+    onChange(removeManualRangeFromRecipe(recipe, rangePendingDelete.id));
+    if (selectedRangeId === rangePendingDelete.id) {
+      setSelectedRangeId(null);
+    }
+    if (advancedRangeId === rangePendingDelete.id) {
+      setAdvancedRangeId(null);
+    }
+    if (lastCreatedRangeId === rangePendingDelete.id) {
+      setLastCreatedRangeId(null);
+    }
+    clearSelection();
+    setRangeIdPendingDelete(null);
+  };
 
   return (
     <div className="manualRangeSpreadsheet">
@@ -119,24 +187,32 @@ export function ManualRangeSpreadsheetEditor({
         <p>Muestra las filas visibles disponibles para configurar rangos. Los datos originales no se modifican.</p>
       </div>
       <div className="manualRangeSpreadsheetToolbar">
-        <div className="manualRangeSpreadsheetSelectionBar" aria-live="polite">
-          <span>{getManualRangeSelectionSummary(selection)}</span>
-          {hasSelection ? (
-            <div className="manualRangeSpreadsheetSelectionActions">
-              {hasCompleteSelection ? (
-                <button type="button" className="secondary sm manualRangeSpreadsheetCreateButton" onClick={createRangeFromSelection}>
-                  Crear rango
-                </button>
-              ) : null}
-              <button type="button" className="secondary sm manualRangeSpreadsheetClearSelectionButton" onClick={clearSelection}>
-                Limpiar selección
-              </button>
-            </div>
-          ) : null}
+        <div className="manualRangeSpreadsheetSelectionActions manualRangeSpreadsheetToolbarPrimaryActions">
+          <button
+            type="button"
+            className="secondary sm manualRangeSpreadsheetCreateButton"
+            disabled={!hasSelection}
+            onClick={createRangeFromCurrentSelection}
+          >
+            Crear rango
+          </button>
+          <button
+            type="button"
+            className="secondary sm manualRangeSpreadsheetClearSelectionButton"
+            disabled={!hasSelection}
+            onClick={clearSelection}
+          >
+            Limpiar selección
+          </button>
         </div>
-        <button type="button" className="secondary sm manualRangeColumnsButton" onClick={() => setIsColumnsModalOpen(true)}>
-          Armar columnas
-        </button>
+        <div className="manualRangeSpreadsheetToolbarActions">
+          <button type="button" className="secondary sm manualRangeSuggestedModalButton" onClick={() => setIsSuggestedRangesModalOpen(true)}>
+            Rangos sugeridos
+          </button>
+          <button type="button" className="secondary sm manualRangeColumnsButton" onClick={() => setIsColumnsModalOpen(true)}>
+            Armar columnas
+          </button>
+        </div>
       </div>
 
       <div className="manualRangeSpreadsheetLayout">
@@ -210,16 +286,7 @@ export function ManualRangeSpreadsheetEditor({
         <ManualRangeSpreadsheetInspector
           recipe={recipe}
           inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          sideView={sideView}
-          suggestedRanges={suggestedRanges}
-          selectedSuggestedRangeIds={selectedSuggestedRangeIds}
-          hasSearchedSuggestions={hasSearchedSuggestions}
           onChange={onChange}
-          onSideViewChange={setSideView}
-          onSuggestedRangesChange={setSuggestedRanges}
-          onSelectedSuggestedRangeIdsChange={setSelectedSuggestedRangeIds}
-          onSuggestionsSearchedChange={setHasSearchedSuggestions}
           onSelectRange={(rangeId) => {
             setSelectedRangeId(rangeId);
             clearSelection();
@@ -229,18 +296,8 @@ export function ManualRangeSpreadsheetEditor({
             setAdvancedRangeId(rangeId);
             clearSelection();
           }}
-          onDeleteAllRanges={() => {
-            const nextRecipe = confirmManualRangeClearAll(recipe, (message) => window.confirm(message));
-            if (!nextRecipe) {
-              return;
-            }
-
-            onChange(nextRecipe);
-            setSelectedRangeId(null);
-            setAdvancedRangeId(null);
-            setLastCreatedRangeId(null);
-            clearSelection();
-          }}
+          onDeleteAllRanges={() => setIsClearAllRangesConfirmOpen(true)}
+          onRequestDeleteRange={setRangeIdPendingDelete}
           selectedRangeId={selectedRangeId}
         />
       </div>
@@ -269,43 +326,109 @@ export function ManualRangeSpreadsheetEditor({
         }}
         onClose={() => setIsColumnsModalOpen(false)}
       />
+      <ManualRangeSuggestedRangesModal
+        open={isSuggestedRangesModalOpen}
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        suggestedRanges={suggestedRanges}
+        selectedSuggestedRangeIds={selectedSuggestedRangeIds}
+        hasSearchedSuggestions={hasSearchedSuggestions}
+        onChange={onChange}
+        onSuggestedRangesChange={setSuggestedRanges}
+        onSelectedSuggestedRangeIdsChange={setSelectedSuggestedRangeIds}
+        onSuggestionsSearchedChange={setHasSearchedSuggestions}
+        onAppliedRangeSelect={(rangeId) => {
+          setSelectedRangeId(rangeId);
+          clearSelection();
+        }}
+        onClose={() => setIsSuggestedRangesModalOpen(false)}
+      />
+      <ManualRangeClearAllRangesConfirmDialog
+        open={isClearAllRangesConfirmOpen}
+        onCancel={() => setIsClearAllRangesConfirmOpen(false)}
+        onConfirm={clearAllRanges}
+      />
+      <ManualRangeDeleteRangeConfirmDialog
+        range={rangePendingDelete}
+        onCancel={() => setRangeIdPendingDelete(null)}
+        onConfirm={deleteRange}
+      />
     </div>
+  );
+}
+
+export function ManualRangeClearAllRangesConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <ConfirmDialog
+      open
+      title="Borrar todos los rangos"
+      message="Se eliminarán todos los rangos configurados. Esta acción se aplicará al confirmar el editor."
+      cancelLabel="Cancelar"
+      confirmLabel="Borrar rangos"
+      variant="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+export function ManualRangeDeleteRangeConfirmDialog({
+  range,
+  onCancel,
+  onConfirm,
+}: {
+  range: ManualRangeValue | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!range) {
+    return null;
+  }
+
+  return (
+    <ConfirmDialog
+      open
+      title="Eliminar rango"
+      message={`Se eliminará el rango ${range.startRowNumber} - ${range.endRowNumber}. Esta acción se aplicará al confirmar el editor.`}
+      cancelLabel="Cancelar"
+      confirmLabel="Eliminar"
+      variant="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }
 
 function ManualRangeSpreadsheetInspector({
   recipe,
   inputColumns,
-  manualRangeRows,
-  sideView,
-  suggestedRanges,
-  selectedSuggestedRangeIds,
-  hasSearchedSuggestions,
   onChange,
-  onSideViewChange,
-  onSuggestedRangesChange,
-  onSelectedSuggestedRangeIdsChange,
-  onSuggestionsSearchedChange,
   onSelectRange,
   onEditRange,
   onDeleteAllRanges,
+  onRequestDeleteRange,
   selectedRangeId,
 }: {
   recipe: ManualRangeRecipe;
   inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  sideView: ManualRangeSideView;
-  suggestedRanges: ManualRangeValue[];
-  selectedSuggestedRangeIds: Set<string>;
-  hasSearchedSuggestions: boolean;
   onChange: (recipe: ManualRangeRecipe) => void;
-  onSideViewChange: (view: ManualRangeSideView) => void;
-  onSuggestedRangesChange: (ranges: ManualRangeValue[]) => void;
-  onSelectedSuggestedRangeIdsChange: (rangeIds: Set<string>) => void;
-  onSuggestionsSearchedChange: (hasSearched: boolean) => void;
   onSelectRange: (rangeId: string) => void;
   onEditRange: (rangeId: string) => void;
   onDeleteAllRanges: () => void;
+  onRequestDeleteRange: (rangeId: string) => void;
   selectedRangeId: string | null;
 }) {
   const overlappingRangeIds = getOverlappingManualRangeIds(recipe.ranges);
@@ -313,64 +436,18 @@ function ManualRangeSpreadsheetInspector({
 
   return (
     <aside className="manualRangeSpreadsheetSidePanel">
-      <div className="manualRangeSpreadsheetSideTabs" aria-label="Vistas de rangos manuales">
-        <button
-          type="button"
-          className={`manualRangeSpreadsheetSideTab${sideView === 'ranges' ? ' manualRangeSpreadsheetSideTabActive' : ''}`}
-          onClick={() => onSideViewChange('ranges')}
-        >
-          Rangos
-        </button>
-        <button
-          type="button"
-          className={`manualRangeSpreadsheetSideTab${sideView === 'suggested' ? ' manualRangeSpreadsheetSideTabActive' : ''}`}
-          onClick={() => onSideViewChange('suggested')}
-        >
-          Sugeridos
-        </button>
-        <button
-          type="button"
-          className={`manualRangeSpreadsheetSideTab${sideView === 'preview' ? ' manualRangeSpreadsheetSideTabActive' : ''}`}
-          onClick={() => onSideViewChange('preview')}
-        >
-          Vista previa
-        </button>
-      </div>
       <div className="manualRangeSpreadsheetSideContent">
-        {sideView === 'preview' ? (
-          <ManualRangePreviewPanel
-            ranges={recipe.ranges}
-            manualRangeRows={manualRangeRows}
-            selectedRangeId={selectedRangeId}
-            onSelectRange={onSelectRange}
-          />
-        ) : sideView === 'suggested' ? (
-          <ManualRangeSuggestedRangesPanel
-            recipe={recipe}
-            inputColumns={inputColumns}
-            manualRangeRows={manualRangeRows}
-            suggestedRanges={suggestedRanges}
-            selectedSuggestedRangeIds={selectedSuggestedRangeIds}
-            hasSearchedSuggestions={hasSearchedSuggestions}
-            onChange={onChange}
-            onSideViewChange={onSideViewChange}
-            onSuggestedRangesChange={onSuggestedRangesChange}
-            onSelectedSuggestedRangeIdsChange={onSelectedSuggestedRangeIdsChange}
-            onSuggestionsSearchedChange={onSuggestionsSearchedChange}
-            onAppliedRangeSelect={onSelectRange}
-          />
-        ) : (
-          <ManualRangeSpreadsheetRangesList
-            ranges={recipe.ranges}
-            inputColumns={inputColumns}
-            selectedRangeId={selectedRangeId}
-            overlappingRangeIds={overlappingRangeIds}
-            onSelectRange={onSelectRange}
-            onEditRange={onEditRange}
-            onSortRanges={sortRanges}
-            onDeleteAllRanges={onDeleteAllRanges}
-          />
-        )}
+        <ManualRangeSpreadsheetRangesList
+          ranges={recipe.ranges}
+          inputColumns={inputColumns}
+          selectedRangeId={selectedRangeId}
+          overlappingRangeIds={overlappingRangeIds}
+          onSelectRange={onSelectRange}
+          onEditRange={onEditRange}
+          onSortRanges={sortRanges}
+          onDeleteAllRanges={onDeleteAllRanges}
+          onRequestDeleteRange={onRequestDeleteRange}
+        />
       </div>
     </aside>
   );
@@ -442,14 +519,81 @@ export function ManualRangePreviewPanel({
                 }}
               >
                 <span className="manualRangeSpreadsheetRangeItemTitle">Fila {row.rowNumber}</span>
-                <span className="manualRangePreviewValue">Resultado: {row.value || '—'}</span>
-                <span className="manualRangeSpreadsheetRangeItemSummary">Rango: {row.rangeLabel ?? '—'}</span>
+                <span className="manualRangePreviewValue">Resultado: {row.value || 'â€”'}</span>
+                <span className="manualRangeSpreadsheetRangeItemSummary">Rango: {row.rangeLabel ?? 'â€”'}</span>
               </button>
             );
           })}
         </div>
       )}
     </section>
+  );
+}
+
+export function ManualRangeSuggestedRangesModal({
+  open,
+  recipe,
+  inputColumns,
+  manualRangeRows,
+  suggestedRanges,
+  selectedSuggestedRangeIds,
+  hasSearchedSuggestions,
+  onChange,
+  onSuggestedRangesChange,
+  onSelectedSuggestedRangeIdsChange,
+  onSuggestionsSearchedChange,
+  onAppliedRangeSelect,
+  onClose,
+}: {
+  open: boolean;
+  recipe: ManualRangeRecipe;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  suggestedRanges: ManualRangeValue[];
+  selectedSuggestedRangeIds: Set<string>;
+  hasSearchedSuggestions: boolean;
+  onChange: (recipe: ManualRangeRecipe) => void;
+  onSuggestedRangesChange: (ranges: ManualRangeValue[]) => void;
+  onSelectedSuggestedRangeIdsChange: (rangeIds: Set<string>) => void;
+  onSuggestionsSearchedChange: (hasSearched: boolean) => void;
+  onAppliedRangeSelect: (rangeId: string) => void;
+  onClose: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <Modal
+      open
+      title="Rangos sugeridos"
+      className="manualRangeSuggestedRangesModal"
+      headerDetails={<span>Generá posibles rangos y revisalos antes de aplicarlos.</span>}
+      onClose={onClose}
+      footer={(
+        <div className="manualRangeSuggestedModalFooter">
+          <button type="button" className="secondary" onClick={onClose}>
+            Cancelar
+          </button>
+        </div>
+      )}
+    >
+      <ManualRangeSuggestedRangesPanel
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        suggestedRanges={suggestedRanges}
+        selectedSuggestedRangeIds={selectedSuggestedRangeIds}
+        hasSearchedSuggestions={hasSearchedSuggestions}
+        onChange={onChange}
+        onSuggestedRangesChange={onSuggestedRangesChange}
+        onSelectedSuggestedRangeIdsChange={onSelectedSuggestedRangeIdsChange}
+        onSuggestionsSearchedChange={onSuggestionsSearchedChange}
+        onAppliedRangeSelect={onAppliedRangeSelect}
+        onApplied={onClose}
+        showHeader={false}
+      />
+    </Modal>
   );
 }
 
@@ -461,11 +605,12 @@ export function ManualRangeSuggestedRangesPanel({
   selectedSuggestedRangeIds,
   hasSearchedSuggestions,
   onChange,
-  onSideViewChange,
   onSuggestedRangesChange,
   onSelectedSuggestedRangeIdsChange,
   onSuggestionsSearchedChange,
   onAppliedRangeSelect,
+  onApplied,
+  showHeader = true,
 }: {
   recipe: ManualRangeRecipe;
   inputColumns: InputColumn[];
@@ -474,11 +619,12 @@ export function ManualRangeSuggestedRangesPanel({
   selectedSuggestedRangeIds: Set<string>;
   hasSearchedSuggestions: boolean;
   onChange: (recipe: ManualRangeRecipe) => void;
-  onSideViewChange: (view: ManualRangeSideView) => void;
   onSuggestedRangesChange: (ranges: ManualRangeValue[]) => void;
   onSelectedSuggestedRangeIdsChange: (rangeIds: Set<string>) => void;
   onSuggestionsSearchedChange: (hasSearched: boolean) => void;
   onAppliedRangeSelect: (rangeId: string) => void;
+  onApplied?: () => void;
+  showHeader?: boolean;
 }) {
   const defaultInputColumnId = inputColumns[0]?.id ?? '';
   const defaultStartRowInput = manualRangeRows[0]?.rowNumber ? String(manualRangeRows[0].rowNumber) : '';
@@ -592,15 +738,17 @@ export function ManualRangeSuggestedRangesPanel({
     onSuggestedRangesChange([]);
     onSelectedSuggestedRangeIdsChange(new Set());
     onAppliedRangeSelect(applyResult.appliedRanges[0].id);
-    onSideViewChange('ranges');
+    onApplied?.();
   };
 
   return (
     <section className="manualRangeSuggestedPanel">
+      {showHeader ? (
       <div className="manualRangeSuggestedHeader">
         <strong>Rangos sugeridos</strong>
         <p>Generá posibles rangos y revisalos antes de aplicarlos.</p>
       </div>
+      ) : null}
       <div className="manualRangeSuggestedControls manualRangeSuggestedControlsCompact">
         <label className="field compact">
           <span>{detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar inicios en'}</span>
@@ -852,6 +1000,7 @@ function ManualRangeSpreadsheetRangesList({
   onEditRange,
   onSortRanges,
   onDeleteAllRanges,
+  onRequestDeleteRange,
 }: {
   ranges: ManualRangeValue[];
   inputColumns: InputColumn[];
@@ -861,11 +1010,14 @@ function ManualRangeSpreadsheetRangesList({
   onEditRange: (rangeId: string) => void;
   onSortRanges: () => void;
   onDeleteAllRanges: () => void;
+  onRequestDeleteRange: (rangeId: string) => void;
 }) {
   return (
     <section className="manualRangeSpreadsheetRangesList">
       <div className="manualRangeSpreadsheetRangesListHeader">
-        <strong>Rangos configurados</strong>
+        <div className="manualRangeSpreadsheetRangesListTitle">
+          <strong>Rangos configurados</strong>
+        </div>
         <div className="manualRangeSpreadsheetRangeListActions">
           <button type="button" className="secondary sm manualRangeSpreadsheetSortButton" disabled={ranges.length < 2} onClick={onSortRanges}>
             Ordenar por inicio
@@ -898,13 +1050,22 @@ function ManualRangeSpreadsheetRangesList({
                   <span className="manualRangeSpreadsheetRangeItemWarning">Se superpone con otro rango</span>
                 ) : null}
               </button>
-              <div className="manualRangeSpreadsheetRangeItemActions">
+              <div className="manualRangeSpreadsheetRangeItemActions manualRangeSpreadsheetRangeItemActionsSeparated">
                 <button
                   type="button"
                   className="secondary sm manualRangeSpreadsheetRangeEditButton"
                   onClick={() => onEditRange(range.id)}
                 >
                   Editar
+                </button>
+                <button
+                  type="button"
+                  className="iconButton danger manualRangeSpreadsheetRangeDeleteButton"
+                  title="Eliminar rango"
+                  aria-label="Eliminar rango"
+                  onClick={() => onRequestDeleteRange(range.id)}
+                >
+                  <AppIcon name="delete" aria-hidden="true" focusable="false" />
                 </button>
               </div>
             </div>
@@ -914,3 +1075,5 @@ function ManualRangeSpreadsheetRangesList({
     </section>
   );
 }
+
+

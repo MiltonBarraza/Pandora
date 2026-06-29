@@ -2572,10 +2572,19 @@ tbody tr:hover {
 }
 
 .manualRangeSpreadsheetToolbar {
-  align-items: stretch;
+  align-items: center;
   display: grid;
   gap: 8px;
   grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetToolbarActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
   min-width: 0;
 }
 
@@ -2587,8 +2596,13 @@ tbody tr:hover {
   gap: 8px;
 }
 
+.manualRangeSpreadsheetToolbarPrimaryActions {
+  justify-content: flex-start;
+}
+
 .manualRangeSpreadsheetCreateButton,
 .manualRangeSpreadsheetClearSelectionButton,
+.manualRangeSuggestedModalButton,
 .manualRangeColumnsButton {
   flex: 0 0 auto;
 }
@@ -2656,6 +2670,11 @@ tbody tr:hover {
   z-index: 2;
 }
 
+.manualRangeSpreadsheetTable .manualRangeSpreadsheetRowNumberHeader {
+  top: 0;
+  z-index: 3;
+}
+
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRowNumber {
   background: var(--color-bg-surface-muted);
 }
@@ -2668,7 +2687,7 @@ tbody tr:hover {
   background: var(--color-bg-subtle);
 }
 
-.manualRangeSpreadsheetRow-suggested .manualRangeSpreadsheetRowNumber {
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-suggested .manualRangeSpreadsheetRowNumber {
   background: var(--color-bg-subtle);
 }
 
@@ -2676,7 +2695,8 @@ tbody tr:hover {
   box-shadow: inset 3px 0 0 var(--color-warning-border);
 }
 
-.manualRangeSpreadsheetRow-suggestedSelected .manualRangeSpreadsheetRowNumber {
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-suggestedSelected .manualRangeSpreadsheetRowNumber {
+  background: var(--color-bg-subtle);
   color: var(--color-text-primary);
 }
 
@@ -2693,7 +2713,7 @@ tbody tr:hover {
   background: var(--color-selected-bg);
 }
 
-.manualRangeSpreadsheetRow-covered .manualRangeSpreadsheetRowNumber {
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-covered .manualRangeSpreadsheetRowNumber {
   background: var(--color-selected-bg);
   color: var(--color-selected-text);
 }
@@ -2706,7 +2726,8 @@ tbody tr:hover {
   box-shadow: inset 4px 0 0 var(--color-accent-border);
 }
 
-.manualRangeSpreadsheetRow-activeRange .manualRangeSpreadsheetRowNumber {
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-activeRange .manualRangeSpreadsheetRowNumber {
+  background: var(--color-selected-bg);
   color: var(--color-text-primary);
 }
 
@@ -2714,7 +2735,7 @@ tbody tr:hover {
   background: var(--color-accent-bg-soft);
 }
 
-.manualRangeSpreadsheetRow-selectionInside .manualRangeSpreadsheetRowNumber {
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionInside .manualRangeSpreadsheetRowNumber {
   background: var(--color-accent-bg-soft);
 }
 
@@ -2723,8 +2744,9 @@ tbody tr:hover {
   box-shadow: inset 3px 0 0 var(--color-accent-border);
 }
 
-.manualRangeSpreadsheetRow-selectionStart .manualRangeSpreadsheetRowNumber,
-.manualRangeSpreadsheetRow-selectionEnd .manualRangeSpreadsheetRowNumber {
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionStart .manualRangeSpreadsheetRowNumber,
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionEnd .manualRangeSpreadsheetRowNumber {
+  background: var(--color-accent-bg-soft);
   color: var(--color-text-primary);
 }
 
@@ -2738,37 +2760,6 @@ tbody tr:hover {
   min-width: 0;
   overflow: hidden;
   padding: 10px;
-}
-
-.manualRangeSpreadsheetSideTabs {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-  overflow-x: auto;
-}
-
-.manualRangeSpreadsheetSideTab {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  flex: 0 0 auto;
-  font-size: 0.82rem;
-  font-weight: 800;
-  padding: 5px 8px;
-}
-
-.manualRangeSpreadsheetSideTab:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.manualRangeSpreadsheetSideTabActive {
-  background: var(--color-accent-bg-soft);
-  border-color: var(--color-accent-border);
-  color: var(--color-text-primary);
 }
 
 .manualRangeSpreadsheetSideContent {
@@ -2818,14 +2809,18 @@ tbody tr:hover {
 }
 
 .manualRangeSpreadsheetRangesListHeader {
-  align-items: center;
+  align-items: stretch;
   display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  grid-template-columns: 1fr;
   min-width: 0;
 }
 
-.manualRangeSpreadsheetRangesListHeader strong {
+.manualRangeSpreadsheetRangesListTitle {
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetRangesListTitle strong {
   color: var(--color-text);
   font-size: 0.92rem;
 }
@@ -2859,9 +2854,9 @@ tbody tr:hover {
   display: grid;
   gap: 8px;
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 72px;
+  min-height: 56px;
   min-width: 0;
-  padding: 10px;
+  padding: 7px 8px;
   text-align: left;
 }
 
@@ -2876,7 +2871,7 @@ tbody tr:hover {
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: 4px;
+  gap: 3px;
   grid-template-rows: auto 1fr auto;
   justify-content: stretch;
   min-width: 0;
@@ -2888,6 +2883,7 @@ tbody tr:hover {
   align-items: center;
   display: flex;
   flex: 0 0 auto;
+  gap: 8px;
   justify-content: flex-end;
 }
 
@@ -2927,6 +2923,17 @@ tbody tr:hover {
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+
+.manualRangeSuggestedRangesModal {
+  max-height: 90vh;
+  max-width: min(1120px, 96vw);
+  width: min(1120px, 96vw);
+}
+
+.manualRangeSuggestedModalFooter {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .manualRangeSuggestedHeader {
@@ -3176,6 +3183,71 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.manualRangeCoveredRowsPreview {
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.manualRangeCoveredRowsHeader {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.manualRangeCoveredRowsHeader strong {
+  color: var(--color-text);
+  font-size: 0.92rem;
+}
+
+.manualRangeCoveredRowsHeader p,
+.manualRangeCoveredRowsEmpty {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.manualRangeCoveredRowsScroller {
+  max-height: 190px;
+  min-width: 0;
+  overflow: auto;
+}
+
+.manualRangeCoveredRowsTable {
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  min-width: 100%;
+}
+
+.manualRangeCoveredRowsTable th,
+.manualRangeCoveredRowsTable td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  max-width: 180px;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manualRangeCoveredRowsTable thead th {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: 800;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.manualRangeCoveredRowsTable tbody th {
+  color: var(--color-text);
+  font-weight: 800;
+}
+
 .manualRangeAdvancedRangeModalActions {
   align-items: center;
   display: flex;
@@ -3220,7 +3292,9 @@ tbody tr:hover {
 }
 
 .manualRangeColumnsModal {
-  max-width: min(720px, calc(100vw - 24px));
+  max-height: 90vh;
+  max-width: min(1120px, 96vw);
+  width: min(1120px, 96vw);
 }
 
 .manualRangeColumnsModalBody {
@@ -3235,6 +3309,14 @@ tbody tr:hover {
   font-size: 0.88rem;
   line-height: 1.35;
   margin: 0;
+}
+
+.manualRangeColumnsToolbar {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
 }
 
 .manualRangeColumnsList {
@@ -3276,10 +3358,73 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.manualRangeColumnsTransferGrid {
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(260px, 420px));
+  justify-content: start;
+}
+
+.manualRangeColumnsTransferPanel {
+  min-height: 160px;
+}
+
+.manualRangeColumnsTransferList {
+  max-height: min(320px, 42vh);
+}
+
+.manualRangeColumnsTransferItem {
+  align-items: center;
+  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 38px;
+  padding: 4px 7px;
+}
+
+.manualRangeColumnsTransferItemMain {
+  background: transparent;
+  border: 0;
+  cursor: default;
+  padding: 0;
+}
+
+.manualRangeColumnsTransferItem .columnTransferTitleRow strong {
+  font-size: 0.84rem;
+}
+
+.manualRangeColumnsTransferItem .columnTransferMeta {
+  font-size: 0.74rem;
+}
+
+.manualRangeColumnsTransferItem .columnTransferAction {
+  min-height: 28px;
+  padding: 4px 7px;
+}
+
+.manualRangeColumnsResultToggle {
+  align-items: center;
+  color: var(--color-text);
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 700;
+  gap: 6px;
+  line-height: 1.2;
+  min-height: 24px;
+  min-width: 0;
+  padding: 0;
+}
+
+.manualRangeColumnsResultToggle input {
+  min-height: 14px;
+  width: 14px;
+}
+
 @media (max-width: 760px) {
   .manualRangeSpreadsheetToolbar,
+  .manualRangeSpreadsheetToolbarActions,
   .manualRangeSpreadsheetLayout,
   .manualRangeSpreadsheetRangeItem,
+  .manualRangeColumnsToolbar,
+  .manualRangeColumnsTransferGrid,
   .manualRangeSuggestedControlsCompact,
   .manualRangeSuggestedItem {
     grid-template-columns: 1fr;
@@ -3296,11 +3441,6 @@ tbody tr:hover {
 
   .manualRangeSuggestedControlsCompact .manualRangeSuggestedSearchButton {
     justify-self: start;
-  }
-
-  .manualRangeSpreadsheetSideTabs {
-    flex-wrap: wrap;
-    overflow-x: visible;
   }
 
   .manualRangeAdvancedRangeModalActions,

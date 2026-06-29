@@ -12,6 +12,8 @@ import type { InputColumn, InputRow, ManualRangeValue, TransformStep } from '../
 import { Modal } from '../Modal/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import {
+  getManualRangeSpreadsheetCellValue,
+  getManualRangeSpreadsheetColumnLabel,
   removeManualRangeFromRecipe,
   updateManualRangeInRecipe,
   type ManualRangeRecipe,
@@ -68,6 +70,16 @@ export function ManualRangeAdvancedRangeModal({
   const modalHeaderDetails = useMemo(() => (
     draftRange ? <span>Filas {draftRange.startRowNumber} - {draftRange.endRowNumber}</span> : null
   ), [draftRange]);
+  const coveredRows = useMemo(() => {
+    if (!draftRange) {
+      return [];
+    }
+
+    const startRowNumber = Math.min(draftRange.startRowNumber, draftRange.endRowNumber);
+    const endRowNumber = Math.max(draftRange.startRowNumber, draftRange.endRowNumber);
+    return manualRangeRows.filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber);
+  }, [draftRange, manualRangeRows]);
+  const coveredColumns = useMemo(() => inputColumns.slice(0, 4), [inputColumns]);
 
   if (!open || !range || !draftRange) {
     return null;
@@ -169,6 +181,7 @@ export function ManualRangeAdvancedRangeModal({
               />
             </label>
           </div>
+          <ManualRangeCoveredRowsPreview rows={coveredRows} columns={coveredColumns} />
           {pendingDelete ? (
             <p className="manualRangeAdvancedRangeModalDeleteNotice">Este rango se eliminará al aceptar.</p>
           ) : (
@@ -209,3 +222,48 @@ export function ManualRangeAdvancedRangeModal({
     </>
   );
 }
+
+function ManualRangeCoveredRowsPreview({
+  rows,
+  columns,
+}: {
+  rows: InputRow[];
+  columns: InputColumn[];
+}) {
+  return (
+    <section className="manualRangeCoveredRowsPreview">
+      <div className="manualRangeCoveredRowsHeader">
+        <strong>Filas cubiertas</strong>
+        <p>Vista de las filas incluidas en este rango.</p>
+      </div>
+      {rows.length === 0 ? (
+        <p className="manualRangeCoveredRowsEmpty">No hay filas visibles dentro de este rango.</p>
+      ) : (
+        <div className="manualRangeCoveredRowsScroller">
+          <table className="manualRangeCoveredRowsTable">
+            <thead>
+              <tr>
+                <th>Fila</th>
+                {columns.map((column) => (
+                  <th key={column.id}>{getManualRangeSpreadsheetColumnLabel(column)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.rowNumber}>
+                  <th scope="row">{row.rowNumber}</th>
+                  {columns.map((column) => {
+                    const value = getManualRangeSpreadsheetCellValue(row, column.id);
+                    return <td key={column.id} title={value}>{value || 'â€”'}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
