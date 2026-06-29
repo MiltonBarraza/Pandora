@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
+import { describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
 import { parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
@@ -68,6 +68,7 @@ import {
 } from './OutputColumnRecipeEditor.recipeHelpers';
 import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, shouldShowStepTypeSelectForStep, type StepSourceChangeContext } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
+import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
@@ -449,7 +450,7 @@ function ManualRangeSummary({
   );
 }
 
-function ManualRangeRecipeEditor({
+export function ManualRangeRecipeEditor({
   recipe,
   inputColumns,
   manualRangeRows,
@@ -460,98 +461,18 @@ function ManualRangeRecipeEditor({
   manualRangeRows: InputRow[];
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
-  const [showGenerator, setShowGenerator] = useState(false);
-  const [isClearRangesConfirmationOpen, setIsClearRangesConfirmationOpen] = useState(false);
-  const hasOverlappingRanges = hasOverlappingManualRanges(recipe.ranges);
-  const clearRanges = () => {
-    onChange(clearManualRangeValues(recipe));
-    setIsClearRangesConfirmationOpen(false);
-  };
-
   return (
     <div className="recipeSubBlock manualRangeEditor">
-      <div className="sectionHeader">
-        <div>
-          <strong className="manualRangeTitleGroup labelWithInfo">
-            <span>Valores por rangos</span>
-            <InfoTooltip
-              ariaLabel="Ayuda: valores por rangos"
-              content={manualRangeUsageHelpText}
-            />
-          </strong>
-        </div>
-        <div className="manualRangeHeaderActions">
-          <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'start'))}>
-            Agregar rango
-          </ActionButton>
-          <InfoTooltip content="Ordena los rangos por la fila de inicio.">
-            <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
-              Ordenar por inicio
-            </button>
-          </InfoTooltip>
-          <InfoTooltip content="Elimina todos los rangos configurados.">
-            <button type="button" className="secondary" disabled={recipe.ranges.length === 0} onClick={() => setIsClearRangesConfirmationOpen(true)}>
-              Borrar rangos
-            </button>
-          </InfoTooltip>
-          <InfoTooltip content="Genera rangos automáticamente según los datos detectados.">
-            <button type="button" className="secondary" onClick={() => setShowGenerator(true)}>
-              Generar rangos sugeridos
-            </button>
-          </InfoTooltip>
-        </div>
-      </div>
-      {showGenerator ? (
-        <ManualRangeTextGenerator
-          recipe={recipe}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          onClose={() => setShowGenerator(false)}
-          onChange={onChange}
-        />
-      ) : null}
-
       {recipe.condition ? (
         <p className="manualRangeWarning">
           Esta configuración conserva una condición interna heredada: {describeManualRangeCondition(recipe, inputColumns)}. Para nuevas condiciones usá la condición general del paso.
         </p>
       ) : null}
-
-      {recipe.ranges.length === 0 ? (
-        <p className="muted">No hay rangos configurados.</p>
-      ) : (
-        <>
-          {hasOverlappingRanges ? (
-            <p className="manualRangeWarning">Hay rangos superpuestos. En filas repetidas se usará el primer rango configurado.</p>
-          ) : null}
-          <div className="manualRangeList">
-            {recipe.ranges.map((range) => (
-              <ManualRangeTableRow
-                key={range.id}
-                recipe={recipe}
-                range={range}
-                inputColumns={inputColumns}
-                manualRangeRows={manualRangeRows}
-                onChange={onChange}
-              />
-            ))}
-          </div>
-          <div className="manualRangeFooterActions">
-            <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'end'))}>
-              Agregar rango
-            </ActionButton>
-          </div>
-        </>
-      )}
-      <ConfirmDialog
-        open={isClearRangesConfirmationOpen}
-        title="Borrar rangos"
-        message="¿Querés borrar todos los rangos configurados?"
-        cancelLabel="Cancelar"
-        confirmLabel="Borrar rangos"
-        variant="danger"
-        onCancel={() => setIsClearRangesConfirmationOpen(false)}
-        onConfirm={clearRanges}
+      <ManualRangeSpreadsheetEditor
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={onChange}
       />
     </div>
   );
@@ -1304,7 +1225,7 @@ export function getPreviousStepPreviewValue(
   return buildCombinePreview({ ...recipe, steps: previousSteps }, sampleInputValues);
 }
 
-function CustomValueEditor({
+export function CustomValueEditor({
   recipe,
   inputColumns,
   manualRangeRows,

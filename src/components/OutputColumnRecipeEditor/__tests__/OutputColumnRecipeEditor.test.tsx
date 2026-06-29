@@ -7,6 +7,7 @@ import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../..
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
 import { ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, rangeValueModeOptions, rangeValueStepTypes, rangeValueTextSourceActionOptions } from '../RangeValueEditor';
 import { addComposeRecipePart } from '../RecipeStudio';
@@ -1867,6 +1868,41 @@ describe('constructor helpers', () => {
     expect(conditionalMarkup).toContain('Aplicar el valor sólo a filas donde');
     expect(conditionalMarkup).toContain('A');
     expect(conditionalMarkup).toContain('no esta vacio');
+  });
+
+  it('mounts one spreadsheet below general configuration for a manual range step', () => {
+    vi.stubGlobal('document', { body: {} });
+    const markup = renderToStaticMarkup(
+      <CustomValueEditor
+        recipe={{
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [{
+            id: 'range-step',
+            mode: 'manualRange',
+            type: 'manualRange',
+            ranges: [{ id: 'range-8-10', startRowNumber: 8, endRowNumber: 10, value: 'Promo' }],
+            condition: { target: 'input', columnId: 'input-code', operator: 'isNotEmpty', valueType: 'text' },
+          }],
+        }}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        mode="text"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Configuración general');
+    expect(markup).toContain('Trabajar con rangos');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup.indexOf('Configuración general')).toBeLessThan(markup.indexOf('manualRangeSpreadsheet'));
+    expect(markup).toContain('Aplicar el valor');
+    expect(markup).not.toContain('manualRangeList');
+    expect(markup).not.toContain('manualRangeGenerator');
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
   });
 
   it('shows the text-mode empty message when no suggested text ranges are found', () => {
