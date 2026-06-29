@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import {
   generateManualRangesFromDataBlocks,
@@ -34,6 +34,7 @@ import { ManualRangeColumnsModal } from './ManualRangeColumnsModal';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Modal } from '../Modal/Modal';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type ManualRangeSpreadsheetEditorProps = {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
@@ -73,6 +74,8 @@ export function ManualRangeSpreadsheetEditor({
   const [lastCreatedRangeId, setLastCreatedRangeId] = useState<string | null>(null);
   const [isClearAllRangesConfirmOpen, setIsClearAllRangesConfirmOpen] = useState(false);
   const [rangeIdPendingDelete, setRangeIdPendingDelete] = useState<string | null>(null);
+  const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
+  const rangeItemRefs = useRef(new Map<string, HTMLDivElement>());
   const advancedRange = getManualRangeById(recipe.ranges, advancedRangeId);
   const rangePendingDelete = getManualRangeById(recipe.ranges, rangeIdPendingDelete);
   const visibleInputColumns = useMemo(() => {
@@ -103,6 +106,22 @@ export function ManualRangeSpreadsheetEditor({
     }, rowNumber, recipe.ranges);
     setSelection(nextState.selection);
     setSelectedRangeId(nextState.selectedRangeId);
+    if (nextState.selectedRangeId) {
+      rangeItemRefs.current.get(nextState.selectedRangeId)?.scrollIntoView({ block: 'nearest' });
+    }
+  };
+  const scrollToSpreadsheetRow = (rowNumber: number) => {
+    const row = rowRefs.current.get(rowNumber);
+    const scroller = row?.closest<HTMLElement>('.manualRangeSpreadsheetScroller');
+    const header = scroller?.querySelector<HTMLElement>('thead');
+    if (!row || !scroller) {
+      return;
+    }
+
+    scroller.scrollTo({
+      top: Math.max(0, row.offsetTop - (header?.offsetHeight ?? 0)),
+      behavior: 'auto',
+    });
   };
   const createRangeFromSelection = () => {
     const nextRecipe = createManualRangeFromSelection(recipe, selection);
@@ -184,7 +203,10 @@ export function ManualRangeSpreadsheetEditor({
     <div className="manualRangeSpreadsheet">
       <div className="manualRangeSpreadsheetHeader">
         <strong>Vista de filas para rangos</strong>
-        <p>Muestra las filas visibles disponibles para configurar rangos. Los datos originales no se modifican.</p>
+        <InfoTooltip
+          ariaLabel="Ayuda: vista de filas para rangos"
+          content="Muestra las filas visibles disponibles para configurar rangos. Los datos originales no se modifican."
+        />
       </div>
       <div className="manualRangeSpreadsheetToolbar">
         <div className="manualRangeSpreadsheetSelectionActions manualRangeSpreadsheetToolbarPrimaryActions">
@@ -214,6 +236,7 @@ export function ManualRangeSpreadsheetEditor({
           </button>
         </div>
       </div>
+      <div className="manualRangeSpreadsheetToolbarDivider" aria-hidden="true" />
 
       <div className="manualRangeSpreadsheetLayout">
         <div className="manualRangeSpreadsheetTablePane">
@@ -241,6 +264,11 @@ export function ManualRangeSpreadsheetEditor({
                   {manualRangeRows.map((row) => (
                     <tr
                       key={row.rowNumber}
+                      ref={(node) => {
+                        if (node) rowRefs.current.set(row.rowNumber, node);
+                        else rowRefs.current.delete(row.rowNumber);
+                      }}
+                      data-manual-range-row-number={row.rowNumber}
                       className={getManualRangeSpreadsheetRowClassName(
                         row.rowNumber,
                         recipe.ranges,
@@ -290,6 +318,10 @@ export function ManualRangeSpreadsheetEditor({
           onSelectRange={(rangeId) => {
             setSelectedRangeId(rangeId);
             clearSelection();
+            const range = getManualRangeById(recipe.ranges, rangeId);
+            if (range) {
+              scrollToSpreadsheetRow(range.startRowNumber);
+            }
           }}
           onEditRange={(rangeId) => {
             setSelectedRangeId(rangeId);
@@ -299,6 +331,7 @@ export function ManualRangeSpreadsheetEditor({
           onDeleteAllRanges={() => setIsClearAllRangesConfirmOpen(true)}
           onRequestDeleteRange={setRangeIdPendingDelete}
           selectedRangeId={selectedRangeId}
+          rangeItemRefs={rangeItemRefs.current}
         />
       </div>
 
@@ -421,6 +454,7 @@ function ManualRangeSpreadsheetInspector({
   onDeleteAllRanges,
   onRequestDeleteRange,
   selectedRangeId,
+  rangeItemRefs,
 }: {
   recipe: ManualRangeRecipe;
   inputColumns: InputColumn[];
@@ -430,6 +464,7 @@ function ManualRangeSpreadsheetInspector({
   onDeleteAllRanges: () => void;
   onRequestDeleteRange: (rangeId: string) => void;
   selectedRangeId: string | null;
+  rangeItemRefs: Map<string, HTMLDivElement>;
 }) {
   const overlappingRangeIds = getOverlappingManualRangeIds(recipe.ranges);
   const sortRanges = () => onChange(sortManualRangeRecipeByStart(recipe));
@@ -447,6 +482,7 @@ function ManualRangeSpreadsheetInspector({
           onSortRanges={sortRanges}
           onDeleteAllRanges={onDeleteAllRanges}
           onRequestDeleteRange={onRequestDeleteRange}
+          rangeItemRefs={rangeItemRefs}
         />
       </div>
     </aside>
@@ -1001,6 +1037,7 @@ function ManualRangeSpreadsheetRangesList({
   onSortRanges,
   onDeleteAllRanges,
   onRequestDeleteRange,
+  rangeItemRefs,
 }: {
   ranges: ManualRangeValue[];
   inputColumns: InputColumn[];
@@ -1011,6 +1048,7 @@ function ManualRangeSpreadsheetRangesList({
   onSortRanges: () => void;
   onDeleteAllRanges: () => void;
   onRequestDeleteRange: (rangeId: string) => void;
+  rangeItemRefs: Map<string, HTMLDivElement>;
 }) {
   return (
     <section className="manualRangeSpreadsheetRangesList">
@@ -1037,7 +1075,15 @@ function ManualRangeSpreadsheetRangesList({
       ) : (
         <div className="manualRangeSpreadsheetRangesListItems">
           {ranges.map((range) => (
-            <div key={range.id} className={getManualRangeCompactItemClassName(range.id, selectedRangeId, overlappingRangeIds)}>
+            <div
+              key={range.id}
+              ref={(node) => {
+                if (node) rangeItemRefs.set(range.id, node);
+                else rangeItemRefs.delete(range.id);
+              }}
+              data-manual-range-id={range.id}
+              className={getManualRangeCompactItemClassName(range.id, selectedRangeId, overlappingRangeIds)}
+            >
               <button
                 type="button"
                 className="manualRangeSpreadsheetRangeItemMain"

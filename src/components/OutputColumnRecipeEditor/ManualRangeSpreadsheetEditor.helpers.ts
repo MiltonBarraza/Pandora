@@ -335,6 +335,9 @@ export function getManualRangeSpreadsheetRowClassName(
     : undefined;
   const suggestedRange = suggestedRanges.find((range) => isRowInsideManualRange(rowNumber, range));
   const selectedSuggestedRange = suggestedRange && selectedSuggestedRangeIds.has(suggestedRange.id);
+  const boundaryState = getManualRangeBoundaryStateForRow(rowNumber, ranges);
+  const isActiveRangeStart = selectedRange?.startRowNumber === rowNumber;
+  const isActiveRangeEnd = selectedRange?.endRowNumber === rowNumber;
 
   return [
     'manualRangeSpreadsheetRow',
@@ -342,12 +345,23 @@ export function getManualRangeSpreadsheetRowClassName(
     suggestedRange ? 'manualRangeSpreadsheetRow-suggested' : '',
     selectedSuggestedRange ? 'manualRangeSpreadsheetRow-suggestedSelected' : '',
     isRowInsideAnyManualRange(rowNumber, ranges) ? 'manualRangeSpreadsheetRow-covered' : '',
+    boundaryState.isStart ? 'manualRangeSpreadsheetRow-rangeStart' : '',
+    boundaryState.isEnd ? 'manualRangeSpreadsheetRow-rangeEnd' : '',
     lastCreatedRange && isRowInsideManualRange(rowNumber, lastCreatedRange) ? 'manualRangeSpreadsheetRow-lastCreated' : '',
     selectedRange && isRowInsideManualRange(rowNumber, selectedRange) ? 'manualRangeSpreadsheetRow-activeRange' : '',
+    isActiveRangeStart ? 'manualRangeSpreadsheetRow-activeRangeStart' : '',
+    isActiveRangeEnd ? 'manualRangeSpreadsheetRow-activeRangeEnd' : '',
     isRowInsideManualRangeSelection(rowNumber, selection) ? 'manualRangeSpreadsheetRow-selectionInside' : '',
     isManualRangeSelectionStart(rowNumber, selection) ? 'manualRangeSpreadsheetRow-selectionStart' : '',
     isManualRangeSelectionEnd(rowNumber, selection) ? 'manualRangeSpreadsheetRow-selectionEnd' : '',
   ].filter(Boolean).join(' ');
+}
+
+export function getManualRangeBoundaryStateForRow(rowNumber: number, ranges: ManualRangeValue[]) {
+  return {
+    isStart: ranges.some((range) => range.startRowNumber === rowNumber),
+    isEnd: ranges.some((range) => range.endRowNumber === rowNumber),
+  };
 }
 
 export function createManualRangeValueFromBounds(

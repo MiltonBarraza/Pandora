@@ -112,10 +112,12 @@ export function InfoTooltip({
       open();
     }
   };
-  const portalTarget = getInfoTooltipPortalTarget(triggerRef.current, document.body);
+  const portalTarget = typeof document === 'undefined'
+    ? null
+    : getInfoTooltipPortalTarget(triggerRef.current, document.body);
 
   const bubble = isOpen
-    ? createPortal(
+    ? portalTarget && createPortal(
         <span
           ref={bubbleRef}
           id={tooltipId}

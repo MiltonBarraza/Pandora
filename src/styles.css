@@ -2538,8 +2538,15 @@ tbody tr:hover {
 }
 
 .manualRangeSpreadsheetHeader {
-  display: grid;
-  gap: 3px;
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manualRangeSpreadsheetToolbarDivider {
+  border-top: 1px solid var(--color-border-muted);
+  height: 0;
   min-width: 0;
 }
 
@@ -2683,6 +2690,10 @@ tbody tr:hover {
   background: var(--color-table-row-hover-bg);
 }
 
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow:hover .manualRangeSpreadsheetRowNumberCell {
+  background: var(--color-table-row-hover-bg);
+}
+
 .manualRangeSpreadsheetRow-suggested {
   background: var(--color-bg-subtle);
 }
@@ -2716,6 +2727,27 @@ tbody tr:hover {
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-covered .manualRangeSpreadsheetRowNumber {
   background: var(--color-selected-bg);
   color: var(--color-selected-text);
+}
+
+.manualRangeSpreadsheetRow-rangeStart > * {
+  border-top: 2px solid var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRow-rangeEnd > * {
+  border-bottom: 2px solid var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRow-rangeStart .manualRangeSpreadsheetRowNumberCell,
+.manualRangeSpreadsheetRow-rangeEnd .manualRangeSpreadsheetRowNumberCell {
+  border-left: 3px solid var(--color-accent-border);
+}
+
+.manualRangeSpreadsheetRow-activeRangeStart > * {
+  border-top-color: var(--color-focus-border);
+}
+
+.manualRangeSpreadsheetRow-activeRangeEnd > * {
+  border-bottom-color: var(--color-focus-border);
 }
 
 .manualRangeSpreadsheetRow-lastCreated {
@@ -3364,7 +3396,9 @@ tbody tr:hover {
   justify-content: start;
 }
 
-.manualRangeColumnsTransferPanel {
+.columnTransferPanel.manualRangeColumnsTransferPanel {
+  --column-transfer-item-min-height: 42px;
+  --column-transfer-list-gap: 5px;
   min-height: 160px;
 }
 
@@ -3372,35 +3406,44 @@ tbody tr:hover {
   max-height: min(320px, 42vh);
 }
 
-.manualRangeColumnsTransferItem {
+.manualRangeColumnsTransferPanel .manualRangeColumnsTransferEmpty {
+  align-self: start;
+  height: var(--column-transfer-item-min-height);
+  min-height: var(--column-transfer-item-min-height);
+  padding: 4px 7px;
+  width: 100%;
+}
+
+.manualRangeColumnsTransferItem.manualRangeColumnsTransferItemCompact {
   align-items: center;
   gap: 5px;
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 38px;
+  min-height: 42px;
   padding: 4px 7px;
 }
 
-.manualRangeColumnsTransferItemMain {
+.manualRangeColumnsTransferItemCompact .manualRangeColumnsTransferItemMain {
   background: transparent;
   border: 0;
   cursor: default;
   padding: 0;
 }
 
-.manualRangeColumnsTransferItem .columnTransferTitleRow strong {
+.manualRangeColumnsTransferItemCompact .columnTransferTitleRow strong {
   font-size: 0.84rem;
 }
 
-.manualRangeColumnsTransferItem .columnTransferMeta {
+.manualRangeColumnsTransferItemCompact .columnTransferMeta {
+  line-height: 1.15;
   font-size: 0.74rem;
 }
 
-.manualRangeColumnsTransferItem .columnTransferAction {
+.manualRangeColumnsTransferItemCompact .manualRangeColumnsTransferItemAction {
   min-height: 28px;
   padding: 4px 7px;
 }
 
-.manualRangeColumnsResultToggle {
+.manualRangeColumnsResultToggleCompact {
   align-items: center;
   color: var(--color-text);
   display: inline-flex;
@@ -3408,14 +3451,16 @@ tbody tr:hover {
   font-weight: 700;
   gap: 6px;
   line-height: 1.2;
-  min-height: 24px;
+  min-height: 0;
   min-width: 0;
   padding: 0;
 }
 
-.manualRangeColumnsResultToggle input {
-  min-height: 14px;
-  width: 14px;
+.manualRangeColumnsModal .manualRangeColumnsResultToggleCompact input[type='checkbox'] {
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  width: 18px;
 }
 
 @media (max-width: 760px) {

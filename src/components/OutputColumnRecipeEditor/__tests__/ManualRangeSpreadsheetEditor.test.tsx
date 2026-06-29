@@ -23,6 +23,7 @@ import {
   getDefaultManualRangeVisibleColumnIds,
   getFirstManualRangeForRowNumber,
   getManualRangeById,
+  getManualRangeBoundaryStateForRow,
   getManualRangeCompactItemClassName,
   getManualRangeDisplayValue,
   getManualRangePreviewRows,
@@ -128,12 +129,12 @@ function renderSpreadsheet(
 }
 
 describe('ManualRangeSpreadsheetEditor', () => {
-  it('renders the title and explanatory copy', () => {
+  it('renders the title and moves explanatory copy to an info tooltip', () => {
     const markup = renderSpreadsheet();
 
     expect(markup).toContain('Vista de filas para rangos');
-    expect(markup).toContain('Muestra las filas visibles disponibles para configurar rangos');
-    expect(markup).toContain('Los datos originales no se modifican.');
+    expect(markup).toContain('aria-label="Ayuda: vista de filas para rangos"');
+    expect(markup).not.toContain('<p>Muestra las filas visibles disponibles para configurar rangos');
   });
 
   it('renders the compact toolbar with disabled selection actions initially', () => {
@@ -147,6 +148,7 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('disabled="">Limpiar selección');
     expect(markup).toContain('Rangos sugeridos');
     expect(markup).toContain('Armar columnas');
+    expect(markup).toContain('manualRangeSpreadsheetToolbarDivider');
     expect(markup).not.toContain('Crear rango de esta fila');
   });
 
@@ -374,6 +376,20 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('manualRangeSpreadsheetRowNumberCell');
     expect(markup).toContain('aria-label="Seleccionar fila 8"');
   });
+
+  it('marks configured range boundaries, including one-row ranges', () => {
+    const markup = renderSpreadsheet({
+      recipe: { type: 'manualRange', ranges: [{ id: 'single', startRowNumber: 8, endRowNumber: 8, value: 'Uno' }] },
+    });
+    const row = (markup.match(/<tr[^>]*manualRangeSpreadsheetRow[^>]*>[\s\S]*?<\/tr>/g) ?? [])
+      .find((candidate) => candidate.includes('>8</th>')) ?? '';
+
+    expect(row).toContain('manualRangeSpreadsheetRow-rangeStart');
+    expect(row).toContain('manualRangeSpreadsheetRow-rangeEnd');
+    expect(row).toContain('manualRangeSpreadsheetRowNumberCell');
+    expect(markup).toContain('data-manual-range-row-number="8"');
+    expect(markup).toContain('data-manual-range-id="single"');
+  });
 });
 
 describe('ManualRangePreviewPanel', () => {
@@ -525,9 +541,12 @@ describe('ManualRangeColumnsModal', () => {
     expect(markup).toContain('Ocultar');
     expect(markup).toContain('manualRangeColumnsModal');
     expect(markup).toContain('manualRangeColumnsToolbar');
-    expect(markup).toContain('checkboxField manualRangeColumnsResultToggle');
+    expect(markup).toContain('manualRangeColumnsResultToggleCompact');
+    expect(markup).not.toContain('checkboxField manualRangeColumnsResultToggle');
     expect(markup).toContain('Ayuda: mostrar resultado');
     expect(markup).toContain('manualRangeColumnsTransferItem');
+    expect(markup).toContain('manualRangeColumnsTransferItemCompact');
+    expect(markup).toContain('manualRangeColumnsTransferItemAction');
     expect(markup).toContain('Mostrar resultado');
     expect(markup).toContain('Cancelar');
     expect(markup).toContain('Aceptar');
@@ -705,6 +724,33 @@ describe('ManualRangeSuggestedRangesPanel', () => {
 });
 
 describe('ManualRangeSpreadsheetEditor helpers', () => {
+  it('detects start and end boundaries without changing overlap semantics', () => {
+    const ranges = [
+      createManualRangeValueFromBounds(8, 12, () => 'first'),
+      createManualRangeValueFromBounds(12, 12, () => 'single'),
+    ];
+
+    expect(getManualRangeBoundaryStateForRow(8, ranges)).toEqual({ isStart: true, isEnd: false });
+    expect(getManualRangeBoundaryStateForRow(12, ranges)).toEqual({ isStart: true, isEnd: true });
+    expect(getManualRangeBoundaryStateForRow(10, ranges)).toEqual({ isStart: false, isEnd: false });
+  });
+
+  it('uses the compact empty item when a transfer group has no columns', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeColumnsModal
+        open
+        inputColumns={inputColumns}
+        visibleColumnIds={inputColumns.map((column) => column.id)}
+        showResultColumn
+        onApply={() => undefined}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('columnTransferEmpty manualRangeColumnsTransferEmpty');
+    expect(markup).toContain('No hay columnas disponibles.');
+  });
+
   it('builds column labels with the expected priority', () => {
     expect(getManualRangeSpreadsheetColumnLabel(inputColumns[2])).toBe('Formato');
     expect(getManualRangeSpreadsheetColumnLabel(inputColumns[1])).toBe('Producto');

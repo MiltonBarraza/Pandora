@@ -81,7 +81,7 @@ export function ManualRangeColumnsModal({
     >
       <div className="manualRangeColumnsModalBody">
         <div className="manualRangeColumnsToolbar">
-          <label className="checkboxField manualRangeColumnsResultToggle">
+          <label className="manualRangeColumnsResultToggleCompact">
             <input
               type="checkbox"
               checked={draftShowResultColumn}
@@ -153,7 +153,7 @@ function ManualRangeColumnsTransferPanel({
       {count > 0 ? (
         <div className="columnTransferList manualRangeColumnsTransferList">{children}</div>
       ) : (
-        <p className="columnTransferEmpty">{emptyMessage}</p>
+        <p className="columnTransferEmpty manualRangeColumnsTransferEmpty">{emptyMessage}</p>
       )}
     </section>
   );
@@ -173,7 +173,7 @@ function ManualRangeColumnsTransferItem({
   const label = getManualRangeSpreadsheetColumnLabel(inputColumn);
 
   return (
-    <article className="columnTransferItem manualRangeColumnsTransferItem">
+    <article className="columnTransferItem manualRangeColumnsTransferItem manualRangeColumnsTransferItemCompact">
       <div className="columnTransferSelectArea manualRangeColumnsTransferItemMain">
         <div className="columnTransferTitleRow">
           <strong>{label}</strong>
@@ -183,7 +183,7 @@ function ManualRangeColumnsTransferItem({
         </div>
       </div>
       <div className="columnTransferActions">
-        <button type="button" className="secondary columnTransferAction" aria-label={actionAriaLabel} onClick={onAction}>
+        <button type="button" className="secondary columnTransferAction manualRangeColumnsTransferItemAction" aria-label={actionAriaLabel} onClick={onAction}>
           {actionLabel}
         </button>
       </div>
