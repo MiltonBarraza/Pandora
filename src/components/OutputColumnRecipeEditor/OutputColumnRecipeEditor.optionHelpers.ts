@@ -19,7 +19,7 @@ import type {
   TransformStepType,
 } from '../../types/import';
 import type { DropdownOption } from '../ui/Dropdown/Dropdown';
-import { pickColumnTextLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
+import { pickCellTextLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
   { value: 'text', label: 'Trabajar con texto' },
@@ -58,7 +58,7 @@ export function getStepSourceDropdownValue(source: StepSource) {
 export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
   return [
     ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
-    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: pickColumnTextLabel }] : []),
+    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: pickCellTextLabel }] : []),
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
   ];
 }
@@ -120,7 +120,7 @@ export function getStepTextSourceActionOptions(allowPreviousResult: boolean): Ar
   return [
     { value: 'useInputColumn', label: 'Usar columna de entrada' },
     { value: 'useFixedText', label: 'Usar texto fijo' },
-    { value: 'pickColumnText', label: pickColumnTextLabel },
+    { value: 'pickColumnText', label: pickCellTextLabel },
     ...(allowPreviousResult ? [{ value: 'usePreviousResult' as const, label: 'Usar resultado anterior' }] : []),
   ];
 }

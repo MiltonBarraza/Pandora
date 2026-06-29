@@ -37,6 +37,15 @@ button.dropdownTrigger:hover:not(:disabled) {
   border-color: var(--color-accent-border);
 }
 
+button.dropdownTrigger:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+button.dropdownTrigger:disabled .dropdownChevron {
+  display: none;
+}
+
 button.dropdownTrigger:focus-visible {
   border-color: var(--color-focus-border);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
@@ -129,4 +138,13 @@ button.dropdownOption.isSelected {
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
+}
+
+.dropdownSearchableControl-disabled .dropdownSearchableInput {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.dropdownSearchableControl-disabled .dropdownChevron {
+  display: none;
 }

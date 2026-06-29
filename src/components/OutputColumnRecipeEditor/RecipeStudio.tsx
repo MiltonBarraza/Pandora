@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { addManualRangeValue, describeManualRangeCondition, duplicateManualRangeValue, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, TransformStep } from '../../types/import';
+import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -10,8 +10,8 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
+import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
-import { describeStepAdjustments, getConfiguredConcatStep, getStepSummary } from './OutputColumnRecipeEditor.displayHelpers';
 import { buildSimpleCustomValueRecipeWithSteps, clearManualRangeValues, createNoopStep, getFirstStepSource, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
@@ -39,17 +39,27 @@ type ManualRangeTextGeneratorRenderProps = {
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 };
 
+export type ComposePartEditorRenderProps = {
+  part: ConcatPart;
+  inputColumns: InputColumn[];
+  manualRangeRows: InputRow[];
+  allowPreviousResultSource: boolean;
+  onChange: (part: ConcatPart) => void;
+};
+
+export type ComposeStepHeaderRenderProps = {
+  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  inputColumns: InputColumn[];
+  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+};
+
 type RecipeStudioRenderers = {
   renderCustomValueEditor: (props: CustomValueEditorRenderProps) => ReactNode;
+  renderComposePartEditor: (props: ComposePartEditorRenderProps) => ReactNode;
+  renderComposeStepHeader: (props: ComposeStepHeaderRenderProps) => ReactNode;
   renderManualRangeRecipeEditor: (props: ManualRangeRecipeEditorRenderProps) => ReactNode;
   renderManualRangeTextGenerator: (props: ManualRangeTextGeneratorRenderProps) => ReactNode;
 };
-
-const recipeStudioModes: Array<{ mode: RecipeStudioMode; label: string; description: string }> = [
-  { mode: 'compose', label: 'Combinar valores', description: 'Unir columnas y textos.' },
-  { mode: 'ranges', label: 'Asignar por rangos', description: 'Pendiente de integracion.' },
-  { mode: 'advanced', label: 'Avanzado', description: 'Editar pasos tecnicos completos.' },
-];
 
 export function RecipeStudioShell({
   recipe,
@@ -60,6 +70,8 @@ export function RecipeStudioShell({
   customValueMode,
   onChange,
   renderCustomValueEditor,
+  renderComposePartEditor,
+  renderComposeStepHeader,
   renderManualRangeRecipeEditor,
   renderManualRangeTextGenerator,
 } : {
@@ -71,153 +83,40 @@ export function RecipeStudioShell({
   customValueMode: CustomValueMode;
   onChange: (recipe: EditableCustomRecipe) => void;
 } & RecipeStudioRenderers) {
-  const derivedMode = getRecipeStudioMode(recipe);
-  const [selectedStudioMode, setSelectedStudioMode] = useState<RecipeStudioMode | null>(null);
-  const activeMode = selectedStudioMode ?? getVisibleRecipeStudioMode(derivedMode);
   const [selectedStudioItemId, setSelectedStudioItemId] = useState<string | null>(null);
-  const renderers = { renderCustomValueEditor, renderManualRangeRecipeEditor, renderManualRangeTextGenerator };
-
-  useEffect(() => {
-    if (selectedStudioMode && selectedStudioMode !== 'advanced' && selectedStudioMode === derivedMode) {
-      setSelectedStudioMode(null);
-    }
-  }, [derivedMode, selectedStudioMode]);
-
-  const changeMode = (mode: RecipeStudioMode) => {
-    if (mode === activeMode) {
-      return;
-    }
-
-    setSelectedStudioItemId(null);
-    setSelectedStudioMode(mode);
-
-    if (mode === 'advanced') {
-      return;
-    }
-
-    if (mode === 'ranges') {
-      return;
-    }
-
-    onChange(createRecipeForStudioMode(mode, recipe, inputColumns));
-  };
+  const isComposeRecipe = recipe.type === 'combine' && getRecipeStudioMode(recipe) === 'compose';
 
   return (
     <div className="constructorModalContent recipeStudio">
       <div className="recipeStudioWorkspace">
-        <RecipeStudioModeBar activeMode={activeMode} onModeSelect={changeMode} />
-        <RecipeStudioMain
-          recipe={recipe}
-          activeMode={activeMode}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          sampleInputValues={sampleInputValues}
-          customValueMode={customValueMode}
-          selectedStudioItemId={selectedStudioItemId}
-          onSelectedStudioItemChange={setSelectedStudioItemId}
-          renderers={renderers}
-          onChange={onChange}
-        />
+        <main className="recipeStudioMain">
+          {isComposeRecipe ? (
+            <ComposeValueStudio
+              recipe={recipe}
+              inputColumns={inputColumns}
+              manualRangeRows={manualRangeRows}
+              sampleInputValues={sampleInputValues}
+              selectedTokenId={selectedStudioItemId}
+              onSelectedTokenChange={setSelectedStudioItemId}
+              renderComposePartEditor={renderComposePartEditor}
+              renderComposeStepHeader={renderComposeStepHeader}
+              onChange={onChange}
+            />
+          ) : recipe.type === 'manualRange' ? (
+            <RangeStudioPlaceholder />
+          ) : (
+            renderCustomValueEditor({
+              recipe,
+              inputColumns,
+              manualRangeRows,
+              sampleInputValues,
+              mode: customValueMode,
+              onChange,
+            })
+          )}
+        </main>
       </div>
     </div>
-  );
-}
-
-function getVisibleRecipeStudioMode(mode: RecipeStudioMode): RecipeStudioMode {
-  return mode === 'compose' || mode === 'ranges' || mode === 'advanced' ? mode : 'advanced';
-}
-
-function RecipeStudioModeBar({
-  activeMode,
-  onModeSelect,
-}: {
-  activeMode: RecipeStudioMode;
-  onModeSelect: (mode: RecipeStudioMode) => void;
-}) {
-  return (
-    <nav className="recipeStudioModeBar" aria-label="Modo de construccion">
-      {recipeStudioModes.map((item) => {
-        const isActive = item.mode === activeMode;
-        return (
-          <button
-            key={item.mode}
-            type="button"
-            className={`recipeStudioModeButton${isActive ? ' active' : ''}`}
-            aria-current={isActive ? 'step' : undefined}
-            title={item.label}
-            onClick={() => onModeSelect(item.mode)}
-          >
-            <span>{item.label}</span>
-            <small>{item.description}</small>
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
-function RecipeStudioMain({
-  recipe,
-  activeMode,
-  inputColumns,
-  manualRangeRows,
-  sampleInputValues,
-  customValueMode,
-  selectedStudioItemId,
-  onSelectedStudioItemChange,
-  renderers,
-  onChange,
-}: {
-  recipe: EditableCustomRecipe;
-  activeMode: RecipeStudioMode;
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  sampleInputValues?: Record<string, string>;
-  customValueMode: CustomValueMode;
-  selectedStudioItemId: string | null;
-  onSelectedStudioItemChange: (id: string | null) => void;
-  renderers: RecipeStudioRenderers;
-  onChange: (recipe: EditableCustomRecipe) => void;
-}) {
-  if (activeMode === 'advanced') {
-    return (
-      <main className="recipeStudioMain">
-        <div className="recipeStudioSectionHeading">
-          <span>{getRecipeStudioModeLabel(activeMode)}</span>
-          <strong>{getRecipeStudioMainTitle(activeMode)}</strong>
-        </div>
-        {recipe.type === 'manualRange'
-          ? renderers.renderManualRangeRecipeEditor({ recipe, inputColumns, manualRangeRows, onChange })
-          : renderers.renderCustomValueEditor({
-            recipe,
-            inputColumns,
-            manualRangeRows,
-            sampleInputValues,
-            mode: customValueMode,
-            onChange,
-          })}
-      </main>
-    );
-  }
-
-  return (
-    <main className="recipeStudioMain">
-      {activeMode === 'ranges' ? (
-        <RangeStudioPlaceholder />
-      ) : activeMode === 'compose' && recipe.type === 'combine' ? (
-        <ComposeValueStudio
-          recipe={recipe}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          sampleInputValues={sampleInputValues}
-          customValueMode={customValueMode}
-          selectedTokenId={selectedStudioItemId}
-          onSelectedTokenChange={onSelectedStudioItemChange}
-          renderers={renderers}
-          onChange={onChange}
-        />
-      ) : <div className="compositionTokenEmpty">Preparando modo...</div>}
-    </main>
   );
 }
 
@@ -342,9 +241,9 @@ type ComposeToken = {
   id: string;
   label: string;
   detail: string;
-  kind: 'input' | 'text' | 'previous' | 'advanced';
+  kind: 'input' | 'text' | 'previous' | 'advanced' | 'warning';
+  statusHint?: string;
   index: number;
-  isComplex: boolean;
 };
 
 function ComposeValueStudio({
@@ -352,20 +251,20 @@ function ComposeValueStudio({
   inputColumns,
   manualRangeRows,
   sampleInputValues,
-  customValueMode,
   selectedTokenId,
   onSelectedTokenChange,
-  renderers,
+  renderComposePartEditor,
+  renderComposeStepHeader,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'combine' }>;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
-  customValueMode: CustomValueMode;
   selectedTokenId: string | null;
   onSelectedTokenChange: (tokenId: string | null) => void;
-  renderers: RecipeStudioRenderers;
+  renderComposePartEditor: RecipeStudioRenderers['renderComposePartEditor'];
+  renderComposeStepHeader: RecipeStudioRenderers['renderComposeStepHeader'];
   onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
 }) {
   const previousTokenCountRef = useRef(getComposeTokens(recipe, inputColumns).length);
@@ -385,12 +284,10 @@ function ComposeValueStudio({
     previousTokenCountRef.current = tokens.length;
   }, [onSelectedTokenChange, selectedTokenId, tokens]);
 
-  const updateRecipeParts = (parts: RecipePart[]) => {
-    onChange(updateComposeRecipeParts(recipe, parts));
-  };
-
-  const addToken = (part: RecipePart) => {
-    updateRecipeParts([...getComposeRecipeParts(recipe), part]);
+  const addToken = () => {
+    const result = addComposeRecipePart(recipe, inputColumns);
+    onChange(result.recipe);
+    onSelectedTokenChange(result.selectedPartId);
   };
 
   const reorderTokens = (nextTokens: ComposeToken[]) => {
@@ -422,51 +319,54 @@ function ComposeValueStudio({
   };
 
   return (
-    <div className="composeStudio">
-      <p className="composeStudioHint">Arrastrá las piezas para cambiar el orden final.</p>
-      <div className="composeStudioActions">
-        <div className="composeStudioAddActions" aria-label="Agregar pieza">
-          <ActionButton action="add" variant="secondary" onClick={() => addToken(createComposeInputPart(inputColumns[0]?.id ?? ''))}>
-            Columna
-          </ActionButton>
-          <ActionButton action="add" variant="secondary" onClick={() => addToken(createComposeTextPart(''))}>
-            Texto
-          </ActionButton>
+    <div className="composeStudio composeStudioFlat">
+      <section className="recipeStudioSection recipeStudioGeneralSection composeStudioHeader" aria-label="Configuración general">
+        <div className="composeStudioHeaderTitle">
+          <span>Configuración general</span>
+          <strong>Paso 1 · Concatenar</strong>
         </div>
-        <ComposeValuePreview rows={previewRows} hasTokens={tokens.length > 0} />
-      </div>
-      <CompositionTokenList
-        tokens={tokens}
-        selectedTokenId={selectedToken?.id ?? null}
-        separator={recipe.separator}
-        emptyMessage="Agregá una pieza para empezar."
-        onSelect={onSelectedTokenChange}
-        onReorder={reorderTokens}
-        onDuplicate={duplicateToken}
-        onRemove={removeToken}
-      />
+        <div className="composeStudioHeaderFields stepPrimaryFieldsRow">
+          {renderComposeStepHeader({ recipe, inputColumns, onChange })}
+        </div>
+      </section>
+      <section className="recipeStudioSection recipeStudioSectionLight composePartsBuilder" aria-label="Editor de partes">
+        <div className="composePartsBuilderHeader">
+          <div className="composePartsBuilderTitle">
+            <strong>Editor de partes</strong>
+            <p className="composeStudioHint">Arrastrá las partes para cambiar el orden.</p>
+          </div>
+          <div className="composeStudioActions">
+            <div className="composeStudioAddActions">
+              <ActionButton action="add" variant="secondary" className="composeStudioActionButton" onClick={addToken}>
+                Agregar parte
+              </ActionButton>
+            </div>
+            <ComposeValuePreview
+              rows={previewRows}
+              hasTokens={tokens.length > 0}
+              totalAvailable={manualRangeRows.length > 0 ? manualRangeRows.length : undefined}
+            />
+          </div>
+        </div>
+        <CompositionTokenList
+          tokens={tokens}
+          selectedTokenId={selectedToken?.id ?? null}
+          separator={recipe.separator}
+          emptyMessage="Agregá una parte para empezar."
+          onSelect={onSelectedTokenChange}
+          onReorder={reorderTokens}
+          onDuplicate={duplicateToken}
+          onRemove={removeToken}
+        />
+      </section>
       <ComposeTokenInspector
         recipe={recipe}
         token={selectedToken}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
-        sampleInputValues={sampleInputValues}
+        renderComposePartEditor={renderComposePartEditor}
         onChange={onChange}
       />
-      <details className="simpleStudioAdvanced">
-        <summary>
-          <span>Opciones avanzadas</span>
-          <small>{getSimpleStudioAdvancedSummary(recipe, inputColumns)}</small>
-        </summary>
-        {renderers.renderCustomValueEditor({
-          recipe,
-          inputColumns,
-          manualRangeRows,
-          sampleInputValues,
-          mode: customValueMode,
-          onChange,
-        })}
-      </details>
     </div>
   );
 }
@@ -495,17 +395,17 @@ function CompositionTokenList({
   }
 
   return (
-    <div className="compositionTokenList" aria-label="Piezas de combinacion">
+    <div className="compositionTokenList" aria-label="Partes de combinación">
       <SortableList
         items={tokens}
         axis="horizontal"
         handleContent={<span aria-hidden="true">::</span>}
-        handleLabel="Arrastrar pieza"
+        handleLabel="Arrastrar parte"
         onChange={onReorder}
         renderItem={(token, dragHandle) => (
           <div className="compositionTokenSlot">
             {token.index > 0 ? <span className="compositionJoiner">{separator ? JSON.stringify(separator) : '+'}</span> : null}
-            <div className={`compositionTokenCard compositionToken-${token.kind}${token.id === selectedTokenId ? ' selected' : ''}`}>
+            <div className={`compositionTokenCard compositionToken-${token.kind}${token.id === selectedTokenId ? ' selected' : ' unselected'}`}>
               {dragHandle}
               <CompositionToken
                 token={token}
@@ -513,11 +413,11 @@ function CompositionTokenList({
                 onClick={() => onSelect(token.id)}
               />
               <div className="compositionTokenActions">
-                <InfoTooltip content="Duplicar pieza">
-                  <ActionButton action="duplicate" variant="icon" size="sm" aria-label="Duplicar pieza" onClick={() => onDuplicate(token.id)} />
+                <InfoTooltip content="Duplicar parte">
+                  <ActionButton action="duplicate" variant="icon" size="sm" aria-label="Duplicar parte" onClick={() => onDuplicate(token.id)} />
                 </InfoTooltip>
-                <InfoTooltip content="Eliminar pieza">
-                  <DeleteButton title="Eliminar pieza" onClick={() => onRemove(token.id)} />
+                <InfoTooltip content="Eliminar parte">
+                  <DeleteButton title="Eliminar parte" onClick={() => onRemove(token.id)} />
                 </InfoTooltip>
               </div>
             </div>
@@ -542,6 +442,7 @@ function CompositionToken({
       type="button"
       className={`compositionToken compositionToken-${token.kind}${selected ? ' selected' : ''}`}
       aria-pressed={selected}
+      title={token.statusHint}
       onClick={onClick}
     >
       <span>{token.label}</span>
@@ -555,161 +456,84 @@ function ComposeTokenInspector({
   token,
   inputColumns,
   manualRangeRows,
-  sampleInputValues,
+  renderComposePartEditor,
   onChange,
 }: {
   recipe: Extract<OutputRecipe, { type: 'combine' }>;
   token: ComposeToken | null;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
-  sampleInputValues?: Record<string, string>;
+  renderComposePartEditor: RecipeStudioRenderers['renderComposePartEditor'];
   onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
 }) {
   const parts = getComposeRecipeParts(recipe);
   const part = token ? parts[token.index] : undefined;
-  const [textSourceModeByPartId, setTextSourceModeByPartId] = useState<Record<string, 'text' | 'columnText'>>({});
-  const [textSourceColumnByPartId, setTextSourceColumnByPartId] = useState<Record<string, string>>({});
+  const concatPart = token ? getComposeConcatPart(recipe, token.index) : undefined;
 
-  if (!token || !part) {
+  if (!token || !part || !concatPart) {
     return (
-      <div className="composeTokenInspector">
-        <strong>Inspector de pieza</strong>
-        <p>Seleccioná una pieza.</p>
-      </div>
+      <section className="recipeStudioSection composeTokenInspector composeTokenInspectorFlat">
+        <strong>Parte seleccionada</strong>
+        <p>Agregá una parte para configurarla.</p>
+      </section>
     );
   }
 
-  const updatePart = (nextPart: RecipePart) => {
-    onChange(updateComposeRecipeParts(recipe, parts.map((item, index) => (index === token.index ? nextPart : item))));
-  };
-  const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: noActiveColumnsLabel }]
-    : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
-  const textSourceMode = part.type === 'text' ? textSourceModeByPartId[part.id] ?? 'text' : 'text';
-  const selectedTextSourceColumnId = textSourceColumnByPartId[part.id] ?? inputColumns[0]?.id ?? '';
-  const columnTextOptions = getComposeColumnTextOptions(manualRangeRows, selectedTextSourceColumnId, sampleInputValues);
-  const selectedColumnText = part.type === 'text' ? getComposeValidColumnTextSelection(part.value, columnTextOptions) : '';
-  const setTextSourceMode = (mode: 'text' | 'columnText') => {
-    setTextSourceModeByPartId((current) => ({ ...current, [part.id]: mode }));
-  };
-  const setTextSourceColumn = (inputColumnId: string) => {
-    const nextOptions = getComposeColumnTextOptions(manualRangeRows, inputColumnId, sampleInputValues);
-    setTextSourceColumnByPartId((current) => ({ ...current, [part.id]: inputColumnId }));
-    if (part.type === 'text' && part.value.trim() && !getComposeValidColumnTextSelection(part.value, nextOptions)) {
-      updatePart({ ...part, value: '' });
-    }
-  };
+  const hasLegacyConcatParts = recipe.parts.length === 0 && Boolean(getConfiguredConcatStep(recipe)?.parts?.length);
 
   return (
-    <div className="composeTokenInspector">
+    <section className="recipeStudioSection composeTokenInspector composeTokenInspectorFlat">
       <div className="composeTokenInspectorHeader">
-        <span>Pieza seleccionada</span>
+        <span>Parte seleccionada</span>
         <strong>{token.label}</strong>
       </div>
       <div className="composeTokenFields">
-        <div className="composeTokenPrimaryFields">
-          {part.type === 'input' ? (
-            <>
-              <Dropdown<'input' | 'text'>
-                className="compact"
-                label="Fuente"
-                value="input"
-                options={[
-                  { value: 'input', label: 'Columna de entrada' },
-                  { value: 'text', label: 'Texto fijo' },
-                ]}
-                scrollStrategy="close"
-                onChange={(type) => {
-                  if (type === 'text') {
-                    updatePart(createComposeTextPart('', part.id));
-                  }
-                }}
-              />
-              <Dropdown
-                className="compact"
-                label="Columna"
-                value={part.inputColumnId}
-                options={inputColumnOptions}
-                scrollStrategy="close"
-                onChange={(inputColumnId) => updatePart({ ...part, inputColumnId })}
-              />
-            </>
-          ) : (
-            <>
-              <Dropdown<'text' | 'columnText'>
-                className="compact"
-                label="Fuente"
-                value={textSourceMode}
-                options={[
-                  { value: 'text', label: 'Texto fijo' },
-                  { value: 'columnText', label: 'Elegir texto desde columna' },
-                ]}
-                scrollStrategy="close"
-                onChange={setTextSourceMode}
-              />
-              {textSourceMode === 'columnText' ? (
-                <>
-                  <Dropdown
-                    className="compact"
-                    label="Buscar textos en"
-                    value={selectedTextSourceColumnId}
-                    options={inputColumnOptions}
-                    scrollStrategy="close"
-                    onChange={setTextSourceColumn}
-                  />
-                  <Dropdown
-                    className="compact"
-                    label="Texto encontrado"
-                    value={selectedColumnText}
-                    options={columnTextOptions.length === 0
-                      ? [{ value: '', label: 'No se encontraron textos en esta columna.', disabled: true }]
-                      : columnTextOptions.map((text) => ({ value: text, label: text }))}
-                    disabled={columnTextOptions.length === 0}
-                    searchable
-                    searchPlaceholder="Buscar texto"
-                    scrollStrategy="close"
-                    onChange={(value) => onChange(updateComposeColumnTextSelection(recipe, part.id, value))}
-                  />
-                  {columnTextOptions.length === 0 ? <p className="composeTokenFieldHelp">No se encontraron textos en esta columna.</p> : null}
-                </>
-              ) : (
-                <label className="field compact">
-                  <span>Texto</span>
-                  <input value={part.value} onChange={(event) => updatePart({ ...part, value: event.target.value })} />
-                </label>
-              )}
-            </>
-          )}
+        <div className="composePartTechnicalEditor composePartTechnicalEditorFlat">
+          {renderComposePartEditor({
+            part: concatPart,
+            inputColumns,
+            manualRangeRows,
+            allowPreviousResultSource: hasLegacyConcatParts,
+            onChange: (nextPart) => onChange(updateComposeConcatPart(recipe, token.index, nextPart)),
+          })}
         </div>
         <details className="composeTokenRules">
           <summary className="composeTokenRulesHeader">
-            <strong>Reglas y condiciones de esta pieza</strong>
+            <strong>Reglas y condiciones de esta parte</strong>
             <span>{getComposeTokenRulesSummary(part)}</span>
           </summary>
-          <ComposeTokenConditionTable part={part} inputColumns={inputColumns} />
+          <div className="composeTokenRulesContent">
+            <ComposeTokenConditionTable part={part} inputColumns={inputColumns} />
+          </div>
         </details>
       </div>
-    </div>
+    </section>
   );
 }
 
 function ComposeValuePreview({
   rows,
   hasTokens,
+  totalAvailable,
 }: {
   rows: Array<{ rowNumber: string; value: string }>;
   hasTokens: boolean;
+  totalAvailable?: number;
 }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const previewRows = hasTokens ? rows.slice(0, 10) : [];
-  const emptyMessage = hasTokens ? 'No hay datos para previsualizar.' : 'Agregá una pieza para ver la vista previa.';
+  const emptyMessage = hasTokens ? 'No hay datos para previsualizar.' : 'Agregá una parte para ver la vista previa.';
+  const previewCount = totalAvailable === undefined
+    ? `Mostrando ${previewRows.length} filas`
+    : `Mostrando ${previewRows.length} filas de ${totalAvailable} disponibles`;
 
   return (
     <div className="composePreviewControl">
       <InfoTooltip content="Vista previa">
-        <ActionButton action="preview" variant="icon" size="sm" title="Vista previa" aria-label="Vista previa" onClick={() => setIsPreviewOpen(true)} />
+        <ActionButton action="preview" variant="icon" size="sm" className="composeStudioActionButton composePreviewButton" title="Vista previa" aria-label="Vista previa" onClick={() => setIsPreviewOpen(true)} />
       </InfoTooltip>
       <Modal open={isPreviewOpen} title="Vista previa del resultado" className="composePreviewModal" onClose={() => setIsPreviewOpen(false)}>
+        <p className="composePreviewCount">{previewCount}</p>
         <ComposePreviewTable rows={previewRows} emptyMessage={emptyMessage} />
       </Modal>
     </div>
@@ -759,8 +583,8 @@ function ComposePreviewTable({
   return (
     <table className="composePreviewTable">
       <colgroup>
-        <col className="composePreviewColumnRow" />
-        <col className="composePreviewColumnResult" />
+        <col className="composePreviewColumnRow" style={{ width: '15%' }} />
+        <col className="composePreviewColumnResult" style={{ width: '85%' }} />
       </colgroup>
       <thead>
         <tr>
@@ -841,30 +665,6 @@ function SimpleStudioAdvanced({
       })}
     </details>
   );
-}
-
-function getRecipeStudioModeLabel(mode: RecipeStudioMode) {
-  return recipeStudioModes.find((item) => item.mode === mode)?.label ?? 'Avanzado';
-}
-
-function getRecipeStudioMainTitle(mode: RecipeStudioMode) {
-  if (mode === 'ranges') {
-    return 'Rangos configurados';
-  }
-
-  if (mode === 'compose') {
-    return 'Construccion';
-  }
-
-  if (mode === 'takeValue') {
-    return 'Origen y ajustes';
-  }
-
-  if (mode === 'fixedText') {
-    return 'Texto y ajustes';
-  }
-
-  return 'Pasos tecnicos';
 }
 
 export function createRecipeForStudioMode(
@@ -964,28 +764,71 @@ function getComposeTokens(recipe: Extract<OutputRecipe, { type: 'combine' }>, in
   const parts = getComposeRecipeParts(recipe);
   return parts.map((part, index) => {
     const steps = part.steps ?? [];
-    const isComplex = steps.length > 0;
-    if (part.type === 'input') {
-      const inputColumn = inputColumns.find((column) => column.id === part.inputColumnId);
+    const configuredSteps = steps.filter((step) => step.type !== 'noop' || Boolean(step.condition));
+    const isComplex = configuredSteps.length > 0;
+    const concatPart = getComposeConcatPart(recipe, index);
+
+    if (isComplex) {
       return {
         id: part.id,
-        kind: isComplex ? 'advanced' : 'input',
-        label: inputColumn ? `Columna: ${getInputColumnLabel(inputColumn)}` : 'Columna',
-        detail: isComplex ? 'Fragmento avanzado' : 'Dato del Excel',
+        kind: 'advanced',
+        label: 'Parte avanzada',
+        detail: `${configuredSteps.length} ${configuredSteps.length === 1 ? 'paso configurado' : 'pasos configurados'}`,
+        statusHint: 'Esta parte usa pasos avanzados',
         index,
-        isComplex,
       };
+    }
+
+    if (concatPart?.source.type === 'rangeText') {
+      const selectedText = concatPart.source.selectedText.trim();
+      return selectedText ? {
+        id: part.id,
+        kind: 'text',
+        label: 'Texto elegido',
+        detail: selectedText,
+        index,
+      } : createUnconfiguredComposeToken(part.id, index, 'Falta elegir texto desde columna');
+    }
+
+    if (concatPart?.source.type === 'previousResult') {
+      return createUnconfiguredComposeToken(part.id, index, 'Revisar configuración: esta parte usa un resultado anterior');
+    }
+
+    if (part.type === 'input') {
+      const inputColumn = inputColumns.find((column) => column.id === part.inputColumnId);
+      return inputColumn ? {
+        id: part.id,
+        kind: 'input',
+        label: `Columna ${inputColumn.columnLetter}`,
+        detail: 'Dato del Excel',
+        index,
+      } : createUnconfiguredComposeToken(part.id, index, 'Falta seleccionar origen');
+    }
+
+    const fixedText = part.value.trim();
+    if (!fixedText) {
+      return createUnconfiguredComposeToken(part.id, index, 'Falta ingresar texto fijo');
     }
 
     return {
       id: part.id,
-      kind: isComplex ? 'advanced' : 'text',
-      label: part.value ? `"${part.value}"` : 'Texto fijo',
-      detail: isComplex ? 'Fragmento avanzado' : 'Texto',
+      kind: 'text',
+      label: 'Texto fijo',
+      detail: `"${part.value}"`,
       index,
-      isComplex,
     };
   });
+}
+
+function createUnconfiguredComposeToken(id: string, index: number, statusHint: string): ComposeToken {
+  return {
+    id,
+    kind: 'warning',
+    label: `Parte ${index + 1}`,
+    detail: 'Sin configurar',
+    statusHint,
+    index,
+  };
 }
 
 function getComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }>): RecipePart[] {
@@ -995,6 +838,42 @@ function getComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }
   }
 
   return concatStep.parts.map((part) => concatPartToRecipePart(part));
+}
+
+function getComposeConcatPart(recipe: Extract<OutputRecipe, { type: 'combine' }>, index: number): ConcatPart | undefined {
+  const concatStep = getConfiguredConcatStep(recipe);
+  if (recipe.parts.length === 0 && concatStep?.parts?.length) {
+    return concatStep.parts[index];
+  }
+
+  const part = recipe.parts[index];
+  return part ? recipePartToConcatPart(part) : undefined;
+}
+
+function updateComposeConcatPart(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  index: number,
+  nextPart: ConcatPart,
+): Extract<OutputRecipe, { type: 'combine' }> {
+  const concatStep = getConfiguredConcatStep(recipe);
+  if (recipe.parts.length === 0 && concatStep?.parts?.length) {
+    return {
+      ...recipe,
+      steps: (recipe.steps ?? []).map((step) => step.id === concatStep.id
+        ? { ...step, parts: concatStep.parts?.map((part, partIndex) => (partIndex === index ? nextPart : part)) }
+        : step),
+    };
+  }
+
+  const currentPart = recipe.parts[index];
+  if (!currentPart) {
+    return recipe;
+  }
+
+  const nextRecipePart = concatPartToRecipePart(nextPart);
+  return updateComposeRecipeParts(recipe, recipe.parts.map((part, partIndex) => partIndex === index
+    ? { ...nextRecipePart, ...(currentPart.separatorAfter !== undefined ? { separatorAfter: currentPart.separatorAfter } : {}) }
+    : part));
 }
 
 function updateComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, parts: RecipePart[]): Extract<OutputRecipe, { type: 'combine' }> {
@@ -1014,6 +893,17 @@ function updateComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine
     customMode: 'concat',
     parts,
     separator: recipe.separator ?? '',
+  };
+}
+
+export function addComposeRecipePart(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  _inputColumns: InputColumn[],
+): { recipe: Extract<OutputRecipe, { type: 'combine' }>; selectedPartId: string } {
+  const part = createComposeInputPart('');
+  return {
+    recipe: updateComposeRecipeParts(recipe, [...getComposeRecipeParts(recipe), part]),
+    selectedPartId: part.id,
   };
 }
 
@@ -1161,13 +1051,20 @@ function getComposeTokenConditionSummary(part: RecipePart, inputColumns: InputCo
 
 function getComposeTokenConditionRows(part: RecipePart, inputColumns: InputColumn[]) {
   const steps = part.steps ?? [];
+  const partSource: StepSource = part.type === 'input'
+    ? { type: 'input', inputColumnId: part.inputColumnId }
+    : { type: 'fixedText', value: part.value };
   if (steps.length === 0) {
-    return [{ step: 'Paso base', description: 'Paso base · Usar valor tal cual', condition: 'Aplicar siempre' }];
+    return [{ step: 'Paso base', description: `Paso base · ${getRecipeStepTitle({ id: 'base', type: 'noop' }, inputColumns, partSource)}`, condition: 'Aplicar siempre' }];
   }
 
   return steps.map((step, index) => ({
     step: `Paso ${index + 1}`,
-    description: `${`Paso ${index + 1}`} · ${getComposeStepDescription(step, inputColumns)}`,
+    description: `${`Paso ${index + 1}`} · ${getComposeStepDescription(
+      step,
+      inputColumns,
+      step.source ?? (index === 0 ? partSource : { type: 'previousResult' }),
+    )}`,
     condition: step.condition ? getComposeStepConditionSummary(step.condition, inputColumns) : 'Aplicar siempre',
   }));
 }
@@ -1186,48 +1083,8 @@ function getComposeTokenRulesSummary(part: RecipePart) {
   return `${steps.length} ${steps.length === 1 ? 'paso' : 'pasos'} · ${conditionCount} con condicion`;
 }
 
-function getComposeStepDescription(step: TransformStep, inputColumns: InputColumn[]) {
-  const sourceDescription = getComposeStepSourceDescription(step, inputColumns);
-  if (sourceDescription) {
-    return sourceDescription;
-  }
-
-  const summary = getStepSummary(step, inputColumns);
-  if (summary && summary !== 'sin operacion seleccionada') {
-    return formatComposeStepDescription(summary);
-  }
-
-  if (step.type === 'noop') {
-    return 'Usar valor tal cual';
-  }
-
-  return step.type ? 'Transformacion avanzada' : 'Paso configurado';
-}
-
-function formatComposeStepDescription(description: string) {
-  return description.charAt(0).toUpperCase() + description.slice(1);
-}
-
-function getComposeStepSourceDescription(step: TransformStep, inputColumns: InputColumn[]) {
-  const source = step.source;
-  if (!source) {
-    return '';
-  }
-
-  if (source.type === 'input') {
-    const inputColumn = inputColumns.find((column) => column.id === source.inputColumnId);
-    return `Elegir texto desde columna ${inputColumn ? getInputColumnLabel(inputColumn) : 'de entrada'}`;
-  }
-
-  if (source.type === 'fixedText') {
-    return 'Usar texto fijo';
-  }
-
-  if (source.type === 'previousResult') {
-    return 'Usar resultado anterior';
-  }
-
-  return 'Paso avanzado';
+function getComposeStepDescription(step: TransformStep, inputColumns: InputColumn[], source: StepSource) {
+  return getRecipeStepTitle(step, inputColumns, source);
 }
 
 function getComposeStepConditionSummary(condition: NonNullable<NonNullable<RecipePart['steps']>[number]['condition']>, inputColumns: InputColumn[]) {
@@ -1441,12 +1298,8 @@ function RangeValueStudio({
 
 function RangeStudioPlaceholder() {
   return (
-    <div className="rangeStudio">
-      <div className="simpleStudioIntro">
-        <h4>Asignar por rangos</h4>
-        <p>Este modo se integrará en un paso posterior.</p>
-      </div>
-      <div className="rangeRulesEmpty">Por ahora seguí usando Combinar valores o Avanzado.</div>
+    <div className="rangeRulesEmpty" role="status">
+      Esta receta mantiene su configuración actual. La edición de rangos no está disponible en este paso.
     </div>
   );
 }

@@ -3,7 +3,6 @@
 }
 
 .recipeStudioEyebrow,
-.recipeStudioSectionHeading span,
 .composeTokenInspectorHeader span,
 .rangeRuleInspectorHeader span {
   color: var(--color-text-muted);
@@ -22,61 +21,12 @@
   min-width: 0;
 }
 
-.recipeStudioModeBar,
 .composeTokenInspector,
 .rangeRuleInspector,
 .recipeStudioMain {
   min-width: 0;
 }
 
-.recipeStudioModeBar {
-  align-self: start;
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px;
-}
-
-.recipeStudioModeButton {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--color-text-secondary);
-  display: grid;
-  gap: 3px;
-  flex: 0 1 210px;
-  min-height: 46px;
-  padding: 8px;
-  text-align: left;
-}
-
-.recipeStudioModeButton span {
-  color: var(--color-text-primary);
-  font-weight: 800;
-}
-
-.recipeStudioModeButton small {
-  color: var(--color-text-muted);
-  display: -webkit-box;
-  line-height: 1.25;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.recipeStudioModeButton.active {
-  background: var(--color-selected-bg);
-  border-color: var(--color-selected-border);
-  box-shadow: 0 0 0 1px var(--color-selected-border);
-}
-
-.recipeStudioModeButton:hover:not(:disabled),
-.recipeStudioModeButton:focus-visible,
-.compositionTokenCard:hover,
-.compositionTokenCard:focus-within,
 .rangeRuleCard:focus-within {
   border-color: var(--color-selected-border);
   box-shadow: 0 0 0 1px var(--color-selected-border);
@@ -84,36 +34,14 @@
   outline-offset: 2px;
 }
 
-.recipeStudioModeButton:disabled {
-  cursor: default;
-  opacity: 0.72;
-}
-
-.recipeStudioModeButton.active:disabled {
-  opacity: 1;
-}
-
 .recipeStudioMain {
   align-self: stretch;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   display: grid;
-  gap: 10px;
-  padding: 10px;
-}
-
-.recipeStudioSectionHeading {
-  align-items: baseline;
-  border-bottom: 1px solid var(--color-border-subtle);
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  padding-bottom: 8px;
-}
-
-.recipeStudioSectionHeading strong {
-  font-size: 0.95rem;
+  gap: 14px;
+  padding: 0;
 }
 
 .recipeStudioMain > .recipeSubBlock {
@@ -251,6 +179,82 @@
   min-width: 0;
 }
 
+.recipeStudioSection {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.recipeStudioSectionLight {
+  background: transparent;
+  border-color: var(--color-border-subtle);
+}
+
+.nonConcatStudio,
+.nonConcatStepsEditor {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.recipeStudioSectionTitle,
+.composeStudioHeaderTitle {
+  display: grid;
+  gap: 3px;
+}
+
+.recipeStudioSectionTitle span,
+.composeStudioHeaderTitle span {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.composeStudioHeader {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.composeStudioHeaderTitle strong {
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.composeStudioHeaderFields {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(180px, 240px));
+  justify-content: start;
+  max-width: 500px;
+  min-width: 0;
+}
+
+.composePartsBuilder {
+  gap: 10px;
+}
+
+.composePartsBuilderHeader {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.composePartsBuilderTitle {
+  display: grid;
+  gap: 3px;
+}
+
+.composePartsBuilderTitle > strong {
+  font-size: 0.94rem;
+}
+
 .composeStudioActions {
   align-items: center;
   display: flex;
@@ -263,6 +267,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.composeStudioActionButton {
+  border-radius: 7px;
+  height: 40px;
+  min-height: 40px;
+}
+
+.composePreviewButton {
+  padding: 0;
+  width: 40px;
 }
 
 .composeStudioHint {
@@ -283,8 +298,8 @@
 .compositionTokenList {
   align-items: center;
   background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 6px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -356,21 +371,39 @@
   font-size: 0.74rem;
 }
 
-.compositionToken-input {
-  border-color: var(--color-selected-border);
-}
-
-.compositionToken-text {
-  border-color: var(--color-accent-border);
-}
-
-.compositionToken-advanced {
+.compositionTokenCard.compositionToken-warning {
   border-color: var(--color-warning-border);
+}
+
+.compositionTokenCard.compositionToken-warning .compositionToken small {
+  color: var(--color-warning-text);
+  font-weight: 800;
 }
 
 .compositionTokenCard.selected {
   background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
   box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.compositionTokenCard.unselected:hover,
+.compositionTokenCard.unselected:focus-within {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
+  box-shadow: none;
+}
+
+.compositionTokenCard.selected:hover,
+.compositionTokenCard.selected:focus-within {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.compositionToken:hover:not(:disabled),
+.compositionToken:focus-visible {
+  background: transparent;
+  color: inherit;
 }
 
 .compositionTokenActions {
@@ -379,13 +412,7 @@
 }
 
 .composeTokenInspector {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  padding: 12px;
+  gap: 10px;
 }
 
 .composeTokenInspectorHeader {
@@ -406,24 +433,152 @@
   min-width: 0;
 }
 
-.composeTokenPrimaryFields {
-  display: grid;
+.composePartTechnicalEditor {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.composePartTechnicalEditor .concatPartStepsEditor {
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
-  align-items: end;
+}
+
+.modalDialogXl .constructorModalContent .composeStudioFlat .concatPartStepsEditor {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.modalDialogXl .constructorModalContent .composeStudioFlat .stepDetailPanel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 10px;
+  padding: 0;
+}
+
+.composeStudioFlat .concatPartTransformList {
+  gap: 16px;
+}
+
+.concatPartStepDivider {
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 16px;
+}
+
+.modalDialogXl .constructorModalContent .concatPartStepDivider .stepDetailPanel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 10px;
+  padding: 0;
+}
+
+.constructorModalContent.recipeStudio {
+  --recipe-control-height: 36px;
+  --recipe-field-gap: 5px;
+  --recipe-field-label-height: 18px;
+}
+
+.constructorModalContent.recipeStudio .recipeField {
+  gap: var(--recipe-field-gap);
   min-width: 0;
 }
 
-.composeTokenPrimaryFields .field,
-.composeTokenPrimaryFields .dropdownField {
-  max-width: 240px;
+.constructorModalContent.recipeStudio .recipeField > .dropdownLabel,
+.constructorModalContent.recipeStudio label.recipeField > span:first-child {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  height: var(--recipe-field-label-height);
+  line-height: var(--recipe-field-label-height);
+  margin: 0;
+  min-height: var(--recipe-field-label-height);
+  padding: 0;
 }
 
-.composeTokenFieldHelp {
-  align-self: center;
-  color: var(--color-text-muted);
-  font-size: 0.82rem;
+.constructorModalContent.recipeStudio .recipeField > .dropdownSearchableControl {
+  box-sizing: border-box;
+  height: var(--recipe-control-height);
   margin: 0;
+  min-height: var(--recipe-control-height);
+  padding: 0;
+}
+
+.modalDialogXl .constructorModalContent.recipeStudio .recipeField input,
+.modalDialogXl .constructorModalContent.recipeStudio .recipeField button.dropdownTrigger {
+  box-sizing: border-box;
+  height: var(--recipe-control-height);
+  line-height: 1.2;
+  min-height: var(--recipe-control-height);
+  padding-block: 0;
+}
+
+.columnValuePickerHelp {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.columnValuePickerWarning {
+  color: var(--color-warning-text, var(--color-text-muted));
+  font-size: 0.8rem;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.columnValuePickerInvalidValue {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.recipeStudioMain > .customValueEditor .stepDetailPanel {
+  border-color: var(--color-border-subtle);
+  box-shadow: none;
+}
+
+.nonConcatAdditionalSteps {
+  gap: 10px;
+}
+
+.stepPrimaryFieldsRow,
+.stepExtraFieldsRow {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  justify-content: start;
+  min-width: 0;
+}
+
+.stepExtraFieldsRow:empty {
+  display: none;
+}
+
+.stepExtraFieldsRow > .numericOperationFields,
+.stepExtraFieldsRow > .manualRangeStepFields,
+.stepExtraFieldsRow > .concatStepFields {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .composeStudioHeader {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .composeStudioHeaderFields {
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+
+  .stepPrimaryFieldsRow,
+  .stepExtraFieldsRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .composeTokenRules {
@@ -431,8 +586,12 @@
   border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
   display: grid;
-  gap: 8px;
+  gap: 0;
   padding: 10px;
+}
+
+.composeTokenRules[open] {
+  gap: 8px;
 }
 
 .composeTokenRulesHeader {
@@ -461,6 +620,10 @@
 .composeTokenRules[open] .composeTokenRulesHeader {
   border-bottom: 1px solid var(--color-border-subtle);
   padding-bottom: 8px;
+}
+
+.composeTokenRulesContent {
+  min-width: 0;
 }
 
 .composeTokenConditionTable {
@@ -496,6 +659,11 @@
   max-width: min(560px, calc(100vw - 32px));
 }
 
+.composePreviewCount {
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+}
+
 .composePreviewTable {
   border-collapse: collapse;
   table-layout: fixed;
@@ -503,11 +671,11 @@
 }
 
 .composePreviewColumnRow {
-  width: 30%;
+  width: 15%;
 }
 
 .composePreviewColumnResult {
-  width: 70%;
+  width: 85%;
 }
 
 .composePreviewTable th,
@@ -702,7 +870,6 @@
   padding: 0 12px 12px;
 }
 
-.composeTokenInspector,
 .rangeRuleInspector {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);

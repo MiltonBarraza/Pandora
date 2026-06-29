@@ -1,14 +1,15 @@
+import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import React from 'react';
+import { addManualRangeValue, createDefaultManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
 import { buildInputRows, buildProcessedRows } from '../../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
-import { addManualRangeValue, createManualRangeRecipe, createDefaultManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
-import { OutputColumnRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildManualRangeGeneratorSummary, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
-import { appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, RangeValueEditor, rangeValueModeOptions, rangeValueStepTypes, rangeValueTextSourceActionOptions } from '../RangeValueEditor';
-import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
-import { StepSourceFields, StepTypeSelect } from '../OutputColumnRecipeEditor.StepFields';
+import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
+import { ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
+import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, rangeValueModeOptions, rangeValueStepTypes, rangeValueTextSourceActionOptions } from '../RangeValueEditor';
+import { addComposeRecipePart } from '../RecipeStudio';
 
 const inputColumns: InputColumn[] = [
   {
@@ -223,7 +224,7 @@ describe('constructor helpers', () => {
     })).toBe('fixedText');
   });
 
-  it('renders horizontal Recipe Studio navigation without simple value modes', () => {
+  it('replaces compose mode navigation with the technical-style header', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-compose-sidebar',
       label: 'Valor',
@@ -237,16 +238,49 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('recipeStudioModeBar');
+    expect(markup).not.toContain('recipeStudioModeBar');
     expect(markup).not.toContain('recipeStudioSidebar');
-    expect(markup).toContain('Combinar valores');
-    expect(markup).toContain('Asignar por rangos');
-    expect(markup).toContain('Avanzado');
+    expect(markup).not.toContain('Combinar valores');
+    expect(markup).not.toContain('Asignar por rangos');
+    expect(markup).not.toContain('Avanzado');
+    expect(markup).toContain('Configuración general');
+    expect(markup).toContain('Paso 1 · Concatenar');
+    expect(markup).toContain('Tipo de operación');
+    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Concatenar');
+    expect(markup).toContain('Agregar parte');
+    const composeHeaderMarkup = markup.slice(
+      markup.indexOf('<section class="recipeStudioSection recipeStudioGeneralSection composeStudioHeader"'),
+      markup.indexOf('</section>') + '</section>'.length,
+    );
+    expect(composeHeaderMarkup).not.toContain('disabled');
+    expect(getStepModeOptions().map((option) => option.value)).toEqual(
+      expect.arrayContaining(['text', 'number', 'conversion', 'date', 'manualRange']),
+    );
+    expect(getStepModeOptions({ allowManualRange: false }).map((option) => option.value)).not.toContain('manualRange');
+    expect(getStepTypesForMode('text').map((option) => option.value)).toEqual(
+      expect.arrayContaining(['concat', 'trim', 'uppercase']),
+    );
+    const textActions = getTextStepActionOptions(false).map((option) => option.label);
+    expect(textActions).toEqual([
+      'Usar columna de entrada',
+      'Usar texto fijo',
+      'Elegir texto desde celda',
+      'Limpiar espacios',
+      'Convertir a mayúsculas',
+      'Convertir a minúsculas',
+      'Agregar prefijo',
+      'Agregar sufijo',
+      'Quitar texto',
+      'Reemplazar texto',
+      'Concatenar',
+    ]);
+    expect(textActions).not.toContain('Usar valor tal cual');
     expect(markup).not.toContain('Tomar valor');
     expect(markup).not.toContain('Texto fijo');
   });
 
-  it('falls back to advanced editor for simple recipes inside the modal', () => {
+  it('starts directly in the technical editor for simple recipes', () => {
     const takeValueMarkup = renderRecipeEditorMarkup({
       id: 'output-take-value',
       label: 'Valor',
@@ -254,8 +288,18 @@ describe('constructor helpers', () => {
       enabled: true,
       recipe: buildSimpleCustomValueRecipe('text', 'input-code', { id: 'step-1', type: 'noop' }),
     });
-    expect(takeValueMarkup).toContain('Avanzado');
-    expect(takeValueMarkup).toContain('Pasos tecnicos');
+    expect(takeValueMarkup).not.toContain('Avanzado');
+    expect(takeValueMarkup).not.toContain('recipeStudioModeBar');
+    expect(takeValueMarkup).toContain('recipeStudioSection recipeStudioGeneralSection');
+    expect(takeValueMarkup).toContain('composeStudioHeaderTitle');
+    expect(takeValueMarkup).toContain('Configuración general');
+    expect(takeValueMarkup).not.toContain('recipeStudioActionSection');
+    expect(takeValueMarkup).not.toContain('Configuración del paso');
+    expect(takeValueMarkup).toContain('Tipo de operación');
+    expect(takeValueMarkup).toContain('Qué quiero hacer');
+    expect(takeValueMarkup).not.toContain('composePartsBuilder');
+    expect(takeValueMarkup.indexOf('Configuración general')).toBeLessThan(takeValueMarkup.indexOf('Condición'));
+    expect(takeValueMarkup.indexOf('Condición')).toBeLessThan(takeValueMarkup.indexOf('Agregar paso'));
 
     const fixedTextMarkup = renderRecipeEditorMarkup({
       id: 'output-fixed-text',
@@ -270,11 +314,122 @@ describe('constructor helpers', () => {
         steps: [{ id: 'fixed-step', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'OK' } }],
       },
     });
-    expect(fixedTextMarkup).toContain('Avanzado');
-    expect(fixedTextMarkup).toContain('Pasos tecnicos');
+    expect(fixedTextMarkup).not.toContain('Avanzado');
+    expect(fixedTextMarkup).not.toContain('recipeStudioModeBar');
+    expect(fixedTextMarkup).toContain('Configuración general');
+    expect(fixedTextMarkup).toContain('Tipo de operación');
   });
 
-  it('renders compose studio as tokens with token inspector and advanced fallback', () => {
+  it('keeps primary selectors in first row and action fields in second row', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-prefix-layout',
+      label: 'Código final',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: 'prefix',
+          mode: 'text',
+          type: 'addPrefix',
+          value: 'SKU-',
+          source: { type: 'fixedText', value: 'ABC' },
+        }],
+      },
+    });
+
+    const primaryRowStart = markup.indexOf('<div class="stepPrimaryFieldsRow">');
+    const extraRowStart = markup.indexOf('<div class="stepExtraFieldsRow">');
+    const primaryRow = markup.slice(primaryRowStart, extraRowStart);
+    const extraRowEnd = markup.indexOf('<div class="transformConditionBlock', extraRowStart);
+    const extraRow = markup.slice(extraRowStart, extraRowEnd);
+
+    expect(primaryRow).toContain('Tipo de operación');
+    expect(primaryRow).toContain('Qué quiero hacer');
+    expect(primaryRow).not.toContain('Prefijo');
+    expect(extraRow).toContain('Qué valor usar');
+    expect(extraRow).toContain('Valor fijo');
+    expect(extraRow).toContain('Prefijo');
+    expect(extraRow).not.toContain('<span>Texto fijo</span>');
+    expect(markup).not.toContain('recipeStudioActionSection');
+    expect(markup).not.toContain('Configuración del paso');
+    expect(markup).toContain('Agregar paso');
+  });
+
+  it.each([
+    ['uppercase', 'Convertir a mayúsculas'],
+    ['lowercase', 'Convertir a minúsculas'],
+    ['trim', 'Limpiar espacios'],
+  ] as const)('renders %s with a fresh value selector instead of stale action fields', (type, label) => {
+    const markup = renderRecipeEditorMarkup({
+      id: `output-${type}-source`,
+      label,
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{ id: type, mode: 'text', type, source: { type: 'input', inputColumnId: 'input-code' } }],
+      },
+    });
+
+    expect(markup).toContain(label);
+    expect(markup).toContain('Qué valor usar');
+    expect(markup).not.toContain('<span>Texto fijo</span>');
+    expect(markup).not.toContain('<span>Prefijo</span>');
+    expect(markup).not.toContain('<span>Sufijo</span>');
+  });
+
+  it.each([
+    ['addPrefix', 'Prefijo'],
+    ['addSuffix', 'Sufijo'],
+    ['removeText', 'Texto a quitar'],
+    ['replaceText', 'Texto a buscar'],
+  ] as const)('renders %s without a redundant generic fixed-text input', (type, fieldLabel) => {
+    const markup = renderRecipeEditorMarkup({
+      id: `output-${type}-fields`,
+      label: fieldLabel,
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: type,
+          mode: 'text',
+          type,
+          source: { type: 'fixedText', value: 'Base' },
+          value: 'X',
+          searchValue: 'A',
+          replaceValue: 'B',
+        }],
+      },
+    });
+
+    expect(markup).toContain('Qué valor usar');
+    expect(markup).toContain(fieldLabel);
+    expect(markup).toContain(`class="field compact recipeField"><span>${fieldLabel}</span>`);
+    if (type === 'replaceText') {
+      expect(markup).toContain('class="field compact recipeField"><span>Reemplazar por</span>');
+    }
+    expect(markup).toContain('<span>Valor fijo</span>');
+    expect(markup).not.toContain('<span>Texto fijo</span>');
+  });
+
+  it('hides neutral noop from conversion actions while preserving internal compatibility', () => {
+    expect(getConversionStepActionOptions().map((option) => option.value)).toEqual(['extractNumber', 'toNumber', 'toText']);
+    expect(getConversionStepActionOptions().map((option) => option.label)).not.toContain('Usar valor tal cual');
+    expect(getStepTypesForMode('conversion').map((option) => option.value)).toContain('noop');
+  });
+
+  it('renders compose studio as horizontal parts with selected-part configuration', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-compose',
       label: 'Nombre final',
@@ -292,52 +447,137 @@ describe('constructor helpers', () => {
       },
     }, { manualRangeRows });
 
-    expect(markup).toContain('Combinar valores');
+    expect(markup).not.toContain('Combinar valores');
+    expect(markup).not.toContain('Asignar por rangos');
+    expect(markup).not.toContain('Avanzado');
     expect(markup).not.toContain('<h4>Combinar valores</h4>');
     expect(markup).not.toContain('Armá el resultado uniendo columnas y textos.');
-    expect(markup).toContain('Arrastrá las piezas para cambiar el orden final.');
+    expect(markup).toContain('Paso 1 · Concatenar');
+    expect(markup).toContain('Tipo de operación');
+    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Arrastrá las partes para cambiar el orden.');
     expect(markup).not.toContain('Construcci');
     expect(markup).not.toContain('Separador');
-    expect(markup).toContain('Columna: D - Nombre');
+    expect(markup).toContain('Columna D');
     expect(markup).toContain('&quot; - &quot;');
     expect(markup).toContain('compositionTokenList');
+    expect(markup).toContain('composePartsBuilder');
+    expect(markup).toContain('Editor de partes');
     expect(markup).toContain('compositionTokenCard');
+    expect(markup).toContain('compositionTokenCard compositionToken-input selected');
+    expect(markup).toContain('compositionTokenCard compositionToken-text unselected');
+    expect(markup).toContain('<span class="compositionJoiner">+</span>');
+    expect(markup).not.toContain('compositionPartDivider');
     expect(markup).toContain('sortableRow-horizontal');
-    expect(markup).toContain('Arrastrar pieza');
+    expect(markup).toContain('Arrastrar parte');
     expect(markup).toContain('compositionTokenActions');
-    expect(markup).toContain('Pieza seleccionada');
-    expect(markup).toContain('composeTokenPrimaryFields');
+    expect(markup).toContain('Parte seleccionada');
+    expect(markup).not.toContain('composeTokenPrimaryFields');
+    expect(markup).not.toContain('>Fuente<');
+    expect(markup).toContain('Paso 1 · Usar columna de entrada');
     expect(markup).toContain('Columna de entrada');
     expect(markup).toContain('Columna');
     expect(markup).toContain('class="dragHandle"');
-    expect(markup).toContain('aria-label="Duplicar pieza"');
-    expect(markup).toContain('aria-label="Eliminar pieza"');
+    expect(markup).toContain('aria-label="Duplicar parte"');
+    expect(markup).toContain('aria-label="Eliminar parte"');
     expect(markup).not.toContain('Izquierda');
     expect(markup).not.toContain('Derecha');
     expect(markup).toContain('Vista previa');
     expect(markup).toContain('lucide-eye');
-    expect(markup.indexOf('aria-label="Agregar pieza"')).toBeLessThan(markup.indexOf('aria-label="Piezas de combinacion"'));
-    expect(markup.indexOf('aria-label="Vista previa"')).toBeLessThan(markup.indexOf('aria-label="Piezas de combinacion"'));
+    expect(markup).toContain('actionButton actionButton-secondary actionButton-md composeStudioActionButton');
+    expect(markup).toContain('actionButton actionButton-icon actionButton-sm actionButton-iconOnly composeStudioActionButton composePreviewButton');
+    expect(markup).not.toContain('<span class="actionButtonText">Columna</span>');
+    expect(markup).not.toContain('<span class="actionButtonText">Texto</span>');
+    expect(markup.indexOf('Agregar parte')).toBeLessThan(markup.indexOf('aria-label="Partes de combinación"'));
+    expect(markup.indexOf('aria-label="Vista previa"')).toBeLessThan(markup.indexOf('aria-label="Partes de combinación"'));
     expect(markup).toContain('Vista previa del resultado');
+    expect(markup).toContain('Mostrando 3 filas de 3 disponibles');
     expect(markup).toContain('composePreviewColumnRow');
     expect(markup).toContain('composePreviewColumnResult');
+    expect(markup).toContain('style="width:15%"');
+    expect(markup).toContain('style="width:85%"');
     expect(markup).toContain('<th>Fila</th>');
     expect(markup).toContain('<th>Resultado</th>');
     expect(markup).toContain('<td>8</td>');
     expect(markup).toContain('PINCELES SERIE 304 - ');
-    expect(markup).toContain('Reglas y condiciones de esta pieza');
+    expect(markup).toContain('Reglas y condiciones de esta parte');
     expect(markup).toContain('<summary class="composeTokenRulesHeader">');
+    expect(markup).toContain('composeTokenRulesContent');
+    expect(markup).not.toContain('<details class="composeTokenRules" open');
     expect(markup).toContain('Todos los pasos aplican siempre');
     expect(markup).toContain('<th>Paso y accion</th>');
     expect(markup).toContain('<th>Condicion</th>');
-    expect(markup).toContain('<td>Paso base · Usar valor tal cual</td>');
+    expect(markup).toContain('<td>Paso base · Usar columna de entrada</td>');
     expect(markup).toContain('<td>Aplicar siempre</td>');
     expect(markup).not.toContain('Preview combinado');
     expect(markup).not.toContain('piezas usan opciones avanzadas');
-    expect(markup).toContain('Opciones avanzadas');
+    expect(markup).not.toContain('Opciones avanzadas');
+    expect(markup).toContain('composePartTechnicalEditor');
+    expect(markup).toContain('composeStudio composeStudioFlat');
+    expect(markup).toContain('composeTokenInspector composeTokenInspectorFlat');
+    expect(markup).toContain('composePartTechnicalEditor composePartTechnicalEditorFlat');
+    const composeMarkup = markup.slice(markup.indexOf('<div class="composeStudio composeStudioFlat">'), markup.indexOf('</main>'));
+    expect(composeMarkup).not.toContain('concatPartDetailPanel');
+    expect(composeMarkup).not.toContain('recipeSubBlock');
+    expect(composeMarkup).not.toContain('composePartDivider');
+    expect((composeMarkup.match(/class="recipeStudioSection /g) ?? [])).toHaveLength(3);
+    expect(composeMarkup).toContain('recipeStudioSection recipeStudioGeneralSection composeStudioHeader');
+    expect(composeMarkup).toContain('recipeStudioSection recipeStudioSectionLight composePartsBuilder');
+    expect(composeMarkup).toContain('recipeStudioSection composeTokenInspector composeTokenInspectorFlat');
+    expect(composeMarkup).toContain('class="compositionTokenList"');
+    expect(composeMarkup).toContain('composeStudioHeaderFields stepPrimaryFieldsRow');
+    expect(composeMarkup).toContain('stepExtraFieldsRow');
+    expect(markup).toContain('Agregar paso');
+    expect(markup.indexOf('composePartTechnicalEditor')).toBeLessThan(markup.indexOf('composeTokenRules'));
+    expect(markup.toLowerCase()).not.toContain('pieza');
   });
 
-  it('shows per-step conditions for the selected compose piece', () => {
+  it('shows ten compact rows and the available total in compose preview', () => {
+    const previewRows: InputRow[] = Array.from({ length: 20 }, (_, index) => ({
+      rowNumber: index + 1,
+      values: { 'input-name': `Producto ${index + 1}` },
+    }));
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-compose-preview-limit',
+      label: 'Preview',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'concat',
+        parts: [{ id: 'part', type: 'input', inputColumnId: 'input-name' }],
+        separator: '',
+      },
+    }, { manualRangeRows: previewRows });
+    const tableStart = markup.indexOf('<table class="composePreviewTable">');
+    const tableMarkup = markup.slice(tableStart, markup.indexOf('</table>', tableStart));
+
+    expect(markup.indexOf('Vista previa del resultado')).toBeLessThan(markup.indexOf('Mostrando 10 filas de 20 disponibles'));
+    expect(tableMarkup.match(/<td>/g)).toHaveLength(20);
+    expect(tableMarkup).toContain('style="width:15%"');
+    expect(tableMarkup).toContain('style="width:85%"');
+  });
+
+  it('uses a neutral title while the initial source is only an empty technical default', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-unconfigured-title',
+      label: 'Sin configurar',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+        separator: '',
+        steps: [{ id: 'step', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: '' } }],
+      },
+    });
+
+    expect(markup).toContain('Paso 1 · Sin configurar');
+    expect(markup).not.toContain('Paso 1 · Usar valor tal cual');
+  });
+
+  it('shows per-step conditions for the selected compose part', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-compose-conditions',
       label: 'Nombre final',
@@ -361,15 +601,15 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Reglas y condiciones de esta pieza');
+    expect(markup).toContain('Reglas y condiciones de esta parte');
     expect(markup).toContain('2 pasos · 1 con condicion');
-    expect(markup).toContain('<td>Paso 1 · Usar valor tal cual</td>');
+    expect(markup).toContain('<td>Paso 1 · Usar columna de entrada</td>');
     expect(markup).toContain('<td>Aplicar siempre</td>');
     expect(markup).toContain('<td>Paso 2 · Mayúsculas</td>');
     expect(markup).toContain('<td>A no esta vacio</td>');
   });
 
-  it('shows clear compose preview empty state when there are no pieces', () => {
+  it('shows clear compose preview empty state when there are no parts', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-compose-empty',
       label: 'Nombre final',
@@ -383,12 +623,39 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Agregá una pieza para empezar.');
+    expect(markup).toContain('Agregá una parte para empezar.');
     expect(markup).toContain('Vista previa del resultado');
-    expect(markup).toContain('Agregá una pieza para ver la vista previa.');
+    expect(markup).toContain('Agregá una parte para ver la vista previa.');
   });
 
-  it('renders a text compose piece with fixed text input by default', () => {
+  it('adds and selects one safe default compose part', () => {
+    const result = addComposeRecipePart({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+    }, inputColumns);
+
+    expect(result.recipe.parts).toEqual([{
+      id: result.selectedPartId,
+      type: 'input',
+      inputColumnId: '',
+    }]);
+
+    const withoutColumns = addComposeRecipePart({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+    }, []);
+    expect(withoutColumns.recipe.parts).toEqual([{
+      id: withoutColumns.selectedPartId,
+      type: 'input',
+      inputColumnId: '',
+    }]);
+  });
+
+  it('renders a text compose part with fixed text input by default', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-compose-text-piece',
       label: 'Nombre final',
@@ -402,10 +669,369 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Pieza seleccionada');
-    expect(markup).toContain('Texto fijo');
-    expect(markup).toContain('<span>Texto</span>');
+    expect(markup).toContain('Parte seleccionada');
+    expect(markup).toContain('Paso 1 · Usar texto fijo');
+    expect(markup).toContain('Usar texto fijo');
+    expect(markup).toContain('<span>Texto fijo</span>');
     expect(markup).toContain('value="Manual"');
+    expect(markup).not.toContain('<span>Columna de entrada</span>');
+  });
+
+  it('keeps previous result out of the first concat-part step and available in later steps', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-compose-previous-result',
+      label: 'Pasos',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'concat',
+        parts: [{
+          id: 'part',
+          type: 'input',
+          inputColumnId: 'input-code',
+          steps: [
+            { id: 'base', mode: 'text', type: 'noop' },
+            { id: 'next', mode: 'text', type: 'noop' },
+          ],
+        }],
+        separator: '',
+      },
+    });
+
+    const firstStep = markup.slice(markup.indexOf('Paso 1'), markup.indexOf('Paso 2'));
+    expect(firstStep).not.toContain('Usar resultado anterior');
+    expect(markup.slice(markup.indexOf('Paso 2'))).toContain('Usar resultado anterior');
+    expect(markup).toContain('concatPartStepDivider');
+  });
+
+  it('renders useful previous-result transforms with the same additional-step structure outside concat', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-general-previous-result',
+      label: 'Pasos generales',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [
+          { id: 'base-step', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+          { id: 'upper-step', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+        ],
+      },
+    });
+
+    expect(markup).toContain('nonConcatAdditionalSteps');
+    expect(markup).toContain('concatPartStepDivider');
+    expect(markup).toContain('Paso 2');
+    expect(markup).toContain('Convertir a mayúsculas');
+    expect(markup).toContain('Usar resultado anterior');
+    expect(markup).toContain('Eliminar paso');
+    expect(getTextStepActionOptions(true).map((option) => option.label)).not.toContain('Usar resultado anterior');
+    expect(getStepValueSourceOptions(inputColumns, 'text', true, true).map((option) => option.label)).toContain('Usar resultado anterior');
+  });
+
+  it('uses a clear, compact date fallback field', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-date-fallback',
+      label: 'Fecha formateada',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: 'date',
+          mode: 'date',
+          type: 'formatDate',
+          source: { type: 'input', inputColumnId: 'input-code' },
+          dateInvalidFallback: 'fixedText',
+          dateInvalidFallbackText: 'Sin fecha',
+        }],
+      },
+    });
+
+    expect(markup).toContain('Texto si no es fecha válida');
+    expect(markup).toContain('Qué fecha usar');
+    expect(markup).toContain('Paso 1 · Formatear fecha');
+    expect(markup).toContain('value="Sin fecha"');
+    expect(markup).toContain('class="field compact recipeField"><span>Texto si no es fecha válida</span>');
+    expect(markup).not.toContain('Texto fallback');
+  });
+
+  it('renders typed source UX for number and date values without new recipe shapes', () => {
+    const numericMarkup = renderRecipeEditorMarkup({
+      id: 'output-number-source',
+      label: 'Número',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
+        separator: '',
+        steps: [{ id: 'number', mode: 'number', type: 'noop', source: { type: 'fixedText', value: '12.5' } }],
+      },
+    }, { manualRangeRows });
+    const dateMarkup = renderRecipeEditorMarkup({
+      id: 'output-date-source',
+      label: 'Fecha',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{ id: 'date', mode: 'date', type: 'noop', source: { type: 'fixedText', value: '2026-06-28' } }],
+      },
+    }, { manualRangeRows });
+
+    expect(numericMarkup).toContain('Qué valor usar');
+    expect(numericMarkup).toContain('Valor fijo');
+    expect(numericMarkup).toContain('type="number"');
+    expect(dateMarkup).toContain('Qué fecha usar');
+    expect(dateMarkup).toContain('Fecha fija');
+    expect(dateMarkup).toContain('type="date"');
+    expect(getStepValueSourceOptions(inputColumns, 'number', false).map((option) => option.label)).toEqual([
+      'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Valor fijo', 'Elegir valor desde columna',
+    ]);
+    expect(getStepValueSourceOptions(inputColumns, 'date', false).map((option) => option.label)).toEqual([
+      'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Fecha fija', 'Elegir fecha desde columna',
+    ]);
+    expect(getNumericStepTypeFromSelection('')).toEqual({ type: 'noop' });
+    expect(getNumericStepTypeFromSelection('add')).toEqual({ type: 'numericOperation', operation: 'add' });
+  });
+
+  it('renders number and date pickers as fixed selections from existing rows', () => {
+    const textPicker = renderToStaticMarkup(
+      <StepSourceFields
+        source={{ type: 'fixedText', value: '' }}
+        inputColumns={inputColumns.slice(0, 1)}
+        inputRows={[{ rowNumber: 1, values: { 'input-code': '   ' } }]}
+        allowPreviousResult={false}
+        valueKind="text"
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+    const numericPicker = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué valor usar"
+        source={{ type: 'fixedText', value: '10' }}
+        inputColumns={inputColumns}
+        inputRows={manualRangeRows}
+        allowPreviousResult={false}
+        valueKind="number"
+        fixedTextInputType="number"
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+    const datePicker = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué fecha usar"
+        source={{ type: 'fixedText', value: '2026-06-28' }}
+        inputColumns={inputColumns}
+        inputRows={[{ rowNumber: 1, values: { 'input-code': '2026-06-28' } }]}
+        allowPreviousResult={false}
+        valueKind="date"
+        fixedTextInputType="date"
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+    const mixedDatePicker = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué fecha usar"
+        source={{ type: 'fixedText', value: '2026-06-28' }}
+        inputColumns={inputColumns.slice(0, 1)}
+        inputRows={[
+          { rowNumber: 1, values: { 'input-code': 'no-es-fecha' } },
+          { rowNumber: 2, values: { 'input-code': '2026-06-28' } },
+        ]}
+        allowPreviousResult={false}
+        valueKind="date"
+        fixedTextInputType="date"
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+    const invalidDatePicker = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué fecha usar"
+        source={{ type: 'fixedText', value: '' }}
+        inputColumns={inputColumns.slice(0, 1)}
+        inputRows={[{ rowNumber: 1, values: { 'input-code': 'no-es-fecha' } }]}
+        allowPreviousResult={false}
+        valueKind="date"
+        fixedTextInputType="date"
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(textPicker).toContain('No hay textos disponibles');
+    expect(textPicker).toContain('disabled=""');
+    expect(textPicker).toContain('dropdownSearchableControl-disabled');
+    expect(numericPicker).toContain('Buscar valores en');
+    expect(numericPicker).toContain('Valor encontrado');
+    expect(numericPicker).toContain('disabled=""');
+    expect(numericPicker).toContain('dropdownSearchableControl-disabled');
+    expect(datePicker).toContain('Buscar fechas en');
+    expect(datePicker).toContain('Fecha encontrada');
+    expect(mixedDatePicker).toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(datePicker.match(/dropdownField compact recipeField/g)).toHaveLength(3);
+    expect(datePicker).not.toContain('manualRangeValueDetailField');
+    expect(invalidDatePicker).toContain('No hay fechas válidas disponibles');
+    expect(invalidDatePicker).toContain('disabled=""');
+    expect(invalidDatePicker).toContain('dropdownSearchableControl-disabled');
+  });
+
+  it('filters format-date cell choices with the same parser used by its handler', () => {
+    const rows: InputRow[] = [
+      { rowNumber: 1, values: { 'input-code': '28/06/2026' } },
+      { rowNumber: 2, values: { 'input-code': 'PINCELES' } },
+      { rowNumber: 3, values: { 'input-code': '2026-06-28' } },
+    ];
+    const acceptsFormatDateValue = (value: string) => Boolean(getDatePickerValue(value, 'DD/MM/YYYY'));
+    const markup = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué fecha usar"
+        source={{ type: 'fixedText', value: '28/06/2026' }}
+        inputColumns={inputColumns.slice(0, 1)}
+        inputRows={rows}
+        allowPreviousResult={false}
+        valueKind="date"
+        fixedTextInputType="date"
+        dateValueValidator={acceptsFormatDateValue}
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Fecha encontrada');
+    expect(markup).toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(getUniqueColumnTextOptions(rows, 'input-code', acceptsFormatDateValue)).toEqual([
+      { value: '28/06/2026', label: '28/06/2026' },
+      { value: '2026-06-28', label: '2026-06-28' },
+    ]);
+  });
+
+  it('rejects an invalid format-date handler value with visible feedback instead of clearing it', () => {
+    expect(getFormatDateSourceSelection('PINCELES', 'DD/MM/YYYY')).toEqual({
+      accepted: false,
+      warning: 'Ese valor no parece una fecha válida.',
+    });
+    expect(getFormatDateSourceSelection('28/06/2026', 'DD/MM/YYYY')).toEqual({
+      accepted: true,
+      sourceValue: '2026-06-28',
+      dateInputFormat: 'YYYY-MM-DD',
+    });
+    expect(getFormatDateSourceSelection('28/06/2026', 'DD/MM/YYYY', true)).toEqual({
+      accepted: true,
+      sourceValue: '28/06/2026',
+      dateInputFormat: 'DD/MM/YYYY',
+    });
+  });
+
+  it('explains a legacy invalid selected date instead of failing silently', () => {
+    const markup = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué fecha usar"
+        source={{ type: 'fixedText', value: 'no-es-fecha' }}
+        inputColumns={inputColumns.slice(0, 1)}
+        inputRows={[
+          { rowNumber: 1, values: { 'input-code': 'no-es-fecha' } },
+          { rowNumber: 2, values: { 'input-code': '2026-06-28' } },
+        ]}
+        allowPreviousResult={false}
+        valueKind="date"
+        fixedTextInputType="date"
+        columnTextPickerOpen
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Este valor no parece una fecha válida.');
+    expect(markup).toContain('Valor guardado: no-es-fecha');
+    expect(markup).toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(markup).not.toContain('>no-es-fecha</button>');
+  });
+
+  it('keeps ordinary text cell choices unfiltered', () => {
+    expect(getUniqueColumnTextOptions([
+      { rowNumber: 1, values: { 'input-code': 'PINCELES' } },
+      { rowNumber: 2, values: { 'input-code': 'LISTA DE PRECIOS' } },
+    ], 'input-code')).toEqual([
+      { value: 'PINCELES', label: 'PINCELES' },
+      { value: 'LISTA DE PRECIOS', label: 'LISTA DE PRECIOS' },
+    ]);
+  });
+
+  it('labels compose parts from their real configuration and explains visual states', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-compose-labels',
+      label: 'Partes',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'concat',
+        parts: [
+          { id: 'missing', type: 'input', inputColumnId: '' },
+          { id: 'column', type: 'input', inputColumnId: 'input-code' },
+          { id: 'fixed', type: 'text', value: ' - ' },
+          { id: 'advanced', type: 'input', inputColumnId: 'input-name', steps: [{ id: 'upper', type: 'uppercase' }] },
+        ],
+        separator: '',
+      },
+    });
+
+    expect(markup).toContain('Parte 1');
+    expect(markup).toContain('Sin configurar');
+    expect(markup).toContain('title="Falta seleccionar origen"');
+    expect(markup).toContain('compositionTokenCard compositionToken-warning');
+    expect(markup).toContain('Columna A');
+    expect(markup).toContain('Dato del Excel');
+    expect(markup).toContain('Texto fijo');
+    expect(markup).toContain('&quot; - &quot;');
+    expect(markup).toContain('Parte avanzada');
+    expect(markup).toContain('1 paso configurado');
+    expect(markup).toContain('title="Esta parte usa pasos avanzados"');
+    expect(markup).toContain('compositionTokenCard compositionToken-advanced');
+  });
+
+  it('labels text selected from a column without changing recipe data', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-compose-column-text',
+      label: 'Texto elegido',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'concat',
+        parts: [],
+        separator: '',
+        steps: [{
+          id: 'concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [{
+            id: 'picked',
+            source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+          }],
+        }],
+      },
+    });
+
+    expect(markup).toContain('Texto elegido');
+    expect(markup).toContain('PINCELES SERIE 304');
+    expect(markup).not.toContain('Fragmento avanzado');
   });
 
   it('builds compact column-text options for compose text pieces', () => {
@@ -453,7 +1079,9 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('composeTokenPrimaryFields');
+    expect(markup).not.toContain('composeTokenPrimaryFields');
+    expect(markup).toContain('stepDetailPanel');
+    expect(markup).toContain('simpleCustomValueGrid');
     expect(markup).toContain('field compact');
     expect(markup).toContain('dropdownField compact');
     expect(markup).toContain('compositionTokenCard');
@@ -461,7 +1089,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('actionButton-iconOnly');
   });
 
-  it('renders ranges as a stable placeholder inside Recipe Studio', () => {
+  it('routes existing range recipes directly without the removed mode header', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-ranges',
       label: 'Rangos',
@@ -480,10 +1108,11 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Asignar por rangos');
-    expect(markup).toContain('Este modo se integrará en un paso posterior.');
-    expect(markup).toContain('Por ahora seguí usando Combinar valores o Avanzado.');
-    expect(markup).not.toContain('Filas 8 - 13');
+    expect(markup).not.toContain('recipeStudioModeBar');
+    expect(markup).not.toContain('Asignar por rangos');
+    expect(markup).not.toContain('Avanzado');
+    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('Valores por rangos');
     expect(markup).not.toContain('Cerda china mango amarillo');
   });
 
@@ -501,7 +1130,7 @@ describe('constructor helpers', () => {
     expect(createRecipeForStudioMode('ranges', advancedRecipe, inputColumns)).toEqual({ type: 'manualRange', ranges: [] });
   });
 
-  it('renders empty range studio as a placeholder, not a blank screen', () => {
+  it('renders empty range recipes directly, without a mode header', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-empty-ranges',
       label: 'Rangos',
@@ -510,9 +1139,11 @@ describe('constructor helpers', () => {
       recipe: { type: 'manualRange', ranges: [] },
     });
 
-    expect(markup).toContain('Asignar por rangos');
-    expect(markup).toContain('Este modo se integrará en un paso posterior.');
-    expect(markup).toContain('Por ahora seguí usando Combinar valores o Avanzado.');
+    expect(markup).not.toContain('recipeStudioModeBar');
+    expect(markup).not.toContain('Asignar por rangos');
+    expect(markup).not.toContain('Avanzado');
+    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('Valores por rangos');
     expect(markup).toContain('Cancelar');
     expect(markup).toContain('Aplicar');
   });
@@ -553,12 +1184,12 @@ describe('constructor helpers', () => {
       recipe: composeRecipe,
     });
 
-    expect(markup).toContain('Columna: AN - Precio');
+    expect(markup).toContain('Columna AN');
     expect(markup).toContain('Dato del Excel');
     expect(markup).not.toContain('Fragmento avanzado');
   });
 
-  it('keeps ranges mode as a stable placeholder instead of opening range generation UI', () => {
+  it('does not add mode navigation around the existing range editor', () => {
     const column: OutputColumn = {
       id: 'output-range',
       label: 'Rango',
@@ -569,12 +1200,15 @@ describe('constructor helpers', () => {
 
     const markup = renderRecipeEditorMarkup(column);
 
-    expect(markup).toContain('Este modo se integrará en un paso posterior.');
+    expect(markup).not.toContain('recipeStudioModeBar');
+    expect(markup).not.toContain('Asignar por rangos');
+    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('Valores por rangos');
     expect(markup).not.toContain('Generar desde textos');
     expect(markup).not.toContain('Generar rangos sugeridos');
   });
 
-  it('keeps manual range details out of Recipe Studio while ranges are placeholder-only', () => {
+  it('renders manual range details without the removed studio navigation', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-range',
       label: 'Rango',
@@ -583,8 +1217,9 @@ describe('constructor helpers', () => {
       recipe: { type: 'manualRange', ranges: [] },
     });
 
-    expect(markup).toContain('Asignar por rangos');
-    expect(markup).toContain('Este modo se integrará en un paso posterior.');
+    expect(markup).not.toContain('recipeStudioModeBar');
+    expect(markup).not.toContain('Asignar por rangos');
+    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
     expect(markup).not.toContain('Valores por rangos');
     expect(markup).not.toContain('Ayuda: valores por rangos');
     expect(markup).not.toContain('<p class="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>');
@@ -613,7 +1248,7 @@ describe('constructor helpers', () => {
     expect(directMarkup).not.toContain('Ayuda: valores por rangos');
   });
 
-  it('does not expose clear ranges action while Recipe Studio ranges are placeholder-only', () => {
+  it('keeps existing range actions inside the direct editor', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-range',
       label: 'Rango',
@@ -625,7 +1260,8 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Este modo se integrará en un paso posterior.');
+    expect(markup).not.toContain('recipeStudioModeBar');
+    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
     expect(markup).not.toContain('Borrar rangos');
   });
 
@@ -649,7 +1285,8 @@ describe('constructor helpers', () => {
       condition: recipe.condition,
       ranges: [],
     });
-    expect(markup).toContain('Este modo se integrará en un paso posterior.');
+    expect(markup).not.toContain('recipeStudioModeBar');
+    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
   });
 
   it('defaults suggested range initial values to empty', () => {
@@ -1825,13 +2462,13 @@ describe('constructor helpers', () => {
   it('builds unified source dropdown options with variable sources only', () => {
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 2), true)).toEqual([
       { value: 'previousResult', label: 'Resultado del paso anterior' },
-      { value: 'columnTextPicker', label: 'Elegir texto desde columna' },
+      { value: 'columnTextPicker', label: 'Elegir texto desde celda' },
       { value: 'input:input-code', label: 'A' },
       { value: 'input:input-name', label: 'D - Nombre' },
     ]);
 
     expect(getStepSourceDropdownOptions(inputColumns.slice(0, 1), false)).toEqual([
-      { value: 'columnTextPicker', label: 'Elegir texto desde columna' },
+      { value: 'columnTextPicker', label: 'Elegir texto desde celda' },
       { value: 'input:input-code', label: 'A' },
     ]);
 
@@ -2226,12 +2863,27 @@ describe('constructor helpers', () => {
     expect(getStepTextSourceActionOptions(false).map((option) => option.label)).toEqual([
       'Usar columna de entrada',
       'Usar texto fijo',
-      'Elegir texto desde columna',
+      'Elegir texto desde celda',
     ]);
     expect(getStepTextSourceActionOptions(true).slice(-1)[0]?.label).toBe('Usar resultado anterior');
     expect(getStepSourceForTextAction('useFixedText', { type: 'input', inputColumnId: 'input-code' }, inputColumns)).toEqual({ type: 'fixedText', value: '' });
     expect(getStepSourceForTextAction('useInputColumn', { type: 'fixedText', value: 'Legacy' }, inputColumns)).toEqual({ type: 'input', inputColumnId: 'input-code' });
     expect(getStepSourceForTextAction('pickColumnText', { type: 'fixedText', value: 'NEGRO' }, inputColumns)).toEqual({ type: 'fixedText', value: 'NEGRO' });
+  });
+
+  it('shows cell-based copy for text picking outside ranges', () => {
+    const markup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'pick-cell-text', mode: 'text', type: 'noop', source: { type: 'fixedText', value: '' } }}
+        mode="text"
+        textSourceAction="pickColumnText"
+        onTextSourceAction={() => undefined}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Elegir texto desde celda');
+    expect(markup).not.toContain('Elegir texto desde columna');
   });
 
   it('shows fixed text as a text action instead of a value source option', () => {
@@ -2246,7 +2898,7 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('Que quiero hacer');
+    expect(markup).toContain('Qué quiero hacer');
     expect(markup).toContain('Usar texto fijo');
     expect(getStepSourceDropdownOptions(inputColumns, false).map((option) => option.label)).not.toContain('Texto fijo');
   });
@@ -2321,6 +2973,19 @@ describe('constructor helpers', () => {
     ]);
   });
 
+  it('filters picked numeric values while preserving deduplicated row order', () => {
+    expect(getUniqueColumnTextOptions([
+      { rowNumber: 1, values: { 'input-code': '10' } },
+      { rowNumber: 2, values: { 'input-code': '' } },
+      { rowNumber: 3, values: { 'input-code': 'texto' } },
+      { rowNumber: 4, values: { 'input-code': '10' } },
+      { rowNumber: 5, values: { 'input-code': '12.5' } },
+    ], 'input-code', (value) => Number.isFinite(Number(value)))).toEqual([
+      { value: '10', label: '10' },
+      { value: '12.5', label: '12.5' },
+    ]);
+  });
+
   it('filters text choices partially and case-insensitively without reordering them', () => {
     const options = [
       { value: 'white-black', label: 'BLANCO - NEGRO' },
@@ -2385,6 +3050,8 @@ describe('constructor helpers', () => {
     );
 
     expect(markup).toContain('Sin textos disponibles');
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('dropdownSearchableControl-disabled');
     expect(markup).not.toContain('No hay textos disponibles en esta columna.');
     expect(markup).not.toContain('textSourceHelperRow');
   });

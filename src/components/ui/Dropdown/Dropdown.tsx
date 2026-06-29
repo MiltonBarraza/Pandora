@@ -222,7 +222,7 @@ export function Dropdown<T extends string = string>({
         </span>
       ) : null}
       {searchable ? (
-        <div className="dropdownSearchableControl">
+        <div className={`dropdownSearchableControl${disabled ? ' dropdownSearchableControl-disabled' : ''}`}>
           <input
             ref={searchableInputRef}
             type="text"
