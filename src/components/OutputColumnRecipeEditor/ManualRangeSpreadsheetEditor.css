@@ -1,12 +1,17 @@
 /* Isolated manual-range spreadsheet UI, ported from modal v5. */
 .manualRangeSpreadsheet {
+  --manual-range-control-height: 40px;
+  --manual-range-neutral-highlight-bg: var(--color-bg-surface-subtle);
+  --manual-range-neutral-highlight-border: var(--color-border-control);
+  --manual-range-active-border: var(--color-focus-border);
   background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-table-border);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 8px;
   min-width: 0;
   padding: 10px;
+  width: 100%;
 }
 
 .manualRangeSpreadsheetHeader {
@@ -87,13 +92,16 @@
 }
 
 .manualRangeSpreadsheetScroller {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
   max-height: min(340px, 42vh);
   min-width: 0;
   overflow: auto;
 }
 
 .manualRangeSpreadsheetLayout {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
@@ -115,7 +123,8 @@
 
 .manualRangeSpreadsheetTable th,
 .manualRangeSpreadsheetTable td {
-  border-bottom: 1px solid var(--color-table-border);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
   max-width: 180px;
   overflow: hidden;
   padding: 6px 8px;
@@ -126,7 +135,7 @@
 
 .manualRangeSpreadsheetHeaderSticky,
 .manualRangeSpreadsheetTable thead th {
-  background: var(--color-table-header-bg);
+  background: var(--color-bg-surface-muted);
   color: var(--color-text-muted);
   font-weight: 800;
   position: sticky;
@@ -142,7 +151,6 @@
 
 .manualRangeSpreadsheetTable .manualRangeSpreadsheetRowNumberHeader,
 .manualRangeSpreadsheetTable .manualRangeSpreadsheetRowNumber {
-  background: var(--color-table-header-bg);
   color: var(--color-text-muted);
   font-weight: 800;
   position: sticky;
@@ -155,15 +163,19 @@
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRowNumber {
-  background: var(--color-bg-surface-muted);
+  background: var(--color-bg-surface);
 }
 
 .manualRangeSpreadsheetRow:hover {
-  background: var(--color-table-row-hover-bg);
+  background: var(--color-bg-surface-subtle);
+}
+
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow:hover td {
+  background: var(--color-bg-surface-subtle);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow:hover .manualRangeSpreadsheetRowNumberCell {
-  background: var(--color-table-row-hover-bg);
+  background: var(--color-bg-surface-subtle);
 }
 
 .manualRangeSpreadsheetRow-suggested {
@@ -172,10 +184,6 @@
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-suggested .manualRangeSpreadsheetRowNumber {
   background: var(--color-bg-subtle);
-}
-
-.manualRangeSpreadsheetRow-suggestedSelected {
-  box-shadow: inset 3px 0 0 var(--color-warning-border);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-suggestedSelected .manualRangeSpreadsheetRowNumber {
@@ -193,69 +201,78 @@
 }
 
 .manualRangeSpreadsheetRow-covered {
-  background: var(--color-selected-bg);
+  background: var(--manual-range-neutral-highlight-bg);
+}
+
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-covered td {
+  background: var(--manual-range-neutral-highlight-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-covered .manualRangeSpreadsheetRowNumber {
-  background: var(--color-selected-bg);
-  color: var(--color-selected-text);
+  background: var(--manual-range-neutral-highlight-bg);
+  color: var(--color-text-primary);
 }
 
 .manualRangeSpreadsheetRow-rangeStart > * {
-  border-top: 2px solid var(--color-accent-border);
+  border-top: 2px solid var(--manual-range-neutral-highlight-border);
 }
 
 .manualRangeSpreadsheetRow-rangeEnd > * {
-  border-bottom: 2px solid var(--color-accent-border);
+  border-bottom: 2px solid var(--manual-range-neutral-highlight-border);
 }
 
 .manualRangeSpreadsheetRow-rangeStart .manualRangeSpreadsheetRowNumberCell,
 .manualRangeSpreadsheetRow-rangeEnd .manualRangeSpreadsheetRowNumberCell {
-  border-left: 3px solid var(--color-accent-border);
+  border-left: 3px solid var(--manual-range-neutral-highlight-border);
 }
 
 .manualRangeSpreadsheetRow-activeRangeStart > * {
-  border-top-color: var(--color-focus-border);
+  border-top-color: var(--manual-range-active-border);
 }
 
 .manualRangeSpreadsheetRow-activeRangeEnd > * {
-  border-bottom-color: var(--color-focus-border);
+  border-bottom-color: var(--manual-range-active-border);
 }
 
 .manualRangeSpreadsheetRow-lastCreated {
-  box-shadow: inset 0 0 0 2px var(--color-accent-border);
+  box-shadow: inset 0 0 0 2px var(--manual-range-active-border);
 }
 
 .manualRangeSpreadsheetRow-activeRange {
-  box-shadow: inset 4px 0 0 var(--color-accent-border);
+  box-shadow: inset 4px 0 0 var(--manual-range-active-border);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-activeRange .manualRangeSpreadsheetRowNumber {
-  background: var(--color-selected-bg);
+  background: var(--manual-range-neutral-highlight-bg);
   color: var(--color-text-primary);
 }
 
 .manualRangeSpreadsheetRow-selectionInside {
-  background: var(--color-accent-bg-soft);
+  background: var(--manual-range-neutral-highlight-bg);
+}
+
+.manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionInside td {
+  background: var(--manual-range-neutral-highlight-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionInside .manualRangeSpreadsheetRowNumber {
-  background: var(--color-accent-bg-soft);
+  background: var(--manual-range-neutral-highlight-bg);
 }
 
 .manualRangeSpreadsheetRow-selectionStart,
 .manualRangeSpreadsheetRow-selectionEnd {
-  box-shadow: inset 3px 0 0 var(--color-accent-border);
+  box-shadow: inset 3px 0 0 var(--manual-range-active-border);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionStart .manualRangeSpreadsheetRowNumber,
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionEnd .manualRangeSpreadsheetRowNumber {
-  background: var(--color-accent-bg-soft);
+  background: var(--manual-range-neutral-highlight-bg);
   color: var(--color-text-primary);
 }
 
 .manualRangeSpreadsheetSidePanel,
 .manualRangeSpreadsheetInspector {
+  align-self: stretch;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-table-border);
   border-radius: 8px;
@@ -267,7 +284,9 @@
 }
 
 .manualRangeSpreadsheetSideContent {
+  align-content: start;
   display: grid;
+  grid-auto-rows: max-content;
   min-width: 0;
 }
 
@@ -307,13 +326,15 @@
 }
 
 .manualRangeSpreadsheetRangesList {
+  align-content: start;
   display: grid;
   gap: 8px;
+  grid-auto-rows: max-content;
   min-width: 0;
 }
 
 .manualRangeSpreadsheetRangesListHeader {
-  align-items: stretch;
+  align-items: start;
   display: grid;
   gap: 6px;
   grid-template-columns: 1fr;
@@ -342,8 +363,10 @@
 }
 
 .manualRangeSpreadsheetRangesListItems {
+  align-content: start;
   display: grid;
   gap: 6px;
+  grid-auto-rows: max-content;
   max-height: 220px;
   min-width: 0;
   overflow: auto;
@@ -369,14 +392,14 @@
 }
 
 .manualRangeSpreadsheetRangeItemMain {
-  align-self: stretch;
+  align-self: center;
   background: transparent;
   border: 0;
   color: inherit;
   cursor: pointer;
   display: grid;
   gap: 3px;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto auto;
   justify-content: stretch;
   min-width: 0;
   padding: 0;
@@ -396,8 +419,8 @@
 }
 
 .manualRangeSpreadsheetRangeItemSelected {
-  border-color: var(--color-accent-border);
-  box-shadow: inset 3px 0 0 var(--color-accent-border);
+  border-color: var(--manual-range-active-border);
+  box-shadow: inset 3px 0 0 var(--manual-range-active-border);
 }
 
 .manualRangeSpreadsheetRangeItemOverlap {
@@ -430,6 +453,8 @@
 }
 
 .manualRangeSuggestedRangesModal {
+  --manual-range-control-height: 36px;
+  height: 90vh;
   max-height: 90vh;
   max-width: min(1120px, 96vw);
   width: min(1120px, 96vw);
@@ -460,25 +485,58 @@
 
 .manualRangeSuggestedControls {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
+  overflow: visible;
 }
 
 .manualRangeSuggestedControlsCompact {
   align-items: end;
-  grid-template-columns: minmax(150px, 1.4fr) minmax(86px, 0.7fr) minmax(86px, 0.7fr) minmax(150px, 1.2fr) minmax(150px, 1.2fr) minmax(42px, auto);
+  grid-template-columns: minmax(170px, 1.4fr) minmax(92px, 0.6fr) minmax(92px, 0.6fr) minmax(170px, 1.2fr);
 }
 
-.manualRangeSuggestedControlsCompact .field {
+.manualRangeSuggestedControlsCompact .field,
+.manualRangeSuggestedControl {
   min-width: 0;
 }
 
-.manualRangeSuggestedSearchButton {
-  justify-self: start;
+.manualRangeSuggestedControlsCompact .field input,
+.manualRangeSuggestedControlsCompact .dropdownTrigger,
+.manualRangeSuggestedControlsCompact .actionButton-iconOnly {
+  height: var(--manual-range-control-height);
+  min-height: var(--manual-range-control-height);
 }
 
-.manualRangeSuggestedControlsCompact .manualRangeSuggestedSearchButton {
-  justify-self: end;
+.manualRangeSuggestedValueControl {
+  grid-column: 1 / 2;
+}
+
+.manualRangeSuggestedInitialValueColumnControl {
+  grid-column: 2 / 4;
+}
+
+.manualRangeSuggestedControlsCompact .infoTooltipCustomTrigger {
+  align-self: end;
+  display: inline-flex;
+  height: var(--manual-range-control-height);
+  justify-self: start;
+  line-height: 0;
+  width: var(--manual-range-control-height);
+}
+
+.manualRangeSuggestedControlsCompact .infoTooltip {
+  align-self: end;
+  height: var(--manual-range-control-height);
+  justify-self: start;
+  width: var(--manual-range-control-height);
+}
+
+.manualRangeSuggestedSearchButton {
+  height: var(--manual-range-control-height);
+  justify-self: start;
+  min-height: var(--manual-range-control-height);
+  padding: 0;
+  width: var(--manual-range-control-height);
 }
 
 .manualRangeSuggestedSummary {
@@ -495,9 +553,9 @@
   color: var(--color-warning-text);
   display: grid;
   font-size: 0.84rem;
-  gap: 4px;
-  line-height: 1.35;
-  padding: 8px 9px;
+  gap: 2px;
+  line-height: 1.25;
+  padding: 6px 8px;
 }
 
 .manualRangeSuggestedWarnings p {
@@ -532,25 +590,50 @@
 }
 
 .manualRangeSuggestedItem {
-  align-items: start;
+  align-items: center;
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   color: var(--color-text);
   display: grid;
   gap: 2px 8px;
-  grid-template-columns: auto minmax(64px, auto) minmax(0, 1fr);
+  grid-template-columns: auto minmax(64px, auto) minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  min-height: 52px;
   min-width: 0;
-  padding: 8px 9px;
+  padding: 6px 10px;
 }
 
-.manualRangeSuggestedItem input {
-  margin-top: 2px;
+.manualRangeSuggestedItemSelect {
+  color: inherit;
+  cursor: pointer;
+  display: contents;
+}
+
+.manualRangeSuggestedItemSelect input[type='checkbox'] {
+  align-self: center;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  height: 18px;
+  margin: 0;
+  max-height: 18px;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0;
+  width: 18px;
+}
+
+.manualRangeSuggestedRangesModal .manualRangeSuggestedItemSelect input[type='checkbox'] {
+  height: 18px;
+  max-height: 18px;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0;
+  width: 18px;
 }
 
 .manualRangeSuggestedItemSelected {
-  border-color: var(--color-accent-border);
-  box-shadow: inset 3px 0 0 var(--color-accent-border);
+  border-color: var(--manual-range-active-border);
 }
 
 .manualRangeSuggestedItemOverlap {
@@ -558,7 +641,11 @@
 }
 
 .manualRangeSuggestedItemTitle {
+  align-self: center;
+  grid-column: 2;
+  grid-row: 1 / span 2;
   font-weight: 800;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -566,6 +653,7 @@
 .manualRangeSuggestedItemWarning {
   color: var(--color-text-muted);
   font-size: 0.82rem;
+  line-height: 1.2;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -573,8 +661,32 @@
 }
 
 .manualRangeSuggestedItemWarning {
-  grid-column: 2 / -1;
+  grid-column: 3;
+  grid-row: 2;
   color: var(--color-warning-text);
+  line-height: 1.2;
+}
+
+.manualRangeSuggestedItemSummary {
+  align-self: end;
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.manualRangeSuggestedItem > .infoTooltipCustomTrigger {
+  align-self: center;
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  height: 32px;
+  justify-self: end;
+  width: 32px;
+}
+
+.manualRangeSuggestedItemDeleteButton {
+  align-self: center;
+  height: 32px;
+  min-height: 32px;
+  width: 32px;
 }
 
 .manualRangePreviewPanel {
@@ -636,8 +748,8 @@
 }
 
 .manualRangePreviewItemActive {
-  border-color: var(--color-accent-border);
-  box-shadow: inset 3px 0 0 var(--color-accent-border);
+  border-color: var(--manual-range-active-border);
+  box-shadow: inset 3px 0 0 var(--manual-range-active-border);
 }
 
 .manualRangePreviewValue {
@@ -862,7 +974,7 @@
 }
 
 .columnTransferPanel.manualRangeColumnsTransferPanel {
-  --column-transfer-item-min-height: 42px;
+  --column-transfer-item-min-height: 56px;
   --column-transfer-list-gap: 5px;
   min-height: 160px;
 }
@@ -881,10 +993,12 @@
 
 .manualRangeColumnsTransferItem.manualRangeColumnsTransferItemCompact {
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 42px;
-  padding: 4px 7px;
+  height: var(--column-transfer-item-min-height);
+  min-height: var(--column-transfer-item-min-height);
+  overflow: hidden;
+  padding: 6px 8px;
 }
 
 .manualRangeColumnsTransferItemCompact .manualRangeColumnsTransferItemMain {
@@ -901,11 +1015,20 @@
 .manualRangeColumnsTransferItemCompact .columnTransferMeta {
   line-height: 1.15;
   font-size: 0.74rem;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.manualRangeColumnsTransferItemCompact .columnTransferMeta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .manualRangeColumnsTransferItemCompact .manualRangeColumnsTransferItemAction {
-  min-height: 28px;
-  padding: 4px 7px;
+  height: 40px;
+  min-height: 40px;
+  padding: 4px 12px;
 }
 
 .manualRangeColumnsResultToggleCompact {
@@ -935,8 +1058,7 @@
   .manualRangeSpreadsheetRangeItem,
   .manualRangeColumnsToolbar,
   .manualRangeColumnsTransferGrid,
-  .manualRangeSuggestedControlsCompact,
-  .manualRangeSuggestedItem {
+  .manualRangeSuggestedControlsCompact {
     grid-template-columns: 1fr;
   }
 
@@ -949,7 +1071,13 @@
     justify-self: start;
   }
 
-  .manualRangeSuggestedControlsCompact .manualRangeSuggestedSearchButton {
+  .manualRangeSuggestedValueControl,
+  .manualRangeSuggestedInitialValueColumnControl {
+    grid-column: auto;
+  }
+
+  .manualRangeSuggestedControlsCompact .infoTooltipCustomTrigger,
+  .manualRangeSuggestedSearchButton {
     justify-self: start;
   }
 
@@ -963,6 +1091,12 @@
   }
 
   .manualRangeSuggestedItemWarning {
-    grid-column: auto;
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .manualRangeSuggestedItem > .infoTooltipCustomTrigger {
+    grid-column: 4;
+    grid-row: 1 / span 2;
   }
 }

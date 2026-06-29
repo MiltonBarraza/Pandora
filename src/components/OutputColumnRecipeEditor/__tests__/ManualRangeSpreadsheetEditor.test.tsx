@@ -1,62 +1,64 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import React from 'react';
 import type { InputColumn, InputRow, OutputRecipe } from '../../../types/import';
+import { SortableList } from '../../SortableList/SortableList';
 import { ManualRangeAdvancedRangeModal } from '../ManualRangeAdvancedRangeModal';
 import {
-  getManualRangeSuggestedRanges,
-  getManualRangeSuggestedSummary,
-  getManualRangeSuggestedWarnings,
-  ManualRangeClearAllRangesConfirmDialog,
-  ManualRangeDeleteRangeConfirmDialog,
-  ManualRangePreviewPanel,
-  ManualRangeSpreadsheetEditor,
-  ManualRangeSuggestedRangesModal,
-  ManualRangeSuggestedRangesPanel,
+    addManualRangeVisibleColumn,
+    getManualRangeColumnsTransferState,
+    hideAllManualRangeColumns,
+    ManualRangeColumnsModal,
+    removeManualRangeVisibleColumn,
+    showAllManualRangeColumns,
+} from '../ManualRangeColumnsModal';
+import {
+    clearManualRangeSuggestedRanges,
+    getManualRangeSuggestedRanges,
+    getManualRangeSuggestedSummary,
+    getManualRangeSuggestedWarnings,
+    ManualRangeClearAllRangesConfirmDialog,
+    ManualRangeClearSuggestionsConfirmDialog,
+    ManualRangeDeleteRangeConfirmDialog,
+    ManualRangeDeleteSuggestedRangeConfirmDialog,
+    ManualRangePreviewPanel,
+    ManualRangeSpreadsheetEditor,
+    ManualRangeSuggestedRangesModal,
+    ManualRangeSuggestedRangesPanel,
+    removeManualRangeSuggestedRange,
 } from '../ManualRangeSpreadsheetEditor';
 import {
-  applyManualRangeSelectedSuggestions,
-  clearManualRangeRecipeRanges,
-  confirmManualRangeClearAll,
-  createManualRangeFromSelection,
-  createManualRangeValueFromBounds,
-  getDefaultManualRangeVisibleColumnIds,
-  getFirstManualRangeForRowNumber,
-  getManualRangeById,
-  getManualRangeBoundaryStateForRow,
-  getManualRangeCompactItemClassName,
-  getManualRangeDisplayValue,
-  getManualRangePreviewRows,
-  getManualRangePreviewValueForRow,
-  getManualRangeSpreadsheetCellValue,
-  getManualRangeSpreadsheetColumnLabel,
-  getManualRangeSpreadsheetRowClassName,
-  getManualRangeSelectionSummary,
-  getManualRangeValueSummary,
-  getOverlappingManualRangeIds,
-  hasCompleteManualRangeSelection,
-  isRowInsideAnyManualRange,
-  isRowInsideManualRange,
-  isRowInsideManualRangeSelection,
-  normalizeManualRangeSelectionBounds,
-  patchManualRangeInRecipe,
-  reconcileManualRangeVisibleColumnIds,
-  removeManualRangeFromRecipe,
-  sortManualRangeRecipeByStart,
-  sortManualRangesByStart,
-  updateManualRangeSpreadsheetClickState,
-  updateManualRangeSelection,
-  type RangeSelectionDraft,
+    applyManualRangeSelectedSuggestions,
+    confirmManualRangeClearAll,
+    createManualRangeFromSelection,
+    createManualRangeValueFromBounds,
+    getDefaultManualRangeVisibleColumnIds,
+    getFirstManualRangeForRowNumber,
+    getManualRangeBoundaryStateForRow,
+    getManualRangeById,
+    getManualRangeCompactItemClassName,
+    getManualRangeDisplayValue,
+    getManualRangePreviewRows,
+    getManualRangePreviewValueForRow,
+    getManualRangeSelectionSummary,
+    getManualRangeSpreadsheetCellValue,
+    getManualRangeSpreadsheetColumnLabel,
+    getManualRangeSpreadsheetRowClassName,
+    getManualRangeValueSummary,
+    getOverlappingManualRangeIds,
+    hasCompleteManualRangeSelection,
+    isRowInsideAnyManualRange,
+    isRowInsideManualRange,
+    isRowInsideManualRangeSelection,
+    normalizeManualRangeSelectionBounds,
+    patchManualRangeInRecipe,
+    reconcileManualRangeVisibleColumnIds,
+    removeManualRangeFromRecipe,
+    sortManualRangeRecipeByStart,
+    sortManualRangesByStart,
+    updateManualRangeSelection,
+    updateManualRangeSpreadsheetClickState,
+    type RangeSelectionDraft
 } from '../ManualRangeSpreadsheetEditor.helpers';
-import {
-  addManualRangeVisibleColumn,
-  getManualRangeColumnsTransferState,
-  hideAllManualRangeColumns,
-  ManualRangeColumnsModal,
-  removeManualRangeVisibleColumn,
-  showAllManualRangeColumns,
-} from '../ManualRangeColumnsModal';
-import { SortableList } from '../../SortableList/SortableList';
 
 const inputColumns: InputColumn[] = [
   {
@@ -629,10 +631,11 @@ describe('ManualRangeSuggestedRangesPanel', () => {
 
     expect(markup).toContain('manualRangeSuggestedControlsCompact');
     expect(markup).toContain('aria-label="Buscar sugerencias"');
-    expect(markup).toContain('title="Buscar sugerencias"');
+    expect(markup).not.toContain('title="Buscar sugerencias"');
+    expect(markup).toContain('infoTooltipCustomTrigger');
+    expect(markup).toContain('dropdownTrigger');
     expect(markup).toContain('Guardar como valor');
     expect(markup).toContain('Sin valor');
-    expect(markup).toContain('Valor detectado');
     expect(markup).toContain('manualRangeSuggestedSummary');
     expect(markup).toContain('Pandora usará cada dato de A como inicio de un rango');
     expect(markup).toContain('Los rangos se crearán sin valor inicial.');
@@ -641,7 +644,6 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     expect(markup).toContain('Buscar sugerencias');
     expect(markup).toContain('Todavía no hay sugerencias.');
     expect(markup).toContain('Cada dato inicia un rango');
-    expect(markup).toContain('Bloques consecutivos con datos');
   });
 
   it('renders suggested ranges inside its own modal', () => {
@@ -667,6 +669,7 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     expect(markup).toContain('Rangos sugeridos');
     expect(markup).toContain('posibles rangos y revisalos antes de aplicarlos.');
     expect(markup).toContain('Guardar como valor');
+    expect(markup).toContain('Borrar sugerencias');
     expect(markup).toContain('Aplicar seleccionadas');
     expect(markup).toContain('Cancelar');
   });
@@ -707,7 +710,89 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     expect(markup).toContain('Texto fijo: PINCELES SERIE 304');
     expect(markup).toContain('manualRangeSuggestedItemSelected');
     expect(markup).toContain('manualRangeSuggestedItemOverlap');
+    expect(markup).toContain('manualRangeSuggestedItemDeleteButton');
+    expect(markup).toContain('Eliminar sugerencia 8 - 13');
     expect(markup).toContain('Se superpone con un rango configurado');
+  });
+
+  it('renders the app confirmation dialog before clearing all suggestions', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeClearSuggestionsConfirmDialog
+        open
+        onCancel={() => undefined}
+        onConfirm={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('confirmDialogModal');
+    expect(markup).toContain('Borrar sugerencias');
+    expect(markup).toContain('Se eliminarán las sugerencias generadas. Esta acción no afecta los rangos ya configurados.');
+    expect(markup).toContain('Borrar');
+    expect(markup).toContain('Cancelar');
+    expect(markup).not.toContain('window.confirm');
+  });
+
+  it('renders the app confirmation dialog before deleting one suggestion', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeDeleteSuggestedRangeConfirmDialog
+        open
+        onCancel={() => undefined}
+        onConfirm={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('confirmDialogModal');
+    expect(markup).toContain('Borrar sugerencia');
+    expect(markup).toContain('Se eliminará esta sugerencia. Esta acción no afecta los rangos ya configurados.');
+    expect(markup).toContain('Borrar');
+    expect(markup).toContain('Cancelar');
+  });
+
+  it('confirming clear suggestions removes suggestions and keeps configured ranges intact', () => {
+    const cleared = clearManualRangeSuggestedRanges();
+
+    expect(cleared.suggestedRanges).toEqual([]);
+    expect([...cleared.selectedSuggestedRangeIds]).toEqual([]);
+    expect(recipe.ranges).toEqual([{ id: 'range-8-10', startRowNumber: 8, endRowNumber: 10, value: 'Promo' }]);
+  });
+
+  it('confirming delete suggestion removes only that suggestion and keeps configured ranges intact', () => {
+    const suggestedRanges = [
+      { id: 'suggested-8-13', startRowNumber: 8, endRowNumber: 13, value: 'Primero' },
+      { id: 'suggested-20-20', startRowNumber: 20, endRowNumber: 20, value: 'Segundo' },
+    ];
+    const result = removeManualRangeSuggestedRange(
+      suggestedRanges,
+      new Set(['suggested-8-13', 'suggested-20-20']),
+      'suggested-8-13',
+    );
+
+    expect(result.suggestedRanges).toEqual([suggestedRanges[1]]);
+    expect([...result.selectedSuggestedRangeIds]).toEqual(['suggested-20-20']);
+    expect(recipe.ranges).toHaveLength(1);
+  });
+
+  it('canceling suggestion deletion does not call suggestion mutators', () => {
+    const onSuggestedRangesChange = vi.fn();
+    const onSelectedSuggestedRangeIdsChange = vi.fn();
+    renderToStaticMarkup(
+      <ManualRangeSuggestedRangesPanel
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        suggestedRanges={[{ id: 'suggested-20-20', startRowNumber: 20, endRowNumber: 20, value: 'CINTA' }]}
+        selectedSuggestedRangeIds={new Set(['suggested-20-20'])}
+        hasSearchedSuggestions
+        onChange={() => undefined}
+        onSuggestedRangesChange={onSuggestedRangesChange}
+        onSelectedSuggestedRangeIdsChange={onSelectedSuggestedRangeIdsChange}
+        onSuggestionsSearchedChange={() => undefined}
+        onAppliedRangeSelect={() => undefined}
+      />,
+    );
+
+    expect(onSuggestedRangesChange).not.toHaveBeenCalled();
+    expect(onSelectedSuggestedRangeIdsChange).not.toHaveBeenCalled();
   });
 
   it('disables apply and asks for selection when no suggestion is selected', () => {

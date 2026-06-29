@@ -1,16 +1,24 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   generateManualRangesFromDataBlocks,
   generateManualRangesFromTexts,
   type ManualRangeInitialValueMode,
 } from '../../domain/import/manualRangeModel';
-import type { ManualRangeValue } from '../../types/import';
-import type { InputColumn, InputRow, OutputRecipe } from '../../types/import';
+import type { InputColumn, InputRow, ManualRangeValue, OutputRecipe } from '../../types/import';
+import { Modal } from '../Modal/Modal';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { ManualRangeAdvancedRangeModal } from './ManualRangeAdvancedRangeModal';
+import { ManualRangeColumnsModal } from './ManualRangeColumnsModal';
+import './ManualRangeSpreadsheetEditor.css';
 import {
-  createManualRangeFromSelection,
   applyManualRangeSelectedSuggestions,
   clearManualRangeRecipeRanges,
+  createManualRangeFromSelection,
   getDefaultManualRangeVisibleColumnIds,
   getManualRangeById,
   getManualRangeCompactItemClassName,
@@ -29,13 +37,6 @@ import {
   type ManualRangeRecipe,
   type RangeSelectionDraft,
 } from './ManualRangeSpreadsheetEditor.helpers';
-import { ManualRangeAdvancedRangeModal } from './ManualRangeAdvancedRangeModal';
-import { ManualRangeColumnsModal } from './ManualRangeColumnsModal';
-import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
-import { AppIcon } from '../ui/AppIcon/AppIcon';
-import { Modal } from '../Modal/Modal';
-import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import './ManualRangeSpreadsheetEditor.css';
 
 type ManualRangeSpreadsheetEditorProps = {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
@@ -46,11 +47,16 @@ type ManualRangeSpreadsheetEditorProps = {
 
 type ManualRangeSuggestedDetectionMode = 'textStarts' | 'dataBlocks';
 
-const manualRangeSuggestedValueModeOptions: Array<{ value: ManualRangeInitialValueMode; label: string }> = [
+const manualRangeSuggestedValueModeOptions: Array<DropdownOption<ManualRangeInitialValueMode>> = [
   { value: 'empty', label: 'Sin valor' },
   { value: 'detectedText', label: 'Valor detectado' },
   { value: 'firstValueInColumn', label: 'Primer valor de columna' },
   { value: 'lastValueInColumn', label: 'Último valor de columna' },
+];
+
+const manualRangeSuggestedDetectionModeOptions: Array<DropdownOption<ManualRangeSuggestedDetectionMode>> = [
+  { value: 'textStarts', label: 'Cada dato inicia un rango' },
+  { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
 ];
 
 export function ManualRangeSpreadsheetEditor({
@@ -198,6 +204,13 @@ export function ManualRangeSpreadsheetEditor({
     }
     clearSelection();
     setRangeIdPendingDelete(null);
+  };
+  const closeSuggestedRangesModal = () => {
+    const clearedSuggestions = clearManualRangeSuggestedRanges();
+    setIsSuggestedRangesModalOpen(false);
+    setSuggestedRanges(clearedSuggestions.suggestedRanges);
+    setSelectedSuggestedRangeIds(clearedSuggestions.selectedSuggestedRangeIds);
+    setHasSearchedSuggestions(false);
   };
 
   return (
@@ -376,7 +389,7 @@ export function ManualRangeSpreadsheetEditor({
           setSelectedRangeId(rangeId);
           clearSelection();
         }}
-        onClose={() => setIsSuggestedRangesModalOpen(false)}
+        onClose={closeSuggestedRangesModal}
       />
       <ManualRangeClearAllRangesConfirmDialog
         open={isClearAllRangesConfirmOpen}
@@ -672,6 +685,12 @@ export function ManualRangeSuggestedRangesPanel({
   const [detectionMode, setDetectionMode] = useState<ManualRangeSuggestedDetectionMode>('textStarts');
   const [initialValueMode, setInitialValueMode] = useState<ManualRangeInitialValueMode>('empty');
   const [initialValueColumnId, setInitialValueColumnId] = useState(defaultInputColumnId);
+  const [isClearSuggestionsConfirmOpen, setIsClearSuggestionsConfirmOpen] = useState(false);
+  const [suggestedRangeIdPendingDelete, setSuggestedRangeIdPendingDelete] = useState<string | null>(null);
+  const inputColumnOptions = useMemo<DropdownOption[]>(() => inputColumns.map((inputColumn) => ({
+    value: inputColumn.id,
+    label: getManualRangeSpreadsheetColumnLabel(inputColumn),
+  })), [inputColumns]);
   const startRowNumber = parseManualRangeSuggestedRowInput(startRowInput);
   const endRowNumber = parseManualRangeSuggestedRowInput(endRowInput);
   const shouldShowInitialValueColumn = initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn';
@@ -756,6 +775,18 @@ export function ManualRangeSuggestedRangesPanel({
   const clearSelected = () => {
     onSelectedSuggestedRangeIdsChange(new Set());
   };
+  const clearSuggestions = () => {
+    const clearedSuggestions = clearManualRangeSuggestedRanges();
+    onSuggestedRangesChange(clearedSuggestions.suggestedRanges);
+    onSelectedSuggestedRangeIdsChange(clearedSuggestions.selectedSuggestedRangeIds);
+    setIsClearSuggestionsConfirmOpen(false);
+  };
+  const removeSuggestedRange = (rangeId: string) => {
+    const nextSuggestions = removeManualRangeSuggestedRange(suggestedRanges, selectedSuggestedRangeIds, rangeId);
+    onSuggestedRangesChange(nextSuggestions.suggestedRanges);
+    onSelectedSuggestedRangeIdsChange(nextSuggestions.selectedSuggestedRangeIds);
+    setSuggestedRangeIdPendingDelete(null);
+  };
   const toggleSuggestedRange = (rangeId: string) => {
     const nextSelectedIds = new Set(selectedSuggestedRangeIds);
     if (nextSelectedIds.has(rangeId)) {
@@ -787,16 +818,14 @@ export function ManualRangeSuggestedRangesPanel({
       </div>
       ) : null}
       <div className="manualRangeSuggestedControls manualRangeSuggestedControlsCompact">
-        <label className="field compact">
-          <span>{detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar inicios en'}</span>
-          <select value={inputColumnId} onChange={(event) => setInputColumnId(event.target.value)}>
-            {inputColumns.length === 0 ? (
-              <option value="">Sin columnas activas</option>
-            ) : inputColumns.map((inputColumn) => (
-              <option key={inputColumn.id} value={inputColumn.id}>{getManualRangeSpreadsheetColumnLabel(inputColumn)}</option>
-            ))}
-          </select>
-        </label>
+        <Dropdown
+          label={detectionMode === 'dataBlocks' ? 'Columna que marca el bloque' : 'Buscar inicios en'}
+          value={inputColumnId}
+          options={inputColumnOptions}
+          placeholder="Sin columnas activas"
+          className="manualRangeSuggestedControl"
+          onChange={setInputColumnId}
+        />
         <label className="field compact">
           <span>Desde fila</span>
           <input type="number" min="1" value={startRowInput} onChange={(event) => setStartRowInput(event.target.value)} />
@@ -805,43 +834,41 @@ export function ManualRangeSuggestedRangesPanel({
           <span>Hasta fila</span>
           <input type="number" min="1" value={endRowInput} onChange={(event) => setEndRowInput(event.target.value)} />
         </label>
-        <label className="field compact">
-          <span>Criterio</span>
-          <select value={detectionMode} onChange={(event) => setDetectionMode(event.target.value as ManualRangeSuggestedDetectionMode)}>
-            <option value="textStarts">Cada dato inicia un rango</option>
-            <option value="dataBlocks">Bloques consecutivos con datos</option>
-          </select>
-        </label>
-        <label className="field compact">
-          <span>Guardar como valor</span>
-          <select value={initialValueMode} onChange={(event) => setInitialValueMode(event.target.value as ManualRangeInitialValueMode)}>
-            {manualRangeSuggestedValueModeOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
+        <Dropdown
+          label="Criterio"
+          value={detectionMode}
+          options={manualRangeSuggestedDetectionModeOptions}
+          className="manualRangeSuggestedControl"
+          onChange={setDetectionMode}
+        />
+        <Dropdown
+          label="Guardar como valor"
+          value={initialValueMode}
+          options={manualRangeSuggestedValueModeOptions}
+          className="manualRangeSuggestedControl manualRangeSuggestedValueControl"
+          onChange={setInitialValueMode}
+        />
         {shouldShowInitialValueColumn ? (
-          <label className="field compact">
-            <span>Columna para valor</span>
-            <select value={initialValueColumnId} onChange={(event) => setInitialValueColumnId(event.target.value)}>
-              {inputColumns.length === 0 ? (
-                <option value="">Sin columnas activas</option>
-              ) : inputColumns.map((inputColumn) => (
-                <option key={inputColumn.id} value={inputColumn.id}>{getManualRangeSpreadsheetColumnLabel(inputColumn)}</option>
-              ))}
-            </select>
-          </label>
+          <Dropdown
+            label="Columna para valor"
+            value={initialValueColumnId}
+            options={inputColumnOptions}
+            placeholder="Sin columnas activas"
+            className="manualRangeSuggestedControl manualRangeSuggestedInitialValueColumnControl"
+            onChange={setInitialValueColumnId}
+          />
         ) : null}
-        <button
-          type="button"
-          className="iconButton manualRangeSuggestedSearchButton"
-          title="Buscar sugerencias"
-          aria-label="Buscar sugerencias"
-          disabled={!canSearch}
-          onClick={searchSuggestions}
-        >
-          <Search aria-hidden="true" focusable="false" size={18} />
-        </button>
+        <InfoTooltip content="Buscar sugerencias">
+          <ActionButton
+            icon={(props) => <Search {...props} />}
+            variant="icon"
+            size="sm"
+            className="manualRangeSuggestedSearchButton"
+            aria-label="Buscar sugerencias"
+            disabled={!canSearch}
+            onClick={searchSuggestions}
+          />
+        </InfoTooltip>
       </div>
       <p className="manualRangeSuggestedSummary">{suggestedSummary}</p>
       {suggestedWarnings.length > 0 ? (
@@ -869,6 +896,7 @@ export function ManualRangeSuggestedRangesPanel({
           <div className="manualRangeSuggestedActions">
             <button type="button" className="secondary sm" onClick={setAllSelected}>Seleccionar todas</button>
             <button type="button" className="secondary sm" onClick={clearSelected}>Limpiar selección</button>
+            <button type="button" className="secondary danger sm" onClick={() => setIsClearSuggestionsConfirmOpen(true)}>Borrar sugerencias</button>
             <button type="button" className="primary sm" disabled={selectedCount === 0} onClick={applySelected}>
               Aplicar seleccionadas
             </button>
@@ -881,7 +909,7 @@ export function ManualRangeSuggestedRangesPanel({
                 && configuredRange.startRowNumber <= range.endRowNumber
               ));
               return (
-                <label
+                <div
                   key={range.id}
                   className={[
                     'manualRangeSuggestedItem',
@@ -889,18 +917,119 @@ export function ManualRangeSuggestedRangesPanel({
                     overlapsConfiguredRange ? 'manualRangeSuggestedItemOverlap' : '',
                   ].filter(Boolean).join(' ')}
                 >
-                  <input type="checkbox" checked={isSelected} onChange={() => toggleSuggestedRange(range.id)} />
-                  <span className="manualRangeSuggestedItemTitle">{range.startRowNumber} - {range.endRowNumber}</span>
-                  <span className="manualRangeSuggestedItemSummary">{getManualRangeValueSummary(range, inputColumns)}</span>
+                  <label className="manualRangeSuggestedItemSelect">
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSuggestedRange(range.id)} />
+                    <span className="manualRangeSuggestedItemTitle">{range.startRowNumber} - {range.endRowNumber}</span>
+                    <span className="manualRangeSuggestedItemSummary">{getManualRangeValueSummary(range, inputColumns)}</span>
+                  </label>
                   {overlapsConfiguredRange ? <span className="manualRangeSuggestedItemWarning">Se superpone con un rango configurado</span> : null}
-                </label>
+                  <InfoTooltip content="Eliminar sugerencia">
+                    <ActionButton
+                      action="delete"
+                      variant="icon"
+                      size="sm"
+                      className="manualRangeSuggestedItemDeleteButton"
+                      aria-label={`Eliminar sugerencia ${range.startRowNumber} - ${range.endRowNumber}`}
+                      onClick={() => setSuggestedRangeIdPendingDelete(range.id)}
+                    />
+                  </InfoTooltip>
+                </div>
               );
             })}
           </div>
         </>
       ) : null}
+      <ManualRangeClearSuggestionsConfirmDialog
+        open={isClearSuggestionsConfirmOpen}
+        onCancel={() => setIsClearSuggestionsConfirmOpen(false)}
+        onConfirm={clearSuggestions}
+      />
+      <ManualRangeDeleteSuggestedRangeConfirmDialog
+        open={suggestedRangeIdPendingDelete !== null}
+        onCancel={() => setSuggestedRangeIdPendingDelete(null)}
+        onConfirm={() => {
+          if (suggestedRangeIdPendingDelete) {
+            removeSuggestedRange(suggestedRangeIdPendingDelete);
+          }
+        }}
+      />
     </section>
   );
+}
+
+export function ManualRangeClearSuggestionsConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <ConfirmDialog
+      open
+      title="Borrar sugerencias"
+      message="Se eliminarán las sugerencias generadas. Esta acción no afecta los rangos ya configurados."
+      cancelLabel="Cancelar"
+      confirmLabel="Borrar"
+      variant="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+export function ManualRangeDeleteSuggestedRangeConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <ConfirmDialog
+      open
+      title="Borrar sugerencia"
+      message="Se eliminará esta sugerencia. Esta acción no afecta los rangos ya configurados."
+      cancelLabel="Cancelar"
+      confirmLabel="Borrar"
+      variant="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+export function clearManualRangeSuggestedRanges() {
+  return {
+    suggestedRanges: [] as ManualRangeValue[],
+    selectedSuggestedRangeIds: new Set<string>(),
+  };
+}
+
+export function removeManualRangeSuggestedRange(
+  suggestedRanges: ManualRangeValue[],
+  selectedSuggestedRangeIds: Set<string>,
+  rangeId: string,
+) {
+  const nextSelectedIds = new Set(selectedSuggestedRangeIds);
+  nextSelectedIds.delete(rangeId);
+
+  return {
+    suggestedRanges: suggestedRanges.filter((range) => range.id !== rangeId),
+    selectedSuggestedRangeIds: nextSelectedIds,
+  };
 }
 
 export function parseManualRangeSuggestedRowInput(value: string): number | null {

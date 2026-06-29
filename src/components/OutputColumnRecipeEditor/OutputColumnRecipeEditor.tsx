@@ -462,7 +462,7 @@ export function ManualRangeRecipeEditor({
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
   return (
-    <div className="recipeSubBlock manualRangeEditor">
+    <div className="manualRangeEditor">
       {recipe.condition ? (
         <p className="manualRangeWarning">
           Esta configuración conserva una condición interna heredada: {describeManualRangeCondition(recipe, inputColumns)}. Para nuevas condiciones usá la condición general del paso.

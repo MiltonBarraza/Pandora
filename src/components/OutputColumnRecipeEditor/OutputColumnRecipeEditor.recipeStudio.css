@@ -19,6 +19,7 @@
   grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
+  width: 100%;
 }
 
 .composeTokenInspector,
@@ -42,6 +43,7 @@
   display: grid;
   gap: 14px;
   padding: 0;
+  width: 100%;
 }
 
 .recipeStudioMain > .recipeSubBlock {
@@ -479,6 +481,7 @@
   --recipe-control-height: 36px;
   --recipe-field-gap: 5px;
   --recipe-field-label-height: 18px;
+  width: 100%;
 }
 
 .constructorModalContent.recipeStudio .recipeField {
@@ -556,6 +559,11 @@
 
 .stepExtraFieldsRow:empty {
   display: none;
+}
+
+.stepExtraFieldsRow:has(> .manualRangeStepFields) {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
 }
 
 .stepExtraFieldsRow > .numericOperationFields,
