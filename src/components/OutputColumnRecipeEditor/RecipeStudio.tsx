@@ -103,7 +103,12 @@ export function RecipeStudioShell({
               onChange={onChange}
             />
           ) : recipe.type === 'manualRange' ? (
-            <RangeStudioPlaceholder />
+            renderManualRangeRecipeEditor({
+              recipe,
+              inputColumns,
+              manualRangeRows,
+              onChange,
+            })
           ) : (
             renderCustomValueEditor({
               recipe,

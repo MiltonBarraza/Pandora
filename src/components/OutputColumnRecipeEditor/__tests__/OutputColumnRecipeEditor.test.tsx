@@ -1112,9 +1112,12 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('recipeStudioModeBar');
     expect(markup).not.toContain('Asignar por rangos');
     expect(markup).not.toContain('Avanzado');
-    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('class="rangeStudio"');
     expect(markup).not.toContain('Valores por rangos');
-    expect(markup).not.toContain('Cerda china mango amarillo');
+    expect(markup).toContain('Cerda china mango amarillo');
   });
 
   it('prepares a recipe for each studio sidebar mode', () => {
@@ -1143,7 +1146,10 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('recipeStudioModeBar');
     expect(markup).not.toContain('Asignar por rangos');
     expect(markup).not.toContain('Avanzado');
-    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('class="rangeStudio"');
     expect(markup).not.toContain('Valores por rangos');
     expect(markup).toContain('Cancelar');
     expect(markup).toContain('Aplicar');
@@ -1203,7 +1209,10 @@ describe('constructor helpers', () => {
 
     expect(markup).not.toContain('recipeStudioModeBar');
     expect(markup).not.toContain('Asignar por rangos');
-    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('class="rangeStudio"');
     expect(markup).not.toContain('Valores por rangos');
     expect(markup).not.toContain('Generar desde textos');
     expect(markup).not.toContain('Generar rangos sugeridos');
@@ -1220,7 +1229,10 @@ describe('constructor helpers', () => {
 
     expect(markup).not.toContain('recipeStudioModeBar');
     expect(markup).not.toContain('Asignar por rangos');
-    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('class="rangeStudio"');
     expect(markup).not.toContain('Valores por rangos');
     expect(markup).not.toContain('Ayuda: valores por rangos');
     expect(markup).not.toContain('<p class="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>');
@@ -1262,7 +1274,10 @@ describe('constructor helpers', () => {
     });
 
     expect(markup).not.toContain('recipeStudioModeBar');
-    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('class="rangeStudio"');
     expect(markup).not.toContain('Borrar rangos');
   });
 
@@ -1287,7 +1302,10 @@ describe('constructor helpers', () => {
       ranges: [],
     });
     expect(markup).not.toContain('recipeStudioModeBar');
-    expect(markup).toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).toContain('manualRangeSpreadsheet');
+    expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
+    expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
+    expect(markup).not.toContain('class="rangeStudio"');
   });
 
   it('defaults suggested range initial values to empty', () => {
