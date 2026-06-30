@@ -312,7 +312,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            {modalCombineRecipe ? (
+            {isConstructorOpen && modalCombineRecipe ? (
               <RecipeStudioShell
                 recipe={modalCombineRecipe}
                 inputColumns={activeInputColumns}
@@ -379,7 +379,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            {modalManualRangeRecipe ? (
+            {isConstructorOpen && modalManualRangeRecipe ? (
               <RecipeStudioShell
                 recipe={modalManualRangeRecipe}
                 inputColumns={activeInputColumns}
@@ -1781,7 +1781,7 @@ function ConcatStepFields({
   );
 }
 
-function ComposePartEditor({
+export function ComposePartEditor({
   part,
   inputColumns,
   manualRangeRows,
@@ -1805,7 +1805,7 @@ function ComposePartEditor({
   );
 }
 
-function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeStepHeaderRenderProps) {
+export function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeStepHeaderRenderProps) {
   const configuredConcatStep = getConfiguredConcatStep(recipe);
   const step: TransformStep = configuredConcatStep ?? {
     id: 'compose-step',

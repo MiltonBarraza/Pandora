@@ -493,8 +493,20 @@ function ManualRangeSpreadsheetInspector({
   selectedRangeId: string | null;
   rangeItemRefs: Map<string, HTMLDivElement>;
 }) {
+  const [isOverlapSortConfirmOpen, setIsOverlapSortConfirmOpen] = useState(false);
   const overlappingRangeIds = getOverlappingManualRangeIds(recipe.ranges);
-  const sortRanges = () => onChange(sortManualRangeRecipeByStart(recipe));
+  const sortRanges = () => {
+    if (overlappingRangeIds.size > 0) {
+      setIsOverlapSortConfirmOpen(true);
+      return;
+    }
+
+    onChange(sortManualRangeRecipeByStart(recipe));
+  };
+  const confirmOverlapSort = () => {
+    setIsOverlapSortConfirmOpen(false);
+    onChange(sortManualRangeRecipeByStart(recipe));
+  };
 
   return (
     <aside className="manualRangeSpreadsheetSidePanel">
@@ -512,6 +524,15 @@ function ManualRangeSpreadsheetInspector({
           rangeItemRefs={rangeItemRefs}
         />
       </div>
+      <ConfirmDialog
+        open={isOverlapSortConfirmOpen}
+        title="Ordenar rangos solapados"
+        message="Hay rangos superpuestos. Como el primer rango coincidente tiene prioridad, ordenar por inicio puede cambiar el valor aplicado en algunas filas. ¿Querés ordenar de todos modos?"
+        cancelLabel="Cancelar"
+        confirmLabel="Ordenar"
+        onCancel={() => setIsOverlapSortConfirmOpen(false)}
+        onConfirm={confirmOverlapSort}
+      />
     </aside>
   );
 }

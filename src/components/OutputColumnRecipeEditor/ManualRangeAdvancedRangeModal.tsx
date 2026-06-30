@@ -39,6 +39,40 @@ function getRangeSnapshot(range: ManualRangeValue | null): string {
   return JSON.stringify(range);
 }
 
+export type ManualRangeBoundsValidation = {
+  startRowNumber: number | null;
+  endRowNumber: number | null;
+  error: string | null;
+};
+
+function parseRequiredPositiveInteger(value: string): number | null {
+  const normalizedValue = value.trim();
+  if (!/^\d+$/.test(normalizedValue)) {
+    return null;
+  }
+
+  const rowNumber = Number(normalizedValue);
+  return Number.isSafeInteger(rowNumber) && rowNumber >= 1 ? rowNumber : null;
+}
+
+export function validateManualRangeBounds(startRowInput: string, endRowInput: string): ManualRangeBoundsValidation {
+  if (startRowInput.trim() === '' || endRowInput.trim() === '') {
+    return { startRowNumber: null, endRowNumber: null, error: 'Completá las filas de inicio y fin.' };
+  }
+
+  const startRowNumber = parseRequiredPositiveInteger(startRowInput);
+  const endRowNumber = parseRequiredPositiveInteger(endRowInput);
+  if (startRowNumber === null || endRowNumber === null) {
+    return { startRowNumber, endRowNumber, error: 'Las filas deben ser números enteros mayores o iguales a 1.' };
+  }
+
+  if (startRowNumber > endRowNumber) {
+    return { startRowNumber, endRowNumber, error: 'La fila de inicio debe ser menor o igual a la fila de fin.' };
+  }
+
+  return { startRowNumber, endRowNumber, error: null };
+}
+
 export function ManualRangeAdvancedRangeModal({
   open,
   recipe,
@@ -50,10 +84,18 @@ export function ManualRangeAdvancedRangeModal({
   onRemove,
 }: ManualRangeAdvancedRangeModalProps) {
   const [draftRange, setDraftRange] = useState<ManualRangeValue | null>(() => (open && range ? cloneRange(range) : null));
+  const [startRowInput, setStartRowInput] = useState(() => (open && range ? String(range.startRowNumber) : ''));
+  const [endRowInput, setEndRowInput] = useState(() => (open && range ? String(range.endRowNumber) : ''));
   const [originalRangeSnapshot, setOriginalRangeSnapshot] = useState(() => (open && range ? getRangeSnapshot(range) : ''));
   const [pendingDelete, setPendingDelete] = useState(false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
-  const isDirty = pendingDelete || getRangeSnapshot(draftRange) !== originalRangeSnapshot;
+  const boundsValidation = validateManualRangeBounds(startRowInput, endRowInput);
+  const hasUncommittedRowInput = draftRange
+    ? startRowInput !== String(draftRange.startRowNumber)
+      || endRowInput !== String(draftRange.endRowNumber)
+    : false;
+  const isDirty = pendingDelete || hasUncommittedRowInput || getRangeSnapshot(draftRange) !== originalRangeSnapshot;
+  const canAccept = pendingDelete || boundsValidation.error === null;
 
   useEffect(() => {
     if (!open || !range) {
@@ -62,23 +104,26 @@ export function ManualRangeAdvancedRangeModal({
 
     const nextDraftRange = cloneRange(range);
     setDraftRange(nextDraftRange);
+    setStartRowInput(String(nextDraftRange.startRowNumber));
+    setEndRowInput(String(nextDraftRange.endRowNumber));
     setOriginalRangeSnapshot(getRangeSnapshot(nextDraftRange));
     setPendingDelete(false);
     setIsDiscardConfirmOpen(false);
   }, [open, range]);
 
   const modalHeaderDetails = useMemo(() => (
-    draftRange ? <span>Filas {draftRange.startRowNumber} - {draftRange.endRowNumber}</span> : null
-  ), [draftRange]);
+    <span>Filas {startRowInput || '—'} - {endRowInput || '—'}</span>
+  ), [endRowInput, startRowInput]);
   const coveredRows = useMemo(() => {
-    if (!draftRange) {
+    if (boundsValidation.error || boundsValidation.startRowNumber === null || boundsValidation.endRowNumber === null) {
       return [];
     }
 
-    const startRowNumber = Math.min(draftRange.startRowNumber, draftRange.endRowNumber);
-    const endRowNumber = Math.max(draftRange.startRowNumber, draftRange.endRowNumber);
-    return manualRangeRows.filter((row) => row.rowNumber >= startRowNumber && row.rowNumber <= endRowNumber);
-  }, [draftRange, manualRangeRows]);
+    return manualRangeRows.filter((row) => (
+      row.rowNumber >= boundsValidation.startRowNumber!
+      && row.rowNumber <= boundsValidation.endRowNumber!
+    ));
+  }, [boundsValidation.endRowNumber, boundsValidation.error, boundsValidation.startRowNumber, manualRangeRows]);
   const coveredColumns = useMemo(() => inputColumns.slice(0, 4), [inputColumns]);
 
   if (!open || !range || !draftRange) {
@@ -107,6 +152,12 @@ export function ManualRangeAdvancedRangeModal({
     });
   };
   const updateRowNumber = (field: 'startRowNumber' | 'endRowNumber', value: string) => {
+    if (field === 'startRowNumber') {
+      setStartRowInput(value);
+    } else {
+      setEndRowInput(value);
+    }
+
     const rowNumber = parseManualRangeRowInput(value);
     if (rowNumber === undefined) {
       return;
@@ -122,7 +173,15 @@ export function ManualRangeAdvancedRangeModal({
       return;
     }
 
-    onChange(updateManualRangeInRecipe(recipe, draftRange.id, draftRange));
+    if (boundsValidation.error || boundsValidation.startRowNumber === null || boundsValidation.endRowNumber === null) {
+      return;
+    }
+
+    onChange(updateManualRangeInRecipe(recipe, draftRange.id, {
+      ...draftRange,
+      startRowNumber: boundsValidation.startRowNumber,
+      endRowNumber: boundsValidation.endRowNumber,
+    }));
     onClose();
   };
 
@@ -151,7 +210,7 @@ export function ManualRangeAdvancedRangeModal({
               <button type="button" className="secondary" onClick={requestClose}>
                 Cancelar
               </button>
-              <button type="button" className="primary" onClick={accept}>
+              <button type="button" className="primary" disabled={!canAccept} onClick={accept}>
                 Aceptar
               </button>
             </div>
@@ -165,8 +224,11 @@ export function ManualRangeAdvancedRangeModal({
               <input
                 type="number"
                 min="1"
-                value={draftRange.startRowNumber}
+                step="1"
+                value={startRowInput}
                 disabled={pendingDelete}
+                aria-invalid={!pendingDelete && boundsValidation.error !== null}
+                aria-describedby="manual-range-bounds-validation"
                 onChange={(event) => updateRowNumber('startRowNumber', event.target.value)}
               />
             </label>
@@ -175,12 +237,24 @@ export function ManualRangeAdvancedRangeModal({
               <input
                 type="number"
                 min="1"
-                value={draftRange.endRowNumber}
+                step="1"
+                value={endRowInput}
                 disabled={pendingDelete}
+                aria-invalid={!pendingDelete && boundsValidation.error !== null}
+                aria-describedby="manual-range-bounds-validation"
                 onChange={(event) => updateRowNumber('endRowNumber', event.target.value)}
               />
             </label>
           </div>
+          {!pendingDelete ? (
+            <p
+              id="manual-range-bounds-validation"
+              className={`manualRangeAdvancedRangeModalValidation${boundsValidation.error ? ' manualRangeAdvancedRangeModalValidation-error' : ''}`}
+              role={boundsValidation.error ? 'alert' : undefined}
+            >
+              {boundsValidation.error ?? 'Inicio y fin usan números de fila reales del Excel.'}
+            </p>
+          ) : null}
           <ManualRangeCoveredRowsPreview rows={coveredRows} columns={coveredColumns} />
           {pendingDelete ? (
             <p className="manualRangeAdvancedRangeModalDeleteNotice">Este rango se eliminará al aceptar.</p>
