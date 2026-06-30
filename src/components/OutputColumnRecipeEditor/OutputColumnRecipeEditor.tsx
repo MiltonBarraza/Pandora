@@ -13,6 +13,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
@@ -34,7 +35,6 @@ import {
   buildSimpleCustomValueRecipeWithSteps,
   buildStepBasedCustomValueRecipe,
   canPreviewNumericValue,
-  changeStepMode,
   clearManualRangeValues,
   createDefaultConcatPart,
   createNoopStep,
@@ -59,7 +59,9 @@ import {
   hasRecipeEditorDraftChanges,
   isCustomValueConfigured,
   normalizeConcatPartsAfterReorder,
-  replaceStepType,
+  replaceWholeStep,
+  replaceWholeStepForAction,
+  replaceWholeStepForMode,
   shouldShowTextSourceFields,
   updateConcatPartPrimaryStep,
   updateConcatPartSteps,
@@ -144,6 +146,9 @@ export {
   normalizeConcatPartsAfterReorder,
   normalizeStepsForMode,
   outputRecipeTypeOptions,
+  replaceWholeStep,
+  replaceWholeStepForAction,
+  replaceWholeStepForMode,
   shouldShowTextSourceFields,
   updateConcatPartPrimaryStep,
   updateConcatPartSteps,
@@ -294,7 +299,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Vista previa del primer dato:</strong>
                 <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
               </div>
             )}
@@ -361,7 +366,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Vista previa del primer dato:</strong>
                 <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
               </div>
             )}
@@ -1338,6 +1343,7 @@ function StepBlocksEditor({
                           previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
                           onBaseInputColumnChange={onBaseInputColumnChange}
                           onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
+                          onReplace={(nextStep) => onStepsChange(replaceWholeStep(steps, step.id, nextStep))}
                           onDelete={() => deleteStep(index)}
                         />
                       </div>
@@ -1354,6 +1360,7 @@ function StepBlocksEditor({
           )}
           onBaseInputColumnChange={onBaseInputColumnChange}
           onChange={(patch) => onStepsChange(updateStep(steps, primaryStep.id, patch))}
+          onReplace={(nextStep) => onStepsChange(replaceWholeStep(steps, primaryStep.id, nextStep))}
           onDelete={() => undefined}
         />
       </div>
@@ -1379,6 +1386,7 @@ function StepBlocksEditor({
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
               onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
+              onReplace={(nextStep) => onStepsChange(replaceWholeStep(steps, step.id, nextStep))}
               onDelete={() => deleteStep(index)}
             />
           ))}
@@ -1406,6 +1414,7 @@ function SimpleStepBlock({
   studioActionContent,
   onBaseInputColumnChange,
   onChange,
+  onReplace,
   onDelete,
 }: {
   step: TransformStep;
@@ -1420,6 +1429,7 @@ function SimpleStepBlock({
   studioActionContent?: ReactNode;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onChange: (patch: Partial<TransformStep>) => void;
+  onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
   const [textSourceActionOverride, setTextSourceActionOverride] = useState<StepTextSourceAction | null>(null);
@@ -1439,8 +1449,8 @@ function SimpleStepBlock({
   };
   const updateTextSourceAction = (action: StepTextSourceAction) => {
     setTextSourceActionOverride(action);
-    onChange({
-      ...replaceStepType(step, 'noop', 'text', undefined, index),
+    onReplace({
+      ...replaceWholeStepForAction(step, 'noop', 'text', undefined, index),
       source: getStepSourceForTextAction(action, stepSource, inputColumns),
     });
   };
@@ -1465,7 +1475,7 @@ function SimpleStepBlock({
       {step.type === 'concat' || isManualRangeStep ? (
         <div className="concatStepTopRow">
           <div className="concatStepTopControls">
-            <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+            <StepModeSelect mode={stepMode} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
             {showStepTypeSelect ? (
               <StepTypeSelect
                 step={step}
@@ -1473,21 +1483,21 @@ function SimpleStepBlock({
                 textSourceAction={textSourceAction}
                 allowPreviousResultSource={index > 0}
                 onTextSourceAction={updateTextSourceAction}
-                onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+                onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
               />
             ) : null}
           </div>
         </div>
       ) : (
         <div className="stepPrimaryFieldsRow">
-          <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+          <StepModeSelect mode={stepMode} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
           <StepTypeSelect
             step={step}
             mode={stepMode}
             textSourceAction={textSourceAction}
             allowPreviousResultSource={index > 0}
             onTextSourceAction={updateTextSourceAction}
-            onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+            onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
           />
         </div>
       )}
@@ -1545,6 +1555,7 @@ function StepDetailPanel({
   previousResultPreviewValue,
   onSourceChange,
   onChange,
+  onReplace,
   onDelete,
   showSourceFields = true,
 }: {
@@ -1557,8 +1568,9 @@ function StepDetailPanel({
   stepSource?: StepSource;
   allowPreviousResultSource?: boolean;
   previousResultPreviewValue?: string | null;
-  onSourceChange?: (source: StepSource, stepPatch?: Partial<TransformStep>) => void;
+  onSourceChange?: (source: StepSource, nextStep?: TransformStep) => void;
   onChange: (patch: Partial<TransformStep>) => void;
+  onReplace: (step: TransformStep) => void;
   onDelete: () => void;
   showSourceFields?: boolean;
 }) {
@@ -1573,16 +1585,16 @@ function StepDetailPanel({
   const updateTextSourceAction = (action: StepTextSourceAction) => {
     setTextSourceActionOverride(action);
     const source = getStepSourceForTextAction(action, stepSource, inputColumns);
-    const patch = {
-      ...replaceStepType(step, 'noop', 'text', undefined, index),
+    const nextStep = {
+      ...replaceWholeStepForAction(step, 'noop', 'text', undefined, index),
       ...(onSourceChange ? {} : { source }),
     };
     if (onSourceChange) {
-      onSourceChange(source, patch);
+      onSourceChange(source, nextStep);
       return;
     }
 
-    onChange(patch);
+    onReplace(nextStep);
   };
   return (
     <div className="stepDetailPanel">
@@ -1596,7 +1608,7 @@ function StepDetailPanel({
         {step.type === 'concat' || isManualRangeStep ? (
           <div className="concatStepTopRow">
             <div className="concatStepTopControls">
-              <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+              <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
               {showStepTypeSelect ? (
                 <StepTypeSelect
                   step={step}
@@ -1605,14 +1617,14 @@ function StepDetailPanel({
                   textSourceAction={textSourceAction}
                   allowPreviousResultSource={Boolean(allowPreviousResultSource)}
                   onTextSourceAction={showSourceFields ? updateTextSourceAction : undefined}
-                  onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+                  onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
                 />
               ) : null}
             </div>
           </div>
         ) : (
           <div className="stepPrimaryFieldsRow">
-            <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onChange(changeStepMode(step, mode))} />
+            <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
             <StepTypeSelect
               step={step}
               mode={stepMode}
@@ -1620,7 +1632,7 @@ function StepDetailPanel({
               textSourceAction={textSourceAction}
               allowPreviousResultSource={Boolean(allowPreviousResultSource)}
               onTextSourceAction={showSourceFields ? updateTextSourceAction : undefined}
-              onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
+              onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
             />
           </div>
         )}
@@ -1826,8 +1838,7 @@ export function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeSte
   };
   const updateTextSourceAction = (action: StepTextSourceAction) => {
     updateStep({
-      ...step,
-      ...replaceStepType(step, 'noop', 'text', undefined, 0),
+      ...replaceWholeStepForAction(step, 'noop', 'text', undefined, 0),
       source: getStepSourceForTextAction(action, currentSource, inputColumns),
     }, 'text');
   };
@@ -1836,7 +1847,7 @@ export function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeSte
     <>
       <StepModeSelect
         mode={mode}
-        onChange={(nextMode) => updateStep({ ...step, ...changeStepMode(step, nextMode) }, nextMode)}
+        onChange={(nextMode) => updateStep(replaceWholeStepForMode(step, nextMode, 0), nextMode)}
       />
       <StepTypeSelect
         step={step}
@@ -1844,7 +1855,7 @@ export function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeSte
         allowConcat
         textSourceAction={getStepTextSourceAction(currentSource)}
         onTextSourceAction={updateTextSourceAction}
-        onChange={(type, operation) => updateStep({ ...step, ...replaceStepType(step, type, mode, operation, 0) }, mode)}
+        onChange={(type, operation) => updateStep(replaceWholeStepForAction(step, type, mode, operation, 0), mode)}
       />
     </>
   );
@@ -1878,9 +1889,9 @@ function ConcatPartStepsEditor({
   const updatePrimaryStep = (patch: Partial<TransformStep>) => {
     onChange(updateConcatPartPrimaryStep(steps, patch));
   };
-  const updatePrimaryStepSource = (source: StepSource, stepPatch?: Partial<TransformStep>) => {
-    if (stepPatch) {
-      onBaseSourceChange(source, updateConcatPartPrimaryStep(clearPrimaryStepSource(steps), stepPatch));
+  const updatePrimaryStepSource = (source: StepSource, nextPrimaryStep?: TransformStep) => {
+    if (nextPrimaryStep) {
+      onBaseSourceChange(source, [nextPrimaryStep, ...additionalSteps]);
       return;
     }
 
@@ -1920,6 +1931,7 @@ function ConcatPartStepsEditor({
         showSourceFields={showPrimarySourceFields}
         onSourceChange={updatePrimaryStepSource}
         onChange={updatePrimaryStep}
+        onReplace={(nextStep) => onChange([nextStep, ...additionalSteps])}
         onDelete={() => undefined}
       />
 
@@ -1941,6 +1953,10 @@ function ConcatPartStepsEditor({
                     allowPreviousResultSource
                     previousResultPreviewValue={previousResultPreviewValue}
                     onChange={(patch) => updateAdditionalStep(step.id, patch)}
+                    onReplace={(nextStep) => onChange([
+                      primaryStep,
+                      ...additionalSteps.map((item) => (item.id === step.id ? nextStep : item)),
+                    ])}
                     onDelete={() => deleteAdditionalStep(step.id)}
                   />
                 </div>
@@ -2069,12 +2085,12 @@ function StepFields({
   const sourceFieldsWithWarning = dateSourceWarning ? (
     <>
       {sourceFields}
-      <p className="columnValuePickerWarning">{dateSourceWarning}</p>
+      <WarningTooltip content={dateSourceWarning} />
     </>
   ) : sourceFields;
 
   if (step.type === 'noop') {
-    return sourceFieldsWithWarning;
+    return textSourceAction ? sourceFieldsWithWarning : null;
   }
 
   if (step.type === 'manualRange') {

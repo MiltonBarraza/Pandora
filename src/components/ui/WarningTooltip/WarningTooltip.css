@@ -1,0 +1,47 @@
+.warningTooltipTrigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  box-sizing: border-box;
+  color: var(--color-warning-text);
+  display: inline-flex;
+  height: 18px;
+  justify-content: center;
+  line-height: 0;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0;
+  width: 18px;
+}
+
+.modalDialogXl .constructorModalContent button.warningTooltipTrigger {
+  height: 18px;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0;
+  width: 18px;
+}
+
+.warningTooltipTrigger:hover:not(:disabled),
+.warningTooltipTrigger:focus-visible {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.warningTooltipTrigger:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.warningTooltipIcon {
+  display: block;
+  height: 15px;
+  width: 15px;
+}
+
+.warningTooltipBubble {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}

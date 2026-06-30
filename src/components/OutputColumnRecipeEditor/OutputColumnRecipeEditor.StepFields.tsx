@@ -5,8 +5,9 @@ import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../..
 import type { ConditionOperator, DateInputFormat, InputColumn, InputRow, StepOperand, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
-import { operationTypeLabel, pickCellTextLabel, recipeEditorPreviousResultHelpText, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { operationTypeLabel, pickCellTextLabel, recipeEditorPreviousResultHelpText, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import {
   conditionNeedsValue,
   conditionOperators,
@@ -103,10 +104,8 @@ export function StepTypeSelect({
         label="Qué quiero hacer"
         labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
         value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
-        options={[
-          { value: '', label: useValueAsIsLabel },
-          ...numericOperationOptions,
-        ]}
+        options={numericOperationOptions}
+        placeholder="Seleccionar acción"
         scrollStrategy="close"
         onChange={(value) => {
           const selection = getNumericStepTypeFromSelection(value);
@@ -120,7 +119,9 @@ export function StepTypeSelect({
   const textOptions = getTextStepActionOptions(allowPreviousResultSource, allowConcat);
   const visibleOptions = mode === 'text' && onTextSourceAction
     ? textOptions
-    : mode === 'conversion' ? getConversionStepActionOptions() : options;
+    : mode === 'conversion' ? getConversionStepActionOptions()
+      : mode === 'date' ? options.filter((option) => option.value !== 'noop')
+        : options;
   const value = mode === 'text' && step.type === 'noop' && textSourceAction ? textSourceAction : step.type;
 
   return (
@@ -131,6 +132,7 @@ export function StepTypeSelect({
         labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
         value={value}
         options={visibleOptions}
+        placeholder="Seleccionar acción"
         scrollStrategy="close"
         onChange={(type) => {
           if (mode === 'text' && onTextSourceAction && isStepTextSourceAction(type)) {
@@ -221,6 +223,9 @@ export function StepSourceFields({
     && safeSource.type === 'fixedText'
     && Boolean(safeSource.value.trim())
     && !isAllowedDateValue(safeSource.value);
+  const invalidDateSourceWarning = hasInvalidDateSource && safeSource.type === 'fixedText'
+    ? `Este valor no parece una fecha válida. Valor guardado: ${safeSource.value}`
+    : '';
   const sourceValue = effectiveColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
   const sourceOptions = usesTypedValuePicker || explicitTextValueSource
     ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource)
@@ -288,6 +293,7 @@ export function StepSourceFields({
           <span className="labelWithInfo">
             <span>{fixedTextInputLabel ?? (fixedTextInputType === 'date' ? 'Fecha fija' : fixedTextInputType === 'number' ? 'Valor fijo' : 'Texto fijo')}</span>
             <InfoTooltip content={fixedTextInputType === 'date' ? 'Fecha manual usada en este paso.' : fixedTextInputType === 'number' ? 'Número manual usado en este paso.' : 'Valor manual usado en este paso.'} />
+            {invalidDateSourceWarning ? <WarningTooltip content={invalidDateSourceWarning} /> : null}
           </span>
           <input
             type={fixedTextInputType}
@@ -295,11 +301,6 @@ export function StepSourceFields({
             onChange={(event) => onChange({ type: 'fixedText', value: event.target.value })}
           />
         </label>
-      ) : null}
-      {hasInvalidDateSource ? (
-        <p className="columnValuePickerWarning">
-          Este valor no parece una fecha válida. <span className="columnValuePickerInvalidValue">Valor guardado: {safeSource.type === 'fixedText' ? safeSource.value : ''}</span>
-        </p>
       ) : null}
     </>
   );
@@ -447,8 +448,8 @@ export function StepConditionFields({
           : 'Elige si este paso se aplica siempre o solo en algunos casos.'} />}
         value={condition ? 'conditional' : 'always'}
         options={[
-          { value: 'always', label: isManualRangeCondition ? 'Aplicar cada rango a todas sus filas' : 'Aplicar siempre' },
-          { value: 'conditional', label: isManualRangeCondition ? 'Aplicar cada rango sólo a filas que cumplan condición' : 'Aplicar solo si...' },
+          { value: 'always', label: isManualRangeCondition ? 'Aplicar a todas sus filas' : 'Aplicar siempre' },
+          { value: 'conditional', label: isManualRangeCondition ? 'Aplicar sólo a filas que cumplan condición' : 'Aplicar solo si...' },
         ]}
         scrollStrategy="close"
         onChange={(value) => {

@@ -557,6 +557,11 @@
   min-width: 0;
 }
 
+.constructorModalContent.recipeStudio .conditionFieldsRow {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  justify-content: start;
+}
+
 .stepExtraFieldsRow:empty {
   display: none;
 }

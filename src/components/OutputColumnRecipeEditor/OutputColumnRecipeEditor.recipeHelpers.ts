@@ -527,6 +527,16 @@ export function createNoopStep(modeHint: TransformStepMode = 'text'): TransformS
 }
 
 function createTextOperationStep(type: TransformStepType, condition?: TransformCondition, stepIndex = 0): TransformStep {
+  if (type === 'noop') {
+    return {
+      id: crypto.randomUUID(),
+      mode: 'text',
+      type,
+      ...(condition ? { condition } : {}),
+      applyToEmptyValues: false,
+    };
+  }
+
   if (type === 'concat') {
     return {
       id: crypto.randomUUID(),
@@ -543,9 +553,6 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
       id: crypto.randomUUID(),
       mode: 'date',
       type,
-      value: '',
-      searchValue: '',
-      replaceValue: '',
       dateInputFormat: defaultDateInputFormat,
       dateOutputFormat: defaultDateOutputFormat,
       dateInvalidFallback: defaultDateInvalidFallback,
@@ -621,6 +628,81 @@ export function replaceStepType(
     mode,
     applyToEmptyValues: step.applyToEmptyValues,
   };
+}
+
+export function replaceWholeStep(
+  steps: TransformStep[],
+  id: string,
+  nextStep: TransformStep,
+) {
+  return steps.map((step) => (step.id === id ? nextStep : step));
+}
+
+export function replaceWholeStepForAction(
+  step: TransformStep,
+  type: TransformStepType,
+  mode: TransformStepMode,
+  operation?: NonNullable<TransformStep['operation']>,
+  stepIndex = 0,
+): TransformStep {
+  if (
+    step.type === type
+    && getStepMode(step, mode) === mode
+    && (type !== 'numericOperation' || step.operation === (operation ?? step.operation ?? 'add'))
+  ) {
+    return { ...step, mode };
+  }
+
+  if (type === 'numericOperation') {
+    return {
+      ...createNumericOperationStep(operation),
+      id: step.id,
+      mode,
+      condition: step.condition,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  if (type === 'manualRange') {
+    return {
+      ...createManualRangeStep(step.condition),
+      id: step.id,
+      mode,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  return {
+    ...createTextOperationStep(type, step.condition, stepIndex),
+    id: step.id,
+    mode,
+    applyToEmptyValues: step.applyToEmptyValues ?? false,
+  };
+}
+
+export function replaceWholeStepForMode(
+  step: TransformStep,
+  mode: TransformStepMode,
+  stepIndex = 0,
+): TransformStep {
+  const currentMode = getStepMode(step);
+  if (currentMode === mode && isStepAllowedForMode(step.type, mode)) {
+    return { ...step, mode };
+  }
+
+  if (mode === 'manualRange') {
+    return {
+      ...createManualRangeStep(step.condition),
+      id: step.id,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  if (isStepAllowedForMode(step.type, mode) && step.type !== 'noop') {
+    return replaceWholeStepForAction(step, step.type, mode, step.operation, stepIndex);
+  }
+
+  return createNoopStepFromStep(step, mode);
 }
 
 export function normalizeStepsForMode(steps: TransformStep[], fallbackMode: TransformStepMode): TransformStep[] {

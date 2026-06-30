@@ -298,19 +298,6 @@ function ComposeValueStudio({
   const reorderTokens = (nextTokens: ComposeToken[]) => {
     onChange(reorderComposeRecipeParts(recipe, nextTokens.map((token) => token.id)));
   };
-  const duplicateToken = (tokenId: string) => {
-    const token = tokens.find((item) => item.id === tokenId);
-    const parts = getComposeRecipeParts(recipe);
-    const part = token ? parts[token.index] : undefined;
-    if (!token || !part) {
-      return;
-    }
-
-    const nextPart = cloneComposePart(part);
-    const nextParts = [...parts.slice(0, token.index + 1), nextPart, ...parts.slice(token.index + 1)];
-    onChange(updateComposeRecipeParts(recipe, nextParts));
-    onSelectedTokenChange(nextPart.id);
-  };
   const removeToken = (tokenId: string) => {
     const token = tokens.find((item) => item.id === tokenId);
     if (!token) {
@@ -360,7 +347,6 @@ function ComposeValueStudio({
           emptyMessage="Agregá una parte para empezar."
           onSelect={onSelectedTokenChange}
           onReorder={reorderTokens}
-          onDuplicate={duplicateToken}
           onRemove={removeToken}
         />
       </section>
@@ -383,7 +369,6 @@ function CompositionTokenList({
   emptyMessage,
   onSelect,
   onReorder,
-  onDuplicate,
   onRemove,
 }: {
   tokens: ComposeToken[];
@@ -392,7 +377,6 @@ function CompositionTokenList({
   emptyMessage: string;
   onSelect: (tokenId: string) => void;
   onReorder: (tokens: ComposeToken[]) => void;
-  onDuplicate: (tokenId: string) => void;
   onRemove: (tokenId: string) => void;
 }) {
   if (tokens.length === 0) {
@@ -417,9 +401,6 @@ function CompositionTokenList({
                 onClick={() => onSelect(token.id)}
               />
               <div className="compositionTokenActions">
-                <InfoTooltip content="Duplicar parte">
-                  <ActionButton action="duplicate" variant="icon" size="sm" aria-label="Duplicar parte" onClick={() => onDuplicate(token.id)} />
-                </InfoTooltip>
                 <InfoTooltip content="Eliminar parte">
                   <DeleteButton title="Eliminar parte" onClick={() => onRemove(token.id)} />
                 </InfoTooltip>
@@ -962,12 +943,6 @@ function createComposeInputPart(inputColumnId: string, id: string = crypto.rando
 
 function createComposeTextPart(value: string, id: string = crypto.randomUUID()): RecipePart {
   return { id, type: 'text', value };
-}
-
-function cloneComposePart(part: RecipePart): RecipePart {
-  return part.type === 'input'
-    ? { ...part, id: crypto.randomUUID(), steps: part.steps ? part.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : undefined }
-    : { ...part, id: crypto.randomUUID(), steps: part.steps ? part.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : undefined };
 }
 
 function getComposePreviewRows(

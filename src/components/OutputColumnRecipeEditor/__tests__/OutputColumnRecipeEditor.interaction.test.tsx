@@ -185,6 +185,55 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(document.querySelector('.manualRangeSpreadsheet')).toBeNull();
   });
 
+  it('cleans incompatible date fields when switching back to text mode', async () => {
+    const user = userEvent.setup();
+    const dateColumn: OutputColumn = {
+      id: 'output-date-cleanup',
+      label: 'Fecha limpia',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: 'date-step',
+          mode: 'date',
+          type: 'formatDate',
+          source: { type: 'input', inputColumnId: 'input-code' },
+          dateInputFormat: 'YYYY-MM-DD',
+          dateOutputFormat: 'DD/MM/YYYY',
+          dateInvalidFallback: 'fixedText',
+          dateInvalidFallbackText: 'Sin fecha',
+        }],
+      },
+    };
+    render(<ControlledRecipeEditor initialColumn={dateColumn} />);
+
+    await openRecipeEditor(user);
+    expect(screen.getByText('Formato de salida')).not.toBeNull();
+    const operationButtons = screen.getAllByRole('button', { name: 'Tipo de operación' });
+    await user.click(operationButtons[operationButtons.length - 1]);
+    await user.click(screen.getByRole('option', { name: 'Trabajar con texto' }));
+
+    expect(screen.queryByText('Formato de entrada')).toBeNull();
+    expect(screen.queryByText('Formato de salida')).toBeNull();
+    expect(screen.queryByText('Si no es una fecha válida')).toBeNull();
+    expect(screen.queryByText('Qué fecha usar')).toBeNull();
+    expect(screen.queryByText('Qué valor usar')).toBeNull();
+    expect(screen.queryByText('Buscar textos en')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0]).toEqual({
+      id: 'date-step',
+      mode: 'text',
+      type: 'noop',
+      applyToEmptyValues: false,
+    });
+  });
+
   it('keeps previous result selected and allows choosing a useful transformation', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -209,7 +258,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     );
 
     expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
-    expect(screen.getByText('Seleccionar')).not.toBeNull();
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
     expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Qué quiero hacer' }));
     expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();

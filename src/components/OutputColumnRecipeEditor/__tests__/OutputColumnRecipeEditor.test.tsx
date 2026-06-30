@@ -6,7 +6,7 @@ import { buildInputRows, buildProcessedRows } from '../../../domain/import/outpu
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
-import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, rangeValueModeOptions, rangeValueStepTypes, rangeValueTextSourceActionOptions } from '../RangeValueEditor';
@@ -454,6 +454,37 @@ describe('constructor helpers', () => {
     expect(getStepTypesForMode('conversion').map((option) => option.value)).toContain('noop');
   });
 
+  it('does not expose noop as a dead visible action for typed modes', () => {
+    const numberMarkup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'number-noop', mode: 'number', type: 'noop' }}
+        mode="number"
+        onChange={() => undefined}
+      />,
+    );
+    const dateMarkup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'date-noop', mode: 'date', type: 'noop' }}
+        mode="date"
+        onChange={() => undefined}
+      />,
+    );
+    const conversionMarkup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'conversion-noop', mode: 'conversion', type: 'noop' }}
+        mode="conversion"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(numberMarkup).not.toContain('Usar valor tal cual');
+    expect(dateMarkup).not.toContain('Usar valor tal cual');
+    expect(conversionMarkup).not.toContain('Usar valor tal cual');
+    expect(numberMarkup).toContain('Seleccionar acción');
+    expect(dateMarkup).toContain('Seleccionar acción');
+    expect(conversionMarkup).toContain('Seleccionar acción');
+  });
+
   it('renders compose studio as horizontal parts with selected-part configuration', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-compose',
@@ -503,7 +534,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Columna de entrada');
     expect(markup).toContain('Columna');
     expect(markup).toContain('class="dragHandle"');
-    expect(markup).toContain('aria-label="Duplicar parte"');
+    expect(markup).not.toContain('aria-label="Duplicar parte"');
     expect(markup).toContain('aria-label="Eliminar parte"');
     expect(markup).not.toContain('Izquierda');
     expect(markup).not.toContain('Derecha');
@@ -600,6 +631,8 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Paso 1 · Sin configurar');
     expect(markup).not.toContain('Paso 1 · Usar valor tal cual');
+    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).not.toContain('Qué valor usar');
   });
 
   it('shows per-step conditions for the selected compose part', () => {
@@ -726,7 +759,6 @@ describe('constructor helpers', () => {
 
     const firstStep = markup.slice(markup.indexOf('Paso 1'), markup.indexOf('Paso 2'));
     expect(firstStep).not.toContain('Usar resultado anterior');
-    expect(markup.slice(markup.indexOf('Paso 2'))).toContain('Usar resultado anterior');
     expect(markup).toContain('Paso 2 · Sin configurar');
     expect(markup).toContain('concatPartStepDivider');
   });
@@ -978,14 +1010,13 @@ describe('constructor helpers', () => {
         allowPreviousResult={false}
         valueKind="date"
         fixedTextInputType="date"
-        columnTextPickerOpen
         onChange={() => undefined}
       />,
     );
 
-    expect(markup).toContain('Este valor no parece una fecha válida.');
-    expect(markup).toContain('Valor guardado: no-es-fecha');
-    expect(markup).toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(markup).toContain('warningTooltipTrigger');
+    expect(markup).toContain('aria-label="Este valor no parece una fecha válida. Valor guardado: no-es-fecha"');
+    expect(markup).not.toContain('columnValuePickerWarning');
     expect(markup).not.toContain('>no-es-fecha</button>');
   });
 
@@ -1906,9 +1937,9 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(alwaysMarkup).toContain('Aplicar cada rango a todas sus filas');
+    expect(alwaysMarkup).toContain('Aplicar a todas sus filas');
     expect(conditionalMarkup).toContain('Aplicar el valor');
-    expect(conditionalMarkup).toContain('Aplicar cada rango sólo a filas que cumplan condición');
+    expect(conditionalMarkup).toContain('Aplicar sólo a filas que cumplan condición');
     expect(conditionalMarkup).toContain('A');
     expect(conditionalMarkup).toContain('no esta vacio');
   });
@@ -5331,6 +5362,112 @@ describe('constructor helpers', () => {
     });
     expect(changeStepMode({ id: 'text', type: 'toText', mode: 'conversion' }, 'conversion')).toEqual({ mode: 'conversion' });
     expect(changeStepMode({ id: 'date', type: 'formatDate', mode: 'date' }, 'date')).toEqual({ mode: 'date' });
+  });
+
+  it('creates clean whole steps when changing operation mode', () => {
+    const dateToText = replaceWholeStepForMode({
+      id: 'date',
+      mode: 'date',
+      type: 'formatDate',
+      source: { type: 'fixedText', value: '2026-06-28' },
+      dateInputFormat: 'YYYY-MM-DD',
+      dateOutputFormat: 'DD/MM/YYYY',
+      dateInvalidFallback: 'fixedText',
+      dateInvalidFallbackText: 'Sin fecha',
+      condition: { target: 'input', columnId: 'input-code', operator: 'isNotEmpty' },
+    }, 'text');
+    expect(dateToText).toEqual({
+      id: 'date',
+      mode: 'text',
+      type: 'noop',
+      condition: { target: 'input', columnId: 'input-code', operator: 'isNotEmpty' },
+      applyToEmptyValues: false,
+    });
+    expect(dateToText).not.toHaveProperty('source');
+    expect(dateToText).not.toHaveProperty('dateInputFormat');
+    expect(dateToText).not.toHaveProperty('dateInvalidFallback');
+
+    const numberToText = replaceWholeStepForMode({
+      id: 'number',
+      mode: 'number',
+      type: 'numericOperation',
+      operation: 'addPercentage',
+      amount: 10,
+      rounding: 2,
+      leftOperand: { type: 'previousResult' },
+      rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
+    }, 'text');
+    expect(numberToText).toEqual({
+      id: 'number',
+      mode: 'text',
+      type: 'noop',
+      applyToEmptyValues: false,
+    });
+    expect(numberToText).not.toHaveProperty('operation');
+    expect(numberToText).not.toHaveProperty('amount');
+    expect(numberToText).not.toHaveProperty('rounding');
+    expect(numberToText).not.toHaveProperty('leftOperand');
+
+    const textToRange = replaceWholeStepForMode({
+      id: 'text',
+      mode: 'text',
+      type: 'replaceText',
+      source: { type: 'fixedText', value: 'Base' },
+      searchValue: 'A',
+      replaceValue: 'B',
+    }, 'manualRange');
+    expect(textToRange).toMatchObject({
+      id: 'text',
+      mode: 'manualRange',
+      type: 'manualRange',
+      ranges: [],
+      applyToEmptyValues: false,
+    });
+    expect(textToRange).not.toHaveProperty('source');
+    expect(textToRange).not.toHaveProperty('searchValue');
+  });
+
+  it('creates clean whole steps when changing the main action', () => {
+    const textToDate = replaceWholeStepForAction({
+      id: 'replace',
+      mode: 'text',
+      type: 'replaceText',
+      source: { type: 'fixedText', value: 'Base' },
+      value: 'legacy',
+      searchValue: 'A',
+      replaceValue: 'B',
+    }, 'formatDate', 'date');
+    expect(textToDate).toMatchObject({
+      id: 'replace',
+      mode: 'date',
+      type: 'formatDate',
+      dateInputFormat: 'DD/MM/YYYY',
+      dateOutputFormat: 'YYYY-MM-DD',
+      dateInvalidFallback: 'original',
+      dateInvalidFallbackText: '',
+      applyToEmptyValues: false,
+    });
+    expect(textToDate).not.toHaveProperty('source');
+    expect(textToDate).not.toHaveProperty('searchValue');
+    expect(textToDate).not.toHaveProperty('replaceValue');
+
+    const dateToFixedText = {
+      ...replaceWholeStepForAction({
+        id: 'date',
+        mode: 'date',
+        type: 'formatDate',
+        source: { type: 'fixedText', value: '2026-06-28' },
+        dateInputFormat: 'YYYY-MM-DD',
+      }, 'noop', 'text'),
+      source: { type: 'fixedText' as const, value: '' },
+    };
+    expect(dateToFixedText).toEqual({
+      id: 'date',
+      mode: 'text',
+      type: 'noop',
+      applyToEmptyValues: false,
+      source: { type: 'fixedText', value: '' },
+    });
   });
 
   it('infers missing modes without forcing all steps to recipe mode', () => {
