@@ -404,7 +404,6 @@ function CompositionTokenList({
       <SortableList
         items={tokens}
         axis="horizontal"
-        handleContent={<span aria-hidden="true">::</span>}
         handleLabel="Arrastrar parte"
         onChange={onReorder}
         renderItem={(token, dragHandle) => (

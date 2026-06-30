@@ -1,8 +1,10 @@
 /* Isolated manual-range spreadsheet UI, ported from modal v5. */
 .manualRangeSpreadsheet {
   --manual-range-control-height: 40px;
-  --manual-range-neutral-highlight-bg: var(--color-bg-surface-subtle);
-  --manual-range-neutral-highlight-border: var(--color-border-control);
+  --manual-range-hover-bg: var(--color-bg-surface-subtle);
+  --manual-range-configured-bg: var(--color-accent-bg-soft);
+  --manual-range-configured-border: var(--color-accent-border);
+  --manual-range-selection-bg: var(--color-accent-bg);
   --manual-range-active-border: var(--color-focus-border);
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
@@ -168,15 +170,15 @@
 }
 
 .manualRangeSpreadsheetRow:hover {
-  background: var(--color-bg-surface-subtle);
+  background: var(--manual-range-hover-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow:hover td {
-  background: var(--color-bg-surface-subtle);
+  background: var(--manual-range-hover-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow:hover .manualRangeSpreadsheetRowNumberCell {
-  background: var(--color-bg-surface-subtle);
+  background: var(--manual-range-hover-bg);
 }
 
 .manualRangeSpreadsheetRow-suggested {
@@ -202,29 +204,29 @@
 }
 
 .manualRangeSpreadsheetRow-covered {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-configured-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-covered td {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-configured-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-covered .manualRangeSpreadsheetRowNumber {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-configured-bg);
   color: var(--color-text-primary);
 }
 
 .manualRangeSpreadsheetRow-rangeStart > * {
-  border-top: 2px solid var(--manual-range-neutral-highlight-border);
+  border-top: 2px solid var(--manual-range-configured-border);
 }
 
 .manualRangeSpreadsheetRow-rangeEnd > * {
-  border-bottom: 2px solid var(--manual-range-neutral-highlight-border);
+  border-bottom: 2px solid var(--manual-range-configured-border);
 }
 
 .manualRangeSpreadsheetRow-rangeStart .manualRangeSpreadsheetRowNumberCell,
 .manualRangeSpreadsheetRow-rangeEnd .manualRangeSpreadsheetRowNumberCell {
-  border-left: 3px solid var(--manual-range-neutral-highlight-border);
+  border-left: 3px solid var(--manual-range-configured-border);
 }
 
 .manualRangeSpreadsheetRow-activeRangeStart > * {
@@ -244,20 +246,20 @@
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-activeRange .manualRangeSpreadsheetRowNumber {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-configured-bg);
   color: var(--color-text-primary);
 }
 
 .manualRangeSpreadsheetRow-selectionInside {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-selection-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionInside td {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-selection-bg);
 }
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionInside .manualRangeSpreadsheetRowNumber {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-selection-bg);
 }
 
 .manualRangeSpreadsheetRow-selectionStart,
@@ -267,7 +269,7 @@
 
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionStart .manualRangeSpreadsheetRowNumber,
 .manualRangeSpreadsheetTable tbody .manualRangeSpreadsheetRow-selectionEnd .manualRangeSpreadsheetRowNumber {
-  background: var(--manual-range-neutral-highlight-bg);
+  background: var(--manual-range-selection-bg);
   color: var(--color-text-primary);
 }
 
@@ -845,9 +847,22 @@
 }
 
 .manualRangeCoveredRowsHeader {
+  align-items: start;
+  display: flex;
+  gap: 3px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.manualRangeCoveredRowsHeader > div {
   display: grid;
   gap: 3px;
-  min-width: 0;
+}
+
+.manualRangeCoveredRowsColumnToggle {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  min-height: 18px;
 }
 
 .manualRangeCoveredRowsHeader strong {
@@ -896,8 +911,27 @@
 }
 
 .manualRangeCoveredRowsTable tbody th {
+  background: var(--color-bg-surface);
   color: var(--color-text);
   font-weight: 800;
+  position: static;
+}
+
+.manualRangeCoveredRowsTable tbody .manualRangeCoveredRowsRow:hover th,
+.manualRangeCoveredRowsTable tbody .manualRangeCoveredRowsRow:hover td {
+  background: var(--color-bg-surface-subtle);
+}
+
+.manualRangeCoveredRowsTable .manualRangeCoveredRowsRowNumberHeader,
+.manualRangeCoveredRowsTable .manualRangeCoveredRowsRowNumberCell {
+  max-width: 56px;
+  min-width: 56px;
+  width: 56px;
+}
+
+.manualRangeCoveredRowsResultCell {
+  color: var(--color-text-secondary);
+  font-weight: 700;
 }
 
 .manualRangeAdvancedRangeModalActions {
@@ -1120,6 +1154,12 @@
   .manualRangeAdvancedRangeModalActions,
   .manualRangeColumnsActions {
     justify-content: flex-start;
+  }
+
+  .manualRangeCoveredRowsHeader {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .manualRangeAdvancedRangeModal .rangeValueConcatWorkspace {

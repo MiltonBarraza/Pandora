@@ -362,6 +362,8 @@ export function ManualRangeSpreadsheetEditor({
         range={advancedRange}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        visibleColumnIds={visibleColumnIds}
+        showResultColumn={showResultColumn}
         onChange={onChange}
         onClose={() => setAdvancedRangeId(null)}
         onRemove={() => {
@@ -603,8 +605,8 @@ export function ManualRangePreviewPanel({
                 }}
               >
                 <span className="manualRangeSpreadsheetRangeItemTitle">Fila {row.rowNumber}</span>
-                <span className="manualRangePreviewValue">Resultado: {row.value || 'â€”'}</span>
-                <span className="manualRangeSpreadsheetRangeItemSummary">Rango: {row.rangeLabel ?? 'â€”'}</span>
+                <span className="manualRangePreviewValue">Resultado: {row.value || '—'}</span>
+                <span className="manualRangeSpreadsheetRangeItemSummary">Rango: {row.rangeLabel ?? '—'}</span>
               </button>
             );
           })}

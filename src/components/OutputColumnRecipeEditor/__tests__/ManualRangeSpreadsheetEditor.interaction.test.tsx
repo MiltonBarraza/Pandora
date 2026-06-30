@@ -17,11 +17,19 @@ const inputColumns: InputColumn[] = [{
   active: true,
   sampleValues: [],
   nonEmptyCount: 2,
+}, {
+  id: 'input-name',
+  columnIndex: 1,
+  columnLetter: 'B',
+  label: 'Nombre',
+  active: true,
+  sampleValues: [],
+  nonEmptyCount: 1,
 }];
 
 const manualRangeRows: InputRow[] = [
-  { rowNumber: 8, values: { 'input-code': 'P-1' } },
-  { rowNumber: 12, values: { 'input-code': 'P-2' } },
+  { rowNumber: 8, values: { 'input-code': 'P-1', 'input-name': 'Pincel' } },
+  { rowNumber: 12, values: { 'input-code': 'P-2', 'input-name': '' } },
 ];
 
 const range = {
@@ -67,6 +75,8 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
         range={range}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
         onChange={onChange}
         onClose={() => undefined}
         onRemove={() => undefined}
@@ -96,6 +106,36 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
       type: 'manualRange',
       ranges: [expect.objectContaining({ id: range.id, startRowNumber: 9, endRowNumber: 12 })],
     });
+  });
+
+  it('mirrors main columns and result, then toggles to all columns without mojibake placeholders', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    const table = document.querySelector('.manualRangeCoveredRowsTable') as HTMLTableElement;
+    expect(table).not.toBeNull();
+    expect(Array.from(table.querySelectorAll('thead th')).map((cell) => cell.textContent)).toEqual(['Fila', 'A', 'Resultado']);
+    expect(table.textContent).toContain('A');
+
+    await user.click(screen.getByLabelText('Usar mismas columnas que la tabla principal'));
+    expect(Array.from(table.querySelectorAll('thead th')).map((cell) => cell.textContent)).toEqual(['Fila', 'A', 'B', 'Resultado']);
+    const secondRowCells = table.querySelectorAll('tbody tr')[1].querySelectorAll('td');
+    expect(secondRowCells[1].textContent).toBe('');
+    expect(table.textContent).not.toMatch(/â|Ã¢|Â/);
   });
 });
 

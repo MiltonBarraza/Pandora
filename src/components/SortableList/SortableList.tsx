@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 
 type SortableAxis = 'vertical' | 'horizontal';
 
@@ -76,7 +77,7 @@ function SortableRow({
       {...attributes}
       {...listeners}
     >
-      {handleContent ?? '☰'}
+      {handleContent ?? <AppIcon name="reorder" aria-hidden="true" focusable="false" />}
     </button>
   );
 

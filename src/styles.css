@@ -1235,6 +1235,8 @@ tbody tr:hover {
 
 .constructorSummary {
   align-items: center;
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
@@ -1503,13 +1505,13 @@ tbody tr:hover {
   font-size: 0.88rem;
 }
 
-.modalDialogXl .constructorModalContent input,
+.modalDialogXl .constructorModalContent input:not([type='checkbox']):not([type='radio']),
 .modalDialogXl .constructorModalContent button.dropdownTrigger {
   height: 36px;
   min-height: 36px;
 }
 
-.modalDialogXl .constructorModalContent input {
+.modalDialogXl .constructorModalContent input:not([type='checkbox']):not([type='radio']) {
   padding-inline: 9px;
 }
 

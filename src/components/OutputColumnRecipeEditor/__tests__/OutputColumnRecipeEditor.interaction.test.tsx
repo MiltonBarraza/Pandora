@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InputColumn, InputRow, OutputColumn } from '../../../types/import';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor';
+import { StepSourceFields, StepTypeSelect } from '../OutputColumnRecipeEditor.StepFields';
 
 const inputColumns: InputColumn[] = [{
   id: 'input-code',
@@ -182,5 +183,39 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     expect(screen.getByLabelText('Partes de combinación')).not.toBeNull();
     expect(document.querySelector('.manualRangeSpreadsheet')).toBeNull();
+  });
+
+  it('keeps previous result selected and allows choosing a useful transformation', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onTextSourceAction = vi.fn();
+    render(
+      <>
+        <StepTypeSelect
+          step={{ id: 'previous-step', mode: 'text', type: 'noop', source: { type: 'previousResult' } }}
+          mode="text"
+          allowPreviousResultSource
+          onTextSourceAction={onTextSourceAction}
+          onChange={onChange}
+        />
+        <StepSourceFields
+          source={{ type: 'previousResult' }}
+          inputColumns={inputColumns}
+          allowPreviousResult
+          explicitTextValueSource
+          onChange={() => undefined}
+        />
+      </>,
+    );
+
+    expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
+    expect(screen.getByText('Seleccionar')).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Qué quiero hacer' }));
+    expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Convertir a mayúsculas' }));
+
+    expect(onChange).toHaveBeenCalledWith('uppercase');
+    expect(onTextSourceAction).not.toHaveBeenCalled();
   });
 });

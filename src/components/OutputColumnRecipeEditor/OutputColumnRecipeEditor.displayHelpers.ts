@@ -143,7 +143,7 @@ function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = [
   if (step.type === 'noop') {
     if (step.source?.type === 'fixedText') return ['usar texto fijo'];
     if (step.source?.type === 'input') return ['usar columna de entrada'];
-    if (step.source?.type === 'previousResult') return ['usar resultado anterior'];
+    if (step.source?.type === 'previousResult') return ['sin configurar'];
     return ['usar valor tal cual'];
   }
 
@@ -254,7 +254,7 @@ export function getRecipeStepTitle(
   if (step.type === 'noop') {
     if (source?.type === 'fixedText') return 'Usar texto fijo';
     if (source?.type === 'input' && source.inputColumnId) return 'Usar columna de entrada';
-    if (source?.type === 'previousResult') return 'Usar resultado anterior';
+    if (source?.type === 'previousResult') return 'Sin configurar';
     return 'Sin configurar';
   }
 

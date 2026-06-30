@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import {
   getManualRangeSpreadsheetCellValue,
   getManualRangeSpreadsheetColumnLabel,
+  getManualRangePreviewValueForRow,
   removeManualRangeFromRecipe,
   updateManualRangeInRecipe,
   type ManualRangeRecipe,
@@ -26,6 +27,8 @@ type ManualRangeAdvancedRangeModalProps = {
   range: ManualRangeValue | null;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  visibleColumnIds: string[];
+  showResultColumn: boolean;
   onChange: (recipe: ManualRangeRecipe) => void;
   onClose: () => void;
   onRemove: () => void;
@@ -79,6 +82,8 @@ export function ManualRangeAdvancedRangeModal({
   range,
   inputColumns,
   manualRangeRows,
+  visibleColumnIds,
+  showResultColumn,
   onChange,
   onClose,
   onRemove,
@@ -89,6 +94,7 @@ export function ManualRangeAdvancedRangeModal({
   const [originalRangeSnapshot, setOriginalRangeSnapshot] = useState(() => (open && range ? getRangeSnapshot(range) : ''));
   const [pendingDelete, setPendingDelete] = useState(false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+  const [useMainColumnView, setUseMainColumnView] = useState(true);
   const boundsValidation = validateManualRangeBounds(startRowInput, endRowInput);
   const hasUncommittedRowInput = draftRange
     ? startRowInput !== String(draftRange.startRowNumber)
@@ -109,6 +115,7 @@ export function ManualRangeAdvancedRangeModal({
     setOriginalRangeSnapshot(getRangeSnapshot(nextDraftRange));
     setPendingDelete(false);
     setIsDiscardConfirmOpen(false);
+    setUseMainColumnView(true);
   }, [open, range]);
 
   const modalHeaderDetails = useMemo(() => (
@@ -124,7 +131,26 @@ export function ManualRangeAdvancedRangeModal({
       && row.rowNumber <= boundsValidation.endRowNumber!
     ));
   }, [boundsValidation.endRowNumber, boundsValidation.error, boundsValidation.startRowNumber, manualRangeRows]);
-  const coveredColumns = useMemo(() => inputColumns.slice(0, 4), [inputColumns]);
+  const coveredColumns = useMemo(() => {
+    if (!useMainColumnView) {
+      return inputColumns;
+    }
+
+    const visibleColumnIdSet = new Set(visibleColumnIds);
+    return inputColumns.filter((column) => visibleColumnIdSet.has(column.id));
+  }, [inputColumns, useMainColumnView, visibleColumnIds]);
+  const previewRanges = useMemo(() => {
+    if (boundsValidation.error || boundsValidation.startRowNumber === null || boundsValidation.endRowNumber === null || !draftRange) {
+      return recipe.ranges;
+    }
+
+    const previewRange = {
+      ...draftRange,
+      startRowNumber: boundsValidation.startRowNumber,
+      endRowNumber: boundsValidation.endRowNumber,
+    };
+    return recipe.ranges.map((currentRange) => (currentRange.id === previewRange.id ? previewRange : currentRange));
+  }, [boundsValidation.endRowNumber, boundsValidation.error, boundsValidation.startRowNumber, draftRange, recipe.ranges]);
 
   if (!open || !range || !draftRange) {
     return null;
@@ -255,7 +281,14 @@ export function ManualRangeAdvancedRangeModal({
               {boundsValidation.error ?? 'Inicio y fin usan números de fila reales del Excel.'}
             </p>
           ) : null}
-          <ManualRangeCoveredRowsPreview rows={coveredRows} columns={coveredColumns} />
+          <ManualRangeCoveredRowsPreview
+            rows={coveredRows}
+            columns={coveredColumns}
+            ranges={previewRanges}
+            showResultColumn={showResultColumn}
+            useMainColumnView={useMainColumnView}
+            onUseMainColumnViewChange={setUseMainColumnView}
+          />
           {pendingDelete ? (
             <p className="manualRangeAdvancedRangeModalDeleteNotice">Este rango se eliminará al aceptar.</p>
           ) : (
@@ -299,15 +332,33 @@ export function ManualRangeAdvancedRangeModal({
 function ManualRangeCoveredRowsPreview({
   rows,
   columns,
+  ranges,
+  showResultColumn,
+  useMainColumnView,
+  onUseMainColumnViewChange,
 }: {
   rows: InputRow[];
   columns: InputColumn[];
+  ranges: ManualRangeValue[];
+  showResultColumn: boolean;
+  useMainColumnView: boolean;
+  onUseMainColumnViewChange: (checked: boolean) => void;
 }) {
   return (
     <section className="manualRangeCoveredRowsPreview">
       <div className="manualRangeCoveredRowsHeader">
-        <strong>Filas cubiertas</strong>
-        <p>Vista de las filas incluidas en este rango.</p>
+        <div>
+          <strong>Filas cubiertas</strong>
+          <p>Vista de las filas incluidas en este rango.</p>
+        </div>
+        <label className="checkboxField manualRangeCoveredRowsColumnToggle">
+          <input
+            type="checkbox"
+            checked={useMainColumnView}
+            onChange={(event) => onUseMainColumnViewChange(event.target.checked)}
+          />
+          <span>Usar mismas columnas que la tabla principal</span>
+        </label>
       </div>
       {rows.length === 0 ? (
         <p className="manualRangeCoveredRowsEmpty">No hay filas visibles dentro de este rango.</p>
@@ -316,20 +367,26 @@ function ManualRangeCoveredRowsPreview({
           <table className="manualRangeCoveredRowsTable">
             <thead>
               <tr>
-                <th>Fila</th>
+                <th className="manualRangeCoveredRowsRowNumberHeader">Fila</th>
                 {columns.map((column) => (
                   <th key={column.id}>{getManualRangeSpreadsheetColumnLabel(column)}</th>
                 ))}
+                {showResultColumn ? <th className="manualRangeCoveredRowsResultHeader">Resultado</th> : null}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.rowNumber}>
-                  <th scope="row">{row.rowNumber}</th>
+                <tr key={row.rowNumber} className="manualRangeCoveredRowsRow">
+                  <th scope="row" className="manualRangeCoveredRowsRowNumberCell">{row.rowNumber}</th>
                   {columns.map((column) => {
                     const value = getManualRangeSpreadsheetCellValue(row, column.id);
-                    return <td key={column.id} title={value}>{value || 'â€”'}</td>;
+                    return <td key={column.id} title={value}>{value}</td>;
                   })}
+                  {showResultColumn ? (
+                    <td className="manualRangeCoveredRowsResultCell">
+                      {getManualRangePreviewValueForRow(row.rowNumber, ranges)}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

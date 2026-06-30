@@ -472,6 +472,8 @@ describe('ManualRangeAdvancedRangeModal', () => {
         range={multiRangeRecipe.ranges[0]}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code', 'input-pack']}
+        showResultColumn
         onChange={() => undefined}
         onClose={() => undefined}
         onRemove={() => undefined}
@@ -488,8 +490,12 @@ describe('ManualRangeAdvancedRangeModal', () => {
     expect(markup).toContain('Filas cubiertas');
     expect(markup).toContain('Vista de las filas incluidas en este rango.');
     expect(markup).toContain('manualRangeCoveredRowsTable');
-    expect(markup).toContain('<th scope="row">8</th>');
-    expect(markup).toContain('<th scope="row">12</th>');
+    expect(markup).toContain('<th scope="row" class="manualRangeCoveredRowsRowNumberCell">8</th>');
+    expect(markup).toContain('<th scope="row" class="manualRangeCoveredRowsRowNumberCell">12</th>');
+    expect(markup).toContain('Usar mismas columnas que la tabla principal');
+    expect(markup).toContain('checkboxField manualRangeCoveredRowsColumnToggle');
+    expect(markup).toContain('manualRangeCoveredRowsRow');
+    expect(markup).toContain('manualRangeCoveredRowsResultHeader');
     expect(markup).toContain('manualRangeValueFields');
     expect(markup).toContain('Eliminar rango');
     expect(markup).toContain('Cancelar');
@@ -509,6 +515,8 @@ describe('ManualRangeAdvancedRangeModal', () => {
         range={{ ...multiRangeRecipe.ranges[0], startRowNumber: 100, endRowNumber: 110 }}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn={false}
         onChange={() => undefined}
         onClose={() => undefined}
         onRemove={() => undefined}
@@ -606,6 +614,7 @@ describe('SortableList drag handle', () => {
     );
 
     expect(markup).toContain('dragHandle');
+    expect(markup).toContain('lucide-grip-vertical');
   });
 });
 

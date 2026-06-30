@@ -727,6 +727,7 @@ describe('constructor helpers', () => {
     const firstStep = markup.slice(markup.indexOf('Paso 1'), markup.indexOf('Paso 2'));
     expect(firstStep).not.toContain('Usar resultado anterior');
     expect(markup.slice(markup.indexOf('Paso 2'))).toContain('Usar resultado anterior');
+    expect(markup).toContain('Paso 2 · Sin configurar');
     expect(markup).toContain('concatPartStepDivider');
   });
 
@@ -2886,7 +2887,7 @@ describe('constructor helpers', () => {
   it('builds range value source dropdown options with variable sources only', () => {
     expect(getRangeValueSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
       'Texto encontrado en el rango',
-      'Elegir texto desde columna',
+      'Elegir texto desde celda',
       'A',
       'D - Nombre',
       'F - Presentacion',
@@ -3062,7 +3063,7 @@ describe('constructor helpers', () => {
     expect(rangeValueTextSourceActionOptions.map((option) => option.label)).toEqual([
       'Usar columna de entrada',
       'Usar texto fijo',
-      'Elegir texto desde columna',
+      'Elegir texto desde celda',
       'Texto encontrado en el rango',
     ]);
   });
@@ -3211,7 +3212,7 @@ describe('constructor helpers', () => {
   it('builds concat part source options for range values without fixed text as a source', () => {
     expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).toEqual([
       'Resultado anterior',
-      'Elegir texto desde columna',
+      'Elegir texto desde celda',
       'Texto encontrado en el rango',
       'A',
       'D - Nombre',
