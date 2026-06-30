@@ -8,7 +8,6 @@ import {
 import type { InputColumn, InputRow, ManualRangeValue, OutputRecipe } from '../../types/import';
 import { Modal } from '../Modal/Modal';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
-import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -76,6 +75,7 @@ export function ManualRangeSpreadsheetEditor({
   const [suggestedRanges, setSuggestedRanges] = useState<ManualRangeValue[]>([]);
   const [selectedSuggestedRangeIds, setSelectedSuggestedRangeIds] = useState<Set<string>>(new Set());
   const [hasSearchedSuggestions, setHasSearchedSuggestions] = useState(false);
+  const [isDiscardSuggestionsConfirmOpen, setIsDiscardSuggestionsConfirmOpen] = useState(false);
   const [selectedRangeId, setSelectedRangeId] = useState<string | null>(null);
   const [advancedRangeId, setAdvancedRangeId] = useState<string | null>(null);
   const [lastCreatedRangeId, setLastCreatedRangeId] = useState<string | null>(null);
@@ -208,9 +208,18 @@ export function ManualRangeSpreadsheetEditor({
   const closeSuggestedRangesModal = () => {
     const clearedSuggestions = clearManualRangeSuggestedRanges();
     setIsSuggestedRangesModalOpen(false);
+    setIsDiscardSuggestionsConfirmOpen(false);
     setSuggestedRanges(clearedSuggestions.suggestedRanges);
     setSelectedSuggestedRangeIds(clearedSuggestions.selectedSuggestedRangeIds);
     setHasSearchedSuggestions(false);
+  };
+  const requestCloseSuggestedRangesModal = () => {
+    if (suggestedRanges.length > 0) {
+      setIsDiscardSuggestionsConfirmOpen(true);
+      return;
+    }
+
+    closeSuggestedRangesModal();
   };
 
   return (
@@ -223,7 +232,7 @@ export function ManualRangeSpreadsheetEditor({
         />
       </div>
       <div className="manualRangeSpreadsheetToolbar">
-        <div className="manualRangeSpreadsheetSelectionActions manualRangeSpreadsheetToolbarPrimaryActions">
+        <div className="manualRangeSpreadsheetSelectionActions manualRangeSpreadsheetToolbarPrimaryActions manualRangeSpreadsheetToolbarActions">
           <button
             type="button"
             className="secondary sm manualRangeSpreadsheetCreateButton"
@@ -240,8 +249,6 @@ export function ManualRangeSpreadsheetEditor({
           >
             Limpiar selección
           </button>
-        </div>
-        <div className="manualRangeSpreadsheetToolbarActions">
           <button type="button" className="secondary sm manualRangeSuggestedModalButton" onClick={() => setIsSuggestedRangesModalOpen(true)}>
             Rangos sugeridos
           </button>
@@ -389,7 +396,13 @@ export function ManualRangeSpreadsheetEditor({
           setSelectedRangeId(rangeId);
           clearSelection();
         }}
-        onClose={closeSuggestedRangesModal}
+        onClose={requestCloseSuggestedRangesModal}
+        onApplied={closeSuggestedRangesModal}
+      />
+      <ManualRangeDiscardSuggestionsConfirmDialog
+        open={isDiscardSuggestionsConfirmOpen}
+        onCancel={() => setIsDiscardSuggestionsConfirmOpen(false)}
+        onConfirm={closeSuggestedRangesModal}
       />
       <ManualRangeClearAllRangesConfirmDialog
         open={isClearAllRangesConfirmOpen}
@@ -594,6 +607,7 @@ export function ManualRangeSuggestedRangesModal({
   onSuggestionsSearchedChange,
   onAppliedRangeSelect,
   onClose,
+  onApplied,
 }: {
   open: boolean;
   recipe: ManualRangeRecipe;
@@ -608,6 +622,7 @@ export function ManualRangeSuggestedRangesModal({
   onSuggestionsSearchedChange: (hasSearched: boolean) => void;
   onAppliedRangeSelect: (rangeId: string) => void;
   onClose: () => void;
+  onApplied?: () => void;
 }) {
   if (!open) {
     return null;
@@ -640,7 +655,7 @@ export function ManualRangeSuggestedRangesModal({
         onSelectedSuggestedRangeIdsChange={onSelectedSuggestedRangeIdsChange}
         onSuggestionsSearchedChange={onSuggestionsSearchedChange}
         onAppliedRangeSelect={onAppliedRangeSelect}
-        onApplied={onClose}
+        onApplied={onApplied ?? onClose}
         showHeader={false}
       />
     </Modal>
@@ -984,6 +999,33 @@ export function ManualRangeClearSuggestionsConfirmDialog({
   );
 }
 
+export function ManualRangeDiscardSuggestionsConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <ConfirmDialog
+      open
+      title="Descartar sugerencias"
+      message="Se descartarán las sugerencias generadas que todavía no aplicaste. Esta acción no afecta los rangos ya configurados."
+      cancelLabel="Cancelar"
+      confirmLabel="Descartar"
+      variant="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
 export function ManualRangeDeleteSuggestedRangeConfirmDialog({
   open,
   onCancel,
@@ -1185,6 +1227,10 @@ function ManualRangeSpreadsheetRangesList({
       <div className="manualRangeSpreadsheetRangesListHeader">
         <div className="manualRangeSpreadsheetRangesListTitle">
           <strong>Rangos configurados</strong>
+          <InfoTooltip
+            ariaLabel="Ayuda: rangos configurados"
+            content="Acá se listan los rangos creados. Cada rango define qué valor se aplicará a las filas comprendidas entre su inicio y fin."
+          />
         </div>
         <div className="manualRangeSpreadsheetRangeListActions">
           <button type="button" className="secondary sm manualRangeSpreadsheetSortButton" disabled={ranges.length < 2} onClick={onSortRanges}>
@@ -1227,22 +1273,26 @@ function ManualRangeSpreadsheetRangesList({
                 ) : null}
               </button>
               <div className="manualRangeSpreadsheetRangeItemActions manualRangeSpreadsheetRangeItemActionsSeparated">
-                <button
-                  type="button"
-                  className="secondary sm manualRangeSpreadsheetRangeEditButton"
-                  onClick={() => onEditRange(range.id)}
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  className="iconButton danger manualRangeSpreadsheetRangeDeleteButton"
-                  title="Eliminar rango"
-                  aria-label="Eliminar rango"
-                  onClick={() => onRequestDeleteRange(range.id)}
-                >
-                  <AppIcon name="delete" aria-hidden="true" focusable="false" />
-                </button>
+                <InfoTooltip content="Editar rango">
+                  <ActionButton
+                    action="edit"
+                    variant="icon"
+                    size="sm"
+                    className="manualRangeSpreadsheetRangeEditButton"
+                    aria-label="Editar rango"
+                    onClick={() => onEditRange(range.id)}
+                  />
+                </InfoTooltip>
+                <InfoTooltip content="Eliminar rango">
+                  <ActionButton
+                    action="delete"
+                    variant="danger"
+                    size="sm"
+                    className="manualRangeSpreadsheetRangeDeleteButton"
+                    aria-label="Eliminar rango"
+                    onClick={() => onRequestDeleteRange(range.id)}
+                  />
+                </InfoTooltip>
               </div>
             </div>
           ))}

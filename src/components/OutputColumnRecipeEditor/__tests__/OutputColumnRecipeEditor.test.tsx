@@ -351,6 +351,7 @@ describe('constructor helpers', () => {
     expect(primaryRow).toContain('Tipo de operación');
     expect(primaryRow).toContain('Qué quiero hacer');
     expect(primaryRow).not.toContain('Prefijo');
+    expect(extraRow.indexOf('Prefijo')).toBeLessThan(extraRow.indexOf('Valor fijo'));
     expect(extraRow).toContain('Qué valor usar');
     expect(extraRow).toContain('Valor fijo');
     expect(extraRow).toContain('Prefijo');
@@ -1881,11 +1882,71 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(alwaysMarkup).toContain('Aplicar el valor a todas las filas del rango');
+    expect(alwaysMarkup).toContain('Aplicar cada rango a todas sus filas');
     expect(conditionalMarkup).toContain('Aplicar el valor');
-    expect(conditionalMarkup).toContain('Aplicar el valor sólo a filas donde');
+    expect(conditionalMarkup).toContain('Aplicar cada rango sólo a filas que cumplan condición');
     expect(conditionalMarkup).toContain('A');
     expect(conditionalMarkup).toContain('no esta vacio');
+  });
+
+  it('summarizes one manual range step with created range count only', () => {
+    const markup = renderToStaticMarkup(
+      <CustomValueEditor
+        recipe={{
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [{
+            id: 'range-step',
+            mode: 'manualRange',
+            type: 'manualRange',
+            ranges: [{ id: 'range-18-25', startRowNumber: 18, endRowNumber: 25, value: 'Promo' }],
+          }],
+        }}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        mode="text"
+        onChange={() => undefined}
+      />,
+    );
+
+    const headerMarkup = markup.slice(markup.indexOf('composeStudioHeaderTitle'), markup.indexOf('simpleCustomValueGrid'));
+    expect(headerMarkup).toContain('Paso 1 · 1 rango creado');
+    expect(headerMarkup).not.toContain('18-25');
+    expect(headerMarkup).not.toContain('18 - 25');
+  });
+
+  it('summarizes multiple manual range steps with created range count only', () => {
+    const markup = renderToStaticMarkup(
+      <CustomValueEditor
+        recipe={{
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [{
+            id: 'range-step',
+            mode: 'manualRange',
+            type: 'manualRange',
+            ranges: [
+              { id: 'range-18-25', startRowNumber: 18, endRowNumber: 25, value: 'Promo' },
+              { id: 'range-28-34', startRowNumber: 28, endRowNumber: 34, value: 'Promo 2' },
+              { id: 'range-37-44', startRowNumber: 37, endRowNumber: 44, value: 'Promo 3' },
+            ],
+          }],
+        }}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        mode="text"
+        onChange={() => undefined}
+      />,
+    );
+
+    const headerMarkup = markup.slice(markup.indexOf('composeStudioHeaderTitle'), markup.indexOf('simpleCustomValueGrid'));
+    expect(headerMarkup).toContain('Paso 1 · 3 rangos creados');
+    expect(headerMarkup).not.toContain('18-25, 28-34');
+    expect(headerMarkup).not.toContain('18 - 25, 28 - 34');
   });
 
   it('mounts one spreadsheet below general configuration for a manual range step', () => {

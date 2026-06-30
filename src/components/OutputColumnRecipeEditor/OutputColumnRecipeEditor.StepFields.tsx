@@ -447,8 +447,8 @@ export function StepConditionFields({
           : 'Elige si este paso se aplica siempre o solo en algunos casos.'} />}
         value={condition ? 'conditional' : 'always'}
         options={[
-          { value: 'always', label: isManualRangeCondition ? 'Aplicar el valor a todas las filas del rango' : 'Aplicar siempre' },
-          { value: 'conditional', label: isManualRangeCondition ? 'Aplicar el valor sólo a filas donde' : 'Aplicar solo si...' },
+          { value: 'always', label: isManualRangeCondition ? 'Aplicar cada rango a todas sus filas' : 'Aplicar siempre' },
+          { value: 'conditional', label: isManualRangeCondition ? 'Aplicar cada rango sólo a filas que cumplan condición' : 'Aplicar solo si...' },
         ]}
         scrollStrategy="close"
         onChange={(value) => {

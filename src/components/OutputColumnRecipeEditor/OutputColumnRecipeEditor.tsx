@@ -2093,11 +2093,11 @@ function StepFields({
   if (step.type === 'addPrefix') {
     return (
       <>
-        {sourceFieldsWithWarning}
         <label className="field compact recipeField">
           <span>{labels === 'workflow' ? 'Prefijo' : 'Texto al inicio'}</span>
           <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
         </label>
+        {sourceFieldsWithWarning}
       </>
     );
   }

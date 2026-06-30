@@ -237,6 +237,11 @@ export function getStepSummary(step: TransformStep, inputColumns: InputColumn[] 
     return describeNumericOperation(step);
   }
 
+  if (step.type === 'manualRange') {
+    const count = step.ranges?.length ?? 0;
+    return `${count} ${count === 1 ? 'rango creado' : 'rangos creados'}`;
+  }
+
   const [summary] = describeSimpleStep(step, inputColumns);
   return summary;
 }

@@ -20,6 +20,7 @@ import {
     ManualRangeClearSuggestionsConfirmDialog,
     ManualRangeDeleteRangeConfirmDialog,
     ManualRangeDeleteSuggestedRangeConfirmDialog,
+    ManualRangeDiscardSuggestionsConfirmDialog,
     ManualRangePreviewPanel,
     ManualRangeSpreadsheetEditor,
     ManualRangeSuggestedRangesModal,
@@ -257,6 +258,8 @@ describe('ManualRangeSpreadsheetEditor', () => {
 
     expect(markup).toContain('manualRangeSpreadsheetSidePanel');
     expect(markup).toContain('Rangos configurados');
+    expect(markup).toContain('aria-label="Ayuda: rangos configurados"');
+    expect(markup).toContain('infoTooltipTrigger');
     expect(markup).not.toContain('manualRangeSpreadsheetSideTabs');
     expect(markup).not.toContain('manualRangeSpreadsheetSideTab');
     expect(markup).not.toContain('>Sugeridos</button>');
@@ -304,9 +307,10 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('manualRangeSpreadsheetRangeItemMain');
     expect(markup).toContain('manualRangeSpreadsheetRangeItemActions');
     expect(markup).toContain('manualRangeSpreadsheetRangeItemActionsSeparated');
-    expect(markup).toContain('Editar');
+    expect(markup).toContain('aria-label="Editar rango"');
     expect(markup).toContain('aria-label="Eliminar rango"');
     expect(markup).toContain('manualRangeSpreadsheetRangeDeleteButton');
+    expect(markup).not.toContain('title="Eliminar rango"');
   });
 
   it('does not render the selected range editor inline in the side panel', () => {
@@ -730,6 +734,22 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     expect(markup).toContain('Borrar');
     expect(markup).toContain('Cancelar');
     expect(markup).not.toContain('window.confirm');
+  });
+
+  it('renders the app confirmation dialog before discarding pending suggestions on close', () => {
+    const markup = renderToStaticMarkup(
+      <ManualRangeDiscardSuggestionsConfirmDialog
+        open
+        onCancel={() => undefined}
+        onConfirm={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('confirmDialogModal');
+    expect(markup).toContain('Descartar sugerencias');
+    expect(markup).toContain('Se descartarán las sugerencias generadas que todavía no aplicaste.');
+    expect(markup).toContain('Descartar');
+    expect(markup).toContain('Cancelar');
   });
 
   it('renders the app confirmation dialog before deleting one suggestion', () => {
