@@ -520,6 +520,61 @@ h3 {
   display: grid;
 }
 
+.combineReadErrors {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.combineReadErrors .errorText {
+  margin: 0;
+}
+
+.combineSourcesHeader {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.combineSourcesHeader h3 {
+  margin-bottom: 8px;
+}
+
+.combineSourcesEmpty {
+  margin-top: 8px;
+}
+
+.combineSourceList {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.combineSourceItem {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 12px;
+}
+
+.combineSourceItem > div {
+  min-width: 0;
+}
+
+.combineSourceItem strong {
+  overflow-wrap: anywhere;
+}
+
+.combineSourceMeta {
+  margin: 4px 0 0;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed var(--color-accent-border);
