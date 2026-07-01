@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CombineOutputColumn, CombinedRow } from '../../../types/combine';
-import { buildCombinedExportAoA } from '../exportCombinedXlsx';
+import { buildCombinedExportAoA, normalizeCombinedFileName } from '../exportCombinedXlsx';
 
 const outputColumns: CombineOutputColumn[] = [
   { id: 'product', name: 'Producto' },
@@ -63,6 +63,22 @@ describe('buildCombinedExportAoA', () => {
       'Precio',
       'Precio',
     ]);
+  });
+});
+
+describe('normalizeCombinedFileName', () => {
+  it('uses the default name when input is empty', () => {
+    expect(normalizeCombinedFileName('   ')).toBe('Archivo combinado');
+  });
+
+  it('removes invalid filename characters and keeps reasonable spaces', () => {
+    expect(normalizeCombinedFileName('  Reporte / Julio: Final?  ')).toBe('Reporte Julio Final');
+    expect(normalizeCombinedFileName('\\/:*?"<>|')).toBe('Archivo combinado');
+  });
+
+  it('prevents duplicated xlsx extensions', () => {
+    expect(normalizeCombinedFileName('Reporte.xlsx')).toBe('Reporte');
+    expect(normalizeCombinedFileName('Reporte.xlsx.xlsx')).toBe('Reporte');
   });
 });
 

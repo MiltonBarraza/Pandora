@@ -3,13 +3,17 @@ import type {
   CombineOutputColumn,
   CombineSource,
 } from '../../types/combine';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { useState } from 'react';
 
 type CombineMappingsEditorProps = {
   sources: CombineSource[];
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   onMappingChange: (mapping: CombineColumnMapping) => void;
+  onReapplyMappings: () => void;
 };
 
 export function CombineMappingsEditor({
@@ -17,7 +21,9 @@ export function CombineMappingsEditor({
   outputColumns,
   mappings,
   onMappingChange,
+  onReapplyMappings,
 }: CombineMappingsEditorProps) {
+  const [isReapplyConfirmationOpen, setIsReapplyConfirmationOpen] = useState(false);
   const mappingsByPair = new Map(
     mappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
   );
@@ -29,7 +35,33 @@ export function CombineMappingsEditor({
 
   return (
     <section className="panel">
-      <h2>Mapeo de columnas</h2>
+      <ConfirmDialog
+        open={isReapplyConfirmationOpen}
+        title="Reaplicar automapeo"
+        message="Se reemplazarán los mapeos actuales usando coincidencia exacta por nombre normalizado."
+        cancelLabel="Cancelar"
+        confirmLabel="Reaplicar automapeo"
+        onCancel={() => setIsReapplyConfirmationOpen(false)}
+        onConfirm={() => {
+          setIsReapplyConfirmationOpen(false);
+          onReapplyMappings();
+        }}
+      />
+      <div className="combineMappingsHeader">
+        <div>
+          <h2>Mapeo de columnas</h2>
+          <p className="muted">Automapeo exacto por nombre; no usa aliases ni coincidencias aproximadas.</p>
+        </div>
+        {sources.length > 0 && outputColumns.length > 0 ? (
+          <ActionButton
+            action="configure"
+            variant="secondary"
+            onClick={() => setIsReapplyConfirmationOpen(true)}
+          >
+            Reaplicar automapeo
+          </ActionButton>
+        ) : null}
+      </div>
       {sources.length === 0 ? (
         <div className="emptyState combineMappingsEmpty">Cargá archivos para mapear columnas.</div>
       ) : outputColumns.length === 0 ? (

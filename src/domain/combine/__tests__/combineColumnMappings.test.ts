@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CombineOutputColumn, CombineSource } from '../../../types/combine';
-import { buildInitialCombineMappings, normalizeCombineColumnName } from '../combineColumnMappings';
+import { buildInitialCombineMappings, normalizeCombineColumnName, reapplyCombineMappings } from '../combineColumnMappings';
 
 describe('normalizeCombineColumnName', () => {
   it('ignores uppercase and lowercase differences', () => {
@@ -71,6 +71,26 @@ describe('buildInitialCombineMappings', () => {
       'source:1:output-product',
       'source:1:output-short-code',
     ]);
+  });
+});
+
+describe('reapplyCombineMappings', () => {
+  it('recalculates mappings using exact normalized names', () => {
+    const sources = [source('source:0', [{ id: 'code', name: ' CÓDIGO ', index: 0 }])];
+    const outputColumns = [{ id: 'output-code', name: 'codigo' }];
+
+    expect(reapplyCombineMappings(sources, outputColumns)).toEqual([{
+      sourceId: 'source:0',
+      outputColumnId: 'output-code',
+      sourceColumnId: 'code',
+    }]);
+  });
+
+  it('does not match abbreviations or aliases', () => {
+    const sources = [source('source:0', [{ id: 'code', name: 'Código', index: 0 }])];
+    const outputColumns = [{ id: 'output-short-code', name: 'Cod.' }];
+
+    expect(reapplyCombineMappings(sources, outputColumns)[0].sourceColumnId).toBeNull();
   });
 });
 

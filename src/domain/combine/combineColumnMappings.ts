@@ -37,3 +37,10 @@ export function buildInitialCombineMappings(
     });
   });
 }
+
+export function reapplyCombineMappings(
+  sources: CombineSource[],
+  outputColumns: CombineOutputColumn[],
+) {
+  return buildInitialCombineMappings(sources, outputColumns);
+}

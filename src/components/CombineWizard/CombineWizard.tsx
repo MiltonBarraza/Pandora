@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
+import { reapplyCombineMappings } from '../../domain/combine/combineColumnMappings';
 import { readCombineSource } from '../../domain/combine/readCombineSource';
 import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
 import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
@@ -12,9 +13,10 @@ import { MultipleFileUploader } from './MultipleFileUploader';
 
 type CombineWizardProps = {
   appearanceToolbar?: ReactNode;
+  onStatePresenceChange?: (hasState: boolean) => void;
 };
 
-export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
+export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: CombineWizardProps) {
   const [sources, setSources] = useState<CombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
   const [mappings, setMappings] = useState<CombineColumnMapping[]>([]);
@@ -29,6 +31,12 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
       previousMappings: current,
     }));
   }, [sources, outputColumns]);
+
+  useEffect(() => {
+    onStatePresenceChange?.(
+      sources.length > 0 || outputColumns.length > 0 || mappings.length > 0,
+    );
+  }, [sources.length, outputColumns.length, mappings.length, onStatePresenceChange]);
 
   const combinedRows = useMemo(() => buildCombinedRows({
     sources,
@@ -82,7 +90,12 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
       <div className="wizard">
         <section className="panel">
           <h2>Combinar archivos</h2>
-          <p className="muted">Cargá los archivos que querés reunir. Por ahora se usa la primera hoja de cada Excel.</p>
+          <p className="muted">Cargá los archivos que querés reunir.</p>
+          <div className="combineReadPolicy">
+            <span><strong>Excel:</strong> primera hoja.</span>
+            <span><strong>Encabezado:</strong> primera fila no vacía.</span>
+            <span><strong>CSV:</strong> tabla única.</span>
+          </div>
           <MultipleFileUploader disabled={isReading} onFilesSelected={(files) => void loadFiles(files)} />
 
           {readErrors.length > 0 ? (
@@ -142,6 +155,7 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
               nextMapping,
             ],
           }))}
+          onReapplyMappings={() => setMappings(reapplyCombineMappings(sources, outputColumns))}
         />
         <CombinedRowsPreview
           sources={sources}

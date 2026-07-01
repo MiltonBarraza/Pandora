@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import type { AppearancePreference, ResolvedAppearanceTheme } from './useAppearanceTheme';
 
 type AppearanceToolbarProps = {
   preference: AppearancePreference;
   resolvedTheme: ResolvedAppearanceTheme;
   onPreferenceChange: (preference: AppearancePreference) => void;
+  extraActions?: ReactNode;
 };
 
 const appearanceOptions: Array<{ value: AppearancePreference; label: string }> = [
@@ -11,7 +13,7 @@ const appearanceOptions: Array<{ value: AppearancePreference; label: string }> =
   { value: 'dark', label: 'Oscuro' },
 ];
 
-export function AppearanceToolbar({ preference, resolvedTheme, onPreferenceChange }: AppearanceToolbarProps) {
+export function AppearanceToolbar({ preference, resolvedTheme, onPreferenceChange, extraActions }: AppearanceToolbarProps) {
   return (
     <div className="appTopToolbar" aria-label="Apariencia">
       <span className="appTopToolbarLabel">Apariencia</span>
@@ -32,6 +34,7 @@ export function AppearanceToolbar({ preference, resolvedTheme, onPreferenceChang
           );
         })}
       </div>
+      {extraActions}
     </div>
   );
 }

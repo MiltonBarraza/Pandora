@@ -32,5 +32,9 @@ export function exportCombinedXlsx({
 }
 
 export function normalizeCombinedFileName(fileName: string) {
-  return fileName.trim().replace(/\.xlsx$/i, '').trim() || 'Archivo combinado';
+  const withoutExtension = fileName.trim().replace(/(\.xlsx)+$/i, '').trim();
+  return withoutExtension
+    .replace(/[\/\\:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'Archivo combinado';
 }

@@ -9,12 +9,34 @@ type AppTool = 'sanitize' | 'combine';
 
 export default function App() {
   const [selectedTool, setSelectedTool] = useState<AppTool | null>(null);
+  const [combineHasState, setCombineHasState] = useState(false);
   const appearance = useAppearanceTheme();
+  const requestToolChange = () => {
+    if (!selectedTool) {
+      return;
+    }
+
+    if (
+      selectedTool === 'combine'
+      && combineHasState
+      && !window.confirm('Si cambiás de herramienta, se perderá el estado actual de Combinar archivos.')
+    ) {
+      return;
+    }
+
+    setCombineHasState(false);
+    setSelectedTool(selectedTool === 'combine' ? 'sanitize' : 'combine');
+  };
   const appearanceToolbar = (
     <AppearanceToolbar
       preference={appearance.preference}
       resolvedTheme={appearance.resolvedTheme}
       onPreferenceChange={appearance.setPreference}
+      extraActions={selectedTool ? (
+        <button type="button" className="appearanceToggleOption appToolSwitchOption" onClick={requestToolChange}>
+          Cambiar herramienta
+        </button>
+      ) : null}
     />
   );
 
@@ -23,7 +45,12 @@ export default function App() {
   }
 
   if (selectedTool === 'combine') {
-    return <CombineWizard appearanceToolbar={appearanceToolbar} />;
+    return (
+      <CombineWizard
+        appearanceToolbar={appearanceToolbar}
+        onStatePresenceChange={setCombineHasState}
+      />
+    );
   }
 
   return <ToolSelector appearanceToolbar={appearanceToolbar} onSelectTool={setSelectedTool} />;
