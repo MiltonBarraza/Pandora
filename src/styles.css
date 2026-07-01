@@ -694,6 +694,59 @@ h3 {
   margin-top: 5px;
 }
 
+.combinePreviewSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.combinePreviewSummary span {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  padding: 7px 10px;
+}
+
+.combinePreviewEmpty {
+  padding: 16px;
+}
+
+.combinePreviewLimit {
+  margin: 12px 0 0;
+}
+
+.combinePreviewTableWrap {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.combinePreviewTable {
+  min-width: max(100%, calc(220px + var(--combine-preview-column-count, 1) * 180px));
+  table-layout: fixed;
+  width: 100%;
+}
+
+.combinePreviewTraceColumn {
+  width: 180px;
+}
+
+.combinePreviewDataColumn {
+  width: 180px;
+}
+
+.combinePreviewTable th,
+.combinePreviewTable td {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.combinePreviewTable .truncatedText,
+.combinePreviewTable .truncatedTextTooltip {
+  max-width: 100%;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed var(--color-accent-border);

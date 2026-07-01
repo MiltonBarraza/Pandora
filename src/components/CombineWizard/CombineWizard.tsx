@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
 import { readCombineSource } from '../../domain/combine/readCombineSource';
 import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
 import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
 import { CombineOutputColumns } from './CombineOutputColumns';
 import { MultipleFileUploader } from './MultipleFileUploader';
@@ -26,6 +28,12 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
       previousMappings: current,
     }));
   }, [sources, outputColumns]);
+
+  const combinedRows = useMemo(() => buildCombinedRows({
+    sources,
+    outputColumns,
+    mappings,
+  }), [sources, outputColumns, mappings]);
 
   const loadFiles = async (files: File[]) => {
     const pendingFiles = files.map((file) => ({
@@ -133,6 +141,12 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
               nextMapping,
             ],
           }))}
+        />
+        <CombinedRowsPreview
+          sources={sources}
+          outputColumns={outputColumns}
+          mappings={mappings}
+          rows={combinedRows}
         />
       </div>
     </main>
