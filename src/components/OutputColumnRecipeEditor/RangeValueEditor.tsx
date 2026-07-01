@@ -15,7 +15,8 @@ import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, NumericOperat
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
-import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
+import { ColumnTextPicker, createFixedTextSourceFromColumnText, getInvalidPickerTooltip, invalidPickerValuesLabel } from './ColumnTextPicker';
 import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 
 type RangeValueEditorProps = {
@@ -107,6 +108,10 @@ export function RangeValueEditor({
   const rangeTextSource = getManualRangeRangeTextSource(range);
   const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
   const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
+  const hasNoRangeTextOptions = selectedTextOptions.length === 0;
+  const noRangeTextWarning = hasNoRangeTextOptions
+    ? getInvalidPickerTooltip(rangeTextHelpText || 'Sin textos en el rango')
+    : '';
   const inputColumnOptions = inputColumns.length === 0
     ? [{ value: '', label: noActiveColumnsLabel }]
     : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
@@ -145,17 +150,18 @@ export function RangeValueEditor({
           <Dropdown
             className="compact manualRangeValueDetailField"
             label="Texto encontrado"
+            labelInfo={noRangeTextWarning ? <WarningTooltip content={noRangeTextWarning} /> : undefined}
             value={rangeTextSource.selectedText}
-            options={selectedTextOptions.length === 0
-              ? [{ value: '', label: 'Sin textos en el rango', disabled: true }]
+            options={hasNoRangeTextOptions
+              ? [{ value: '', label: invalidPickerValuesLabel, disabled: true }]
               : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-            disabled={selectedTextOptions.length === 0}
+            disabled={hasNoRangeTextOptions}
             searchable
             searchPlaceholder="Buscar texto"
             scrollStrategy="close"
             onChange={(selectedText) => onRangeTextChange({ selectedText })}
           />
-          {rangeTextHelpText && rangeTextHelpText !== 'No se encontraron textos en este rango.' ? (
+          {rangeTextHelpText && !hasNoRangeTextOptions && rangeTextHelpText !== 'No se encontraron textos en este rango.' ? (
             <div className="textSourceHelperRow">
               <p className="manualRangeValueHelp">{rangeTextHelpText}</p>
             </div>
@@ -696,6 +702,10 @@ function RangeValueConcatPartSourceFields({
   const rangeTextHelpText = range
     ? getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource)
     : '';
+  const hasNoRangeTextOptions = selectedTextOptions.length === 0;
+  const noRangeTextWarning = hasNoRangeTextOptions
+    ? getInvalidPickerTooltip(rangeTextHelpText || 'Sin textos en el rango')
+    : '';
   const inputColumnOptions = inputColumns.length === 0
     ? [{ value: '', label: noActiveColumnsLabel }]
     : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
@@ -753,17 +763,18 @@ function RangeValueConcatPartSourceFields({
           <Dropdown
             className="compact manualRangeValueDetailField"
             label="Texto encontrado"
+            labelInfo={noRangeTextWarning ? <WarningTooltip content={noRangeTextWarning} /> : undefined}
             value={rangeTextSource.selectedText}
-            options={selectedTextOptions.length === 0
-              ? [{ value: '', label: 'Sin textos en el rango', disabled: true }]
+            options={hasNoRangeTextOptions
+              ? [{ value: '', label: invalidPickerValuesLabel, disabled: true }]
               : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-            disabled={selectedTextOptions.length === 0}
+            disabled={hasNoRangeTextOptions}
             searchable
             searchPlaceholder="Buscar texto"
             scrollStrategy="close"
             onChange={(selectedText) => onChange({ ...rangeTextSource, selectedText })}
           />
-          {rangeTextHelpText && rangeTextHelpText !== 'No se encontraron textos en este rango.' ? (
+          {rangeTextHelpText && !hasNoRangeTextOptions && rangeTextHelpText !== 'No se encontraron textos en este rango.' ? (
             <div className="textSourceHelperRow">
               <p className="manualRangeValueHelp">{rangeTextHelpText}</p>
             </div>

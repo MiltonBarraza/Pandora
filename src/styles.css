@@ -1515,10 +1515,24 @@ tbody tr:hover {
   padding-inline: 9px;
 }
 
-.modalDialogXl .constructorModalContent button:not(.iconButton):not(.dragHandle):not(.dropdownOption):not(.dropdownTrigger):not(.infoTooltipTrigger),
-.modalDialogXl .modalFooter button:not(.iconButton):not(.infoTooltipTrigger) {
+.modalDialogXl .constructorModalContent button:not(.iconButton):not(.dragHandle):not(.dropdownOption):not(.dropdownTrigger):not(.infoTooltipTrigger):not(.warningTooltipTrigger),
+.modalDialogXl .modalFooter button:not(.iconButton):not(.infoTooltipTrigger):not(.warningTooltipTrigger) {
   min-height: 36px;
   padding: 0 12px;
+}
+
+.modalDialogXl .constructorModalContent button.warningTooltipTrigger,
+.modalDialogXl .modalFooter button.warningTooltipTrigger {
+  height: 19px;
+  min-height: 19px;
+  min-width: 19px;
+  padding: 0;
+  width: 19px;
+}
+
+.modalDialogXl .constructorModalContent button.warningTooltipTrigger .warningTooltipIcon,
+.modalDialogXl .modalFooter button.warningTooltipTrigger .warningTooltipIcon {
+  font-size: 10px;
 }
 
 .modalDialogXl .dropdownMenu {

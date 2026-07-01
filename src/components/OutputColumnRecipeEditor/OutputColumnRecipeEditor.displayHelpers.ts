@@ -1,7 +1,7 @@
 import { describeManualRangeStepSummary } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
-import { canPreviewNumericValue, describeConcatPartSource, getCustomValueMode, getFirstStepSource, getInputColumnSummary, getSimpleInputPart, getVisibleRecipeSteps, hasConfiguredConcatStep, hasConfiguredManualRangeStep, hasConfiguredNumericStepOperands, isCustomValueConfigured, type CustomValueMode } from './OutputColumnRecipeEditor.recipeHelpers';
+import { canPreviewNumericValue, describeConcatPartSource, getCustomValueMode, getFirstStepSource, getInputColumnSummary, getSimpleInputPart, getStepMode, getVisibleRecipeSteps, hasConfiguredConcatStep, hasConfiguredManualRangeStep, hasConfiguredNumericStepOperands, isCustomValueConfigured, type CustomValueMode } from './OutputColumnRecipeEditor.recipeHelpers';
 
 export function describeCombineParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
   if (recipe.parts.length === 0) {
@@ -252,6 +252,8 @@ export function getRecipeStepTitle(
   source: StepSource | undefined = step.source,
 ) {
   if (step.type === 'noop') {
+    const mode = getStepMode(step);
+    if ((mode === 'date' || mode === 'number') && source) return 'Usar valor tal cual';
     if (source?.type === 'fixedText') return 'Usar texto fijo';
     if (source?.type === 'input' && source.inputColumnId) return 'Usar columna de entrada';
     if (source?.type === 'previousResult') return 'Sin configurar';

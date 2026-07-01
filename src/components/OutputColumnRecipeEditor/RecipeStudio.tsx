@@ -9,6 +9,8 @@ import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
+import { getInvalidPickerTooltip, invalidPickerValuesLabel } from './ColumnTextPicker';
 import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
 import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
@@ -1436,14 +1438,14 @@ function RangeRuleInspector({
               className="compact"
               label="Texto encontrado"
               value={rangeTextSource.selectedText}
-              options={selectedTextOptions.length === 0 ? [{ value: '', label: 'Sin textos en el rango', disabled: true }] : selectedTextOptions.map((text) => ({ value: text, label: text }))}
+              labelInfo={selectedTextOptions.length === 0 ? <WarningTooltip content={getInvalidPickerTooltip('No se encontraron textos en este rango para la columna seleccionada.')} /> : undefined}
+              options={selectedTextOptions.length === 0 ? [{ value: '', label: invalidPickerValuesLabel, disabled: true }] : selectedTextOptions.map((text) => ({ value: text, label: text }))}
               disabled={selectedTextOptions.length === 0}
               searchable
               searchPlaceholder="Buscar texto"
               scrollStrategy="close"
               onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
             />
-            {selectedTextOptions.length === 0 ? <p className="rangeRuleHelp">No se encontraron textos en este rango para la columna seleccionada.</p> : null}
           </>
         ) : null}
       </div>

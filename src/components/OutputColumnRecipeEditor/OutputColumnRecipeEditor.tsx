@@ -68,7 +68,7 @@ import {
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, shouldShowStepTypeSelectForStep, type StepSourceChangeContext } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, isVisibleStepActionConfigured, shouldShowStepTypeSelectForStep, type StepSourceChangeContext } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
@@ -1437,9 +1437,15 @@ function SimpleStepBlock({
   const isManualRangeStep = step.type === 'manualRange';
   const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
   const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
-  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, stepSource);
   const inferredTextSourceAction = textSourceActionOverride ?? getStepTextSourceAction(stepSource);
-  const textSourceAction = inferredTextSourceAction === 'usePreviousResult' ? undefined : inferredTextSourceAction;
+  const hasConfiguredTextSourceAction = step.type === 'noop' && (textSourceActionOverride !== null || Boolean(step.source));
+  const textSourceAction = stepMode === 'text' && hasConfiguredTextSourceAction ? inferredTextSourceAction : undefined;
+  const hasConfiguredVisibleAction = isVisibleStepActionConfigured(step, stepMode, textSourceAction);
+  const summarySource = hasConfiguredVisibleAction ? stepSource : undefined;
+  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, summarySource);
+  useEffect(() => {
+    setTextSourceActionOverride(null);
+  }, [step.id, stepMode]);
   const updateStepSource = (source: StepSource) => {
     if (index === 0 && source.type === 'input') {
       onBaseInputColumnChange(source.inputColumnId);
@@ -1578,10 +1584,20 @@ function StepDetailPanel({
   const stepMode = getStepMode(step);
   const isManualRangeStep = step.type === 'manualRange';
   const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
-  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, stepSource);
   const inferredTextSourceAction = textSourceActionOverride
     ?? (!allowPreviousResultSource && stepSource.type === 'previousResult' ? 'useInputColumn' : getStepTextSourceAction(stepSource));
-  const textSourceAction = inferredTextSourceAction === 'usePreviousResult' ? undefined : inferredTextSourceAction;
+  const hasConfiguredTextSourceAction = step.type === 'noop' && (
+    textSourceActionOverride !== null
+    || Boolean(step.source)
+    || (showSourceFields && Boolean(onSourceChange) && stepSource.type !== 'previousResult')
+  );
+  const textSourceAction = stepMode === 'text' && hasConfiguredTextSourceAction ? inferredTextSourceAction : undefined;
+  const hasConfiguredVisibleAction = isVisibleStepActionConfigured(step, stepMode, textSourceAction);
+  const summarySource = hasConfiguredVisibleAction ? stepSource : undefined;
+  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, summarySource);
+  useEffect(() => {
+    setTextSourceActionOverride(null);
+  }, [step.id, stepMode]);
   const updateTextSourceAction = (action: StepTextSourceAction) => {
     setTextSourceActionOverride(action);
     const source = getStepSourceForTextAction(action, stepSource, inputColumns);
@@ -2033,6 +2049,7 @@ function StepFields({
   const sourceValueKind = step.type === 'formatDate'
     ? 'date'
     : step.type === 'noop' && (stepMode === 'number' || stepMode === 'date') ? stepMode : 'text';
+  const hasVisibleAction = isVisibleStepActionConfigured(step, stepMode, textSourceAction);
   const usesPreviousResultSetup = stepMode === 'text' && step.type === 'noop' && stepIndex > 0 && stepSource.type === 'previousResult';
   const usesTextTransformSource = stepMode === 'text' && (step.type !== 'noop' || usesPreviousResultSetup);
   const usesFixedDateSource = step.type === 'formatDate' && stepSource.type === 'fixedText';
@@ -2090,7 +2107,7 @@ function StepFields({
   ) : sourceFields;
 
   if (step.type === 'noop') {
-    return textSourceAction ? sourceFieldsWithWarning : null;
+    return hasVisibleAction ? sourceFieldsWithWarning : null;
   }
 
   if (step.type === 'manualRange') {

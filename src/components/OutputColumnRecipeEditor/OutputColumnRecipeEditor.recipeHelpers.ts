@@ -645,6 +645,17 @@ export function replaceWholeStepForAction(
   operation?: NonNullable<TransformStep['operation']>,
   stepIndex = 0,
 ): TransformStep {
+  if (type === 'noop' && (mode === 'date' || mode === 'number')) {
+    return {
+      id: step.id,
+      mode,
+      type,
+      source: step.type === 'noop' && step.source ? step.source : { type: 'fixedText', value: '' },
+      ...(step.condition ? { condition: step.condition } : {}),
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
   if (
     step.type === type
     && getStepMode(step, mode) === mode

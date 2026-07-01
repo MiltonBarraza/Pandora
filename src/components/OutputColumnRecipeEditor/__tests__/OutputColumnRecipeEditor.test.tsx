@@ -454,17 +454,31 @@ describe('constructor helpers', () => {
     expect(getStepTypesForMode('conversion').map((option) => option.value)).toContain('noop');
   });
 
-  it('does not expose noop as a dead visible action for typed modes', () => {
-    const numberMarkup = renderToStaticMarkup(
+  it('keeps typed noop hidden until it has a direct value source', () => {
+    const unconfiguredNumberMarkup = renderToStaticMarkup(
       <StepTypeSelect
         step={{ id: 'number-noop', mode: 'number', type: 'noop' }}
         mode="number"
         onChange={() => undefined}
       />,
     );
-    const dateMarkup = renderToStaticMarkup(
+    const unconfiguredDateMarkup = renderToStaticMarkup(
       <StepTypeSelect
         step={{ id: 'date-noop', mode: 'date', type: 'noop' }}
+        mode="date"
+        onChange={() => undefined}
+      />,
+    );
+    const configuredNumberMarkup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'number-noop', mode: 'number', type: 'noop', source: { type: 'fixedText', value: '' } }}
+        mode="number"
+        onChange={() => undefined}
+      />,
+    );
+    const configuredDateMarkup = renderToStaticMarkup(
+      <StepTypeSelect
+        step={{ id: 'date-noop', mode: 'date', type: 'noop', source: { type: 'fixedText', value: '' } }}
         mode="date"
         onChange={() => undefined}
       />,
@@ -477,11 +491,11 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(numberMarkup).not.toContain('Usar valor tal cual');
-    expect(dateMarkup).not.toContain('Usar valor tal cual');
+    expect(unconfiguredNumberMarkup).toContain('Seleccionar acción');
+    expect(unconfiguredDateMarkup).toContain('Seleccionar acción');
+    expect(configuredNumberMarkup).toContain('Usar valor tal cual');
+    expect(configuredDateMarkup).toContain('Usar valor tal cual');
     expect(conversionMarkup).not.toContain('Usar valor tal cual');
-    expect(numberMarkup).toContain('Seleccionar acción');
-    expect(dateMarkup).toContain('Seleccionar acción');
     expect(conversionMarkup).toContain('Seleccionar acción');
   });
 
@@ -933,7 +947,9 @@ describe('constructor helpers', () => {
       />,
     );
 
+    expect(textPicker).toContain('Valores no válidos');
     expect(textPicker).toContain('No hay textos disponibles');
+    expect(textPicker).toContain('warningTooltipTrigger');
     expect(textPicker).toContain('disabled=""');
     expect(textPicker).toContain('dropdownSearchableControl-disabled');
     expect(numericPicker).toContain('Buscar valores en');
@@ -943,9 +959,12 @@ describe('constructor helpers', () => {
     expect(datePicker).toContain('Buscar fechas en');
     expect(datePicker).toContain('Fecha encontrada');
     expect(mixedDatePicker).toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(mixedDatePicker).not.toContain('warningTooltipTrigger');
     expect(datePicker.match(/dropdownField compact recipeField/g)).toHaveLength(3);
     expect(datePicker).not.toContain('manualRangeValueDetailField');
+    expect(invalidDatePicker).toContain('Valores no válidos');
     expect(invalidDatePicker).toContain('No hay fechas válidas disponibles');
+    expect(invalidDatePicker).toContain('warningTooltipTrigger');
     expect(invalidDatePicker).toContain('disabled=""');
     expect(invalidDatePicker).toContain('dropdownSearchableControl-disabled');
   });
@@ -2965,7 +2984,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('PINCELES SERIE 304');
   });
 
-  it('shows a short empty range-text label without a duplicated helper', () => {
+  it('shows a short invalid range-text label with warning help', () => {
     const markup = renderRangeValueEditor({
       id: 'range-without-texts',
       startRowNumber: 50,
@@ -2973,8 +2992,9 @@ describe('constructor helpers', () => {
       valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' }, steps: [] },
     });
 
-    expect(markup).toContain('Sin textos en el rango');
-    expect(markup).not.toContain('No se encontraron textos en este rango.');
+    expect(markup).toContain('Valores no válidos');
+    expect(markup).toContain('warningTooltipTrigger');
+    expect(markup).toContain('No se encontraron textos en este rango.');
     expect(markup).not.toContain('Usa el valor tal cual.');
   });
 
@@ -3219,7 +3239,9 @@ describe('constructor helpers', () => {
       />,
     );
 
+    expect(markup).toContain('Valores no válidos');
     expect(markup).toContain('Sin textos disponibles');
+    expect(markup).toContain('warningTooltipTrigger');
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('dropdownSearchableControl-disabled');
     expect(markup).not.toContain('No hay textos disponibles en esta columna.');
@@ -5464,6 +5486,34 @@ describe('constructor helpers', () => {
     expect(dateToFixedText).toEqual({
       id: 'date',
       mode: 'text',
+      type: 'noop',
+      applyToEmptyValues: false,
+      source: { type: 'fixedText', value: '' },
+    });
+
+    expect(replaceWholeStepForAction({
+      id: 'direct-date',
+      mode: 'text',
+      type: 'replaceText',
+      source: { type: 'input', inputColumnId: 'input-code' },
+      searchValue: 'A',
+      replaceValue: 'B',
+    }, 'noop', 'date')).toEqual({
+      id: 'direct-date',
+      mode: 'date',
+      type: 'noop',
+      applyToEmptyValues: false,
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(replaceWholeStepForAction({
+      id: 'direct-number',
+      mode: 'date',
+      type: 'formatDate',
+      dateInputFormat: 'YYYY-MM-DD',
+      dateOutputFormat: 'DD/MM/YYYY',
+    }, 'noop', 'number')).toEqual({
+      id: 'direct-number',
+      mode: 'number',
       type: 'noop',
       applyToEmptyValues: false,
       source: { type: 'fixedText', value: '' },

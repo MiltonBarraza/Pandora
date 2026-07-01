@@ -31,6 +31,22 @@ const manualRangeColumn: OutputColumn = {
   recipe: { type: 'manualRange', ranges: [] },
 };
 
+function createEmptyStepColumn(id = 'output-empty-step'): OutputColumn {
+  return {
+    id,
+    label: 'Valor',
+    order: 0,
+    enabled: true,
+    recipe: {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [{ id: 'step-1', mode: 'text', type: 'noop' }],
+    },
+  };
+}
+
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
     this.setAttribute('open', '');
@@ -73,6 +89,12 @@ function ControlledRecipeEditor({
 
 async function openRecipeEditor(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Editar valor personalizado' }));
+}
+
+async function selectLastDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
+  const buttons = screen.getAllByRole('button', { name: buttonName });
+  await user.click(buttons[buttons.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
 }
 
 describe('OutputColumnRecipeEditor interactive modal flow', () => {
@@ -185,9 +207,9 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(document.querySelector('.manualRangeSpreadsheet')).toBeNull();
   });
 
-  it('cleans incompatible date fields when switching back to text mode', async () => {
+  it('shows fixed text after date formatting and date-column selection are reset to text', async () => {
     const user = userEvent.setup();
-    const dateColumn: OutputColumn = {
+    const textColumn: OutputColumn = {
       id: 'output-date-cleanup',
       label: 'Fecha limpia',
       order: 0,
@@ -197,41 +219,164 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
         customMode: 'text',
         parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
         separator: '',
-        steps: [{
-          id: 'date-step',
-          mode: 'date',
-          type: 'formatDate',
-          source: { type: 'input', inputColumnId: 'input-code' },
-          dateInputFormat: 'YYYY-MM-DD',
-          dateOutputFormat: 'DD/MM/YYYY',
-          dateInvalidFallback: 'fixedText',
-          dateInvalidFallbackText: 'Sin fecha',
-        }],
+        steps: [{ id: 'step-1', mode: 'text', type: 'noop' }],
       },
     };
-    render(<ControlledRecipeEditor initialColumn={dateColumn} />);
+    render(<ControlledRecipeEditor initialColumn={textColumn} />);
 
     await openRecipeEditor(user);
-    expect(screen.getByText('Formato de salida')).not.toBeNull();
-    const operationButtons = screen.getAllByRole('button', { name: 'Tipo de operación' });
-    await user.click(operationButtons[operationButtons.length - 1]);
-    await user.click(screen.getByRole('option', { name: 'Trabajar con texto' }));
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Formatear fecha');
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde columna');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar texto fijo');
 
+    expect(screen.getByLabelText('Texto fijo')).not.toBeNull();
     expect(screen.queryByText('Formato de entrada')).toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
     expect(screen.queryByText('Si no es una fecha válida')).toBeNull();
-    expect(screen.queryByText('Qué fecha usar')).toBeNull();
-    expect(screen.queryByText('Qué valor usar')).toBeNull();
-    expect(screen.queryByText('Buscar textos en')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Qué fecha usar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fecha encontrada' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Buscar textos en' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Texto encontrado' })).toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Usar texto fijo');
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
     expect(persistedRecipe.steps[0]).toEqual({
-      id: 'date-step',
+      id: 'step-1',
       mode: 'text',
       type: 'noop',
       applyToEmptyValues: false,
+      source: { type: 'fixedText', value: '' },
     });
+  });
+
+  it('does not render derived fields while text, date, or number mode has no action', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-no-action')} />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
+    expect(screen.queryByText('Qué valor usar')).toBeNull();
+    expect(screen.queryByText('Buscar valores en')).toBeNull();
+    expect(screen.queryByText('Valor encontrado')).toBeNull();
+    expect(screen.queryByText('Valor fijo')).toBeNull();
+
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
+    expect(screen.queryByText('Qué valor usar')).toBeNull();
+    expect(screen.queryByText('Qué fecha usar')).toBeNull();
+    expect(screen.queryByText('Buscar valores en')).toBeNull();
+    expect(screen.queryByText('Valor encontrado')).toBeNull();
+
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
+    expect(screen.queryByText('Qué fecha usar')).toBeNull();
+    expect(screen.queryByText('Fecha encontrada')).toBeNull();
+    expect(screen.queryByText('Formato de salida')).toBeNull();
+
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
+    expect(screen.queryByText('Qué valor usar')).toBeNull();
+    expect(screen.queryByText('Buscar valores en')).toBeNull();
+    expect(screen.queryByText('Valor encontrado')).toBeNull();
+    expect(screen.queryByText('Valor fijo')).toBeNull();
+  });
+
+  it('renders useful direct value fields for date and number noop actions', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-direct-values')} />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar valor tal cual');
+    expect(screen.getByText('Qué fecha usar')).not.toBeNull();
+    expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
+    expect(screen.queryByText('Formato de salida')).toBeNull();
+
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    expect(screen.queryByText('Qué valor usar')).toBeNull();
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar valor tal cual');
+    expect(screen.getByText('Qué valor usar')).not.toBeNull();
+    expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
+    expect(screen.queryByText('Formato de salida')).toBeNull();
+  });
+
+  it('can choose fixed text after several clean mode changes', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-multi-mode')} />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar texto fijo');
+
+    expect(screen.getByLabelText('Texto fijo')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Qué fecha usar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Qué valor usar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Valor encontrado' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fecha encontrada' })).toBeNull();
+  });
+
+  it('renders useful fields when using value as-is in a second step', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={{
+      id: 'output-second-direct',
+      label: 'Directo segundo',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [
+          { id: 'base-step', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+        ],
+      },
+    }} />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar valor tal cual');
+
+    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar valor tal cual');
+    expect(screen.getByRole('button', { name: 'Qué fecha usar' })).not.toBeNull();
+    expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
+    expect(screen.queryByText('Sólo se agregan pasos cuando elegís una acción útil.')).toBeNull();
+  });
+
+  it('keeps previous result available for a useful second-step transformation', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={{
+      id: 'output-previous-result',
+      label: 'Resultado previo',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [
+          { id: 'base-step', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+          { id: 'upper-step', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+        ],
+      },
+    }} />);
+
+    await openRecipeEditor(user);
+    expect(screen.getByText(/Paso 2/).textContent).toContain('Mayúsculas');
+    expect(screen.getByText('Qué valor usar')).not.toBeNull();
+    expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
+    expect(screen.getByText('Toma el valor que salió del paso anterior, no de la parte anterior.')).not.toBeNull();
   });
 
   it('keeps previous result selected and allows choosing a useful transformation', async () => {

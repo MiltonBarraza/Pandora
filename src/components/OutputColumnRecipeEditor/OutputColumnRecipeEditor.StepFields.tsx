@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, parseDateValue, supportedDateInputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
@@ -7,7 +7,7 @@ import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
-import { operationTypeLabel, pickCellTextLabel, recipeEditorPreviousResultHelpText, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { operationTypeLabel, pickCellTextLabel, recipeEditorPreviousResultHelpText, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import {
   conditionNeedsValue,
   conditionOperators,
@@ -31,6 +31,53 @@ import {
 
 export type StepValueKind = 'text' | 'number' | 'date';
 export type StepSourceChangeContext = { origin: 'cellValuePicker' };
+type VisibleStepAction = StepTextAction | NonNullable<TransformStep['operation']> | '';
+
+export function getVisibleStepAction(
+  step: TransformStep,
+  mode: TransformStepMode = step.mode ?? 'text',
+  textSourceAction?: StepTextSourceAction,
+): VisibleStepAction {
+  const allowedTypes = getStepTypesForMode(mode).map((option) => option.value);
+
+  if (mode === 'number') {
+    if (step.type === 'numericOperation') {
+      return step.operation ?? 'add';
+    }
+
+    return step.type === 'noop' && Boolean(step.source) ? 'noop' : '';
+  }
+
+  if (mode === 'text') {
+    if (step.type === 'noop') {
+      return textSourceAction ?? '';
+    }
+
+    return allowedTypes.includes(step.type) ? step.type : '';
+  }
+
+  if (mode === 'date') {
+    if (step.type === 'noop') {
+      return step.source ? 'noop' : '';
+    }
+
+    return allowedTypes.includes(step.type) ? step.type : '';
+  }
+
+  if (mode === 'conversion') {
+    return step.type !== 'noop' && allowedTypes.includes(step.type) ? step.type : '';
+  }
+
+  return allowedTypes.includes(step.type) ? step.type : '';
+}
+
+export function isVisibleStepActionConfigured(
+  step: TransformStep,
+  mode: TransformStepMode = step.mode ?? 'text',
+  textSourceAction?: StepTextSourceAction,
+) {
+  return getVisibleStepAction(step, mode, textSourceAction) !== '';
+}
 
 export function getStepValueSourceOptions(
   inputColumns: InputColumn[],
@@ -63,8 +110,8 @@ export function getStepValueSourceOptions(
   ];
 }
 
-export function getNumericStepTypeFromSelection(value: NonNullable<TransformStep['operation']> | '') {
-  return value === '' ? { type: 'noop' as const } : { type: 'numericOperation' as const, operation: value };
+export function getNumericStepTypeFromSelection(value: NonNullable<TransformStep['operation']> | 'noop' | '') {
+  return value === '' || value === 'noop' ? { type: 'noop' as const } : { type: 'numericOperation' as const, operation: value };
 }
 
 export function getTextStepActionOptions(_allowPreviousResult: boolean, allowConcat = true) {
@@ -97,14 +144,19 @@ export function StepTypeSelect({
   action?: ReactNode;
   onChange: (type: TransformStepType, operation?: NonNullable<TransformStep['operation']>) => void;
 }) {
+  const visibleAction = getVisibleStepAction(step, mode, textSourceAction);
+
   if (mode === 'number') {
     return (
-      <Dropdown<NonNullable<TransformStep['operation']> | ''>
+      <Dropdown<NonNullable<TransformStep['operation']> | 'noop' | ''>
         className="compact recipeField"
         label="Qué quiero hacer"
         labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
-        value={step.type === 'numericOperation' ? step.operation ?? 'add' : ''}
-        options={numericOperationOptions}
+        value={visibleAction as NonNullable<TransformStep['operation']> | 'noop' | ''}
+        options={[
+          { value: 'noop', label: useValueAsIsLabel },
+          ...numericOperationOptions,
+        ]}
         placeholder="Seleccionar acción"
         scrollStrategy="close"
         onChange={(value) => {
@@ -120,17 +172,14 @@ export function StepTypeSelect({
   const visibleOptions = mode === 'text' && onTextSourceAction
     ? textOptions
     : mode === 'conversion' ? getConversionStepActionOptions()
-      : mode === 'date' ? options.filter((option) => option.value !== 'noop')
-        : options;
-  const value = mode === 'text' && step.type === 'noop' && textSourceAction ? textSourceAction : step.type;
-
+      : options;
   return (
     <div className="stepTypeFieldGroup">
       <Dropdown<StepTextAction>
         className="compact recipeField"
         label="Qué quiero hacer"
         labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
-        value={value}
+        value={visibleAction as StepTextAction}
         options={visibleOptions}
         placeholder="Seleccionar acción"
         scrollStrategy="close"
@@ -230,6 +279,13 @@ export function StepSourceFields({
   const sourceOptions = usesTypedValuePicker || explicitTextValueSource
     ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource)
     : getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText);
+  const sourceIdentity = safeSource.type === 'input'
+    ? `${safeSource.type}:${safeSource.inputColumnId}`
+    : safeSource.type === 'fixedText' ? `${safeSource.type}:${safeSource.value}` : safeSource.type;
+
+  useEffect(() => {
+    setIsColumnTextPickerOpen(false);
+  }, [sourceIdentity, valueKind]);
 
   return (
     <>

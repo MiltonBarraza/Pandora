@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { InputColumn, InputRow, StepSource } from '../../types/import';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
 
 type ColumnTextPickerProps = {
@@ -18,6 +19,8 @@ type ColumnTextPickerProps = {
   fieldClassName?: string;
   onSelect: (value: string) => void;
 };
+
+export const invalidPickerValuesLabel = 'Valores no válidos';
 
 export function ColumnTextPicker({
   inputColumns,
@@ -37,6 +40,10 @@ export function ColumnTextPicker({
   const textOptions = getUniqueColumnTextOptions(rows, inputColumnId, isValueAllowed);
   const unfilteredOptions = isValueAllowed ? getUniqueColumnTextOptions(rows, inputColumnId) : textOptions;
   const omittedInvalidValues = unfilteredOptions.length > textOptions.length;
+  const hasNoValidOptions = textOptions.length === 0;
+  const noValidOptionsWarning = hasNoValidOptions
+    ? getInvalidPickerTooltip(emptyLabel, omittedInvalidValues ? filteredValuesHelp : undefined)
+    : '';
   const hasInvalidCurrentValue = Boolean(value.trim() && isValueAllowed && !isValueAllowed(value.trim()));
   const selectedValue = textOptions.some((option) => option.value === value) ? value : '';
   const fieldClasses = `compact ${fieldClassName}`;
@@ -57,10 +64,11 @@ export function ColumnTextPicker({
       <Dropdown
         className={fieldClasses}
         label={valueLabel}
+        labelInfo={noValidOptionsWarning ? <WarningTooltip content={noValidOptionsWarning} /> : undefined}
         value={selectedValue}
         options={textOptions.length > 0
           ? textOptions
-          : [{ value: '', label: emptyLabel, disabled: true }]}
+          : [{ value: '', label: invalidPickerValuesLabel, disabled: true }]}
         disabled={textOptions.length === 0}
         searchable
         searchPlaceholder={searchPlaceholder}
@@ -68,9 +76,13 @@ export function ColumnTextPicker({
         onChange={onSelect}
       />
       {hasInvalidCurrentValue && invalidCurrentValueHelp ? <p className="columnValuePickerWarning">{invalidCurrentValueHelp}</p> : null}
-      {omittedInvalidValues && filteredValuesHelp ? <p className="columnValuePickerHelp">{filteredValuesHelp}</p> : null}
+      {omittedInvalidValues && !hasNoValidOptions && filteredValuesHelp ? <p className="columnValuePickerHelp">{filteredValuesHelp}</p> : null}
     </>
   );
+}
+
+export function getInvalidPickerTooltip(...messages: Array<string | undefined>) {
+  return Array.from(new Set(messages.map((message) => message?.trim()).filter(Boolean))).join(' ');
 }
 
 export function getUniqueColumnTextOptions(
