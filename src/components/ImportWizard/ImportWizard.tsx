@@ -52,9 +52,14 @@ export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], proces
 type ImportWizardProps = {
   appearanceToolbar?: ReactNode;
   onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+  onStatePresenceChange?: (hasState: boolean) => void;
 };
 
-export function ImportWizard({ appearanceToolbar, onSaveProcessedResult }: ImportWizardProps) {
+export function ImportWizard({
+  appearanceToolbar,
+  onSaveProcessedResult,
+  onStatePresenceChange,
+}: ImportWizardProps) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
@@ -102,6 +107,9 @@ export function ImportWizard({ appearanceToolbar, onSaveProcessedResult }: Impor
     rowCount: rows.length,
     columnAnalysisCount: columnAnalysis.length,
   });
+  useEffect(() => {
+    onStatePresenceChange?.(hasWizardStateToProtect);
+  }, [hasWizardStateToProtect, onStatePresenceChange]);
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
   const maxColumns = useMemo(() => Math.max(1, ...rows.slice(0, 25).map((row) => row.length)), [rows]);
   const rawPreviewRows = useMemo(

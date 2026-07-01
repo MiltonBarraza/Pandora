@@ -14,6 +14,7 @@ type AppTool = 'sanitize' | 'combine';
 export default function App() {
   const [selectedTool, setSelectedTool] = useState<AppTool | null>(null);
   const [combineHasLocalState, setCombineHasLocalState] = useState(false);
+  const [sanitizerHasState, setSanitizerHasState] = useState(false);
   const [combineBasketSources, setCombineBasketSources] = useState<CombineSource[]>([]);
   const appearance = useAppearanceTheme();
   const saveProcessedResult = (result: ProcessedExportResult) => {
@@ -22,6 +23,16 @@ export default function App() {
   };
   const requestToolChange = () => {
     if (!selectedTool) {
+      return;
+    }
+
+    if (
+      selectedTool === 'sanitize'
+      && sanitizerHasState
+      && !window.confirm(
+        'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados que ya hayas guardado para combinar se conservarán hasta que recargues la página. ¿Querés continuar?',
+      )
+    ) {
       return;
     }
 
@@ -36,6 +47,7 @@ export default function App() {
     }
 
     setCombineHasLocalState(false);
+    setSanitizerHasState(false);
     setSelectedTool(selectedTool === 'combine' ? 'sanitize' : 'combine');
   };
   const appearanceToolbar = (
@@ -58,6 +70,7 @@ export default function App() {
       <ImportWizard
         appearanceToolbar={appearanceToolbar}
         onSaveProcessedResult={saveProcessedResult}
+        onStatePresenceChange={setSanitizerHasState}
       />
     );
   }

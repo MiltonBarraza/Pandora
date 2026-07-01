@@ -21,13 +21,16 @@ vi.mock('./components/ImportWizard/ImportWizard', () => ({
   ImportWizard: ({
     appearanceToolbar,
     onSaveProcessedResult,
+    onStatePresenceChange,
   }: {
     appearanceToolbar?: ReactNode;
     onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+    onStatePresenceChange?: (hasState: boolean) => void;
   }) => (
     <div>
       {appearanceToolbar}
       <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Emitir resultado</button>
+      <button type="button" onClick={() => onStatePresenceChange?.(true)}>Marcar sanitizador con estado</button>
     </div>
   ),
 }));
@@ -56,6 +59,45 @@ afterEach(() => {
 });
 
 describe('App combine basket wiring', () => {
+  it('leaves an empty sanitizer without confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar' }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
+  });
+
+  it('stays in sanitizer when dirty-state confirmation is cancelled', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Marcar sanitizador con estado' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar' }));
+
+    expect(confirm).toHaveBeenCalledWith(sanitizerExitConfirmationText);
+    expect(screen.getByRole('button', { name: 'Marcar sanitizador con estado' })).not.toBeNull();
+  });
+
+  it('leaves dirty sanitizer after confirmation and preserves basket sources', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
+    await user.click(screen.getByRole('button', { name: 'Marcar sanitizador con estado' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
+
+    expect(confirm).toHaveBeenCalledWith(sanitizerExitConfirmationText);
+    expect(screen.getByText('resultado.xlsx')).not.toBeNull();
+  });
+
   it('connects sanitizer result callback and passes converted source to combine', async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -119,3 +161,5 @@ const processedResult: ProcessedExportResult = {
   columns: [{ id: 'code', label: 'Código', order: 0, enabled: true }],
   rows: [{ status: 'included', outputValues: { code: 'A1' } }],
 };
+
+const sanitizerExitConfirmationText = 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados que ya hayas guardado para combinar se conservarán hasta que recargues la página. ¿Querés continuar?';
