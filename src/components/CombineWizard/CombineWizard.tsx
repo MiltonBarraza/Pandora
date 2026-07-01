@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
+import { mergeCombineSources, removeCombineSourceFromCollections } from '../../domain/combine/combineBasket';
 import { reapplyCombineMappings } from '../../domain/combine/combineColumnMappings';
 import type { AppliedCombineSettings } from '../../domain/combine/combineSettings';
 import { readCombineSource } from '../../domain/combine/readCombineSource';
@@ -15,17 +16,32 @@ import { MultipleFileUploader } from './MultipleFileUploader';
 
 type CombineWizardProps = {
   appearanceToolbar?: ReactNode;
+  basketSources?: CombineSource[];
+  onRemoveBasketSource?: (sourceId: string) => void;
   onStatePresenceChange?: (hasState: boolean) => void;
 };
 
-export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: CombineWizardProps) {
-  const [sources, setSources] = useState<CombineSource[]>([]);
+export function CombineWizard({
+  appearanceToolbar,
+  basketSources = [],
+  onRemoveBasketSource,
+  onStatePresenceChange,
+}: CombineWizardProps) {
+  const [uploadedSources, setUploadedSources] = useState<CombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
   const [mappings, setMappings] = useState<CombineColumnMapping[]>([]);
   const [outputFileName, setOutputFileName] = useState('Archivo combinado');
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const nextSourceIndexRef = useRef(0);
+  const sources = useMemo(
+    () => mergeCombineSources(basketSources, uploadedSources),
+    [basketSources, uploadedSources],
+  );
+  const basketSourceIds = useMemo(
+    () => new Set(basketSources.map((source) => source.id)),
+    [basketSources],
+  );
 
   useEffect(() => {
     setMappings((current) => reconcileCombineMappings({
@@ -77,7 +93,7 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
       }
     }));
 
-    setSources((current) => [
+    setUploadedSources((current) => [
       ...current,
       ...results.flatMap((result) => result.source ? [result.source] : []),
     ]);
@@ -86,6 +102,18 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
       ...results.flatMap((result) => result.error ? [result.error] : []),
     ]);
     setIsReading(false);
+  };
+
+  const removeSource = (sourceId: string) => {
+    const result = removeCombineSourceFromCollections({
+      sourceId,
+      basketSources,
+      uploadedSources,
+    });
+    setUploadedSources(result.uploadedSources);
+    if (result.removedBasketSourceId) {
+      onRemoveBasketSource?.(result.removedBasketSourceId);
+    }
   };
 
   return (
@@ -110,6 +138,12 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
           </div>
           <MultipleFileUploader disabled={isReading} onFilesSelected={(files) => void loadFiles(files)} />
 
+          {basketSources.length > 0 ? (
+            <p className="combineBasketNotice">
+              Los resultados guardados para combinar son temporales y se pierden al recargar la página.
+            </p>
+          ) : null}
+
           {readErrors.length > 0 ? (
             <div className="combineReadErrors" aria-live="polite">
               {readErrors.map((error) => (
@@ -132,6 +166,9 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
                 <article key={source.id} className="combineSourceItem">
                   <div>
                     <strong>{source.fileName}</strong>
+                    {basketSourceIds.has(source.id) ? (
+                      <span className="combineSourceBadge">Guardado desde sanitizador</span>
+                    ) : null}
                     <p className="muted combineSourceMeta">
                       {source.sheetName ? `Hoja: ${source.sheetName} · ` : ''}
                       {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
@@ -140,7 +177,7 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
                   </div>
                   <DeleteButton
                     title={`Remover ${source.fileName}`}
-                    onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}
+                    onClick={() => removeSource(source.id)}
                   />
                 </article>
               ))}

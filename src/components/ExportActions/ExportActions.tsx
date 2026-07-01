@@ -3,6 +3,7 @@ import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/im
 import { exportCsvFromProcessedRows } from '../../domain/import/exportCsv';
 import { shouldDownloadAfterSaveChoice, type SaveBeforeDownloadChoice } from '../../domain/import/settingsBaseline';
 import type { FileNameSettings, InputColumn, OutputColumn, ProcessedRow } from '../../types/import';
+import type { ProcessedExportResult } from '../../types/processedExport';
 import { Modal } from '../Modal/Modal';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -17,6 +18,7 @@ type ExportActionsProps = {
   sheetName: string;
   shouldPromptSaveBeforeExcelDownload?: boolean;
   onSaveSettingsBeforeExcelDownload?: () => boolean | Promise<boolean>;
+  onSaveProcessedResult?: (result: ProcessedExportResult) => void;
 };
 
 export function ExportActions({
@@ -29,11 +31,13 @@ export function ExportActions({
   sheetName,
   shouldPromptSaveBeforeExcelDownload = false,
   onSaveSettingsBeforeExcelDownload,
+  onSaveProcessedResult,
 }: ExportActionsProps) {
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
   const includedRows = rows.filter((row) => row.status === 'included');
   const filename = buildOutputFileBaseName({ settings: fileNameSettings, sourceFileName, sheetName });
   const auditFilename = buildAuditFileBaseName(filename);
+  const hasEnabledOutputColumns = outputColumns.some((column) => column.enabled);
 
   const downloadExcel = async () => {
     const { exportXlsxFromProcessedRows } = await import('../../domain/import/exportXlsx');
@@ -61,6 +65,14 @@ export function ExportActions({
   const downloadAudit = async () => {
     const { exportAuditXlsxFromProcessedRows } = await import('../../domain/import/exportXlsx');
     exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns);
+  };
+  const saveProcessedResult = () => {
+    onSaveProcessedResult?.(createProcessedExportResult({
+      rows,
+      outputColumns,
+      fileBaseName: filename,
+      sheetName,
+    }));
   };
 
   return (
@@ -93,6 +105,9 @@ export function ExportActions({
             <InfoTooltip content="Contiene solo las filas incluidas y columnas configuradas." />
           </strong>
           <p className="muted">Descarga el resultado procesado con el mismo nombre base.</p>
+          {onSaveProcessedResult ? (
+            <p className="muted">Guarda este resultado en una bolsa temporal para combinarlo con otros archivos.</p>
+          ) : null}
         </div>
         <div className="actions">
           <ActionButton action="download" disabled={includedRows.length === 0} onClick={requestExcelDownload}>
@@ -101,6 +116,16 @@ export function ExportActions({
           <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
             Descargar CSV
           </ActionButton>
+          {onSaveProcessedResult ? (
+            <ActionButton
+              action="save"
+              variant="secondary"
+              disabled={includedRows.length === 0 || !hasEnabledOutputColumns}
+              onClick={saveProcessedResult}
+            >
+              Guardar para combinar
+            </ActionButton>
+          ) : null}
         </div>
       </div>
       <div className="exportBlock secondaryExportBlock">
@@ -120,4 +145,37 @@ export function ExportActions({
       </div>
     </div>
   );
+}
+
+export function createProcessedExportResult({
+  rows,
+  outputColumns,
+  fileBaseName,
+  sheetName,
+}: {
+  rows: ProcessedRow[];
+  outputColumns: OutputColumn[];
+  fileBaseName: string;
+  sheetName?: string;
+}): ProcessedExportResult {
+  return {
+    id: createProcessedExportId(),
+    fileBaseName,
+    sheetName: sheetName || undefined,
+    columns: outputColumns.map(({ id, label, order, enabled }) => ({ id, label, order, enabled })),
+    rows: rows
+      .filter((row) => row.status === 'included')
+      .map((row) => ({
+        status: 'included',
+        outputValues: { ...row.outputValues },
+      })),
+  };
+}
+
+function createProcessedExportId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `processed-export:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 }

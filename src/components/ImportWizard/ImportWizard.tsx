@@ -19,6 +19,7 @@ import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from
 import { downloadImportSettingsFile } from '../../services/settingsFileService';
 import { showInfoToast } from '../../services/toastService';
 import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputColumn, InputRow, OutputColumn, ProcessedRow, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
+import type { ProcessedExportResult } from '../../types/processedExport';
 import { ColumnVisibilityManager, syncActiveColumnOrder } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -48,7 +49,12 @@ export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], proces
   return inputRows.filter((row) => visibleRowNumbers.has(row.rowNumber));
 }
 
-export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactNode }) {
+type ImportWizardProps = {
+  appearanceToolbar?: ReactNode;
+  onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+};
+
+export function ImportWizard({ appearanceToolbar, onSaveProcessedResult }: ImportWizardProps) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
@@ -776,6 +782,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             sheetName={selectedSheet}
             shouldPromptSaveBeforeExcelDownload={shouldPromptSaveBeforeExcelDownload}
             onSaveSettingsBeforeExcelDownload={async () => saveCurrentSettings().ok}
+            onSaveProcessedResult={onSaveProcessedResult}
           />
         </Step>
           </>

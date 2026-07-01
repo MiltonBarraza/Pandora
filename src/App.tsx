@@ -1,4 +1,8 @@
 import { useState, type ReactNode } from 'react';
+import { addProcessedResultToCombineBasket } from './domain/combine/combineBasket';
+import { showSuccessToast } from './services/toastService';
+import type { CombineSource } from './types/combine';
+import type { ProcessedExportResult } from './types/processedExport';
 import { AppearanceToolbar } from './components/AppearanceToolbar/AppearanceToolbar';
 import { useAppearanceTheme } from './components/AppearanceToolbar/useAppearanceTheme';
 import { CombineWizard } from './components/CombineWizard/CombineWizard';
@@ -10,7 +14,12 @@ type AppTool = 'sanitize' | 'combine';
 export default function App() {
   const [selectedTool, setSelectedTool] = useState<AppTool | null>(null);
   const [combineHasState, setCombineHasState] = useState(false);
+  const [combineBasketSources, setCombineBasketSources] = useState<CombineSource[]>([]);
   const appearance = useAppearanceTheme();
+  const saveProcessedResult = (result: ProcessedExportResult) => {
+    setCombineBasketSources((current) => addProcessedResultToCombineBasket(current, result));
+    showSuccessToast('Resultado guardado para combinar.');
+  };
   const requestToolChange = () => {
     if (!selectedTool) {
       return;
@@ -41,26 +50,43 @@ export default function App() {
   );
 
   if (selectedTool === 'sanitize') {
-    return <ImportWizard appearanceToolbar={appearanceToolbar} />;
+    return (
+      <ImportWizard
+        appearanceToolbar={appearanceToolbar}
+        onSaveProcessedResult={saveProcessedResult}
+      />
+    );
   }
 
   if (selectedTool === 'combine') {
     return (
       <CombineWizard
         appearanceToolbar={appearanceToolbar}
+        basketSources={combineBasketSources}
+        onRemoveBasketSource={(sourceId) => setCombineBasketSources((current) => (
+          current.filter((source) => source.id !== sourceId)
+        ))}
         onStatePresenceChange={setCombineHasState}
       />
     );
   }
 
-  return <ToolSelector appearanceToolbar={appearanceToolbar} onSelectTool={setSelectedTool} />;
+  return (
+    <ToolSelector
+      appearanceToolbar={appearanceToolbar}
+      basketSourceCount={combineBasketSources.length}
+      onSelectTool={setSelectedTool}
+    />
+  );
 }
 
 function ToolSelector({
   appearanceToolbar,
+  basketSourceCount,
   onSelectTool,
 }: {
   appearanceToolbar: ReactNode;
+  basketSourceCount: number;
   onSelectTool: (tool: AppTool) => void;
 }) {
   return (
@@ -82,7 +108,7 @@ function ToolSelector({
               Sanitizar archivo
             </ActionButton>
             <ActionButton action="duplicate" variant="secondary" onClick={() => onSelectTool('combine')}>
-              Combinar archivos
+              Combinar archivos{basketSourceCount > 0 ? ` (${basketSourceCount} guardados)` : ''}
             </ActionButton>
           </div>
         </section>
