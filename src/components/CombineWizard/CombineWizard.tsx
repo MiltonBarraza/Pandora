@@ -5,6 +5,7 @@ import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineM
 import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { CombinedRowsPreview } from './CombinedRowsPreview';
+import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
 import { CombineOutputColumns } from './CombineOutputColumns';
 import { MultipleFileUploader } from './MultipleFileUploader';
@@ -147,6 +148,12 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
           outputColumns={outputColumns}
           mappings={mappings}
           rows={combinedRows}
+        />
+        <CombineExportActions
+          sources={sources}
+          outputColumns={outputColumns}
+          mappings={mappings}
+          combinedRows={combinedRows}
         />
       </div>
     </main>

@@ -747,6 +747,29 @@ h3 {
   max-width: 100%;
 }
 
+.combineExportControls {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.combineExportFileName {
+  display: grid;
+  flex: 1 1 320px;
+  gap: 6px;
+  max-width: 520px;
+}
+
+.combineExportFileName > span {
+  font-weight: 700;
+}
+
+.combineExportDisabledReason {
+  margin: 10px 0 0;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed var(--color-accent-border);
