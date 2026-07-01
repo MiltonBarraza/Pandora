@@ -1,7 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { readCombineSource } from '../../domain/combine/readCombineSource';
-import type { CombineSource } from '../../types/combine';
+import type { CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { CombineOutputColumns } from './CombineOutputColumns';
 import { MultipleFileUploader } from './MultipleFileUploader';
 
 type CombineWizardProps = {
@@ -10,6 +11,7 @@ type CombineWizardProps = {
 
 export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
   const [sources, setSources] = useState<CombineSource[]>([]);
+  const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const nextSourceIndexRef = useRef(0);
@@ -100,6 +102,11 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
             </div>
           )}
         </section>
+        <CombineOutputColumns
+          sources={sources}
+          outputColumns={outputColumns}
+          onChange={setOutputColumns}
+        />
       </div>
     </main>
   );

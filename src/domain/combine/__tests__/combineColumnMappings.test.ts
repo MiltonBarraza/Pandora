@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest';
+import type { CombineOutputColumn, CombineSource } from '../../../types/combine';
+import { buildInitialCombineMappings, normalizeCombineColumnName } from '../combineColumnMappings';
+
+describe('normalizeCombineColumnName', () => {
+  it('ignores uppercase and lowercase differences', () => {
+    expect(normalizeCombineColumnName('CÓDIGO')).toBe(normalizeCombineColumnName('código'));
+  });
+
+  it('removes accents and diacritics', () => {
+    expect(normalizeCombineColumnName('Código Descripción')).toBe('codigo descripcion');
+  });
+
+  it('trims and collapses whitespace', () => {
+    expect(normalizeCombineColumnName('  Nombre   del\t producto  ')).toBe('nombre del producto');
+  });
+});
+
+describe('buildInitialCombineMappings', () => {
+  const sources: CombineSource[] = [
+    source('source:0', [
+      { id: 'col:0', name: 'Código', index: 0 },
+      { id: 'col:1', name: ' Descripción ', index: 1 },
+      { id: 'col:2', name: 'Nombre', index: 2 },
+    ]),
+    source('source:1', [
+      { id: 'col:0', name: 'CODIGO', index: 0 },
+      { id: 'col:1', name: 'Precio', index: 1 },
+    ]),
+  ];
+  const outputColumns: CombineOutputColumn[] = [
+    { id: 'output-code', name: ' codigo ' },
+    { id: 'output-description', name: 'DESCRIPCION' },
+    { id: 'output-product', name: 'Producto' },
+    { id: 'output-short-code', name: 'Cod.' },
+  ];
+
+  it('matches columns with the same normalized name', () => {
+    const mappings = buildInitialCombineMappings(sources, outputColumns);
+
+    expect(findMapping(mappings, 'source:0', 'output-code')?.sourceColumnId).toBe('col:0');
+    expect(findMapping(mappings, 'source:0', 'output-description')?.sourceColumnId).toBe('col:1');
+    expect(findMapping(mappings, 'source:1', 'output-code')?.sourceColumnId).toBe('col:0');
+  });
+
+  it('uses null when no exact normalized match exists', () => {
+    const mappings = buildInitialCombineMappings(sources, outputColumns);
+
+    expect(findMapping(mappings, 'source:0', 'output-product')?.sourceColumnId).toBeNull();
+    expect(findMapping(mappings, 'source:1', 'output-description')?.sourceColumnId).toBeNull();
+  });
+
+  it('does not use aliases or fuzzy abbreviations', () => {
+    const mappings = buildInitialCombineMappings(sources, outputColumns);
+
+    expect(findMapping(mappings, 'source:0', 'output-short-code')?.sourceColumnId).toBeNull();
+    expect(findMapping(mappings, 'source:0', 'output-product')?.sourceColumnId).toBeNull();
+  });
+
+  it('creates one mapping for every source and output column pair', () => {
+    const mappings = buildInitialCombineMappings(sources, outputColumns);
+
+    expect(mappings).toHaveLength(sources.length * outputColumns.length);
+    expect(mappings.map(({ sourceId, outputColumnId }) => `${sourceId}:${outputColumnId}`)).toEqual([
+      'source:0:output-code',
+      'source:0:output-description',
+      'source:0:output-product',
+      'source:0:output-short-code',
+      'source:1:output-code',
+      'source:1:output-description',
+      'source:1:output-product',
+      'source:1:output-short-code',
+    ]);
+  });
+});
+
+function source(id: string, columns: CombineSource['columns']): CombineSource {
+  return { id, fileName: `${id}.xlsx`, columns, rows: [] };
+}
+
+function findMapping(
+  mappings: ReturnType<typeof buildInitialCombineMappings>,
+  sourceId: string,
+  outputColumnId: string,
+) {
+  return mappings.find((mapping) => (
+    mapping.sourceId === sourceId && mapping.outputColumnId === outputColumnId
+  ));
+}

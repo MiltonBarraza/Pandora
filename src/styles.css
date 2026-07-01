@@ -575,6 +575,66 @@ h3 {
   margin: 4px 0 0;
 }
 
+.combineOutputColumnsHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.combineOutputColumnsHeader p {
+  margin: -8px 0 16px;
+}
+
+.combineColumnWarning {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  color: var(--color-warning-text);
+  margin: 8px 0;
+  padding: 10px 12px;
+}
+
+.combineOutputColumnsEmpty {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 16px;
+}
+
+.combineOutputColumnsEmpty p {
+  margin: 0;
+}
+
+.combineOutputColumnList {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.combineOutputColumnItem {
+  align-items: flex-end;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.combineOutputColumnItem label {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.combineOutputColumnItem label span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed var(--color-accent-border);
