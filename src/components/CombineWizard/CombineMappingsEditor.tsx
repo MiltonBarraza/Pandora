@@ -37,10 +37,10 @@ export function CombineMappingsEditor({
     <section className="panel">
       <ConfirmDialog
         open={isReapplyConfirmationOpen}
-        title="Reaplicar automapeo"
+        title="Recalcular mapeo automático"
         message="Se reemplazarán los mapeos actuales usando coincidencia exacta por nombre normalizado."
         cancelLabel="Cancelar"
-        confirmLabel="Reaplicar automapeo"
+        confirmLabel="Recalcular mapeo"
         onCancel={() => setIsReapplyConfirmationOpen(false)}
         onConfirm={() => {
           setIsReapplyConfirmationOpen(false);
@@ -58,7 +58,7 @@ export function CombineMappingsEditor({
             variant="secondary"
             onClick={() => setIsReapplyConfirmationOpen(true)}
           >
-            Reaplicar automapeo
+            Recalcular mapeo automático
           </ActionButton>
         ) : null}
       </div>
