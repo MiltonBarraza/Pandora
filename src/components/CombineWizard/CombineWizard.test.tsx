@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CombineSource } from '../../types/combine';
@@ -29,6 +29,18 @@ describe('CombineWizard basket sources', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Remover guardado.xlsx' }));
 
     expect(onRemoveBasketSource).toHaveBeenCalledWith('basket:1');
+  });
+
+  it('does not report basket-only state as local state that would be lost', async () => {
+    const onLocalStatePresenceChange = vi.fn();
+    render(
+      <CombineWizard
+        basketSources={[basketSource]}
+        onLocalStatePresenceChange={onLocalStatePresenceChange}
+      />,
+    );
+
+    await waitFor(() => expect(onLocalStatePresenceChange).toHaveBeenLastCalledWith(false));
   });
 });
 

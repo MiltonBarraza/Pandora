@@ -18,14 +18,14 @@ type CombineWizardProps = {
   appearanceToolbar?: ReactNode;
   basketSources?: CombineSource[];
   onRemoveBasketSource?: (sourceId: string) => void;
-  onStatePresenceChange?: (hasState: boolean) => void;
+  onLocalStatePresenceChange?: (hasState: boolean) => void;
 };
 
 export function CombineWizard({
   appearanceToolbar,
   basketSources = [],
   onRemoveBasketSource,
-  onStatePresenceChange,
+  onLocalStatePresenceChange,
 }: CombineWizardProps) {
   const [uploadedSources, setUploadedSources] = useState<CombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
@@ -33,6 +33,7 @@ export function CombineWizard({
   const [outputFileName, setOutputFileName] = useState('Archivo combinado');
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
+  const [hasImportedSettings, setHasImportedSettings] = useState(false);
   const nextSourceIndexRef = useRef(0);
   const sources = useMemo(
     () => mergeCombineSources(basketSources, uploadedSources),
@@ -52,15 +53,24 @@ export function CombineWizard({
   }, [sources, outputColumns]);
 
   useEffect(() => {
-    onStatePresenceChange?.(
-      sources.length > 0
+    onLocalStatePresenceChange?.(
+      uploadedSources.length > 0
         || outputColumns.length > 0
         || mappings.length > 0
-        || outputFileName !== 'Archivo combinado',
+        || outputFileName !== 'Archivo combinado'
+        || hasImportedSettings,
     );
-  }, [sources.length, outputColumns.length, mappings.length, outputFileName, onStatePresenceChange]);
+  }, [
+    uploadedSources.length,
+    outputColumns.length,
+    mappings.length,
+    outputFileName,
+    hasImportedSettings,
+    onLocalStatePresenceChange,
+  ]);
 
   const applySettings = (settings: AppliedCombineSettings) => {
+    setHasImportedSettings(true);
     setOutputColumns(settings.outputColumns);
     setMappings(settings.mappings);
     setOutputFileName(settings.outputFileName);

@@ -13,7 +13,7 @@ type AppTool = 'sanitize' | 'combine';
 
 export default function App() {
   const [selectedTool, setSelectedTool] = useState<AppTool | null>(null);
-  const [combineHasState, setCombineHasState] = useState(false);
+  const [combineHasLocalState, setCombineHasLocalState] = useState(false);
   const [combineBasketSources, setCombineBasketSources] = useState<CombineSource[]>([]);
   const appearance = useAppearanceTheme();
   const saveProcessedResult = (result: ProcessedExportResult) => {
@@ -27,13 +27,15 @@ export default function App() {
 
     if (
       selectedTool === 'combine'
-      && combineHasState
-      && !window.confirm('Si cambiás de herramienta, se perderá el estado actual de Combinar archivos.')
+      && combineHasLocalState
+      && !window.confirm(
+        'Vas a salir de Combinar archivos. Las fuentes subidas manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página.',
+      )
     ) {
       return;
     }
 
-    setCombineHasState(false);
+    setCombineHasLocalState(false);
     setSelectedTool(selectedTool === 'combine' ? 'sanitize' : 'combine');
   };
   const appearanceToolbar = (
@@ -43,7 +45,9 @@ export default function App() {
       onPreferenceChange={appearance.setPreference}
       extraActions={selectedTool ? (
         <button type="button" className="appearanceToggleOption appToolSwitchOption" onClick={requestToolChange}>
-          Cambiar herramienta
+          {selectedTool === 'combine'
+            ? 'Ir a Sanitizar'
+            : `Ir a Combinar${combineBasketSources.length > 0 ? ` (${getSavedSourceCountLabel(combineBasketSources.length)})` : ''}`}
         </button>
       ) : null}
     />
@@ -66,7 +70,7 @@ export default function App() {
         onRemoveBasketSource={(sourceId) => setCombineBasketSources((current) => (
           current.filter((source) => source.id !== sourceId)
         ))}
-        onStatePresenceChange={setCombineHasState}
+        onLocalStatePresenceChange={setCombineHasLocalState}
       />
     );
   }
@@ -108,11 +112,15 @@ function ToolSelector({
               Sanitizar archivo
             </ActionButton>
             <ActionButton action="duplicate" variant="secondary" onClick={() => onSelectTool('combine')}>
-              Combinar archivos{basketSourceCount > 0 ? ` (${basketSourceCount} guardados)` : ''}
+              Combinar archivos{basketSourceCount > 0 ? ` (${getSavedSourceCountLabel(basketSourceCount)})` : ''}
             </ActionButton>
           </div>
         </section>
       </div>
     </main>
   );
+}
+
+function getSavedSourceCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'guardado' : 'guardados'}`;
 }

@@ -35,12 +35,15 @@ vi.mock('./components/CombineWizard/CombineWizard', () => ({
   CombineWizard: ({
     appearanceToolbar,
     basketSources,
+    onLocalStatePresenceChange,
   }: {
     appearanceToolbar?: ReactNode;
     basketSources?: CombineSource[];
+    onLocalStatePresenceChange?: (hasState: boolean) => void;
   }) => (
     <div>
       {appearanceToolbar}
+      <button type="button" onClick={() => onLocalStatePresenceChange?.(true)}>Marcar estado local</button>
       {basketSources?.map((source) => <span key={source.id}>{source.fileName}</span>)}
     </div>
   ),
@@ -48,6 +51,7 @@ vi.mock('./components/CombineWizard/CombineWizard', () => ({
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   showSuccessToast.mockClear();
 });
 
@@ -60,8 +64,52 @@ describe('App combine basket wiring', () => {
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
     expect(showSuccessToast).toHaveBeenCalledWith('Resultado guardado para combinar.');
 
-    await user.click(screen.getByRole('button', { name: 'Cambiar herramienta' }));
+    expect(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' })).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
     expect(screen.getByText('resultado.xlsx')).not.toBeNull();
+  });
+
+  it('keeps basket sources without confirmation when combine has no local state', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
+    expect(screen.getByText('resultado.xlsx')).not.toBeNull();
+  });
+
+  it('confirms before leaving combine with local state', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
+    await user.click(screen.getByRole('button', { name: 'Marcar estado local' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      'Vas a salir de Combinar archivos. Las fuentes subidas manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página.',
+    );
+    expect(screen.getByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
+  });
+
+  it('stores repeated sanitizer results as independent basket sources', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
+    await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
+
+    expect(screen.getByRole('button', { name: 'Ir a Combinar (2 guardados)' })).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (2 guardados)' }));
+    expect(screen.getAllByText('resultado.xlsx')).toHaveLength(2);
   });
 });
 
