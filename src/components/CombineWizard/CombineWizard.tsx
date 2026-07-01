@@ -1,7 +1,9 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { readCombineSource } from '../../domain/combine/readCombineSource';
-import type { CombineOutputColumn, CombineSource } from '../../types/combine';
+import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
+import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { CombineMappingsEditor } from './CombineMappingsEditor';
 import { CombineOutputColumns } from './CombineOutputColumns';
 import { MultipleFileUploader } from './MultipleFileUploader';
 
@@ -12,9 +14,18 @@ type CombineWizardProps = {
 export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
   const [sources, setSources] = useState<CombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
+  const [mappings, setMappings] = useState<CombineColumnMapping[]>([]);
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const nextSourceIndexRef = useRef(0);
+
+  useEffect(() => {
+    setMappings((current) => reconcileCombineMappings({
+      sources,
+      outputColumns,
+      previousMappings: current,
+    }));
+  }, [sources, outputColumns]);
 
   const loadFiles = async (files: File[]) => {
     const pendingFiles = files.map((file) => ({
@@ -106,6 +117,22 @@ export function CombineWizard({ appearanceToolbar }: CombineWizardProps) {
           sources={sources}
           outputColumns={outputColumns}
           onChange={setOutputColumns}
+        />
+        <CombineMappingsEditor
+          sources={sources}
+          outputColumns={outputColumns}
+          mappings={mappings}
+          onMappingChange={(nextMapping) => setMappings((current) => reconcileCombineMappings({
+            sources,
+            outputColumns,
+            previousMappings: [
+              ...current.filter((mapping) => !(
+                mapping.sourceId === nextMapping.sourceId
+                && mapping.outputColumnId === nextMapping.outputColumnId
+              )),
+              nextMapping,
+            ],
+          }))}
         />
       </div>
     </main>
