@@ -52,7 +52,12 @@ export type AppliedCombineSettings = {
   outputFileName: string;
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
+  warnings: string[];
 };
+
+export type ParseCombineSettingsSnapshotResult =
+  | { ok: true; snapshot: CombineSettingsSnapshot }
+  | { ok: false; error: string };
 
 export function createCombineSettingsSnapshot({
   sources,
@@ -100,10 +105,26 @@ export function applyCombineSettingsSnapshot({
   snapshot,
   sources,
 }: ApplyCombineSettingsSnapshotInput): AppliedCombineSettings {
+  const warnings: string[] = [];
   const outputColumns = [...snapshot.outputColumns]
     .sort((left, right) => left.index - right.index)
     .map(({ id, name }) => ({ id, name }));
   const savedSources = matchSavedSources(snapshot.sourceMappings, sources);
+  if (sources.length === 0 && snapshot.sourceMappings.length > 0) {
+    warnings.push('Para restaurar mapeos, cargá los archivos correspondientes y volvé a importar la configuración.');
+  } else {
+    savedSources.forEach((savedSource, index) => {
+      if (!savedSource) {
+        warnings.push(`No se encontró configuración para ${sources[index].fileName}; se aplicó automapeo.`);
+      }
+    });
+    const matchedSavedSources = new Set(savedSources.filter(Boolean));
+    snapshot.sourceMappings.forEach((savedSource) => {
+      if (!matchedSavedSources.has(savedSource)) {
+        warnings.push(`No está cargada la fuente ${savedSource.fileName}; sus mapeos no se aplicaron.`);
+      }
+    });
+  }
   const initialMappings = buildInitialCombineMappings(sources, outputColumns);
   const initialByPair = new Map(
     initialMappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
@@ -128,6 +149,11 @@ export function applyCombineSettingsSnapshot({
       const sourceColumn = savedMapping.sourceColumnId === null
         ? undefined
         : resolveSavedSourceColumn(source.columns, savedMapping);
+      if (savedMapping.sourceColumnId !== null && !sourceColumn) {
+        warnings.push(
+          `No se encontró la columna ${savedMapping.sourceColumnName ?? savedMapping.sourceColumnId} en ${source.fileName}.`,
+        );
+      }
       return {
         sourceId: source.id,
         outputColumnId: outputColumn.id,
@@ -140,6 +166,47 @@ export function applyCombineSettingsSnapshot({
     outputFileName: snapshot.outputFileName,
     outputColumns,
     mappings,
+    warnings: [...new Set(warnings)],
+  };
+}
+
+export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSettingsSnapshotResult {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'El archivo no contiene un JSON válido.' };
+  }
+
+  if (!isRecord(value)) {
+    return { ok: false, error: 'La configuración debe ser un objeto JSON.' };
+  }
+  if (value.schemaVersion !== 1) {
+    return { ok: false, error: 'Versión de configuración no compatible.' };
+  }
+  if (value.app !== 'excel-sanitizer') {
+    return { ok: false, error: 'La configuración no pertenece a Excel Sanitizer.' };
+  }
+  if (value.feature !== 'combine-files') {
+    return { ok: false, error: 'La configuración no corresponde a Combinar archivos.' };
+  }
+  if (!Array.isArray(value.outputColumns) || !value.outputColumns.every(isSettingsOutputColumn)) {
+    return { ok: false, error: 'Las columnas de salida de la configuración no son válidas.' };
+  }
+  if (!Array.isArray(value.sourceMappings) || !value.sourceMappings.every(isSettingsSourceMapping)) {
+    return { ok: false, error: 'Los mapeos de fuentes de la configuración no son válidos.' };
+  }
+
+  return {
+    ok: true,
+    snapshot: {
+      schemaVersion: 1,
+      app: 'excel-sanitizer',
+      feature: 'combine-files',
+      outputFileName: typeof value.outputFileName === 'string' ? value.outputFileName : 'Archivo combinado',
+      outputColumns: value.outputColumns,
+      sourceMappings: value.sourceMappings,
+    },
   };
 }
 
@@ -200,4 +267,35 @@ function resolveSavedSourceColumn(
 
 function mappingKey(sourceId: string, outputColumnId: string) {
   return `${sourceId}\u0000${outputColumnId}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isSettingsOutputColumn(value: unknown): value is CombineSettingsOutputColumn {
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && typeof value.name === 'string'
+    && Number.isInteger(value.index)
+    && Number(value.index) >= 0;
+}
+
+function isSettingsSourceMapping(value: unknown): value is CombineSettingsSourceMapping {
+  return isRecord(value)
+    && Number.isInteger(value.sourceIndex)
+    && Number(value.sourceIndex) >= 0
+    && typeof value.fileName === 'string'
+    && (value.sheetName === undefined || typeof value.sheetName === 'string')
+    && Array.isArray(value.mappings)
+    && value.mappings.every(isSettingsColumnMapping);
+}
+
+function isSettingsColumnMapping(value: unknown): value is CombineSettingsColumnMapping {
+  return isRecord(value)
+    && typeof value.outputColumnId === 'string'
+    && typeof value.outputColumnName === 'string'
+    && (value.sourceColumnId === null || typeof value.sourceColumnId === 'string')
+    && (value.sourceColumnName === null || typeof value.sourceColumnName === 'string')
+    && (value.sourceColumnIndex === null || (Number.isInteger(value.sourceColumnIndex) && Number(value.sourceColumnIndex) >= 0));
 }

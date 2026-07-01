@@ -800,6 +800,18 @@ h3 {
   margin: 10px 0 0;
 }
 
+.combineSettingsDescription {
+  margin: -8px 0 14px;
+}
+
+.combineSettingsFileInput {
+  display: none;
+}
+
+.combineSettingsMessage {
+  margin: 12px 0 0;
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed var(--color-accent-border);

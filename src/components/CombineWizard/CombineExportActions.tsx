@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { normalizeCombineColumnName } from '../../domain/combine/combineColumnMappings';
 import type {
   CombineColumnMapping,
@@ -13,6 +12,8 @@ type CombineExportActionsProps = {
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   combinedRows: CombinedRow[];
+  outputFileName: string;
+  onOutputFileNameChange: (fileName: string) => void;
 };
 
 export function CombineExportActions({
@@ -20,8 +21,9 @@ export function CombineExportActions({
   outputColumns,
   mappings,
   combinedRows,
+  outputFileName,
+  onOutputFileNameChange,
 }: CombineExportActionsProps) {
-  const [fileName, setFileName] = useState('Archivo combinado');
   const disabledReason = getExportDisabledReason(sources, outputColumns, combinedRows);
   const hasEmptyNames = outputColumns.some((column) => column.name.trim() === '');
   const hasDuplicateNames = hasDuplicateColumnNames(outputColumns);
@@ -32,7 +34,7 @@ export function CombineExportActions({
       return;
     }
     const { exportCombinedXlsx } = await import('../../domain/combine/exportCombinedXlsx');
-    exportCombinedXlsx({ outputColumns, combinedRows, fileName });
+    exportCombinedXlsx({ outputColumns, combinedRows, fileName: outputFileName });
   };
 
   return (
@@ -54,9 +56,9 @@ export function CombineExportActions({
         <label className="combineExportFileName">
           <span>Nombre del archivo</span>
           <input
-            value={fileName}
+            value={outputFileName}
             placeholder="Archivo combinado"
-            onChange={(event) => setFileName(event.target.value)}
+            onChange={(event) => onOutputFileNameChange(event.target.value)}
           />
           <small className="muted">La extensión .xlsx se agrega automáticamente.</small>
         </label>

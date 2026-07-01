@@ -3,6 +3,7 @@ import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '.
 import {
   applyCombineSettingsSnapshot,
   createCombineSettingsSnapshot,
+  parseCombineSettingsSnapshotJson,
   type CombineSettingsSnapshot,
 } from '../combineSettings';
 
@@ -75,6 +76,17 @@ describe('applyCombineSettingsSnapshot', () => {
 
     expect(result.outputFileName).toBe('Salida mensual');
     expect(result.outputColumns).toEqual(outputColumns);
+  });
+
+  it('applies columns and filename without sources and warns about mappings', () => {
+    const result = applyCombineSettingsSnapshot({ snapshot: createSnapshot(), sources: [] });
+
+    expect(result.outputFileName).toBe('Salida mensual');
+    expect(result.outputColumns).toEqual(outputColumns);
+    expect(result.mappings).toEqual([]);
+    expect(result.warnings).toContain(
+      'Para restaurar mapeos, cargá los archivos correspondientes y volvé a importar la configuración.',
+    );
   });
 
   it('applies mappings to current source ids without depending on saved source ids', () => {
@@ -155,6 +167,40 @@ describe('applyCombineSettingsSnapshot', () => {
   });
 });
 
+describe('parseCombineSettingsSnapshotJson', () => {
+  it('accepts a valid snapshot', () => {
+    const snapshot = createSnapshot();
+
+    expect(parseCombineSettingsSnapshotJson(JSON.stringify(snapshot))).toEqual({ ok: true, snapshot });
+  });
+
+  it('rejects invalid JSON', () => {
+    expect(parseCombineSettingsSnapshotJson('{invalid')).toEqual({
+      ok: false,
+      error: 'El archivo no contiene un JSON válido.',
+    });
+  });
+
+  it('rejects an incorrect app', () => {
+    expect(parseSnapshotChange({ app: 'otra-app' })).toMatchObject({ ok: false });
+  });
+
+  it('rejects an incorrect feature', () => {
+    expect(parseSnapshotChange({ feature: 'sanitize' })).toMatchObject({ ok: false });
+  });
+
+  it('rejects an unsupported schema version', () => {
+    expect(parseSnapshotChange({ schemaVersion: 2 })).toMatchObject({ ok: false });
+  });
+
+  it('uses a fallback when output filename is missing', () => {
+    const snapshot = { ...createSnapshot(), outputFileName: undefined };
+    const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(snapshot));
+
+    expect(parsed.ok && parsed.snapshot.outputFileName).toBe('Archivo combinado');
+  });
+});
+
 function createSnapshot(): CombineSettingsSnapshot {
   return createCombineSettingsSnapshot({
     sources: originalSources,
@@ -162,6 +208,10 @@ function createSnapshot(): CombineSettingsSnapshot {
     mappings,
     outputFileName: 'Salida mensual',
   });
+}
+
+function parseSnapshotChange(change: Record<string, unknown>) {
+  return parseCombineSettingsSnapshotJson(JSON.stringify({ ...createSnapshot(), ...change }));
 }
 
 function source(

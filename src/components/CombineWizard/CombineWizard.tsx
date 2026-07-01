@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
 import { reapplyCombineMappings } from '../../domain/combine/combineColumnMappings';
+import type { AppliedCombineSettings } from '../../domain/combine/combineSettings';
 import { readCombineSource } from '../../domain/combine/readCombineSource';
 import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
 import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
@@ -9,6 +10,7 @@ import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
 import { CombineOutputColumns } from './CombineOutputColumns';
+import { CombineSettingsActions } from './CombineSettingsActions';
 import { MultipleFileUploader } from './MultipleFileUploader';
 
 type CombineWizardProps = {
@@ -20,6 +22,7 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
   const [sources, setSources] = useState<CombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
   const [mappings, setMappings] = useState<CombineColumnMapping[]>([]);
+  const [outputFileName, setOutputFileName] = useState('Archivo combinado');
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const nextSourceIndexRef = useRef(0);
@@ -34,9 +37,18 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
 
   useEffect(() => {
     onStatePresenceChange?.(
-      sources.length > 0 || outputColumns.length > 0 || mappings.length > 0,
+      sources.length > 0
+        || outputColumns.length > 0
+        || mappings.length > 0
+        || outputFileName !== 'Archivo combinado',
     );
-  }, [sources.length, outputColumns.length, mappings.length, onStatePresenceChange]);
+  }, [sources.length, outputColumns.length, mappings.length, outputFileName, onStatePresenceChange]);
+
+  const applySettings = (settings: AppliedCombineSettings) => {
+    setOutputColumns(settings.outputColumns);
+    setMappings(settings.mappings);
+    setOutputFileName(settings.outputFileName);
+  };
 
   const combinedRows = useMemo(() => buildCombinedRows({
     sources,
@@ -135,6 +147,13 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
             </div>
           )}
         </section>
+        <CombineSettingsActions
+          sources={sources}
+          outputColumns={outputColumns}
+          mappings={mappings}
+          outputFileName={outputFileName}
+          onApplySettings={applySettings}
+        />
         <CombineOutputColumns
           sources={sources}
           outputColumns={outputColumns}
@@ -168,6 +187,8 @@ export function CombineWizard({ appearanceToolbar, onStatePresenceChange }: Comb
           outputColumns={outputColumns}
           mappings={mappings}
           combinedRows={combinedRows}
+          outputFileName={outputFileName}
+          onOutputFileNameChange={setOutputFileName}
         />
       </div>
     </main>
