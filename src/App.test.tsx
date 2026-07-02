@@ -31,14 +31,22 @@ vi.mock('./components/ImportWizard/ImportWizard', () => ({
     onStatePresenceChange,
   }: {
     appearanceToolbar?: ReactNode;
-    multiSheetBatchPanel?: ReactNode;
+    multiSheetBatchPanel?: (props: {
+      onSaveCurrentSheet: () => void;
+      saveCurrentSheetDisabled: boolean;
+      saveCurrentSheetDisabledReason: string;
+    }) => ReactNode;
     onSaveProcessedResult?: (result: ProcessedExportResult) => void;
     onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
     onStatePresenceChange?: (hasState: boolean) => void;
   }) => (
     <div>
       {appearanceToolbar}
-      {multiSheetBatchPanel}
+      {multiSheetBatchPanel?.({
+        onSaveCurrentSheet: () => onSaveToMultiSheetBatch?.(processedResult),
+        saveCurrentSheetDisabled: false,
+        saveCurrentSheetDisabledReason: '',
+      })}
       <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Emitir resultado</button>
       <button type="button" onClick={() => onSaveToMultiSheetBatch?.(processedResult)}>Guardar hoja válida</button>
       <button type="button" onClick={() => onSaveToMultiSheetBatch?.(compatibleSecondResult)}>Guardar segunda hoja</button>
@@ -225,6 +233,17 @@ describe('App combine basket wiring', () => {
 });
 
 describe('App multi-sheet batch wiring', () => {
+  it('adds the current sheet through the upper batch action', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja en lote' }));
+
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
+    expect(showSuccessToast).toHaveBeenCalledWith('Hoja guardada en el lote multi-hoja.');
+  });
+
   it('adds first and second compatible sheets and defines the summary', async () => {
     const user = userEvent.setup();
     render(<App />);

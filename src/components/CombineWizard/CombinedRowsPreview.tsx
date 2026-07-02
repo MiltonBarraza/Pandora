@@ -31,7 +31,7 @@ export function CombinedRowsPreview({
   const { unmappedMappingCount, affectedCellCount } = getUnmappedSummary(sources, outputColumns, mappings);
 
   return (
-    <section className="panel">
+    <section className="panel combineFlowPanel combinePreviewPanel">
       <h2>Vista previa combinada</h2>
       <p className="combinePreviewOverview">
         <strong>{sources.length}</strong> {sources.length === 1 ? 'fuente' : 'fuentes'} ·{' '}

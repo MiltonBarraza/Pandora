@@ -3,8 +3,10 @@ import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
 import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
+import { buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
+import { createProcessedExportResult, getProcessedExportAvailability } from '../../domain/import/processedExportResult';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
 import { createSettingsComparisonKey, hasRelevantSettingsChanges } from '../../domain/import/settingsBaseline';
@@ -51,12 +53,18 @@ export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], proces
 
 type ImportWizardProps = {
   appearanceToolbar?: ReactNode;
-  multiSheetBatchPanel?: ReactNode;
+  multiSheetBatchPanel?: (props: MultiSheetBatchPanelRenderProps) => ReactNode;
   onSaveProcessedResult?: (result: ProcessedExportResult) => void;
   onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
   onStatePresenceChange?: (hasState: boolean) => void;
   externalReloadGuardActive?: boolean;
   suppressBeforeUnloadWarning?: boolean;
+};
+
+export type MultiSheetBatchPanelRenderProps = {
+  onSaveCurrentSheet: () => void;
+  saveCurrentSheetDisabled: boolean;
+  saveCurrentSheetDisabledReason: string;
 };
 
 export function ImportWizard({
@@ -238,6 +246,27 @@ export function ImportWizard({
     ].sort((left, right) => left.rowNumber - right.rowNumber),
     [processedPipeline.ignoredInputRows, processedRowsWithStatus],
   );
+  const multiSheetSaveAvailability = getProcessedExportAvailability(
+    processedRowsWithStatus,
+    processedPipeline.outputColumns,
+  );
+  const saveCurrentSheetToMultiSheetBatch = () => {
+    if (!onSaveToMultiSheetBatch || !multiSheetSaveAvailability.exportable) {
+      return;
+    }
+
+    onSaveToMultiSheetBatch(createProcessedExportResult({
+      rows: processedRowsWithStatus,
+      outputColumns: processedPipeline.outputColumns,
+      fileBaseName: buildOutputFileBaseName({
+        settings: fileNameSettings,
+        sourceFileName: fileName,
+        sheetName: selectedSheet,
+      }),
+      sourceFileName: fileName,
+      sheetName: selectedSheet,
+    }));
+  };
 
   useBeforeUnloadWarning(
     hasWizardStateToProtect
@@ -608,7 +637,6 @@ export function ImportWizard({
       </header>
 
       <div className="wizard">
-        {multiSheetBatchPanel}
         <Step title="1. Archivo">
           <FileUploader
             fileName={fileName}
@@ -630,19 +658,26 @@ export function ImportWizard({
               onSelectSheet={changeSelectedSheet}
             />
           )}
-          <SettingsActions
-            key={configurationRevision}
-            fileType={fileType}
-            selectedSheet={selectedSheet}
-            sheetNames={sheetNames}
-            rows={rows}
-            headerRowIndex={headerRowIndex}
-            startRowIndex={startRowIndex}
-            columnAnalysis={columnAnalysis}
-            onSaveSettings={saveCurrentSettings}
-            onApplySettings={applyImportedSettings}
-            onSettingsImported={() => setIsConfigurationDirty(true)}
-          />
+          <div className={`sheetConfigurationWorkspace${multiSheetBatchPanel ? ' hasMultiSheetBatch' : ''}`}>
+            <SettingsActions
+              key={configurationRevision}
+              fileType={fileType}
+              selectedSheet={selectedSheet}
+              sheetNames={sheetNames}
+              rows={rows}
+              headerRowIndex={headerRowIndex}
+              startRowIndex={startRowIndex}
+              columnAnalysis={columnAnalysis}
+              onSaveSettings={saveCurrentSettings}
+              onApplySettings={applyImportedSettings}
+              onSettingsImported={() => setIsConfigurationDirty(true)}
+            />
+            {multiSheetBatchPanel?.({
+              onSaveCurrentSheet: saveCurrentSheetToMultiSheetBatch,
+              saveCurrentSheetDisabled: !multiSheetSaveAvailability.exportable,
+              saveCurrentSheetDisabledReason: multiSheetSaveAvailability.disabledReason,
+            })}
+          </div>
         </Step>
 
         <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta.">

@@ -127,9 +127,9 @@ export function CombineWizard({
   };
 
   return (
-    <main className="appShell">
+    <main className="appShell combineWizard">
       {appearanceToolbar}
-      <header className="hero">
+      <header className="hero combineHero">
         <div>
           <p className="eyebrow">PANDORA</p>
           <h1>Combiná varios archivos en una sola planilla</h1>
@@ -138,7 +138,7 @@ export function CombineWizard({
       </header>
 
       <div className="wizard">
-        <section className="panel">
+        <section className="panel combineFlowPanel combineSourcesPanel">
           <h2>Fuentes</h2>
           <p className="muted combineSourcesIntro">Cargá archivos o usá resultados guardados desde el sanitizador.</p>
           <div className="combineReadPolicy">

@@ -144,9 +144,16 @@ export default function App() {
       <>
         <ImportWizard
           appearanceToolbar={appearanceToolbar}
-          multiSheetBatchPanel={(
+          multiSheetBatchPanel={({
+            onSaveCurrentSheet,
+            saveCurrentSheetDisabled,
+            saveCurrentSheetDisabledReason,
+          }) => (
             <MultiSheetBatchPanel
               batch={multiSheetBatch}
+              onSaveCurrentSheet={onSaveCurrentSheet}
+              saveCurrentSheetDisabled={saveCurrentSheetDisabled}
+              saveCurrentSheetDisabledReason={saveCurrentSheetDisabledReason}
               onRemoveSheet={(sheetId) => setMultiSheetBatch((current) => (
                 removeSheetFromMultiSheetBatch(current, sheetId)
               ))}

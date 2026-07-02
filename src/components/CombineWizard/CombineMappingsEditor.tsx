@@ -43,7 +43,7 @@ export function CombineMappingsEditor({
   }, [sources]);
 
   return (
-    <section className="panel">
+    <section className="panel combineFlowPanel">
       <ConfirmDialog
         open={isReapplyConfirmationOpen}
         title="Recalcular mapeo automático"

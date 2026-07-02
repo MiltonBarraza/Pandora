@@ -520,9 +520,71 @@ h3 {
   display: grid;
 }
 
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .multiSheetBatchPanel {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-muted);
+  border-radius: 10px;
+  box-shadow: none;
+  display: grid;
+  gap: 10px;
+}
+
+.sheetConfigurationWorkspace {
   display: grid;
   gap: 12px;
+  margin-top: 16px;
+  min-width: 0;
+}
+
+.sheetConfigurationWorkspace.hasMultiSheetBatch {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sheetConfigurationWorkspace .settingsActions,
+.sheetConfigurationWorkspace .multiSheetBatchPanel {
+  margin-top: 0;
+  min-width: 0;
+}
+
+.sheetConfigurationWorkspace .settingsActions {
+  gap: 9px;
+  padding: 12px;
+}
+
+.sheetConfigurationWorkspace .settingsActions .sectionHeader {
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.sheetConfigurationWorkspace .settingsActionsIntro p {
+  font-size: 0.82rem;
+}
+
+.sheetConfigurationWorkspace .settingsActions .compactActions {
+  gap: 7px;
+}
+
+.sheetConfigurationWorkspace .settingsActions .actionButton {
+  min-height: 36px;
+  padding-inline: 11px;
+}
+
+.sheetConfigurationWorkspace .multiSheetBatchPanel {
+  padding: 12px;
+}
+
+.sheetConfigurationWorkspace .multiSheetBatchTitleRow h3 {
+  font-size: 1rem;
 }
 
 .multiSheetBatchPanelEmpty {
@@ -531,20 +593,88 @@ h3 {
 }
 
 .multiSheetBatchHeader {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
 }
 
-.multiSheetBatchHeader h2,
-.multiSheetBatchHeader p {
-  margin-bottom: 0;
+.multiSheetBatchTitleBlock {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.multiSheetBatchTitleRow {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.multiSheetBatchTitleRow h3 {
+  font-size: 1.18rem;
+  margin: 0;
+}
+
+.multiSheetBatchFileName {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.multiSheetBatchFileName span {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.multiSheetBatchSummary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.multiSheetBatchSummaryLabel {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.multiSheetBatchSummaryChip {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  padding: 3px 8px;
 }
 
 .multiSheetBatchSummary strong {
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
+}
+
+.multiSheetBatchEmptyCopy {
+  display: grid;
+  gap: 2px;
+}
+
+.multiSheetBatchEmptyCopy p {
+  margin: 0;
+}
+
+.multiSheetBatchEmptyCopy span {
+  font-size: 0.78rem;
+}
+
+.multiSheetBatchHeader .actions {
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.multiSheetBatchHeader .actionButton {
+  min-height: 36px;
 }
 
 .multiSheetBatchSheets {
@@ -554,13 +684,34 @@ h3 {
 
 .multiSheetBatchSheet {
   align-items: center;
-  background: var(--color-bg-surface-muted);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 7px 9px 7px 11px;
+}
+
+.multiSheetBatchSheetMeta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 7px;
+}
+
+.multiSheetBatchSheetStatus {
+  color: var(--color-success-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.multiSheetBatchSheet .actionButton {
+  height: 34px;
+  min-height: 32px;
+  padding: 0;
+  width: 34px;
 }
 
 .multiSheetBatchSheet > div {
@@ -568,9 +719,29 @@ h3 {
   gap: 3px;
 }
 
-.multiSheetBatchTemporaryNotice {
-  font-size: 0.84rem;
-  margin: 0;
+.combineHero {
+  padding: 32px 0 56px;
+}
+
+.combineHero h1 {
+  font-size: clamp(2.25rem, 3.5vw, 3.35rem);
+  max-width: 880px;
+}
+
+.combineHero p:last-child {
+  margin-top: 12px;
+}
+
+.combineWizard .wizard {
+  gap: 12px;
+}
+
+.combineFlowPanel {
+  padding: 14px 16px;
+}
+
+.combineFlowPanel h2 {
+  font-size: 1.3rem;
 }
 
 .combineReadErrors {
@@ -582,16 +753,16 @@ h3 {
 .combineReadPolicy {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .combineReadPolicy span {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
   border-radius: 999px;
-  font-size: 0.84rem;
-  padding: 5px 9px;
+  font-size: 0.78rem;
+  padding: 4px 8px;
 }
 
 .combineBasketNotice {
@@ -599,9 +770,9 @@ h3 {
   border: 1px solid var(--color-accent-border);
   border-radius: 8px;
   color: var(--color-text-secondary);
-  font-size: 0.86rem;
-  margin: 12px 0 0;
-  padding: 8px 10px;
+  font-size: 0.8rem;
+  margin: 10px 0 0;
+  padding: 7px 9px;
 }
 
 .combineSourceBadge {
@@ -610,10 +781,10 @@ h3 {
   border-radius: 999px;
   color: var(--color-text-secondary);
   display: inline-block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   margin-left: 8px;
-  padding: 3px 7px;
+  padding: 2px 7px;
 }
 
 .combineSourceBadge.isManual {
@@ -623,12 +794,21 @@ h3 {
 }
 
 .combineSourcesIntro {
-  margin: -8px 0 12px;
+  margin: -8px 0 10px;
 }
 
 .combineFileUploader .dropZone {
-  height: 118px;
-  padding: 18px 20px;
+  gap: 5px;
+  height: 92px;
+  padding: 12px 20px;
+}
+
+.combineFileUploader .dropZoneHelp {
+  font-size: 0.82rem;
+}
+
+.combineFileUploader .dropZoneHelpSecondary {
+  font-size: 0.76rem;
 }
 
 .combineReadErrors .errorText {
@@ -639,7 +819,7 @@ h3 {
   align-items: baseline;
   display: flex;
   justify-content: space-between;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .combineSourcesHeader h3 {
@@ -652,8 +832,8 @@ h3 {
 
 .combineSourceList {
   display: grid;
-  gap: 7px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .combineSourceItem {
@@ -665,11 +845,18 @@ h3 {
   gap: 10px;
   justify-content: space-between;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 8px 9px 8px 11px;
 }
 
 .combineSourceItem > div {
   min-width: 0;
+}
+
+.combineSourceItem .actionButton-iconOnly,
+.combineOutputColumnItem .actionButton-iconOnly {
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
 }
 
 .combineSourceItem strong {
@@ -677,7 +864,7 @@ h3 {
 }
 
 .combineSourceMeta {
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   margin: 3px 0 0;
 }
 
@@ -689,8 +876,8 @@ h3 {
   display: flex;
   gap: 14px;
   justify-content: space-between;
-  margin-top: 16px;
-  padding: 10px 12px;
+  margin-top: 12px;
+  padding: 8px 10px;
 }
 
 .combineSettingsCompactCopy {
@@ -700,12 +887,18 @@ h3 {
 }
 
 .combineSettingsCompactCopy span {
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 
 .combineSettingsActions {
   flex: 0 0 auto;
   gap: 8px;
+}
+
+.combineSettingsActions .actionButton {
+  font-size: 0.8rem;
+  min-height: 34px;
+  padding-inline: 10px;
 }
 
 .combineOutputColumnsHeader {
@@ -741,8 +934,8 @@ h3 {
 
 .combineOutputColumnList {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 10px;
 }
 
 .combineOutputColumnItem {
@@ -751,8 +944,8 @@ h3 {
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 9px 10px;
 }
 
 .combineOutputColumnItem label {
@@ -784,16 +977,24 @@ h3 {
 }
 
 .appToolSwitchOption {
-  border-left-color: var(--color-toolbar-border) !important;
-  margin-left: 2px;
+  background: transparent !important;
+  border-color: var(--color-toolbar-border) !important;
+  color: var(--color-text-secondary) !important;
+  margin-left: 3px;
+}
+
+.appToolSwitchOption:hover:not(:disabled) {
+  background: var(--color-accent-bg-soft) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .combineMappingNotice {
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning-border);
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
   border-radius: 8px;
-  color: var(--color-warning-text);
-  padding: 10px 12px;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  padding: 8px 10px;
 }
 
 .combineMappingSources {
@@ -822,7 +1023,7 @@ h3 {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 9px 11px;
   text-align: left;
   width: 100%;
 }
@@ -849,6 +1050,10 @@ h3 {
   flex: 0 0 auto;
   font-size: 0.84rem;
   gap: 10px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  padding: 3px 7px 3px 9px;
 }
 
 .combineMappingChevron {
@@ -858,12 +1063,12 @@ h3 {
 
 .combineMappingSourceContent {
   border-top: 1px solid var(--color-border-muted);
-  padding: 0 10px 10px;
+  padding: 0 9px 9px;
 }
 
 .combineMappingTableWrap {
   max-height: none;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .combineMappingTable {
@@ -874,6 +1079,7 @@ h3 {
 
 .combineMappingTable th,
 .combineMappingTable td {
+  padding-block: 8px;
   width: 50%;
 }
 
@@ -901,7 +1107,7 @@ h3 {
 }
 
 .combinePreviewTableWrap {
-  max-height: 420px;
+  max-height: 360px;
   overflow: auto;
 }
 
@@ -942,7 +1148,7 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .combineExportSummary {
@@ -964,6 +1170,11 @@ h3 {
   margin: 10px 0 0;
 }
 
+.combineExportPanel {
+  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-accent-bg-soft) 140%);
+  border-color: var(--color-accent-border);
+}
+
 .combineSettingsFileInput {
   display: none;
 }
@@ -973,6 +1184,15 @@ h3 {
 }
 
 @media (max-width: 720px) {
+  .multiSheetBatchHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .multiSheetBatchHeader .actions {
+    justify-content: flex-start;
+  }
+
   .combineSettingsCompact,
   .combineOutputColumnsHeader,
   .combineMappingsHeader,
@@ -998,6 +1218,13 @@ h3 {
   .combineExportFileName {
     flex-basis: 100%;
     max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .multiSheetBatchHeader .actions,
+  .multiSheetBatchHeader .actionButton {
+    width: 100%;
   }
 }
 
@@ -1487,12 +1714,33 @@ tbody tr:hover {
   border-radius: 8px;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, auto);
   padding: 14px;
 }
 
 .exportBlock p {
   margin: 6px 0 0;
+}
+
+.exportActionHint {
+  font-size: 0.82rem;
+}
+
+.exportActionGroups {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.exportDownloadActions,
+.exportSaveActions {
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.exportSaveActions {
+  border-top: 1px solid var(--color-border-muted);
+  padding-top: 8px;
 }
 
 .secondaryExportBlock {
@@ -1501,6 +1749,22 @@ tbody tr:hover {
 
 .exportFileName {
   font-size: 0.86rem;
+}
+
+@media (max-width: 1080px) {
+  .exportBlock {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .exportActionGroups {
+    justify-items: stretch;
+  }
+
+  .exportDownloadActions,
+  .exportSaveActions {
+    justify-content: flex-start;
+  }
 }
 
 .massRuleGrid {
@@ -3408,28 +3672,29 @@ tbody tr:hover {
 }
 
 .settingsCompatibilitySummary {
-  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding: 12px;
+  padding: 11px;
 }
 
 .settingsCompatibilitySummary.compatible {
-  background: var(--color-selected-bg);
-  border-color: var(--color-selected-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
 }
 
 .settingsCompatibilitySummary.warning,
 .settingsCompatibilitySummary.needsRemap {
-  background: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
 }
 
 .settingsCompatibilitySummary.blocked {
-  background: var(--color-error-bg);
-  border-color: var(--color-error-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
 }
 
 .settingsCompatibilityHeader {
@@ -3444,7 +3709,7 @@ tbody tr:hover {
 }
 
 .settingsCompatibilitySummary.compatible .settingsCompatibilityHeader strong {
-  color: var(--color-selected-text);
+  color: var(--color-success-text);
 }
 
 .settingsCompatibilitySummary.warning .settingsCompatibilityHeader strong,
@@ -3456,29 +3721,38 @@ tbody tr:hover {
   color: var(--color-error-text);
 }
 
-.settingsCompatibilityGrid {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+.settingsCompatibilityChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.settingsCompatibilityGrid div {
+.settingsCompatibilityChip {
+  align-items: center;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-table-border);
-  border-radius: 8px;
-  display: grid;
-  gap: 4px;
-  padding: 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px 9px;
 }
 
-.settingsCompatibilityGrid span {
+.settingsCompatibilityChip > span {
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+}
+
+.settingsCompatibilityChip strong {
+  font-size: 0.82rem;
 }
 
 .settingsCompatibilityMessages {
   margin: 0;
   padding-left: 20px;
+}
+
+.settingsApplyActions {
+  justify-content: flex-end;
 }
 
 .columnDetection {

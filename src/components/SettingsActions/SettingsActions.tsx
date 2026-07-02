@@ -12,6 +12,7 @@ import type {
 } from '../../types/import';
 import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type SettingsActionsProps = {
   fileType: 'spreadsheet' | 'csv' | '';
@@ -192,8 +193,13 @@ export function SettingsActions({
         <div className="settingsActionsIntro">
           <h3 className="headingWithInfo">
             <span>Configuración preestablecida</span>
+            <InfoTooltip
+              ariaLabel="Cómo funciona la configuración preestablecida"
+              placement="right"
+              content="Después de procesar una hoja, guardá la configuración para reutilizar columnas, reglas y transformaciones en la misma hoja o en otra similar. Al cargarla, se valida su compatibilidad antes de aplicarla."
+            />
           </h3>
-          <p>Ahorrá tiempo reutilizando la configuración de procesos anteriores. ¿Cómo funciona? Después de procesar una hoja podés guardar / exportar la configuración utilizada para no tener que hacer todo de nuevo la próxima vez que necesites procesar de la misma forma la misma hoja o una similar.</p>
+          <p>Guardá la configuración actual o cargá una anterior.</p>
         </div>
         <ButtonGroup className="actions compactActions">
           <ActionButton action="export" variant="secondary" onClick={exportSettings}>Guardar</ActionButton>
@@ -260,7 +266,7 @@ function showImportedSettingsToast(status: SettingsCompatibilityResult['status']
   showErrorToast('La configuración no es compatible con este archivo.');
 }
 
-function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilityResult }) {
+export function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilityResult }) {
   return (
     <div className={`settingsCompatibilitySummary ${result.status}`}>
       <div className="settingsCompatibilityHeader">
@@ -269,7 +275,7 @@ function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilit
         <span>Hoja actual: {result.sheet.currentSheet || '-'}</span>
       </div>
 
-      <div className="settingsCompatibilityGrid">
+      <div className="settingsCompatibilityChips" aria-label="Resumen de compatibilidad">
         <SummaryItem label="Exactas" value={result.summary.exactMatches} />
         <SummaryItem label="Fuertes" value={result.summary.strongMatches} />
         <SummaryItem label="Medias" value={result.summary.mediumMatches} />
@@ -295,7 +301,7 @@ function SettingsCompatibilitySummary({ result }: { result: SettingsCompatibilit
 function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibilityResult['status']; onApply: () => void }) {
   if (status === 'compatible') {
     return (
-      <div className="actions">
+      <div className="actions settingsApplyActions">
         <ActionButton action="done" onClick={onApply}>Aplicar configuración</ActionButton>
       </div>
     );
@@ -303,7 +309,7 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
 
   if (status === 'warning') {
     return (
-      <div className="actions">
+      <div className="actions settingsApplyActions">
         <ActionButton action="warning" onClick={onApply}>Aplicar configuración con advertencias</ActionButton>
       </div>
     );
@@ -318,10 +324,10 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
   return (
-    <div>
+    <span className="settingsCompatibilityChip">
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
+    </span>
   );
 }
 

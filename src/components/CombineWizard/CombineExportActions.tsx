@@ -38,7 +38,7 @@ export function CombineExportActions({
   };
 
   return (
-    <section className="panel">
+    <section className="panel combineFlowPanel combineExportPanel">
       <h2>Exportar combinado</h2>
       <p className="muted combineExportSummary">
         Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}

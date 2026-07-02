@@ -37,7 +37,7 @@ export function CombineOutputColumns({
   };
 
   return (
-    <section className="panel">
+    <section className="panel combineFlowPanel">
       <div className="combineOutputColumnsHeader">
         <div>
           <h2>Columnas de salida</h2>
