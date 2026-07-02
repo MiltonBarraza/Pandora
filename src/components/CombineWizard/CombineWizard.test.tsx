@@ -25,6 +25,8 @@ describe('CombineWizard basket sources', () => {
     expect(screen.getByRole('heading', { name: '2. Configuración' })).not.toBeNull();
     expect(screen.getByRole('heading', { name: '3. Columnas de salida' })).not.toBeNull();
     expect(screen.getByText('Archivos cargados')).not.toBeNull();
+    expect(screen.getByLabelText('1 archivo cargado').textContent).toBe('1');
+    expect(screen.queryByText('1 archivo')).toBeNull();
     expect(screen.getByText('Elegir archivos')).not.toBeNull();
     expect(screen.getByText('Arrastrá archivos aquí de tipo .xlsx, .xls, .xlsm o .csv')).not.toBeNull();
     expect(screen.getByText('Hacé click para subir archivos desde tu computadora')).not.toBeNull();

@@ -168,7 +168,12 @@ export function CombineWizard({
 
           <div className="combineSourcesHeader">
             <h3>Archivos cargados</h3>
-            <span className="muted">{sources.length} {sources.length === 1 ? 'archivo' : 'archivos'}</span>
+            <span
+              className="combineSourcesCount"
+              aria-label={`${sources.length} ${sources.length === 1 ? 'archivo cargado' : 'archivos cargados'}`}
+            >
+              {sources.length}
+            </span>
           </div>
           {sources.length === 0 ? (
             <div className="emptyState combineSourcesEmpty">Todavía no hay archivos cargados.</div>

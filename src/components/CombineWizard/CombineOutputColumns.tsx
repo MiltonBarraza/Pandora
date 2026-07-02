@@ -2,6 +2,7 @@ import { normalizeCombineColumnName } from '../../domain/combine/combineColumnMa
 import type { CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type CombineOutputColumnsProps = {
   sources: CombineSource[];
@@ -37,35 +38,41 @@ export function CombineOutputColumns({
   };
 
   return (
-    <section className="panel combineFlowPanel">
-      <div className="combineOutputColumnsHeader">
-        <div>
-          <h2>3. Columnas de salida</h2>
-          <p className="muted">Definí las columnas que tendrá el archivo combinado.</p>
+    <section className="panel combineFlowPanel combineOutputColumnsPanel">
+      <h2 className="headingWithInfo">
+        <span>3. Columnas de salida</span>
+        <InfoTooltip
+          ariaLabel="Información sobre las columnas de salida"
+          placement="right"
+          content="Definí las columnas que tendrá el archivo combinado. Cada archivo cargado se mapeará a esta estructura de salida."
+        />
+      </h2>
+      <div className="combineOutputColumnsToolbar">
+        <p className="muted">Definí las columnas que tendrá el archivo combinado.</p>
+        <div className="actions combineOutputColumnsActions">
+          {sources.length > 0 && outputColumns.length === 0 ? (
+            <InfoTooltip content="Crea las columnas de salida copiando los encabezados del primer archivo cargado." placement="bottom">
+              <ActionButton action="duplicate" onClick={initializeFromFirstSource}>
+                Usar columnas del primer archivo
+              </ActionButton>
+            </InfoTooltip>
+          ) : null}
+          <InfoTooltip content="Agrega una columna manual al archivo combinado." placement="bottom">
+            <ActionButton
+              action="add"
+              variant={sources.length > 0 && outputColumns.length === 0 ? 'secondary' : 'primary'}
+              onClick={addColumn}
+            >
+              Agregar columna
+            </ActionButton>
+          </InfoTooltip>
         </div>
-        {outputColumns.length > 0 ? (
-          <ActionButton action="add" onClick={addColumn}>Agregar columna</ActionButton>
-        ) : null}
       </div>
 
       {hasEmptyNames ? <p className="combineColumnWarning">Hay columnas de salida sin nombre.</p> : null}
       {hasDuplicateNames ? <p className="combineColumnWarning">Hay nombres de columnas de salida duplicados.</p> : null}
 
-      {outputColumns.length === 0 ? (
-        <div className="emptyState combineOutputColumnsEmpty">
-          <p>Todavía no definiste columnas de salida.</p>
-          <div className="actions">
-            {sources.length > 0 ? (
-              <ActionButton action="duplicate" onClick={initializeFromFirstSource}>
-                Usar columnas del primer archivo
-              </ActionButton>
-            ) : null}
-            <ActionButton action="add" variant={sources.length > 0 ? 'secondary' : 'primary'} onClick={addColumn}>
-              Agregar columna
-            </ActionButton>
-          </div>
-        </div>
-      ) : (
+      {outputColumns.length > 0 ? (
         <div className="combineOutputColumnList">
           {outputColumns.map((column, index) => (
             <div key={column.id} className="combineOutputColumnItem">
@@ -86,7 +93,7 @@ export function CombineOutputColumns({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
