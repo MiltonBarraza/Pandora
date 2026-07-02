@@ -1,4 +1,3 @@
-import { defaultDateInputFormat, defaultDateOutputFormat, supportedDateInputFormats, supportedDateOutputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import {
   getManualRangeFixedTextValue,
@@ -10,8 +9,8 @@ import {
   manualRangeValueSourceOptions,
   type ManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
-import { useEffect, useState, type ReactNode } from 'react';
-import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, NumericOperation, StepSource, TransformStep, TransformStepMode } from '../../types/import';
+import { useState } from 'react';
+import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, StepSource, TransformStep, TransformStepMode } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
@@ -19,35 +18,25 @@ import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getInvalidPickerTooltip, invalidPickerValuesLabel } from './ColumnTextPicker';
-import { addPartLabel, noActiveColumnsLabel, operationTypeLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
-import { StepConditionFields, StepSourceFields } from './OutputColumnRecipeEditor.StepFields';
+import { addPartLabel, noActiveColumnsLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { StepSourceFields } from './OutputColumnRecipeEditor.StepFields';
 import {
-  createCanonicalSourceForAction,
-  createCanonicalStepForAction,
   createCanonicalStepForMode,
-  getAllowedSourceActions,
-  getAllowedStepActions,
-  getAllowedStepModes,
   getVisibleStepAction,
   isStepSourceAction,
-  isVisibleStepActionConfigured,
   normalizeStepForContext,
-  replaceStepActionWithSource,
   type StepEditorContext,
   type StepEditorContextKind,
   type StepSourceAction,
   type VisibleStepAction,
 } from './OutputColumnRecipeEditor.stepPolicy';
+import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
 type RangeValueEditorProps = {
   range: ManualRangeValue;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
-  onFixedTextChange: (value: string) => void;
-  onInputColumnChange: (inputColumnId: string) => void;
-  onRangeTextChange: (patch: { inputColumnId?: string; selectedText?: string }) => void;
-  onSourceChange: (source: StepSource) => void;
   onSourceAndStepsChange: (source: StepSource, steps: TransformStep[]) => void;
   onStepsChange: (steps: TransformStep[]) => void;
 };
@@ -59,13 +48,6 @@ export type RangeValueTextAction = Exclude<VisibleStepAction, 'unconfigured'>;
 export type RangeValueSourceSelection =
   | { type: 'valueSourceType'; value: ManualRangeValueSourceType }
   | { type: 'inputColumn'; inputColumnId: string };
-
-const rangeValueModeLabels: Record<Exclude<TransformStepMode, 'manualRange'>, string> = {
-  text: 'Trabajar con texto',
-  number: 'Trabajar con número',
-  conversion: 'Conversión',
-  date: 'Trabajar con fechas',
-};
 
 const rangeValueActionLabels: Record<RangeValueTextAction, string> = {
   useValueAsIs: useValueAsIsLabel,
@@ -90,16 +72,6 @@ const rangeValueActionLabels: Record<RangeValueTextAction, string> = {
   manualRange: 'Trabajar con rangos',
 };
 
-const numericOperationOptions: Array<{ value: NumericOperation; label: string }> = [
-  { value: 'add', label: 'Sumar valor' },
-  { value: 'subtract', label: 'Restar valor' },
-  { value: 'multiply', label: 'Multiplicar por' },
-  { value: 'divide', label: 'Dividir por' },
-  { value: 'addPercentage', label: 'Sumar porcentaje' },
-  { value: 'subtractPercentage', label: 'Restar porcentaje' },
-  { value: 'removeIncludedPercentage', label: 'Quitar porcentaje incluido' },
-];
-
 const rangeValuePrimaryStepId = 'range-value-primary-step';
 
 function createRangeValueStepContext(
@@ -116,35 +88,12 @@ function createRangeValueStepContext(
   };
 }
 
-function getRangeValueModeOptions(context: StepEditorContext): Array<{ value: Exclude<TransformStepMode, 'manualRange'>; label: string }> {
-  return getAllowedStepModes(context)
-    .filter((mode): mode is Exclude<TransformStepMode, 'manualRange'> => mode !== 'manualRange')
-    .map((mode) => ({ value: mode, label: rangeValueModeLabels[mode] }));
-}
-
-function getRangeValueActionOptions(
-  mode: Exclude<TransformStepMode, 'manualRange'>,
-  context: StepEditorContext,
-): Array<{ value: RangeValueTextAction; label: string }> {
-  return getAllowedStepActions(mode, context)
-    .filter((action): action is RangeValueTextAction => action !== 'unconfigured')
-    .map((action) => ({ value: action, label: rangeValueActionLabels[action] }));
-}
-
-function getRangeValueAdditionalActionOptions(
-  mode: Exclude<TransformStepMode, 'manualRange'>,
-  context: StepEditorContext,
-) {
-  return getRangeValueActionOptions(mode, context).filter((option) => !isStepSourceAction(option.value) || option.value === 'usePreviousResult');
-}
-
-function getConfiguredRangeValueAction(step: TransformStep, context: StepEditorContext): RangeValueTextAction | undefined {
-  const action = getVisibleStepAction(step, context);
-  return action === 'unconfigured' ? undefined : action;
-}
-
 function getStepWithRangeValueSource(step: TransformStep, source?: StepSource, context?: StepEditorContext, forceConfiguredSource = false): TransformStep {
-  if (!source || step.type !== 'noop' || (!forceConfiguredSource && !context?.sourceActionOverride && !isConfiguredRangeValueSource(source))) {
+  if (!source || step.type !== 'noop' || step.source) {
+    return step;
+  }
+
+  if (!forceConfiguredSource && !context?.sourceActionOverride && !isConfiguredRangeValueSource(source)) {
     return step;
   }
 
@@ -165,6 +114,14 @@ function isConfiguredRangeValueSource(source: StepSource) {
 
 function stripPrimarySource(step: TransformStep): TransformStep {
   if (step.type !== 'noop' || !step.source) {
+    return step;
+  }
+
+  if (step.mode === 'number' || step.mode === 'date') {
+    return step;
+  }
+
+  if (step.source.type === 'fixedText' && step.source.value.trim() === '') {
     return step;
   }
 
@@ -193,23 +150,12 @@ export function RangeValueEditor({
   range,
   inputColumns,
   manualRangeRows,
-  onFixedTextChange,
-  onInputColumnChange,
-  onRangeTextChange,
-  onSourceChange,
   onSourceAndStepsChange,
   onStepsChange,
 }: RangeValueEditorProps) {
-  const [isColumnTextPickerOpen, setIsColumnTextPickerOpen] = useState(false);
   const valueSourceType = getManualRangeValueSourceType(range);
   const inputSource = getManualRangeInputSource(range);
   const rangeTextSource = getManualRangeRangeTextSource(range);
-  const selectedTextOptions = getManualRangeSelectedTextOptions(manualRangeRows, range, rangeTextSource);
-  const rangeTextHelpText = getManualRangeRangeTextHelpText(manualRangeRows, range, rangeTextSource);
-  const hasNoRangeTextOptions = selectedTextOptions.length === 0;
-  const noRangeTextWarning = hasNoRangeTextOptions
-    ? getInvalidPickerTooltip(rangeTextHelpText || 'Sin textos en el rango')
-    : '';
   const inputColumnOptions = inputColumns.length === 0
     ? [{ value: '', label: noActiveColumnsLabel }]
     : [{ value: '', label: 'Seleccionar' }, ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))];
@@ -218,85 +164,69 @@ export function RangeValueEditor({
   const steps = range.valueRecipe?.steps ?? [];
   const primaryStep = getRangeValuePrimaryStep(steps);
   const valueRecipeSource = range.valueRecipe?.source ?? getRangeValueFallbackSource(range, valueSourceType, inputSource, rangeTextSource);
-  const primaryContext = createRangeValueStepContext('range', 0, inputColumns, isColumnTextPickerOpen ? 'pickColumnText' : undefined);
+  const primaryContext = createRangeValueStepContext('range', 0, inputColumns);
   const primaryPolicyStep = getStepWithRangeValueSource(primaryStep, valueRecipeSource, primaryContext, steps.length > 0);
-  const primaryMode = getRangeValueStepMode(primaryPolicyStep);
-  const visibleTextAction = getConfiguredRangeValueAction(primaryPolicyStep, primaryContext);
 
-  useEffect(() => {
-    setIsColumnTextPickerOpen(false);
-  }, [range.id]);
+  const renderRangeTextFields = (source: StepSource, onChange: (source: StepSource) => void) => {
+    const currentSource = source.type === 'rangeText'
+      ? source
+      : { type: 'rangeText' as const, inputColumnId: inputColumns[0]?.id ?? '', selectedText: '' };
+    const options = getManualRangeSelectedTextOptions(manualRangeRows, range, currentSource);
+    const helpText = getManualRangeRangeTextHelpText(manualRangeRows, range, currentSource);
+    const hasNoOptions = options.length === 0;
+    const warning = hasNoOptions ? getInvalidPickerTooltip(helpText || 'Sin textos en el rango') : '';
 
-  const textSourceActionFields = (
-    <>
-      {isColumnTextPickerOpen ? (
-        <ColumnTextPicker
-          inputColumns={inputColumns}
-          rows={manualRangeRows}
-          value={getManualRangeFixedTextValue(range)}
-          onSelect={onFixedTextChange}
-        />
-      ) : valueSourceType === 'input' ? (
+    return (
+      <>
         <Dropdown
-          className="compact manualRangeValueDetailField"
-          label="Columna de entrada"
-          value={inputSource.inputColumnId}
+          className="compact recipeField"
+          label="Buscar textos en"
+          value={currentSource.inputColumnId}
           options={inputColumnOptions}
           scrollStrategy="close"
-          onChange={onInputColumnChange}
+          onChange={(inputColumnId) => onChange({ ...currentSource, inputColumnId, selectedText: '' })}
         />
-      ) : valueSourceType === 'rangeText' ? (
-        <>
-          <Dropdown
-            className="compact manualRangeValueDetailField"
-            label="Buscar textos en"
-            value={rangeTextSource.inputColumnId}
-            options={inputColumnOptions}
-            scrollStrategy="close"
-            onChange={(inputColumnId) => onRangeTextChange({ inputColumnId })}
-          />
-          <Dropdown
-            className="compact manualRangeValueDetailField"
-            label="Texto encontrado"
-            labelInfo={noRangeTextWarning ? <WarningTooltip content={noRangeTextWarning} /> : undefined}
-            value={rangeTextSource.selectedText}
-            options={hasNoRangeTextOptions
-              ? [{ value: '', label: invalidPickerValuesLabel, disabled: true }]
-              : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-            disabled={hasNoRangeTextOptions}
-            searchable
-            searchPlaceholder="Buscar texto"
-            scrollStrategy="close"
-            onChange={(selectedText) => onRangeTextChange({ selectedText })}
-          />
-          {rangeTextHelpText && !hasNoRangeTextOptions && rangeTextHelpText !== 'No se encontraron textos en este rango.' ? (
-            <div className="textSourceHelperRow">
-              <p className="manualRangeValueHelp">{rangeTextHelpText}</p>
-            </div>
-          ) : null}
-        </>
-      ) : valueSourceType === 'fixedText' ? (
-        <label className="field compact manualRangeValueDetailField">
-          <span>Texto</span>
-          <input
-            value={getManualRangeFixedTextValue(range)}
-            onChange={(event) => onFixedTextChange(event.target.value)}
-          />
-        </label>
-      ) : null}
-    </>
-  );
-  const sourceFields = getRangeValueSourceFields({
-    mode: primaryMode,
-    primaryStep: primaryPolicyStep,
-    source: valueRecipeSource,
-    context: primaryContext,
-    textActionValue: visibleTextAction,
-    textSourceActionFields,
-    inputColumns,
-    manualRangeRows,
-    onSourceChange,
-  });
+        <Dropdown
+          className="compact recipeField"
+          label="Texto encontrado"
+          labelInfo={warning ? <WarningTooltip content={warning} /> : undefined}
+          value={currentSource.selectedText}
+          options={hasNoOptions
+            ? [{ value: '', label: invalidPickerValuesLabel, disabled: true }]
+            : options.map((text) => ({ value: text, label: text }))}
+          disabled={hasNoOptions}
+          searchable
+          searchPlaceholder="Buscar texto"
+          scrollStrategy="close"
+          onChange={(selectedText) => onChange({ ...currentSource, selectedText })}
+        />
+        {helpText && !hasNoOptions && helpText !== 'No se encontraron textos en este rango.' ? (
+          <div className="textSourceHelperRow">
+            <p className="manualRangeValueHelp">{helpText}</p>
+          </div>
+        ) : null}
+      </>
+    );
+  };
+  const renderPrimaryFields: StepEditorBlockFieldRenderer = ({ step, visibleAction, stepSource, onSourceChange, onChange }) => {
+    if (visibleAction === 'useRangeText' || stepSource.type === 'rangeText') {
+      return renderRangeTextFields(stepSource, onSourceChange);
+    }
+
+    if (step.type === 'concat') {
+      return (
+        <RangeValueConcatEditor
+          parts={step.parts ?? createDefaultRangeValueConcatParts()}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+          range={range}
+          onChange={(parts) => onChange({ parts })}
+        />
+      );
+    }
+
+    return undefined;
+  };
 
   return (
     <div className="manualRangeValueFields">
@@ -304,20 +234,11 @@ export function RangeValueEditor({
         steps={steps}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
-        range={range}
-        sourceFields={sourceFields}
-        hasSourceDetails={hasSourceDetails}
         sourceForPrimary={valueRecipeSource}
-        sourceActionOverride={isColumnTextPickerOpen ? 'pickColumnText' : undefined}
         contextKind="range"
-        onTextSourceAction={(action, _nextPrimaryStep, nextSteps) => {
-          setIsColumnTextPickerOpen(action === 'pickColumnText');
-          onSourceAndStepsChange(getRangeValueSourceForTextAction(action, range, inputColumns), nextSteps);
-          return true;
-        }}
-        onTextActionClear={() => {
-          setIsColumnTextPickerOpen(false);
-        }}
+        fixedTextInputLabel="Texto"
+        renderFields={renderPrimaryFields}
+        onPrimarySourceAndStepsChange={onSourceAndStepsChange}
         showAdditionalStepsHeader={false}
         onChange={onStepsChange}
       />
@@ -327,115 +248,6 @@ export function RangeValueEditor({
 
 function getRangeValuePrimaryStep(steps: TransformStep[]) {
   return steps.find((step) => step.type !== 'manualRange') ?? { id: rangeValuePrimaryStepId, mode: 'text' as const, type: 'noop' as const };
-}
-
-function getRangeValueSourceFields({
-  mode,
-  primaryStep,
-  source,
-  context,
-  textActionValue,
-  textSourceActionFields,
-  inputColumns,
-  manualRangeRows,
-  onSourceChange,
-}: {
-  mode: Exclude<TransformStepMode, 'manualRange'>;
-  primaryStep: TransformStep;
-  source: StepSource;
-  context: StepEditorContext;
-  textActionValue?: RangeValueTextAction;
-  textSourceActionFields: ReactNode;
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  onSourceChange: (source: StepSource) => void;
-}) {
-  if (mode === 'text' && primaryStep.type === 'noop') {
-    return textActionValue && isStepSourceAction(textActionValue) && getAllowedSourceActions(primaryStep, context).includes(textActionValue)
-      ? textSourceActionFields
-      : null;
-  }
-
-  if (mode === 'number') {
-    return (
-      <StepSourceFields
-        label="Qué valor usar"
-        source={getTypedRangeValueSource(source)}
-        inputColumns={inputColumns}
-        inputRows={manualRangeRows}
-        allowPreviousResult={false}
-        fixedTextInputType="number"
-        fixedTextInputLabel="Valor fijo"
-        valueKind="number"
-        onChange={onSourceChange}
-      />
-    );
-  }
-
-  if (mode === 'date') {
-    return (
-      <StepSourceFields
-        label="Qué fecha usar"
-        source={getTypedRangeValueSource(source)}
-        inputColumns={inputColumns}
-        inputRows={manualRangeRows}
-        allowPreviousResult={false}
-        fixedTextInputType="date"
-        fixedTextInputLabel="Fecha fija"
-        valueKind="date"
-        onChange={onSourceChange}
-      />
-    );
-  }
-
-  return (
-    <StepSourceFields
-      label="Qué texto usar"
-      source={source}
-      inputColumns={inputColumns}
-      inputRows={manualRangeRows}
-      allowPreviousResult={false}
-      explicitTextValueSource
-      valueKind="text"
-      onChange={onSourceChange}
-    />
-  );
-}
-
-function getTypedRangeValueSource(source: StepSource): StepSource {
-  if (source.type === 'input' || source.type === 'fixedText') {
-    return source;
-  }
-
-  return { type: 'fixedText', value: '' };
-}
-
-function getRangeValueSourceForTextAction(action: StepSourceAction, range: ManualRangeValue, inputColumns: InputColumn[]): StepSource {
-  const context = createRangeValueStepContext('range', 0, inputColumns);
-
-  if (action === 'useInputColumn') {
-    return {
-      ...createCanonicalSourceForAction(action, context),
-      type: 'input',
-      inputColumnId: getManualRangeInputSource(range).inputColumnId || inputColumns[0]?.id || '',
-    };
-  }
-
-  if (action === 'useRangeText') {
-    const rangeTextSource = getManualRangeRangeTextSource(range);
-    return {
-      ...createCanonicalSourceForAction(action, context),
-      type: 'rangeText',
-      inputColumnId: rangeTextSource.inputColumnId || inputColumns[0]?.id || '',
-      selectedText: rangeTextSource.selectedText,
-    };
-  }
-
-  if (action === 'useFixedText' || action === 'pickColumnText') {
-    return { type: 'fixedText', value: getManualRangeFixedTextValue(range) };
-  }
-
-  return createCanonicalSourceForAction(action, context);
 }
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
@@ -458,118 +270,98 @@ function RangeValueStepsEditor({
   steps,
   inputColumns,
   manualRangeRows,
-  range,
-  sourceFields,
-  hasSourceDetails = false,
   sourceForPrimary,
   sourceActionOverride,
   contextKind = 'range',
-  onTextSourceAction,
-  onTextActionClear,
   allowConcat = true,
+  fixedTextInputLabel,
+  renderFields,
+  onPrimarySourceAndStepsChange,
   showAdditionalStepsHeader = true,
   onChange,
 }: {
   steps: TransformStep[];
   inputColumns: InputColumn[];
   manualRangeRows?: InputRow[];
-  range?: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>;
-  sourceFields?: ReactNode;
-  hasSourceDetails?: boolean;
   sourceForPrimary?: StepSource;
   sourceActionOverride?: StepSourceAction;
   contextKind?: StepEditorContextKind;
-  onTextSourceAction?: (action: StepSourceAction, nextPrimaryStep: TransformStep, nextSteps: TransformStep[]) => boolean | void;
-  onTextActionClear?: () => void;
   allowConcat?: boolean;
+  fixedTextInputLabel?: string;
+  renderFields?: StepEditorBlockFieldRenderer;
+  onPrimarySourceAndStepsChange?: (source: StepSource, steps: TransformStep[]) => void;
   showAdditionalStepsHeader?: boolean;
   onChange: (steps: TransformStep[]) => void;
 }) {
-  const primaryStepIndex = contextKind === 'rangeConcat' ? 1 : 0;
+  const primaryStepIndex = 0;
   const safeSteps = steps
     .filter((step) => step.type !== 'manualRange' && (allowConcat || step.type !== 'concat'))
     .map((step, index) => normalizeRangeValueStep(step, createRangeValueStepContext(contextKind, index + primaryStepIndex, inputColumns)));
   const primaryStep = safeSteps[0] ?? { id: rangeValuePrimaryStepId, mode: 'text' as const, type: 'noop' as const };
   const primaryContext = createRangeValueStepContext(contextKind, primaryStepIndex, inputColumns, sourceActionOverride);
-  const primaryPolicyStep = getStepWithRangeValueSource(primaryStep, sourceForPrimary, primaryContext, contextKind === 'rangeConcat' || safeSteps.length > 0);
-  const hasVisiblePrimaryAction = isVisibleStepActionConfigured(primaryPolicyStep, primaryContext);
+  const primaryPolicyStep = getStepWithRangeValueSource(primaryStep, sourceForPrimary, primaryContext, contextKind === 'rangeConcat');
   const additionalSteps = safeSteps.slice(1);
   const updatePrimaryStep = (step: TransformStep) => {
-    const normalizedStep = normalizeRangeValueStep(step, createRangeValueStepContext(contextKind, primaryStepIndex, inputColumns));
-    const shouldKeepImplicitNoop = safeSteps.length === 0 && normalizedStep.mode === 'text' && normalizedStep.type === 'noop';
+    const nextSource = step.source ?? sourceForPrimary;
+    const storedStep = stripPrimarySource(step);
+    const normalizedStep = normalizeRangeValueStep(storedStep, createRangeValueStepContext(contextKind, primaryStepIndex, inputColumns));
+    const nextVisibleAction = getVisibleStepAction(step, createRangeValueStepContext(contextKind, primaryStepIndex, inputColumns));
+    const shouldKeepImplicitNoop = safeSteps.length === 0
+      && normalizedStep.mode === 'text'
+      && normalizedStep.type === 'noop'
+      && nextVisibleAction === 'unconfigured';
+    const nextSteps = shouldKeepImplicitNoop ? [] : [normalizedStep, ...additionalSteps];
 
-    onChange(shouldKeepImplicitNoop ? [] : [normalizedStep, ...additionalSteps]);
+    if (nextSource && onPrimarySourceAndStepsChange) {
+      onPrimarySourceAndStepsChange(nextSource, nextSteps);
+      return;
+    }
+
+    onChange(nextSteps);
   };
   const addStep = () => onChange(appendRangeValueStep(safeSteps, createRangeValueStepContext(contextKind, safeSteps.length + primaryStepIndex, inputColumns)));
+  const replaceStep = (stepId: string, nextStep: TransformStep) => {
+    onChange(safeSteps.map((step, index) => (step.id === stepId ? normalizeRangeValueStep(nextStep, createRangeValueStepContext(contextKind, index + primaryStepIndex, inputColumns)) : step)));
+  };
   const updateStep = (stepId: string, patch: Partial<TransformStep>) => {
     onChange(safeSteps.map((step, index) => (step.id === stepId ? normalizeRangeValueStep({ ...step, ...patch }, createRangeValueStepContext(contextKind, index + primaryStepIndex, inputColumns)) : step)));
   };
   const deleteStep = (stepId: string) => onChange(safeSteps.filter((step) => step.id !== stepId));
   const isPrimaryConcat = primaryStep.type === 'concat';
   const shouldShowAdditionalStepControls = showAdditionalStepsHeader && !isPrimaryConcat;
-  const primaryEditor = (
-    <div className="rangeValuePrimaryLayout">
-      <div className="rangeValuePrimaryControls">
-        <RangeValueStepControls
-          step={primaryPolicyStep}
-          context={primaryContext}
-          onTextSourceAction={onTextSourceAction
-            ? (action, nextPrimaryStep) => {
-              const nextStoredStep = stripPrimarySource(nextPrimaryStep);
-              return onTextSourceAction(action, nextStoredStep, [nextStoredStep, ...additionalSteps]);
-            }
-            : undefined}
-          onTextActionClear={onTextActionClear}
-          onChange={updatePrimaryStep}
-        />
-      </div>
-      {isPrimaryConcat || !hasVisiblePrimaryAction ? null : (
-        <div className="rangeValueSourceControls">
-          {sourceFields}
-        </div>
-      )}
-      <div className="rangeValuePrimaryStepFields">
-        {!hasVisiblePrimaryAction || primaryPolicyStep.type === 'noop' ? null : (
-          <RangeValueStepFields
-            step={primaryStep}
-            inputColumns={inputColumns}
-            manualRangeRows={manualRangeRows}
-            range={range}
-            onChange={(patch) => updatePrimaryStep({ ...primaryStep, ...patch })}
-          />
-        )}
-      </div>
-      {!showAdditionalStepsHeader && !isPrimaryConcat ? (
-        <StepConditionFields
-          step={primaryStep}
-          inputColumns={inputColumns}
-          onChange={(patch) => updatePrimaryStep({ ...primaryStep, ...patch })}
-        />
-      ) : null}
-      {!showAdditionalStepsHeader && !isPrimaryConcat ? (
-        <div className="concatPartStepsActions">
-          <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
-        </div>
-      ) : null}
-    </div>
-  );
 
   return (
     <div className="rangeValueTransforms">
       {showAdditionalStepsHeader ? (
-        <div className={`rangeValueOperationPanel${hasSourceDetails && !isPrimaryConcat ? ' hasSourceDetails' : ''}`}>
-          {primaryEditor}
+        <div className={`rangeValueOperationPanel${!isPrimaryConcat ? ' hasSourceDetails' : ''}`}>
+          <StepEditorBlock
+            step={primaryPolicyStep}
+            context={primaryContext}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            showHeader={false}
+            showCondition={!isPrimaryConcat}
+            fixedTextInputLabel={fixedTextInputLabel}
+            renderFields={renderFields}
+            onChange={(patch) => updatePrimaryStep({ ...primaryPolicyStep, ...patch })}
+            onReplace={updatePrimaryStep}
+          />
         </div>
       ) : (
-        <div className="stepDetailPanel">
-          <div className="stepCardHeader">
-            <strong>Paso 1 · {getRangeValueStepTitle(primaryPolicyStep, primaryContext)}</strong>
-            <span aria-hidden="true" />
-          </div>
-          <div className="simpleCustomValueGrid">
-            {primaryEditor}
-          </div>
-        </div>
+        <StepEditorBlock
+          step={primaryPolicyStep}
+          context={primaryContext}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+          title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext)}`}
+          fixedTextInputLabel={fixedTextInputLabel}
+          showCondition={!isPrimaryConcat}
+          showAddStep={!isPrimaryConcat}
+          renderFields={renderFields}
+          onAddStep={addStep}
+          onChange={(patch) => updatePrimaryStep({ ...primaryPolicyStep, ...patch })}
+          onReplace={updatePrimaryStep}
+        />
       )}
 
       {shouldShowAdditionalStepControls ? (
@@ -592,9 +384,9 @@ function RangeValueStepsEditor({
                 stepNumber={showAdditionalStepsHeader ? undefined : index + 2}
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
-                range={range}
                 context={createRangeValueStepContext(contextKind, index + 1 + primaryStepIndex, inputColumns)}
                 onChange={(patch) => updateStep(step.id, patch)}
+                onReplace={(nextStep) => replaceStep(step.id, nextStep)}
                 onDelete={() => deleteStep(step.id)}
               />
             </div>
@@ -602,61 +394,6 @@ function RangeValueStepsEditor({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function RangeValueStepControls({
-  step,
-  context,
-  onTextSourceAction,
-  onTextActionClear,
-  onChange,
-}: {
-  step: TransformStep;
-  context: StepEditorContext;
-  onTextSourceAction?: (action: StepSourceAction, nextPrimaryStep: TransformStep) => boolean | void;
-  onTextActionClear?: () => void;
-  onChange: (step: TransformStep) => void;
-}) {
-  const mode = getRangeValueStepMode(step);
-  const actionValue = getVisibleStepAction(step, context);
-  const stepId = step.id === rangeValuePrimaryStepId ? crypto.randomUUID() : step.id;
-
-  return (
-    <>
-      <Dropdown<Exclude<TransformStepMode, 'manualRange'>>
-        className="compact"
-        label={operationTypeLabel}
-        value={mode}
-        options={getRangeValueModeOptions(context)}
-        scrollStrategy="close"
-        onChange={(nextMode) => {
-          onTextActionClear?.();
-          onChange(createRangeValueStep(nextMode, { ...context, idFactory: () => stepId }));
-        }}
-      />
-      <Dropdown<RangeValueTextAction>
-        className="compact"
-        label="Qué quiero hacer"
-        value={actionValue === 'unconfigured' ? '' : actionValue}
-        placeholder="Seleccionar acción"
-        options={getRangeValueActionOptions(mode, context)}
-        scrollStrategy="close"
-        onChange={(type) => {
-          if (onTextSourceAction && isStepSourceAction(type)) {
-            const nextStep = replaceStepActionWithSource({ ...step, id: stepId }, type, context);
-            const handled = onTextSourceAction(type, nextStep);
-            if (!handled) {
-              onChange(nextStep);
-            }
-            return;
-          }
-
-          onTextActionClear?.();
-          onChange(createRangeValueStepForAction(mode, type, { ...context, idFactory: () => stepId }));
-        }}
-      />
-    </>
   );
 }
 
@@ -670,9 +407,9 @@ function RangeValueStepEditor({
   stepNumber,
   inputColumns,
   manualRangeRows,
-  range,
   context,
   onChange,
+  onReplace,
   onDelete,
 }: {
   step: TransformStep;
@@ -680,148 +417,28 @@ function RangeValueStepEditor({
   stepNumber?: number;
   inputColumns: InputColumn[];
   manualRangeRows?: InputRow[];
-  range?: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>;
   context: StepEditorContext;
   onChange: (patch: Partial<TransformStep>) => void;
+  onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
-  const mode = getRangeValueStepMode(step);
-  const actionValue = getVisibleStepAction(step, context);
-  const safeAction = actionValue === 'unconfigured' ? getRangeValueActionOptions(mode, context)[0]?.value ?? 'useValueAsIs' : actionValue;
-  const safeStep = actionValue === 'unconfigured'
-    ? createRangeValueStepForAction(mode, safeAction, { ...context, idFactory: () => step.id })
-    : step;
   const title = stepNumber
-    ? `Paso ${stepNumber} · ${getRangeValueStepTitle(safeStep, context)}`
+    ? `Paso ${stepNumber} · ${getRangeValueStepTitle(step, context)}`
     : `Paso adicional ${index + 1}`;
 
   return (
-    <div className="stepDetailPanel">
-      <div className="stepCardHeader">
-        <strong>{title}</strong>
-        <DeleteButton title="Eliminar paso" onClick={onDelete} />
-      </div>
-      <div className="simpleCustomValueGrid">
-        <Dropdown<Exclude<TransformStepMode, 'manualRange'>>
-          className="compact"
-          label={operationTypeLabel}
-          value={mode}
-          options={getRangeValueModeOptions(context)}
-          scrollStrategy="close"
-          onChange={(nextMode) => onChange(createRangeValueStep(nextMode, { ...context, idFactory: () => step.id }))}
-        />
-        <Dropdown<RangeValueTextAction>
-          className="compact"
-          label="Qué quiero hacer"
-          value={safeAction}
-          options={getRangeValueAdditionalActionOptions(mode, context)}
-          scrollStrategy="close"
-          onChange={(type) => onChange(createRangeValueStepForAction(mode, type, { ...context, idFactory: () => step.id }))}
-        />
-        <RangeValueStepFields
-          step={safeStep}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          range={range}
-          onChange={onChange}
-        />
-      </div>
-    </div>
+    <StepEditorBlock
+      step={step}
+      context={context}
+      inputColumns={inputColumns}
+      manualRangeRows={manualRangeRows}
+      title={title}
+      canDelete
+      onChange={onChange}
+      onReplace={onReplace}
+      onDelete={onDelete}
+    />
   );
-}
-
-function RangeValueStepFields({
-  step,
-  inputColumns,
-  manualRangeRows = [],
-  range,
-  onChange,
-}: {
-  step: TransformStep;
-  inputColumns: InputColumn[];
-  manualRangeRows?: InputRow[];
-  range?: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>;
-  onChange: (patch: Partial<TransformStep>) => void;
-}) {
-  if (step.type === 'addPrefix' || step.type === 'addSuffix' || step.type === 'removeText') {
-    return (
-      <label className="field compact">
-        <span>{step.type === 'addPrefix' ? 'Prefijo' : step.type === 'addSuffix' ? 'Sufijo' : 'Texto a quitar'}</span>
-        <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-      </label>
-    );
-  }
-
-  if (step.type === 'replaceText') {
-    return (
-      <>
-        <label className="field compact">
-          <span>Buscar</span>
-          <input value={step.searchValue ?? ''} onChange={(event) => onChange({ searchValue: event.target.value })} />
-        </label>
-        <label className="field compact">
-          <span>Reemplazar por</span>
-          <input value={step.replaceValue ?? ''} onChange={(event) => onChange({ replaceValue: event.target.value })} />
-        </label>
-      </>
-    );
-  }
-
-  if (step.type === 'numericOperation') {
-    return (
-      <>
-        <Dropdown<NumericOperation>
-          className="compact"
-          label="Operación"
-          value={step.operation ?? 'add'}
-          options={numericOperationOptions}
-          scrollStrategy="close"
-          onChange={(operation) => onChange({ operation })}
-        />
-        <label className="field compact">
-          <span>Valor</span>
-          <input type="number" step="any" value={step.amount ?? 0} onChange={(event) => onChange({ amount: Number(event.target.value) })} />
-        </label>
-      </>
-    );
-  }
-
-  if (step.type === 'formatDate') {
-    return (
-      <>
-        <Dropdown
-          className="compact"
-          label="Formato de entrada"
-          value={step.dateInputFormat ?? defaultDateInputFormat}
-          options={supportedDateInputFormats.map((format) => ({ value: format, label: format }))}
-          scrollStrategy="close"
-          onChange={(dateInputFormat) => onChange({ dateInputFormat })}
-        />
-        <Dropdown
-          className="compact"
-          label="Formato de salida"
-          value={step.dateOutputFormat ?? defaultDateOutputFormat}
-          options={supportedDateOutputFormats.map((format) => ({ value: format, label: format }))}
-          scrollStrategy="close"
-          onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
-        />
-      </>
-    );
-  }
-
-  if (step.type === 'concat') {
-    return (
-      <RangeValueConcatEditor
-        parts={step.parts ?? createDefaultRangeValueConcatParts()}
-        inputColumns={inputColumns}
-        manualRangeRows={manualRangeRows}
-        range={range}
-        onChange={(parts) => onChange({ parts })}
-      />
-    );
-  }
-
-  return <p className="manualRangeValueHelp">Usa el valor tal cual.</p>;
 }
 
 function RangeValueConcatEditor({
@@ -839,7 +456,6 @@ function RangeValueConcatEditor({
 }) {
   const safeParts = parts.length > 0 ? parts : createDefaultRangeValueConcatParts();
   const [selectedPartId, setSelectedPartId] = useState(safeParts[0]?.id ?? '');
-  const [columnTextPickerPartId, setColumnTextPickerPartId] = useState<string | null>(null);
   const safeSelectedPartId = safeParts.some((part) => part.id === selectedPartId) ? selectedPartId : safeParts[0]?.id ?? '';
   const selectedPart = safeParts.find((part) => part.id === safeSelectedPartId);
   const selectedPartIndex = selectedPart ? safeParts.findIndex((part) => part.id === selectedPart.id) : -1;
@@ -928,32 +544,25 @@ function RangeValueConcatEditor({
                   steps={selectedPart.steps ?? []}
                   inputColumns={inputColumns}
                   manualRangeRows={manualRangeRows}
-                  range={range}
-                  sourceFields={getRangeValueConcatPartSourceFields({
-                    part: selectedPart,
-                    inputColumns,
-                    manualRangeRows,
-                    range,
-                    columnTextPickerOpen: columnTextPickerPartId === selectedPart.id,
-                    onChange: (source) => updatePart(selectedPart.id, { source }),
-                  })}
                   sourceForPrimary={selectedPart.source}
-                  sourceActionOverride={columnTextPickerPartId === selectedPart.id ? 'pickColumnText' : undefined}
                   contextKind="rangeConcat"
-                  onTextSourceAction={(action, nextPrimaryStep) => {
-                    setColumnTextPickerPartId(action === 'pickColumnText' ? selectedPart.id : null);
-                    const source: StepSource = action === 'usePreviousResult'
-                      ? { type: 'previousResult' }
-                      : action === 'useInputColumn'
-                        ? { type: 'input', inputColumnId: selectedPart.source.type === 'input' ? selectedPart.source.inputColumnId : inputColumns[0]?.id ?? '' }
-                        : action === 'useRangeText'
-                          ? getRangeValueConcatPartRangeTextSource(selectedPart.source, inputColumns)
-                          : selectedPart.source.type === 'fixedText'
-                            ? selectedPart.source
-                            : { type: 'fixedText', value: '' };
-                    updatePart(selectedPart.id, { source, steps: [nextPrimaryStep, ...(selectedPart.steps ?? []).slice(1)] });
-                    return true;
+                  renderFields={({ visibleAction, stepSource, onSourceChange }) => {
+                    if (visibleAction !== 'useRangeText' && stepSource.type !== 'rangeText') {
+                      return undefined;
+                    }
+
+                    return (
+                      <RangeValueConcatPartSourceFields
+                        source={stepSource.type === 'rangeText' ? stepSource : getRangeValueConcatPartRangeTextSource(selectedPart.source, inputColumns)}
+                        inputColumns={inputColumns}
+                        manualRangeRows={manualRangeRows}
+                        range={range}
+                        hideSourceSelector
+                        onChange={onSourceChange}
+                      />
+                    );
                   }}
+                  onPrimarySourceAndStepsChange={(source, steps) => updatePart(selectedPart.id, { source, steps })}
                   allowConcat={false}
                   showAdditionalStepsHeader={false}
                   onChange={(steps) => updatePart(selectedPart.id, normalizeRangeValueConcatPartPatch(selectedPart, steps))}
@@ -1190,14 +799,6 @@ function createRangeValueStep(
   context: StepEditorContext = { kind: 'range', stepIndex: 0 },
 ): TransformStep {
   return normalizeRangeValueStep(createCanonicalStepForMode(mode, context), context);
-}
-
-function createRangeValueStepForAction(
-  mode: Exclude<TransformStepMode, 'manualRange'>,
-  action: RangeValueTextAction,
-  context: StepEditorContext,
-): TransformStep {
-  return normalizeRangeValueStep(createCanonicalStepForAction(mode, action, context), context);
 }
 
 function normalizeRangeValueStep(step: TransformStep, context: StepEditorContext): TransformStep {

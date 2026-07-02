@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { useState } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InputColumn, InputRow, OutputColumn } from '../../../types/import';
@@ -43,6 +43,20 @@ function createEmptyStepColumn(id = 'output-empty-step'): OutputColumn {
       parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
       separator: '',
       steps: [{ id: 'step-1', mode: 'text', type: 'noop' }],
+    },
+  };
+}
+
+function createBlankCustomColumn(id = 'output-blank-custom'): OutputColumn {
+  return {
+    id,
+    label: 'Valor',
+    order: 0,
+    enabled: true,
+    recipe: {
+      type: 'combine',
+      parts: [],
+      separator: '',
     },
   };
 }
@@ -116,6 +130,12 @@ async function selectLastDropdownOption(user: ReturnType<typeof userEvent.setup>
   await user.click(screen.getByRole('option', { name: optionName }));
 }
 
+async function selectLastSearchableDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
+  const buttons = screen.getAllByRole('combobox', { name: buttonName });
+  await user.click(buttons[buttons.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
+
 function getInputByLabelText(label: string) {
   const input = screen.getByText(label).closest('label')?.querySelector('input');
   if (!input) {
@@ -123,6 +143,11 @@ function getInputByLabelText(label: string) {
   }
 
   return input;
+}
+
+function getStepOneSummary(dialog: HTMLElement) {
+  return within(dialog).getAllByText(/Paso 1/)
+    .find((element) => element.textContent?.includes('·'))?.textContent ?? '';
 }
 
 describe('OutputColumnRecipeEditor interactive modal flow', () => {
@@ -299,6 +324,74 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     });
   });
 
+  it('applies the first normal text action selection immediately', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-normal-first-text')} />);
+
+    await openRecipeEditor(user);
+    const dialog = screen.getByRole('dialog', { name: /Crear valor personalizado/ });
+    expect(getStepOneSummary(dialog)).toContain('Sin configurar');
+    expect(within(dialog).getByRole('button', { name: /Tipo de operación/ }).textContent).toContain('Trabajar con texto');
+    expect(within(dialog).getByText('Seleccionar acción')).not.toBeNull();
+
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar texto fijo');
+
+    expect(screen.getByLabelText('Texto fijo')).not.toBeNull();
+    expect(getStepOneSummary(dialog)).toContain('Usar texto fijo');
+    expect(screen.queryByRole('button', { name: 'Qué fecha usar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Qué valor usar' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0]).toMatchObject({
+      mode: 'text',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+  });
+
+  it('keeps normal number mode unconfigured until a number action is selected', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-normal-first-number')} />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Tipo de operación/, /Trabajar con número/);
+
+    const modeButtons = screen.getAllByRole('button', { name: /Tipo de operación/ });
+    expect(modeButtons[modeButtons.length - 1].textContent).toContain('Trabajar con número');
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
+    expect(screen.queryByRole('button', { name: 'Qué valor usar' })).toBeNull();
+
+    const actionButtons = screen.getAllByRole('button', { name: /Qué quiero hacer/ });
+    await user.click(actionButtons[actionButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Sumar valor' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Restar valor' })).not.toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
+
+    expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Decimales / redondeo' })).not.toBeNull();
+  });
+
+  it('keeps normal text picker source while preserving the transform action', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-normal-picker-transform')} />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Convertir a mayúsculas');
+    await selectLastDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
+    await selectLastSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
+
+    const actionButtons = screen.getAllByRole('button', { name: /Qué quiero hacer/ });
+    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Convertir a mayúsculas');
+    expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
+    const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
+    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
+    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
+  });
+
   it('does not render derived fields while text, date, or number mode has no action', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-no-action')} />);
@@ -343,6 +436,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
     await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar valor tal cual');
     expect(screen.getByText('Qué fecha usar')).not.toBeNull();
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
 
@@ -350,6 +444,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByText('Qué valor usar')).toBeNull();
     await selectLastDropdownOption(user, /Qué quiero hacer/, 'Usar valor tal cual');
     expect(screen.getByText('Qué valor usar')).not.toBeNull();
+    await selectLastDropdownOption(user, /Qué valor usar/, 'Valor fijo');
     expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
   });
@@ -396,6 +491,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     expect(screen.getByText(/Paso 2/).textContent).toContain('Usar valor tal cual');
     expect(screen.getByRole('button', { name: 'Qué fecha usar' })).not.toBeNull();
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Sólo se agregan pasos cuando elegís una acción útil.')).toBeNull();
   });

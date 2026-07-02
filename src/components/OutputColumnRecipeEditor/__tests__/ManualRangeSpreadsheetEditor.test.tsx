@@ -501,6 +501,7 @@ describe('ManualRangeAdvancedRangeModal', () => {
     expect(markup).toContain('Filas 8 - 13');
     expect(markup).not.toContain('Rango seleccionado');
     expect(markup).toContain('manualRangeAdvancedRangeModal');
+    expect(markup).toContain('modalDialog manualRangeAdvancedRangeModal');
     expect(markup).toContain('value="8"');
     expect(markup).toContain('value="13"');
     expect(markup).toContain('Filas cubiertas');

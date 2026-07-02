@@ -261,6 +261,7 @@ export function StepSourceFields({
   onChange: (source: StepSource, context?: StepSourceChangeContext) => void;
 }) {
   const [isColumnTextPickerOpen, setIsColumnTextPickerOpen] = useState(false);
+  const [pickedColumnTextSourceIdentity, setPickedColumnTextSourceIdentity] = useState<string | null>(null);
   const safeSource = !allowPreviousResult && source.type === 'previousResult'
     ? { type: 'input' as const, inputColumnId: '' }
     : source;
@@ -286,8 +287,10 @@ export function StepSourceFields({
     : safeSource.type === 'fixedText' ? `${safeSource.type}:${safeSource.value}` : safeSource.type;
 
   useEffect(() => {
-    setIsColumnTextPickerOpen(false);
-  }, [sourceIdentity, valueKind]);
+    if (!columnTextPickerOpen && sourceIdentity !== pickedColumnTextSourceIdentity) {
+      setIsColumnTextPickerOpen(false);
+    }
+  }, [columnTextPickerOpen, pickedColumnTextSourceIdentity, sourceIdentity, valueKind]);
 
   return (
     <>
@@ -336,7 +339,10 @@ export function StepSourceFields({
             : valueKind === 'date' ? isAllowedDateValue : undefined}
           filteredValuesHelp={valueKind === 'date' ? 'Se omitieron valores que no parecen fechas válidas.' : undefined}
           fieldClassName="recipeField"
-          onSelect={(value) => onChange(createFixedTextSourceFromColumnText(value), { origin: 'cellValuePicker' })}
+          onSelect={(value) => {
+            setPickedColumnTextSourceIdentity(`fixedText:${value}`);
+            onChange(createFixedTextSourceFromColumnText(value), { origin: 'cellValuePicker' });
+          }}
         />
       ) : hideSourceSelector && safeSource.type === 'input' ? (
         <Dropdown

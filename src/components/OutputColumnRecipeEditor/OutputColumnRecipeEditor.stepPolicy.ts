@@ -214,7 +214,20 @@ export function normalizeStepForContext(step: TransformStep, context: StepEditor
     });
   }
 
-  const nextStep = replaceStepActionWithSource(step, visibleAction, context);
+  if (visibleAction === 'useValueAsIs' && step.type === 'noop') {
+    const mode = getStepModeForPolicy(step);
+    const policy = stepEditorPolicy(context);
+    return {
+      ...step,
+      mode,
+      source: step.source
+        ? normalizeSourceForContext(step.source, mode, policy)
+        : createDefaultSourceForMode(mode, context),
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  const nextStep = preserveStepSourceForContext(replaceStepActionWithSource(step, visibleAction, context), step, context);
 
   if (step.type === 'addPrefix' || step.type === 'addSuffix' || step.type === 'removeText') {
     return { ...nextStep, value: step.value ?? '' };
@@ -424,11 +437,26 @@ function getSourceAction(source: StepSource, context: StepEditorContext): StepSo
     return 'useFixedText';
   }
 
+  if (source.type === 'input' && !source.inputColumnId) {
+    return undefined;
+  }
+
   return 'useInputColumn';
 }
 
 function normalizeSourceForContext<TSource extends StepSource>(source: TSource, mode: TransformStepMode, policy: StepEditorPolicy): TSource | StepSource {
   return isSourceAllowedForContext(source, mode, policy) ? source : { type: 'fixedText', value: '' };
+}
+
+function preserveStepSourceForContext(nextStep: TransformStep, previousStep: TransformStep, context: StepEditorContext): TransformStep {
+  if (!previousStep.source || nextStep.type === 'concat' || nextStep.type === 'manualRange') {
+    return nextStep;
+  }
+
+  return {
+    ...nextStep,
+    source: normalizeSourceForContext(previousStep.source, getStepModeForPolicy(nextStep), stepEditorPolicy(context)),
+  };
 }
 
 function isSourceAllowedForContext(source: StepSource, mode: TransformStepMode, policy: StepEditorPolicy) {
@@ -463,7 +491,7 @@ function normalizeConcatPartForContext(part: ConcatPart, context: StepEditorCont
 function createDefaultConcatParts(context: StepEditorContext): ConcatPart[] {
   return [{
     id: createStepId(context),
-    source: { type: 'input', inputColumnId: context.defaultInputColumnId ?? '' },
+    source: { type: 'input', inputColumnId: '' },
   }];
 }
 

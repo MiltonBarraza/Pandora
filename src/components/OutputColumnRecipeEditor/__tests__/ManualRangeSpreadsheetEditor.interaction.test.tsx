@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InputColumn, InputRow, OutputRecipe } from '../../../types/import';
@@ -305,12 +305,15 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     );
 
     await selectModalDropdownOption(user, /Qu. quiero hacer/, /Convertir a min.sculas/);
-    await selectModalDropdownOption(user, /Qu. texto usar/, 'Elegir texto desde celda');
+    await selectModalDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
     await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
 
     const actionButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Qu. quiero hacer/ });
     expect(actionButton.textContent).toMatch(/Convertir a min.sculas/);
     expect(actionButton.textContent).not.toContain('Usar texto fijo');
+    const sourceButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Qu. valor usar/ });
+    expect(sourceButton.textContent).toContain('Elegir texto desde celda');
+    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-1');
   });
 
@@ -333,13 +336,20 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     );
 
     await selectModalDropdownOption(user, /Tipo de operaci.n/, /Trabajar con n.mero/);
-    await selectModalDropdownOption(user, /Qu. quiero hacer/, /Operaci.n num.rica/);
+    expect(screen.getByText('Seleccionar acción')).not.toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
+    expect(screen.queryByRole('button', { name: /valor usar/ })).toBeNull();
+
+    const actionButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Qu. quiero hacer/ });
+    await user.click(actionButtons[actionButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: /Operaci.n num.rica/ })).toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
 
     expect(screen.queryByLabelText('Texto')).toBeNull();
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
-    expect(screen.getByRole('button', { name: /Qu. valor usar/ })).not.toBeNull();
-    expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
-    expect(screen.getByLabelText('Valor')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Decimales / redondeo' })).not.toBeNull();
   });
 
   it('does not render mojibake in the range modal labels', () => {
@@ -425,12 +435,21 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     expect(within(dialog).getByText('Parte seleccionada')).not.toBeNull();
     expect(within(dialog).queryByText('Resultado anterior')).toBeNull();
     expect(within(dialog).queryByText(/Paso 1 .* Usar resultado anterior/)).toBeNull();
-    expect(within(dialog).getByRole('button', { name: 'Columna de entrada' })).not.toBeNull();
-    expect(within(dialog).getByRole('button', { name: /Condici.n/ })).not.toBeNull();
+    expect(document.querySelector('.composeTokenInspector')?.textContent).toContain('Paso 1');
+    expect(document.querySelector('.composeTokenInspector')?.textContent).toContain('Sin configurar');
+    expect(within(dialog).queryByRole('button', { name: 'Columna de entrada' })).toBeNull();
+    expect(document.querySelector('.compositionTokenCard.selected')?.textContent).not.toContain('A');
+    expect(within(dialog).getAllByRole('button', { name: /Condici.n/ })).toHaveLength(1);
     expect(within(dialog).queryByText('Pasos adicionales')).toBeNull();
     expect(within(dialog).queryByText('Sin pasos adicionales.')).toBeNull();
+    const rangeComposeStudio = document.querySelector('.rangeValueComposeStudio');
+    expect(rangeComposeStudio?.closest('.stepFullWidthFields')).not.toBeNull();
+    expect(rangeComposeStudio?.closest('.rangeValuePrimaryStepFields')).toBeNull();
+    expect(rangeComposeStudio?.closest('.stepExtraFieldsRow')).toBeNull();
+    expect(rangeComposeStudio?.parentElement?.classList.contains('stepFullWidthFields')).toBe(true);
 
-    const conditionButton = within(dialog).getByRole('button', { name: /Condici.n/ });
+    const conditionButtons = within(dialog).getAllByRole('button', { name: /Condici.n/ });
+    const conditionButton = conditionButtons[0];
     const addStepButton = within(dialog).getByRole('button', { name: 'Agregar paso' });
     expect(conditionButton.compareDocumentPosition(addStepButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(addStepButton.closest('.concatPartStepsActions')?.parentElement?.classList.contains('rangeValuePrimaryLayout')).toBe(true);
@@ -469,7 +488,6 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     const suffixInput = screen.getByLabelText('Sufijo');
     expect(suffixInput).not.toBeNull();
     expect(suffixInput.closest('.rangeValuePrimaryControls')).toBeNull();
-    expect(screen.getByRole('button', { name: /Columna de entrada|valor usar/ })).not.toBeNull();
     expect(screen.queryByText('Resultado anterior')).toBeNull();
   });
 
@@ -524,13 +542,15 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     expect(screen.queryByText('Resultado anterior')).toBeNull();
     await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar valor tal cual');
     expect(screen.getByRole('button', { name: /valor usar/ })).not.toBeNull();
-    expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
+    await selectModalDropdownOption(user, /valor usar/, 'Valor fijo');
+    await waitFor(() => expect(screen.getByLabelText('Valor fijo')).not.toBeNull());
 
     await selectModalDropdownOption(user, /Tipo de operaci.n/, 'Trabajar con fechas');
     expect(screen.queryByText('Resultado anterior')).toBeNull();
     await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar valor tal cual');
     expect(screen.getByRole('button', { name: /fecha usar/ })).not.toBeNull();
-    expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
+    await selectModalDropdownOption(user, /fecha usar/, 'Fecha fija');
+    await waitFor(() => expect(screen.getByLabelText('Fecha fija')).not.toBeNull());
   });
 });
 

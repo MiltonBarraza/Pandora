@@ -72,6 +72,8 @@ import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceField
 import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
+import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
+import type { StepEditorContext } from './OutputColumnRecipeEditor.stepPolicy';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
   buildCombinePreview,
@@ -1149,16 +1151,6 @@ export function ManualRangeTableRow({
           range={range}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          onFixedTextChange={(value) => onChange(updateManualRangeFixedTextValue(recipe, range.id, value))}
-          onInputColumnChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
-          onRangeTextChange={(patch) => {
-            const nextPatch = patch.inputColumnId !== undefined && patch.selectedText === undefined
-              ? { ...patch, selectedText: '' }
-              : patch;
-            const nextRecipe = updateManualRangeRangeTextValue(recipe, range.id, nextPatch);
-            onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
-          }}
-          onSourceChange={(source) => onChange(updateRangeSource(source))}
           onSourceAndStepsChange={(source, steps) => onChange(updateRangeSourceAndSteps(source, steps))}
           onStepsChange={(steps) => onChange(updateManualRangeValueRecipeSteps(recipe, range.id, steps))}
         />
@@ -1384,8 +1376,8 @@ function StepBlocksEditor({
                           canDelete
                           previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
                           onBaseInputColumnChange={onBaseInputColumnChange}
-                          onChange={(patch) => onStepsChange((currentSteps) => updateStep(currentSteps, step.id, patch))}
-                          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStep(currentSteps, step.id, nextStep))}
+                          onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
+                          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
                           onDelete={() => deleteStep(index)}
                         />
                       </div>
@@ -1401,8 +1393,8 @@ function StepBlocksEditor({
             </>
           )}
           onBaseInputColumnChange={onBaseInputColumnChange}
-          onChange={(patch) => onStepsChange((currentSteps) => updateStep(currentSteps, primaryStep.id, patch))}
-          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStep(currentSteps, primaryStep.id, nextStep))}
+          onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, primaryStep.id, patch, 0))}
+          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, primaryStep.id, nextStep, 0))}
           onDelete={() => undefined}
         />
       </div>
@@ -1427,8 +1419,8 @@ function StepBlocksEditor({
               canDelete={!requireAtLeastOne || steps.length > 1}
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
-              onChange={(patch) => onStepsChange((currentSteps) => updateStep(currentSteps, step.id, patch))}
-              onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStep(currentSteps, step.id, nextStep))}
+              onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
+              onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
               onDelete={() => deleteStep(index)}
             />
           ))}
@@ -1441,6 +1433,22 @@ function StepBlocksEditor({
       </div>
     </div>
   );
+}
+
+function updateStepWithIndexFallback(steps: TransformStep[], id: string, patch: Partial<TransformStep>, fallbackIndex: number) {
+  if (steps.some((step) => step.id === id)) {
+    return updateStep(steps, id, patch);
+  }
+
+  return steps.map((step, index) => (index === fallbackIndex ? { ...step, ...patch } : step));
+}
+
+function replaceWholeStepWithIndexFallback(steps: TransformStep[], id: string, nextStep: TransformStep, fallbackIndex: number) {
+  if (steps.some((step) => step.id === id)) {
+    return replaceWholeStep(steps, id, nextStep);
+  }
+
+  return steps.map((step, index) => (index === fallbackIndex ? nextStep : step));
 }
 
 function SimpleStepBlock({
@@ -1474,97 +1482,43 @@ function SimpleStepBlock({
   onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
-  const [textSourceActionOverride, setTextSourceActionOverride] = useState<StepTextSourceAction | null>(null);
-  const stepMode = getStepMode(step, defaultStepMode);
+  const context: StepEditorContext = {
+    kind: 'normal',
+    stepIndex: index,
+    defaultInputColumnId: baseInputColumnId,
+  };
   const isManualRangeStep = step.type === 'manualRange';
-  const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
-  const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
-  const inferredTextSourceAction = textSourceActionOverride ?? getStepTextSourceAction(stepSource);
-  const hasConfiguredTextSourceAction = step.type === 'noop' && (textSourceActionOverride !== null || Boolean(step.source));
-  const textSourceAction = stepMode === 'text' && hasConfiguredTextSourceAction ? inferredTextSourceAction : undefined;
-  const hasConfiguredVisibleAction = isVisibleStepActionConfigured(step, stepMode, textSourceAction);
-  const summarySource = hasConfiguredVisibleAction ? stepSource : undefined;
+  const summarySource = step.source;
   const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, summarySource);
-  useEffect(() => {
-    setTextSourceActionOverride(null);
-  }, [step.id, stepMode]);
-  const updateStepSource = (source: StepSource) => {
-    if (index === 0 && source.type === 'input') {
-      onBaseInputColumnChange(source.inputColumnId);
+  const title = `Paso ${index + 1}${summary ? ` · ${summary}` : ''}`;
+  const handleChange = (patch: Partial<TransformStep>) => {
+    onChange(patch);
+  };
+  const handleReplace = (nextStep: TransformStep) => {
+    onReplace(nextStep);
+  };
+  const renderManualRangeFields: StepEditorBlockFieldRenderer = ({ step: currentStep, onChange: onStepChange }) => {
+    if (currentStep.type !== 'manualRange') {
+      return undefined;
     }
 
-    onChange({ source });
-  };
-  const updateTextSourceAction = (action: StepTextSourceAction) => {
-    setTextSourceActionOverride(action);
-    onReplace({
-      ...replaceWholeStepForAction(step, 'noop', 'text', undefined, index),
-      source: getStepSourceForTextAction(action, stepSource, inputColumns),
-    });
-  };
-
-  const renderStepHeader = () => (
-    <div className="stepCardHeader">
-      <strong>
-        Paso {index + 1}{summary ? ` · ${summary}` : ''}
-      </strong>
-      {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
-    </div>
-  );
-  const renderStepCondition = () => isManualRangeStep ? (
-    <div className="manualRangeStepCondition">
-      <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
-    </div>
-  ) : (
-    <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
-  );
-  const renderStepControls = (includeCondition: boolean) => (
-    <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
-      {step.type === 'concat' || isManualRangeStep ? (
-        <div className="concatStepTopRow">
-          <div className="concatStepTopControls">
-            <StepModeSelect mode={stepMode} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
-            {showStepTypeSelect ? (
-              <StepTypeSelect
-                step={step}
-                mode={stepMode}
-                textSourceAction={textSourceAction}
-                allowPreviousResultSource={index > 0}
-                onTextSourceAction={updateTextSourceAction}
-                onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
-              />
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <div className="stepPrimaryFieldsRow">
-          <StepModeSelect mode={stepMode} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
-          <StepTypeSelect
-            step={step}
-            mode={stepMode}
-            textSourceAction={textSourceAction}
-            allowPreviousResultSource={index > 0}
-            onTextSourceAction={updateTextSourceAction}
-            onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
-          />
-        </div>
-      )}
-      <div className="stepExtraFieldsRow">
-        <StepFields
-          step={step}
-          stepIndex={index}
-          stepSource={stepSource}
+    return (
+      <div className="manualRangeStepFields">
+        <ManualRangeRecipeEditor
+          recipe={manualRangeStepToRecipe(currentStep)}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          labels="workflow"
-          previousResultPreviewValue={previousResultPreviewValue}
-          textSourceAction={textSourceAction}
-          onSourceChange={updateStepSource}
-          onChange={onChange}
+          onChange={(recipe) => onStepChange(manualRangeRecipeToStepPatch(recipe))}
         />
       </div>
-      {includeCondition ? renderStepCondition() : null}
+    );
+  };
+  const renderStepCondition = (currentStep: TransformStep, onStepChange: (patch: Partial<TransformStep>) => void) => currentStep.type === 'manualRange' ? (
+    <div className="manualRangeStepCondition">
+      <StepConditionFields step={currentStep} inputColumns={inputColumns} variant="manualRange" onChange={onStepChange} />
     </div>
+  ) : (
+    <StepConditionFields step={currentStep} inputColumns={inputColumns} onChange={onStepChange} />
   );
 
   if (studioLayout) {
@@ -1573,10 +1527,21 @@ function SimpleStepBlock({
         <section className="recipeStudioSection recipeStudioGeneralSection" aria-label="Configuración general">
           <div className="composeStudioHeaderTitle">
             <span>Configuración general</span>
-            <strong>Paso {index + 1}{summary ? ` · ${summary}` : ''}</strong>
+            <strong>{title}</strong>
           </div>
-          {renderStepControls(false)}
-          {renderStepCondition()}
+          <StepEditorBlock
+            step={step}
+            context={context}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            showHeader={false}
+            showCondition={false}
+            previousResultPreviewValue={previousResultPreviewValue}
+            renderFields={renderManualRangeFields}
+            onChange={handleChange}
+            onReplace={handleReplace}
+          />
+          {renderStepCondition(step, handleChange)}
           {studioActionContent}
         </section>
       </>
@@ -1584,10 +1549,21 @@ function SimpleStepBlock({
   }
 
   return (
-    <div className="stepDetailPanel">
-      {renderStepHeader()}
-      {renderStepControls(true)}
-    </div>
+    <StepEditorBlock
+      step={step}
+      context={context}
+      inputColumns={inputColumns}
+      manualRangeRows={manualRangeRows}
+      title={title}
+      canDelete={canDelete}
+      gridClassName={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}
+      previousResultPreviewValue={previousResultPreviewValue}
+      renderFields={renderManualRangeFields}
+      renderCondition={renderStepCondition}
+      onChange={handleChange}
+      onReplace={handleReplace}
+      onDelete={onDelete}
+    />
   );
 }
 

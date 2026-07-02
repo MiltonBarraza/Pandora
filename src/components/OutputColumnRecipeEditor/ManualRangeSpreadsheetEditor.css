@@ -806,10 +806,10 @@
   font-weight: 700;
 }
 
-.manualRangeAdvancedRangeModal {
+.modalDialog.manualRangeAdvancedRangeModal {
   max-height: 90vh;
-  max-width: min(1440px, 98vw);
-  width: min(1440px, 98vw);
+  max-width: min(1200px, calc(100vw - 32px));
+  width: min(1200px, 96vw);
 }
 
 .manualRangeAdvancedRangeModalBody {
@@ -962,15 +962,26 @@
 }
 
 .manualRangeAdvancedRangeModal .rangeValuePrimaryLayout {
-  grid-template-columns: repeat(2, minmax(220px, 280px));
+  grid-template-columns: repeat(3, minmax(240px, 1fr));
   justify-content: start;
 }
 
 .manualRangeAdvancedRangeModal .rangeValueSourceControls,
 .manualRangeAdvancedRangeModal .rangeValuePrimaryStepFields,
 .manualRangeAdvancedRangeModal .conditionFieldsRow {
-  grid-template-columns: repeat(2, minmax(220px, 280px));
+  grid-template-columns: repeat(3, minmax(240px, 1fr));
   justify-content: start;
+}
+
+.stepFullWidthFields {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+.stepFullWidthFields > .rangeValueComposeStudio,
+.manualRangeAdvancedRangeModal .stepFullWidthFields .rangeValueComposeStudio {
+  width: 100%;
 }
 
 .manualRangeColumnsModal {

@@ -317,18 +317,6 @@ export function ManualRangeAdvancedRangeModal({
               range={draftRange}
               inputColumns={inputColumns}
               manualRangeRows={manualRangeRows}
-              onFixedTextChange={(value) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeFixedTextValue(currentRecipe, rangeId, value))}
-              onInputColumnChange={(inputColumnId) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeInputValue(currentRecipe, rangeId, inputColumnId))}
-              onRangeTextChange={(patch) => {
-                updateDraftRecipe((currentRecipe, rangeId) => {
-                  const nextPatch = patch.inputColumnId !== undefined && patch.selectedText === undefined
-                    ? { ...patch, selectedText: '' }
-                    : patch;
-                  const nextRecipe = updateManualRangeRangeTextValue(currentRecipe, rangeId, nextPatch);
-                  return reconcileManualRangeTextSelections(nextRecipe, rangeId, manualRangeRows);
-                });
-              }}
-              onSourceChange={(source) => updateDraftRecipe((currentRecipe, rangeId) => updateDraftSource(currentRecipe, rangeId, source))}
               onSourceAndStepsChange={(source, steps) => updateDraftRecipe((currentRecipe, rangeId) => {
                 const nextRecipe = updateDraftSource(currentRecipe, rangeId, source);
                 return updateManualRangeValueRecipeSteps(nextRecipe, rangeId, steps);

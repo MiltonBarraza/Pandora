@@ -429,9 +429,12 @@ export function buildStepBasedCustomValueRecipe(
   }
 
   const inferredMode = inferCustomModeFromSteps(steps, fallbackMode);
+  const firstStepInputColumnId = firstStep?.source?.type === 'input'
+    ? firstStep.source.inputColumnId
+    : undefined;
   return buildSimpleCustomValueRecipeWithSteps(
     inferredMode,
-    getSimpleInputPart(current).inputColumnId,
+    firstStepInputColumnId ?? getSimpleInputPart(current).inputColumnId,
     steps,
     current,
   );

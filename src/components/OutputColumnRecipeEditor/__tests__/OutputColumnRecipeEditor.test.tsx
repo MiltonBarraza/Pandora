@@ -72,10 +72,6 @@ function renderRangeValueEditor(range: Parameters<typeof RangeValueEditor>[0]['r
         range={range}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
-        onFixedTextChange={() => undefined}
-        onInputColumnChange={() => undefined}
-        onRangeTextChange={() => undefined}
-        onSourceChange={() => undefined}
         onSourceAndStepsChange={() => undefined}
         onStepsChange={() => undefined}
       />,
@@ -367,8 +363,8 @@ describe('constructor helpers', () => {
       },
     });
 
-    const primaryRowStart = markup.indexOf('<div class="stepPrimaryFieldsRow">');
-    const extraRowStart = markup.indexOf('<div class="stepExtraFieldsRow">');
+    const primaryRowStart = markup.indexOf('stepPrimaryFieldsRow');
+    const extraRowStart = markup.indexOf('stepExtraFieldsRow');
     const primaryRow = markup.slice(primaryRowStart, extraRowStart);
     const extraRowEnd = markup.indexOf('<div class="transformConditionBlock', extraRowStart);
     const extraRow = markup.slice(extraRowStart, extraRowEnd);
@@ -1991,7 +1987,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    const headerMarkup = markup.slice(markup.indexOf('composeStudioHeaderTitle'), markup.indexOf('simpleCustomValueGrid'));
+    const headerStart = markup.indexOf('composeStudioHeaderTitle');
+    const headerMarkup = markup.slice(headerStart, markup.indexOf('</div>', headerStart));
     expect(headerMarkup).toContain('Paso 1 · 1 rango creado');
     expect(headerMarkup).not.toContain('18-25');
     expect(headerMarkup).not.toContain('18 - 25');
@@ -2023,7 +2020,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    const headerMarkup = markup.slice(markup.indexOf('composeStudioHeaderTitle'), markup.indexOf('simpleCustomValueGrid'));
+    const headerStart = markup.indexOf('composeStudioHeaderTitle');
+    const headerMarkup = markup.slice(headerStart, markup.indexOf('</div>', headerStart));
     expect(headerMarkup).toContain('Paso 1 · 3 rangos creados');
     expect(headerMarkup).not.toContain('18-25, 28-34');
     expect(headerMarkup).not.toContain('18 - 25, 28 - 34');
@@ -3058,7 +3056,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('concatPartsSidebar');
     expect(markup).not.toContain('rangeValueConcatWorkspaceFlat');
     expect(markup).not.toContain('Fuente del valor');
-    expect(markup).toContain('Usar resultado anterior');
+    expect(markup).not.toContain('Usar resultado anterior');
     expect(markup).not.toContain('Buscar textos en');
     expect(markup).not.toContain('Texto encontrado</span>');
     expect(markup).not.toMatch(/<span id="[^"]+">Fuente<\/span>/);
