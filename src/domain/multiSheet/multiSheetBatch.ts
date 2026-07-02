@@ -1,4 +1,11 @@
 import type {
+  CombineColumnMapping,
+  CombineOutputColumn,
+  CombineSource,
+} from '../../types/combine';
+import type {
+  MultiSheetBatch,
+  MultiSheetBatchSheet,
   MultiSheetOutputColumnSchema,
   MultiSheetOutputSchema,
 } from '../../types/multiSheet';
@@ -6,12 +13,125 @@ import type {
   ProcessedExportColumn,
   ProcessedExportResult,
 } from '../../types/processedExport';
+import { createCombineSourceFromSanitizedResult } from '../combine/createCombineSourceFromSanitizedResult';
 
 export type MultiSheetSchemaValidationResult = {
   valid: boolean;
   errors: string[];
   warnings: string[];
 };
+
+export type AddProcessedResultToMultiSheetBatchResult =
+  | {
+    ok: true;
+    batch: MultiSheetBatch;
+    errors: [];
+    warnings: string[];
+  }
+  | {
+    ok: false;
+    batch: MultiSheetBatch;
+    errors: string[];
+    warnings: string[];
+  };
+
+export type MultiSheetCombinePayload = {
+  sources: CombineSource[];
+  outputColumns: CombineOutputColumn[];
+  mappings: CombineColumnMapping[];
+};
+
+export function createEmptyMultiSheetBatch(
+  id: string,
+  fileName?: string,
+): MultiSheetBatch {
+  return {
+    id,
+    ...(fileName === undefined ? {} : { fileName }),
+    outputSchema: null,
+    sheets: [],
+  };
+}
+
+export function addProcessedResultToMultiSheetBatch(
+  batch: MultiSheetBatch,
+  result: ProcessedExportResult,
+): AddProcessedResultToMultiSheetBatchResult {
+  const validation = batch.outputSchema
+    ? validateProcessedResultAgainstMultiSheetSchema(result, batch.outputSchema)
+    : { valid: true, errors: [], warnings: [] };
+
+  if (!validation.valid) {
+    return {
+      ok: false,
+      batch,
+      errors: validation.errors,
+      warnings: validation.warnings,
+    };
+  }
+
+  const outputSchema = batch.outputSchema ?? createMultiSheetOutputSchema(result);
+  const source = createUniqueSource(
+    createCombineSourceFromSanitizedResult(result),
+    new Set(batch.sheets.map((sheet) => sheet.id)),
+  );
+  const sheet: MultiSheetBatchSheet = {
+    id: source.id,
+    fileName: source.fileName,
+    sheetName: source.sheetName,
+    status: 'configured',
+    rowCount: source.rows.length,
+    source,
+    warnings: [...validation.warnings],
+  };
+
+  return {
+    ok: true,
+    batch: {
+      ...batch,
+      outputSchema,
+      sheets: [...batch.sheets, sheet],
+    },
+    errors: [],
+    warnings: [...validation.warnings],
+  };
+}
+
+export function removeSheetFromMultiSheetBatch(
+  batch: MultiSheetBatch,
+  sheetId: string,
+): MultiSheetBatch {
+  const sheets = batch.sheets.filter((sheet) => sheet.id !== sheetId);
+
+  if (sheets.length === batch.sheets.length) {
+    return batch;
+  }
+
+  return {
+    ...batch,
+    outputSchema: sheets.length === 0 ? null : batch.outputSchema,
+    sheets,
+  };
+}
+
+export function createCombinePayloadFromMultiSheetBatch(
+  batch: MultiSheetBatch,
+): MultiSheetCombinePayload {
+  const sources = batch.sheets.map((sheet) => sheet.source);
+  const schemaColumns = [...(batch.outputSchema?.columns ?? [])]
+    .sort((left, right) => left.index - right.index);
+  const outputColumns = schemaColumns.map((column) => ({
+    id: `output:${column.index}`,
+    name: column.name,
+  }));
+  const mappings = sources.flatMap((source) => outputColumns.map((outputColumn, index) => ({
+    sourceId: source.id,
+    outputColumnId: outputColumn.id,
+    sourceColumnId: source.columns.find((column) => column.index === schemaColumns[index].index)?.id ?? null,
+  })));
+
+  return { sources, outputColumns, mappings };
+}
 
 export function createMultiSheetOutputSchema(
   result: ProcessedExportResult,
@@ -78,4 +198,17 @@ function normalizeMultiSheetColumnName(value: string) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ');
+}
+
+function createUniqueSource(source: CombineSource, usedIds: Set<string>): CombineSource {
+  if (!usedIds.has(source.id)) {
+    return source;
+  }
+
+  let suffix = 2;
+  while (usedIds.has(`${source.id}:${suffix}`)) {
+    suffix += 1;
+  }
+
+  return { ...source, id: `${source.id}:${suffix}` };
 }
