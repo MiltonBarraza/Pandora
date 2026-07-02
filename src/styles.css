@@ -525,6 +525,11 @@ h3 {
   gap: 12px;
 }
 
+.multiSheetBatchPanelEmpty {
+  gap: 8px;
+  padding-block: 12px;
+}
+
 .multiSheetBatchHeader {
   align-items: center;
   display: flex;

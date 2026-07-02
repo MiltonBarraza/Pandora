@@ -55,6 +55,8 @@ type ImportWizardProps = {
   onSaveProcessedResult?: (result: ProcessedExportResult) => void;
   onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
   onStatePresenceChange?: (hasState: boolean) => void;
+  externalReloadGuardActive?: boolean;
+  suppressBeforeUnloadWarning?: boolean;
 };
 
 export function ImportWizard({
@@ -63,6 +65,8 @@ export function ImportWizard({
   onSaveProcessedResult,
   onSaveToMultiSheetBatch,
   onStatePresenceChange,
+  externalReloadGuardActive = false,
+  suppressBeforeUnloadWarning = false,
 }: ImportWizardProps) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
@@ -235,8 +239,12 @@ export function ImportWizard({
     [processedPipeline.ignoredInputRows, processedRowsWithStatus],
   );
 
-  useBeforeUnloadWarning(hasWizardStateToProtect && !isBeforeUnloadSuppressed);
-  useInternalReloadGuard(hasWizardStateToProtect, () => {
+  useBeforeUnloadWarning(
+    hasWizardStateToProtect
+      && !isBeforeUnloadSuppressed
+      && !suppressBeforeUnloadWarning,
+  );
+  useInternalReloadGuard(hasWizardStateToProtect && !externalReloadGuardActive, () => {
     requestConfigurationDiscard(() => {
       setIsBeforeUnloadSuppressed(true);
       window.setTimeout(() => window.location.reload(), 0);

@@ -18,6 +18,7 @@ import { MultiSheetBatchPanel } from './components/MultiSheetBatchPanel/MultiShe
 import { ActionButton } from './components/ui/ActionButton/ActionButton';
 import { ConfirmDialog } from './components/ui/ConfirmDialog/ConfirmDialog';
 import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
+import { useInternalReloadGuard } from './hooks/useInternalReloadGuard';
 
 type AppTool = 'sanitize' | 'combine';
 
@@ -30,12 +31,17 @@ export default function App() {
     createEmptyMultiSheetBatch('multi-sheet-batch')
   ));
   const [pendingToolChange, setPendingToolChange] = useState<AppTool | null>(null);
+  const [isReloadConfirmationOpen, setIsReloadConfirmationOpen] = useState(false);
+  const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
   const appearance = useAppearanceTheme();
+  const hasReloadStateToProtect = combineBasketSources.length > 0
+    || combineHasLocalState
+    || sanitizerHasState
+    || multiSheetBatch.sheets.length > 0;
   useBeforeUnloadWarning(
-    combineBasketSources.length > 0
-      || combineHasLocalState
-      || multiSheetBatch.sheets.length > 0,
+    hasReloadStateToProtect && !isBeforeUnloadSuppressed,
   );
+  useInternalReloadGuard(hasReloadStateToProtect, () => setIsReloadConfirmationOpen(true));
   const saveProcessedResult = (result: ProcessedExportResult) => {
     setCombineBasketSources((current) => addProcessedResultToCombineBasket(current, result));
     showSuccessToast('Resultado guardado para combinar.');
@@ -103,6 +109,21 @@ export default function App() {
       onConfirm={() => pendingToolChange && changeTool(pendingToolChange)}
     />
   );
+  const reloadConfirmation = (
+    <ConfirmDialog
+      open={isReloadConfirmationOpen}
+      title="Confirmar recarga"
+      message="Si recargás la página, se perderán el lote multi-hoja y los demás datos temporales sin guardar. ¿Querés continuar?"
+      confirmLabel="Recargar página"
+      variant="danger"
+      onCancel={() => setIsReloadConfirmationOpen(false)}
+      onConfirm={() => {
+        setIsReloadConfirmationOpen(false);
+        setIsBeforeUnloadSuppressed(true);
+        window.setTimeout(() => window.location.reload(), 0);
+      }}
+    />
+  );
   const appearanceToolbar = (
     <AppearanceToolbar
       preference={appearance.preference}
@@ -136,8 +157,11 @@ export default function App() {
           onSaveProcessedResult={saveProcessedResult}
           onSaveToMultiSheetBatch={saveToMultiSheetBatch}
           onStatePresenceChange={setSanitizerHasState}
+          externalReloadGuardActive={hasReloadStateToProtect}
+          suppressBeforeUnloadWarning={isBeforeUnloadSuppressed}
         />
         {toolChangeConfirmation}
+        {reloadConfirmation}
       </>
     );
   }
@@ -154,16 +178,20 @@ export default function App() {
           onLocalStatePresenceChange={setCombineHasLocalState}
         />
         {toolChangeConfirmation}
+        {reloadConfirmation}
       </>
     );
   }
 
   return (
-    <ToolSelector
-      appearanceToolbar={appearanceToolbar}
-      basketSourceCount={combineBasketSources.length}
-      onSelectTool={setSelectedTool}
-    />
+    <>
+      <ToolSelector
+        appearanceToolbar={appearanceToolbar}
+        basketSourceCount={combineBasketSources.length}
+        onSelectTool={setSelectedTool}
+      />
+      {reloadConfirmation}
+    </>
   );
 }
 

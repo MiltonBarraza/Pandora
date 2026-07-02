@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -41,6 +41,7 @@ vi.mock('./components/ImportWizard/ImportWizard', () => ({
       {multiSheetBatchPanel}
       <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Emitir resultado</button>
       <button type="button" onClick={() => onSaveToMultiSheetBatch?.(processedResult)}>Guardar hoja válida</button>
+      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(compatibleSecondResult)}>Guardar segunda hoja</button>
       <button type="button" onClick={() => onSaveToMultiSheetBatch?.(incompatibleResult)}>Guardar hoja incompatible</button>
       <button type="button" onClick={() => onSaveToMultiSheetBatch?.(foreignFileResult)}>Guardar hoja de otro archivo</button>
       <button type="button" onClick={() => onStatePresenceChange?.(true)}>Marcar sanitizador con estado</button>
@@ -253,13 +254,17 @@ describe('App multi-sheet batch wiring', () => {
     expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
   });
 
-  it('removes the last sheet and returns to empty state', async () => {
+  it('updates the summary when removing sheets and clears after the last one', async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar segunda hoja' }));
     await user.click(screen.getByRole('button', { name: 'Remover Productos' }));
+
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Remover Febrero' }));
 
     expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
   });
@@ -282,13 +287,42 @@ describe('App multi-sheet batch wiring', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar segunda hoja' }));
     await user.click(screen.getByRole('button', { name: 'Exportar lote combinado' }));
 
     await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
     expect(exportCombinedXlsx).toHaveBeenCalledWith(expect.objectContaining({
       fileName: 'origen-multi-hoja',
       outputColumns: [expect.objectContaining({ id: 'output:0' })],
+      combinedRows: [
+        expect.objectContaining({ sourceSheetName: 'Productos', values: { 'output:0': 'A1' } }),
+        expect.objectContaining({ sourceSheetName: 'Febrero', values: { 'output:0': 'B2' } }),
+      ],
     }));
+  });
+
+  it('uses the app confirmation for F5 when the batch has sheets', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    const event = new KeyboardEvent('keydown', { key: 'F5', cancelable: true, bubbles: true });
+    fireEvent(document, event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(screen.getByRole('heading', { name: 'Confirmar recarga' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Recargar página' })).not.toBeNull();
+  });
+
+  it('does not open the app reload confirmation when state is empty', () => {
+    render(<App />);
+
+    const event = new KeyboardEvent('keydown', { key: 'F5', cancelable: true, bubbles: true });
+    fireEvent(document, event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByRole('heading', { name: 'Confirmar recarga' })).toBeNull();
   });
 
   it('warns before unload only after a batch sheet is saved', async () => {
@@ -300,6 +334,18 @@ describe('App multi-sheet batch wiring', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
 
     expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
+  });
+
+  it('preserves the batch while switching between tools', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
+
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
   });
 });
 
@@ -319,6 +365,13 @@ const incompatibleResult: ProcessedExportResult = {
     ...processedResult.columns,
     { id: 'name', label: 'Nombre', order: 1, enabled: true },
   ],
+};
+
+const compatibleSecondResult: ProcessedExportResult = {
+  ...processedResult,
+  id: 'saved:second',
+  sheetName: 'Febrero',
+  rows: [{ status: 'included', outputValues: { code: 'B2' } }],
 };
 
 const foreignFileResult: ProcessedExportResult = {

@@ -22,7 +22,7 @@ export function MultiSheetBatchPanel({
   const hasSheets = batch.sheets.length > 0;
 
   return (
-    <section className="panel multiSheetBatchPanel" aria-labelledby="multi-sheet-batch-title">
+    <section className={`panel multiSheetBatchPanel${hasSheets ? '' : ' multiSheetBatchPanelEmpty'}`} aria-labelledby="multi-sheet-batch-title">
       <ConfirmDialog
         open={isClearConfirmationOpen}
         title="Limpiar lote multi-hoja"
