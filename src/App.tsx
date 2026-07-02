@@ -103,7 +103,7 @@ export default function App() {
       title="Confirmar cambio de herramienta"
       message={selectedTool === 'sanitize'
         ? 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?'
-        : 'Vas a salir de Combinar archivos. Las fuentes subidas manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?'}
+        : 'Vas a salir de Combinar archivos. Los archivos subidos manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?'}
       confirmLabel="Continuar"
       onCancel={() => setPendingToolChange(null)}
       onConfirm={() => pendingToolChange && changeTool(pendingToolChange)}

@@ -7,6 +7,7 @@ import { readCombineSource } from '../../domain/combine/readCombineSource';
 import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
 import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
@@ -139,13 +140,14 @@ export function CombineWizard({
 
       <div className="wizard">
         <section className="panel combineFlowPanel combineSourcesPanel">
-          <h2>Fuentes</h2>
-          <p className="muted combineSourcesIntro">Cargá archivos o usá resultados guardados desde el sanitizador.</p>
-          <div className="combineReadPolicy">
-            <span><strong>Excel:</strong> primera hoja.</span>
-            <span><strong>Encabezado:</strong> primera fila no vacía.</span>
-            <span><strong>CSV:</strong> tabla única.</span>
-          </div>
+          <h2 className="headingWithInfo">
+            <span>1. Archivos</span>
+            <InfoTooltip
+              ariaLabel="Información sobre los archivos para combinar"
+              placement="right"
+              content="Cargá archivos o usá resultados guardados desde el sanitizador. Excel: se usa la primera hoja. Encabezado: se toma la primera fila no vacía. CSV: se interpreta como tabla única."
+            />
+          </h2>
           <MultipleFileUploader disabled={isReading} onFilesSelected={(files) => void loadFiles(files)} />
 
           {basketSources.length > 0 ? (
@@ -165,7 +167,7 @@ export function CombineWizard({
           ) : null}
 
           <div className="combineSourcesHeader">
-            <h3>Fuentes cargadas</h3>
+            <h3>Archivos cargados</h3>
             <span className="muted">{sources.length} {sources.length === 1 ? 'archivo' : 'archivos'}</span>
           </div>
           {sources.length === 0 ? (
@@ -177,10 +179,10 @@ export function CombineWizard({
                   <div>
                     <strong>{source.fileName}</strong>
                     <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
-                      {basketSourceIds.has(source.id) ? 'Guardado desde sanitizador' : 'Subido manualmente'}
+                      {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
                     </span>
                     <p className="muted combineSourceMeta">
-                      {source.sheetName ? `Hoja: ${source.sheetName} · ` : ''}
+                      {source.sheetName ? `Hoja usada: ${source.sheetName} · ` : ''}
                       {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
                       {source.rows.length} {source.rows.length === 1 ? 'fila' : 'filas'} de datos
                     </p>
@@ -193,14 +195,14 @@ export function CombineWizard({
               ))}
             </div>
           )}
-          <CombineSettingsActions
-            sources={sources}
-            outputColumns={outputColumns}
-            mappings={mappings}
-            outputFileName={outputFileName}
-            onApplySettings={applySettings}
-          />
         </section>
+        <CombineSettingsActions
+          sources={sources}
+          outputColumns={outputColumns}
+          mappings={mappings}
+          outputFileName={outputFileName}
+          onApplySettings={applySettings}
+        />
         <CombineOutputColumns
           sources={sources}
           outputColumns={outputColumns}

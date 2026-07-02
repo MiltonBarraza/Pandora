@@ -415,7 +415,7 @@ const foreignFileResult: ProcessedExportResult = {
 };
 
 const sanitizerExitConfirmationText = 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?';
-const combineExitConfirmationText = 'Vas a salir de Combinar archivos. Las fuentes subidas manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?';
+const combineExitConfirmationText = 'Vas a salir de Combinar archivos. Los archivos subidos manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?';
 
 function dispatchBeforeUnload() {
   const event = new Event('beforeunload', { cancelable: true });

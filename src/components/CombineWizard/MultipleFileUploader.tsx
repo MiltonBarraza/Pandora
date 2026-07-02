@@ -57,9 +57,9 @@ export function MultipleFileUploader({ disabled = false, onFilesSelected }: Mult
             event.target.value = '';
           }}
         />
-        <strong>{disabled ? 'Leyendo archivos…' : 'Cargar archivos'}</strong>
-        <span className="dropZoneHelp">Arrastrá uno o varios archivos .xlsx, .xls, .xlsm o .csv</span>
-        <span className="dropZoneHelp dropZoneHelpSecondary">O hacé click para seleccionarlos desde tu computadora</span>
+        <strong>{disabled ? 'Leyendo archivos…' : 'Elegir archivos'}</strong>
+        <span className="dropZoneHelp">Arrastrá archivos aquí de tipo .xlsx, .xls, .xlsm o .csv</span>
+        <span className="dropZoneHelp dropZoneHelpSecondary">Hacé click para subir archivos desde tu computadora</span>
       </div>
     </div>
   );

@@ -58,7 +58,7 @@ export function CombineMappingsEditor({
       />
       <div className="combineMappingsHeader">
         <div>
-          <h2>Mapeo de columnas</h2>
+          <h2>4. Mapeo</h2>
           <p className="muted">Automapeo exacto por nombre; no usa aliases ni coincidencias aproximadas.</p>
         </div>
         {sources.length > 0 && outputColumns.length > 0 ? (

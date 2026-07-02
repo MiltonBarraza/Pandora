@@ -13,8 +13,35 @@ describe('CombineWizard basket sources', () => {
     render(<CombineWizard basketSources={[basketSource]} />);
 
     expect(screen.getByText('guardado.xlsx')).not.toBeNull();
-    expect(screen.getByText('Guardado desde sanitizador')).not.toBeNull();
+    expect(screen.getByText('Desde sanitizador')).not.toBeNull();
+    expect(screen.getByText('Hoja usada: Productos · 1 columna · 1 fila de datos')).not.toBeNull();
     expect(screen.getByText(/son temporales y se pierden al recargar/)).not.toBeNull();
+  });
+
+  it('uses numbered sections, plural upload copy and file terminology', () => {
+    const { container } = render(<CombineWizard basketSources={[basketSource]} />);
+
+    expect(screen.getByRole('heading', { name: '1. Archivos' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '2. Configuración' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '3. Columnas de salida' })).not.toBeNull();
+    expect(screen.getByText('Archivos cargados')).not.toBeNull();
+    expect(screen.getByText('Elegir archivos')).not.toBeNull();
+    expect(screen.getByText('Arrastrá archivos aquí de tipo .xlsx, .xls, .xlsm o .csv')).not.toBeNull();
+    expect(screen.getByText('Hacé click para subir archivos desde tu computadora')).not.toBeNull();
+    expect((container.querySelector('input[type="file"][multiple]') as HTMLInputElement | null)?.multiple).toBe(true);
+    expect(screen.getByRole('button', { name: 'Información sobre los archivos para combinar' })).not.toBeNull();
+    expect(screen.queryByText('Fuentes')).toBeNull();
+    expect(screen.queryByText('Excel: primera hoja.')).toBeNull();
+  });
+
+  it('numbers mapping, preview and export after output columns are initialized', async () => {
+    render(<CombineWizard basketSources={[basketSource]} />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+
+    expect(screen.getByRole('heading', { name: '4. Mapeo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '5. Vista previa' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Exportar' })).not.toBeNull();
   });
 
   it('delegates basket source removal to its owner', async () => {

@@ -40,7 +40,7 @@ export function CombineOutputColumns({
     <section className="panel combineFlowPanel">
       <div className="combineOutputColumnsHeader">
         <div>
-          <h2>Columnas de salida</h2>
+          <h2>3. Columnas de salida</h2>
           <p className="muted">Definí las columnas que tendrá el archivo combinado.</p>
         </div>
         {outputColumns.length > 0 ? (

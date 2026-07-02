@@ -750,21 +750,6 @@ h3 {
   margin-top: 12px;
 }
 
-.combineReadPolicy {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.combineReadPolicy span {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 999px;
-  font-size: 0.78rem;
-  padding: 4px 8px;
-}
-
 .combineBasketNotice {
   background: var(--color-accent-bg-soft);
   border: 1px solid var(--color-accent-border);
@@ -791,24 +776,6 @@ h3 {
   background: transparent;
   border-color: var(--color-border-muted);
   color: var(--color-text-muted);
-}
-
-.combineSourcesIntro {
-  margin: -8px 0 10px;
-}
-
-.combineFileUploader .dropZone {
-  gap: 5px;
-  height: 92px;
-  padding: 12px 20px;
-}
-
-.combineFileUploader .dropZoneHelp {
-  font-size: 0.82rem;
-}
-
-.combineFileUploader .dropZoneHelpSecondary {
-  font-size: 0.76rem;
 }
 
 .combineReadErrors .errorText {
@@ -872,12 +839,12 @@ h3 {
   align-items: center;
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   justify-content: space-between;
-  margin-top: 12px;
-  padding: 8px 10px;
+  margin-top: 0;
+  padding: 10px 16px;
 }
 
 .combineSettingsCompactCopy {
@@ -886,8 +853,8 @@ h3 {
   min-width: 0;
 }
 
-.combineSettingsCompactCopy span {
-  font-size: 0.78rem;
+.combineSettingsCompactCopy h2 {
+  margin: 0;
 }
 
 .combineSettingsActions {
@@ -1180,6 +1147,7 @@ h3 {
 }
 
 .combineSettingsMessage {
+  flex-basis: 100%;
   margin: 12px 0 0;
 }
 

@@ -9,6 +9,7 @@ import {
 import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type CombineSettingsActionsProps = {
   sources: CombineSource[];
@@ -77,7 +78,7 @@ export function CombineSettingsActions({
   };
 
   return (
-    <div className="combineSettingsCompact" aria-label="Configuración">
+    <section className="panel combineFlowPanel combineSettingsCompact" aria-labelledby="combine-settings-title">
       <ConfirmDialog
         open={Boolean(pendingSnapshot)}
         title="Importar configuración"
@@ -88,8 +89,14 @@ export function CombineSettingsActions({
         onConfirm={() => pendingSnapshot && applySnapshot(pendingSnapshot)}
       />
       <div className="combineSettingsCompactCopy">
-        <strong>Configuración</strong>
-        <span className="muted">Guardá o restaurá columnas, mapeos y nombre de salida.</span>
+        <h2 id="combine-settings-title" className="headingWithInfo">
+          <span>2. Configuración</span>
+          <InfoTooltip
+            ariaLabel="Información sobre la configuración de combinación"
+            placement="right"
+            content="Guardá o restaurá columnas, mapeos y nombre de salida para reutilizar esta combinación."
+          />
+        </h2>
       </div>
       <input
         ref={inputRef}
@@ -112,6 +119,6 @@ export function CombineSettingsActions({
       {warnings.map((warning) => (
         <p key={warning} className="combineColumnWarning combineSettingsMessage">{warning}</p>
       ))}
-    </div>
+    </section>
   );
 }
