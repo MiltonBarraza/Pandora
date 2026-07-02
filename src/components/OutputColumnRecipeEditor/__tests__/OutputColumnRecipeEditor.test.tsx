@@ -9,7 +9,8 @@ import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnT
 import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
-import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, rangeValueModeOptions, rangeValueStepTypes, rangeValueTextSourceActionOptions } from '../RangeValueEditor';
+import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection } from '../RangeValueEditor';
+import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
 import { RecipeStudioShell, addComposeRecipePart } from '../RecipeStudio';
 
 const inputColumns: InputColumn[] = [
@@ -2912,9 +2913,9 @@ describe('constructor helpers', () => {
   });
 
   it('offers concat but not manual ranges inside range value transformations', () => {
-    expect(rangeValueModeOptions.map((option) => option.value)).not.toContain('manualRange');
-    expect(Object.values(rangeValueStepTypes).flat().map((option) => option.value)).not.toContain('manualRange');
-    expect(rangeValueStepTypes.text.map((option) => option.value)).toContain('concat');
+    expect(getAllowedStepModes({ kind: 'range' })).not.toContain('manualRange');
+    expect(getAllowedStepActions('text', { kind: 'range' })).toContain('concat');
+    expect(getAllowedStepActions('text', { kind: 'rangeConcat' })).not.toContain('concat');
   });
 
   it('renders range values as a mini operation editor instead of separate value and transformations blocks', () => {
@@ -3126,11 +3127,11 @@ describe('constructor helpers', () => {
   });
 
   it('offers textual value sources as actions instead of a second source selector', () => {
-    expect(rangeValueTextSourceActionOptions.map((option) => option.label)).toEqual([
-      'Usar columna de entrada',
-      'Usar texto fijo',
-      'Elegir texto desde celda',
-      'Texto encontrado en el rango',
+    expect(getAllowedSourceActions({ mode: 'text', type: 'noop' }, { kind: 'range' })).toEqual([
+      'useInputColumn',
+      'useFixedText',
+      'pickColumnText',
+      'useRangeText',
     ]);
   });
 

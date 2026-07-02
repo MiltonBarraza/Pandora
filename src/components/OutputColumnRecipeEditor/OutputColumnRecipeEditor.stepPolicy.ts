@@ -447,7 +447,7 @@ function normalizeConcatPartForContext(part: ConcatPart, context: StepEditorCont
   const nestedContext: StepEditorContext = {
     ...context,
     kind: context.kind === 'range' ? 'rangeConcat' : 'concat',
-    stepIndex: 0,
+    stepIndex: 1,
     sourceActionOverride: undefined,
   };
 

@@ -222,4 +222,21 @@ describe('step editor policy', () => {
     const normalized = normalizeStepForContext(concatStep, context('normal'));
     expect(normalized.parts?.[0]?.steps?.map((step) => step.type)).toEqual(['noop', 'noop', 'uppercase']);
   });
+
+  it('preserves previous result sources on concat parts', () => {
+    const concatStep: TransformStep = {
+      id: 'concat',
+      mode: 'text',
+      type: 'concat',
+      parts: [
+        { id: 'previous', source: { type: 'previousResult' } },
+        { id: 'input', source: { type: 'input', inputColumnId } },
+      ],
+    };
+
+    const normalized = normalizeStepForContext(concatStep, context('range'));
+
+    expect(normalized.parts?.[0]?.source).toEqual({ type: 'previousResult' });
+    expect(normalized.parts?.[1]?.source).toEqual({ type: 'input', inputColumnId });
+  });
 });
