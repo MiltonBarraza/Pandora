@@ -71,10 +71,11 @@ function renderRangeValueEditor(range: Parameters<typeof RangeValueEditor>[0]['r
         range={range}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
-        onValueSourceTypeChange={() => undefined}
         onFixedTextChange={() => undefined}
         onInputColumnChange={() => undefined}
         onRangeTextChange={() => undefined}
+        onSourceChange={() => undefined}
+        onSourceAndStepsChange={() => undefined}
         onStepsChange={() => undefined}
       />,
     );
@@ -598,6 +599,10 @@ describe('constructor helpers', () => {
     expect(composeMarkup).toContain('composeStudioHeaderFields stepPrimaryFieldsRow');
     expect(composeMarkup).toContain('stepExtraFieldsRow');
     expect(markup).toContain('Agregar paso');
+    const addStepMarkup = markup.slice(markup.lastIndexOf('<div class="concatPartStepsActions">'), markup.indexOf('</button>', markup.lastIndexOf('<div class="concatPartStepsActions">')) + '</button>'.length);
+    expect(addStepMarkup).toContain('actionButton actionButton-secondary actionButton-md constructorAddStepButton');
+    expect(addStepMarkup).not.toContain('concatAddAdjustmentButton');
+    expect(addStepMarkup).not.toContain('infoTooltip');
     expect(markup.indexOf('composePartTechnicalEditor')).toBeLessThan(markup.indexOf('composeTokenRules'));
     expect(markup.toLowerCase()).not.toContain('pieza');
   });
@@ -3034,19 +3039,29 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Qué quiero hacer');
     expect(markup).toContain('Concatenar');
-    expect(markup).toContain('concatPartsWorkspace');
-    expect(markup).toContain('concatPartsSidebar');
-    expect(markup).toContain('concatPartSelectButton');
+    expect(markup).toContain('composePartsBuilder');
+    expect(markup).toContain('Editor de partes');
+    expect(markup).toContain('compositionTokenList');
+    expect(markup).toContain('compositionTokenCard');
+    expect(markup).toContain('composeTokenInspector');
+    expect(markup).toContain('Parte seleccionada');
+    expect(markup).toContain('dragHandle');
+    expect(markup).toContain('stepDetailPanel');
+    expect(markup).toContain('stepCardHeader');
+    expect(markup).toContain('Paso 1');
     expect(markup).toContain('Parte 1');
     expect(markup).toContain('Resultado anterior');
     expect(markup).toContain('F - Presentacion');
     expect(markup).toContain('OK');
+    expect(markup).not.toContain('concatStepFields');
+    expect(markup).not.toContain('concatPartsSidebar');
+    expect(markup).not.toContain('rangeValueConcatWorkspaceFlat');
     expect(markup).not.toContain('Fuente del valor');
     expect(markup).toContain('Usar resultado anterior');
     expect(markup).not.toContain('Buscar textos en');
     expect(markup).not.toContain('Texto encontrado</span>');
     expect(markup).not.toMatch(/<span id="[^"]+">Fuente<\/span>/);
-    expect(markup.match(/Pasos adicionales/g)).toHaveLength(1);
+    expect(markup).not.toContain('Pasos adicionales');
   });
 
   it('maps normal text value actions onto existing persisted sources', () => {
@@ -3248,9 +3263,9 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('textSourceHelperRow');
   });
 
-  it('starts range concat with one clear previous-result part', () => {
+  it('starts range concat with one unconfigured input part', () => {
     expect(createDefaultRangeValueConcatParts()).toEqual([
-      expect.objectContaining({ source: { type: 'previousResult' } }),
+      expect.objectContaining({ source: { type: 'input', inputColumnId: '' } }),
     ]);
   });
 

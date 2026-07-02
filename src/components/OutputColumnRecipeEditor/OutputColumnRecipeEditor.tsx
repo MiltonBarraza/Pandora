@@ -226,6 +226,16 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     setDraftRecipe(recipe);
     setIsConstructorOpen(true);
   };
+  const updateDraftRecipe = (nextRecipe: EditableCustomRecipe | ((current: EditableCustomRecipe) => EditableCustomRecipe)) => {
+    setDraftRecipe((currentDraftRecipe) => {
+      const currentRecipe = currentDraftRecipe ?? modalRecipe;
+      if (!currentRecipe) {
+        return currentDraftRecipe;
+      }
+
+      return typeof nextRecipe === 'function' ? nextRecipe(currentRecipe) : nextRecipe;
+    });
+  };
   const closeConstructor = () => {
     isApplyingConstructorRef.current = false;
     setIsDiscardConfirmationOpen(false);
@@ -330,7 +340,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
                 renderComposeStepHeader={(props) => <ComposeStepHeader {...props} />}
                 renderManualRangeRecipeEditor={(props) => <ManualRangeRecipeEditor {...props} />}
                 renderManualRangeTextGenerator={(props) => <ManualRangeTextGenerator {...props} />}
-                onChange={setDraftRecipe}
+                onChange={updateDraftRecipe}
               />
             ) : null}
           </Modal>
@@ -397,7 +407,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
                 renderComposeStepHeader={(props) => <ComposeStepHeader {...props} />}
                 renderManualRangeRecipeEditor={(props) => <ManualRangeRecipeEditor {...props} />}
                 renderManualRangeTextGenerator={(props) => <ManualRangeTextGenerator {...props} />}
-                onChange={setDraftRecipe}
+                onChange={updateDraftRecipe}
               />
             ) : null}
           </Modal>
@@ -1046,6 +1056,32 @@ export function ManualRangeTableRow({
     const nextRecipe = updateManualRangeValue(recipe, range.id, { endRowNumber: endRowNumber ?? 0 });
     onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
   };
+  const updateRangeSource = (source: StepSource) => {
+    if (source.type === 'input') {
+      return updateManualRangeInputValue(recipe, range.id, source.inputColumnId);
+    }
+
+    if (source.type === 'rangeText') {
+      return reconcileManualRangeTextSelections(
+        updateManualRangeRangeTextValue(recipe, range.id, {
+          inputColumnId: source.inputColumnId,
+          selectedText: source.selectedText,
+        }),
+        range.id,
+        manualRangeRows,
+      );
+    }
+
+    if (source.type === 'fixedText') {
+      return updateManualRangeFixedTextValue(recipe, range.id, source.value);
+    }
+
+    return recipe;
+  };
+  const updateRangeSourceAndSteps = (source: StepSource, steps: TransformStep[]) => {
+    const nextRecipe = updateRangeSource(source);
+    return updateManualRangeValueRecipeSteps(nextRecipe, range.id, steps);
+  };
 
   return (
     <div className="manualRangeRangeItem">
@@ -1113,7 +1149,6 @@ export function ManualRangeTableRow({
           range={range}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          onValueSourceTypeChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
           onFixedTextChange={(value) => onChange(updateManualRangeFixedTextValue(recipe, range.id, value))}
           onInputColumnChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
           onRangeTextChange={(patch) => {
@@ -1123,6 +1158,8 @@ export function ManualRangeTableRow({
             const nextRecipe = updateManualRangeRangeTextValue(recipe, range.id, nextPatch);
             onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
           }}
+          onSourceChange={(source) => onChange(updateRangeSource(source))}
+          onSourceAndStepsChange={(source, steps) => onChange(updateRangeSourceAndSteps(source, steps))}
           onStepsChange={(steps) => onChange(updateManualRangeValueRecipeSteps(recipe, range.id, steps))}
         />
       </div>
@@ -1243,7 +1280,7 @@ export function CustomValueEditor({
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   mode: CustomValueMode;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }> | ((current: Extract<OutputRecipe, { type: 'combine' }>) => Extract<OutputRecipe, { type: 'combine' }>)) => void;
 }) {
   const baseInputPart = getSimpleInputPart(recipe);
   const visibleSteps = getVisibleRecipeSteps(recipe, mode);
@@ -1252,8 +1289,13 @@ export function CustomValueEditor({
     const nextMode = defaultStepMode === 'number' ? 'number' : 'text';
     onChange(buildSimpleCustomValueRecipeWithSteps(nextMode, inputColumnId, visibleSteps, recipe));
   };
-  const updateSteps = (steps: TransformStep[]) => {
-    onChange(buildStepBasedCustomValueRecipe(recipe, steps, defaultStepMode));
+  const updateSteps = (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => {
+    onChange((currentRecipe) => {
+      const currentMode = getCustomValueMode(currentRecipe) || mode;
+      const currentSteps = getVisibleRecipeSteps(currentRecipe, currentMode);
+      const nextSteps = typeof steps === 'function' ? steps(currentSteps) : steps;
+      return buildStepBasedCustomValueRecipe(currentRecipe, nextSteps, getDefaultStepModeForRecipe(currentRecipe, currentMode));
+    });
   };
 
   return (
@@ -1295,10 +1337,10 @@ function StepBlocksEditor({
   studioLayout?: boolean;
   getPreviousStepPreviewValue?: (stepIndex: number) => string | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
-  onStepsChange: (steps: TransformStep[]) => void;
+  onStepsChange: (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => void;
 }) {
   const addStep = () => {
-    onStepsChange([...steps, createNoopStep(defaultStepMode)]);
+    onStepsChange((currentSteps) => [...currentSteps, createNoopStep(defaultStepMode)]);
   };
 
   const deleteStep = (indexToDelete: number) => {
@@ -1306,7 +1348,7 @@ function StepBlocksEditor({
       return;
     }
 
-    onStepsChange(steps.filter((_, index) => index !== indexToDelete));
+    onStepsChange((currentSteps) => currentSteps.filter((_, index) => index !== indexToDelete));
   };
 
   if (studioLayout && steps.length > 0) {
@@ -1342,8 +1384,8 @@ function StepBlocksEditor({
                           canDelete
                           previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
                           onBaseInputColumnChange={onBaseInputColumnChange}
-                          onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
-                          onReplace={(nextStep) => onStepsChange(replaceWholeStep(steps, step.id, nextStep))}
+                          onChange={(patch) => onStepsChange((currentSteps) => updateStep(currentSteps, step.id, patch))}
+                          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStep(currentSteps, step.id, nextStep))}
                           onDelete={() => deleteStep(index)}
                         />
                       </div>
@@ -1359,8 +1401,8 @@ function StepBlocksEditor({
             </>
           )}
           onBaseInputColumnChange={onBaseInputColumnChange}
-          onChange={(patch) => onStepsChange(updateStep(steps, primaryStep.id, patch))}
-          onReplace={(nextStep) => onStepsChange(replaceWholeStep(steps, primaryStep.id, nextStep))}
+          onChange={(patch) => onStepsChange((currentSteps) => updateStep(currentSteps, primaryStep.id, patch))}
+          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStep(currentSteps, primaryStep.id, nextStep))}
           onDelete={() => undefined}
         />
       </div>
@@ -1385,8 +1427,8 @@ function StepBlocksEditor({
               canDelete={!requireAtLeastOne || steps.length > 1}
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
-              onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
-              onReplace={(nextStep) => onStepsChange(replaceWholeStep(steps, step.id, nextStep))}
+              onChange={(patch) => onStepsChange((currentSteps) => updateStep(currentSteps, step.id, patch))}
+              onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStep(currentSteps, step.id, nextStep))}
               onDelete={() => deleteStep(index)}
             />
           ))}
@@ -1981,9 +2023,9 @@ function ConcatPartStepsEditor({
           </div>
         ) : null}
         <div className="concatPartStepsActions">
-          <InfoTooltip content="Agrega una transformacion adicional a esta parte.">
-            <button type="button" className="secondary concatAddAdjustmentButton" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
-          </InfoTooltip>
+          <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addAdditionalStep}>
+            {recipeEditorAdditionalStepLabel}
+          </ActionButton>
         </div>
       </div>
     </div>
@@ -2055,6 +2097,12 @@ function StepFields({
   const usesFixedDateSource = step.type === 'formatDate' && stepSource.type === 'fixedText';
   const isFormatDateSourceValueAllowed = (value: string) => Boolean(getDatePickerValue(value, step.dateInputFormat ?? defaultDateInputFormat));
   useEffect(() => setDateSourceWarning(null), [step.id, step.type, step.dateInputFormat]);
+  const suffixField = step.type === 'addSuffix' ? (
+    <label className="field compact recipeField">
+      <span>{labels === 'workflow' ? 'Sufijo' : 'Texto al final'}</span>
+      <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
+    </label>
+  ) : null;
   const updateSource = (source: StepSource, context?: StepSourceChangeContext) => {
     if (step.type === 'formatDate' && source.type === 'fixedText') {
       const selection = getFormatDateSourceSelection(
@@ -2095,6 +2143,7 @@ function StepFields({
       hideFixedTextInput={hideFixedTextInput}
       hideSourceSelector={sourceValueKind === 'text' && step.type === 'noop' && Boolean(textSourceAction)}
       columnTextPickerOpen={step.type === 'noop' && textSourceAction === 'pickColumnText'}
+      afterSourceSelector={suffixField}
       onChange={updateSource}
     />
   ) : null;
@@ -2136,15 +2185,7 @@ function StepFields({
   }
 
   if (step.type === 'addSuffix') {
-    return (
-      <>
-        {sourceFieldsWithWarning}
-        <label className="field compact recipeField">
-          <span>{labels === 'workflow' ? 'Sufijo' : 'Texto al final'}</span>
-          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-        </label>
-      </>
-    );
+    return sourceFieldsWithWarning ?? suffixField;
   }
 
   if (step.type === 'removeText') {

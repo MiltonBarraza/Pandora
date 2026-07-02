@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { useState } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InputColumn, InputRow, OutputColumn } from '../../../types/import';
@@ -47,6 +47,22 @@ function createEmptyStepColumn(id = 'output-empty-step'): OutputColumn {
   };
 }
 
+function createFixedTextStepColumn(id = 'output-fixed-step'): OutputColumn {
+  return {
+    id,
+    label: 'Valor',
+    order: 0,
+    enabled: true,
+    recipe: {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [{ id: 'step-1', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'abc' } }],
+    },
+  };
+}
+
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
     this.setAttribute('open', '');
@@ -65,9 +81,11 @@ afterEach(() => {
 
 function ControlledRecipeEditor({
   initialColumn,
+  sampleInputValues,
   onPersist = () => undefined,
 }: {
   initialColumn: OutputColumn;
+  sampleInputValues?: Record<string, string>;
   onPersist?: (column: OutputColumn) => void;
 }) {
   const [column, setColumn] = useState(initialColumn);
@@ -77,6 +95,7 @@ function ControlledRecipeEditor({
         column={column}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        sampleInputValues={sampleInputValues}
         onChange={(nextColumn) => {
           setColumn(nextColumn);
           onPersist(nextColumn);
@@ -95,6 +114,15 @@ async function selectLastDropdownOption(user: ReturnType<typeof userEvent.setup>
   const buttons = screen.getAllByRole('button', { name: buttonName });
   await user.click(buttons[buttons.length - 1]);
   await user.click(screen.getByRole('option', { name: optionName }));
+}
+
+function getInputByLabelText(label: string) {
+  const input = screen.getByText(label).closest('label')?.querySelector('input');
+  if (!input) {
+    throw new Error(`Input not found for label: ${label}`);
+  }
+
+  return input;
 }
 
 describe('OutputColumnRecipeEditor interactive modal flow', () => {
@@ -181,6 +209,25 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByText('Vista de filas para rangos')).toBeNull();
     await openRecipeEditor(user);
     expect(document.querySelectorAll('.manualRangeSpreadsheet')).toHaveLength(1);
+  });
+
+  it('renders the spreadsheet on the first selection of manual ranges from an empty step', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-manual-first-selection')} />);
+
+    await openRecipeEditor(user);
+    expect(screen.queryByText('Vista de filas para rangos')).toBeNull();
+
+    const dialog = screen.getByRole('dialog', { name: /Crear valor personalizado/ });
+    const operationButtons = within(dialog).getAllByRole('button', { name: 'Tipo de operación' });
+    const textOperationButton = operationButtons.find((button) => button.textContent?.includes('Trabajar con texto'));
+    expect(textOperationButton).toBeDefined();
+    await user.click(textOperationButton!);
+    await user.click(screen.getByRole('option', { name: 'Trabajar con rangos' }));
+
+    expect(screen.getAllByText('Vista de filas para rangos')).toHaveLength(1);
+    expect(document.querySelectorAll('.manualRangeSpreadsheet')).toHaveLength(1);
+    expect(within(dialog).getByRole('button', { name: 'Tipo de operación' }).textContent).toContain('Trabajar con rangos');
   });
 
   it('keeps concat builder free of accidental spreadsheets', async () => {
@@ -411,5 +458,83 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     expect(onChange).toHaveBeenCalledWith('uppercase');
     expect(onTextSourceAction).not.toHaveBeenCalled();
+  });
+
+  it('uses previous result by default when adding a suffix in a second step', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createFixedTextStepColumn('output-second-suffix')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Agregar sufijo');
+
+    expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
+    expect(screen.getByLabelText('Sufijo')).not.toBeNull();
+    expect(screen.queryByLabelText('Valor fijo')).toBeNull();
+
+    await user.type(screen.getByLabelText('Sufijo'), '-x');
+    expect(screen.getByText('abc-x')).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[1]).toMatchObject({
+      mode: 'text',
+      type: 'addSuffix',
+      source: { type: 'previousResult' },
+      value: '-x',
+    });
+  });
+
+  it('allows choosing fixed text explicitly as the base for a second-step suffix', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createFixedTextStepColumn('output-second-suffix-fixed-base')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Agregar sufijo');
+    await selectLastDropdownOption(user, /Qué valor usar/, 'Texto fijo');
+
+    const fixedBaseInput = getInputByLabelText('Valor fijo');
+    await user.type(fixedBaseInput, 'zz');
+    expect(fixedBaseInput.value).toBe('zz');
+    await user.type(screen.getByLabelText('Sufijo'), '-x');
+    expect(screen.getAllByText('zz-x').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[1]).toMatchObject({
+      type: 'addSuffix',
+      source: { type: 'fixedText', value: 'zz' },
+      value: '-x',
+    });
+    expect(screen.getAllByText('zz-x').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the suffix to the right of its source selector before previous-result help', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createFixedTextStepColumn('output-second-suffix-layout')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Qué quiero hacer/, 'Agregar sufijo');
+
+    const suffixField = screen.getByLabelText('Sufijo').closest('.recipeField');
+    const sourceButtons = screen.getAllByRole('button', { name: 'Qué valor usar' });
+    const sourceField = sourceButtons[sourceButtons.length - 1]?.closest('.recipeField');
+    const helpText = screen.getByText('Toma el valor que salió del paso anterior, no de la parte anterior.').closest('.sourceHelpText');
+
+    expect(suffixField?.parentElement).toBe(sourceField?.parentElement);
+    expect(sourceField?.parentElement).toBe(helpText?.parentElement);
+    expect(suffixField && sourceField ? sourceField.compareDocumentPosition(suffixField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
+    expect(helpText && suffixField ? suffixField.compareDocumentPosition(helpText) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
   });
 });

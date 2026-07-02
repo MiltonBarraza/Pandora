@@ -239,6 +239,7 @@ export function StepSourceFields({
   hideFixedTextInput = false,
   hideSourceSelector = false,
   columnTextPickerOpen = false,
+  afterSourceSelector,
   onChange,
 }: {
   label?: string;
@@ -256,6 +257,7 @@ export function StepSourceFields({
   hideFixedTextInput?: boolean;
   hideSourceSelector?: boolean;
   columnTextPickerOpen?: boolean;
+  afterSourceSelector?: ReactNode;
   onChange: (source: StepSource, context?: StepSourceChangeContext) => void;
 }) {
   const [isColumnTextPickerOpen, setIsColumnTextPickerOpen] = useState(false);
@@ -309,6 +311,7 @@ export function StepSourceFields({
           }}
         />
       ) : null}
+      {afterSourceSelector}
 
       {showPreviousResultHelp ? (
         <div className="muted sourceHelpText">

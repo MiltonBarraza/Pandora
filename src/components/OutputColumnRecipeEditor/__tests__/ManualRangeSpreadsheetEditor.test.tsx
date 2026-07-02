@@ -180,6 +180,22 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).not.toContain('>1</th>');
   });
 
+  it('keeps one-value rows visible for range selection', () => {
+    const markup = renderSpreadsheet({
+      manualRangeRows: [
+        { rowNumber: 12, values: { 'input-code': 'REMOVEDOR EN GEL' } },
+        { rowNumber: 13, values: { 'input-name': 'VIR 1', 'input-pack': '12' } },
+        { rowNumber: 14, values: { 'input-code': 'Rapida accion', 'input-name': 'VIR 1', 'input-pack': '12' } },
+        { rowNumber: 15, values: { 'input-code': 'AGUARRAS PREMIUM' } },
+      ],
+    });
+
+    expect(markup).toContain('manualRangeSpreadsheetRowNumberCell">12</th>');
+    expect(markup).toContain('REMOVEDOR EN GEL');
+    expect(markup).toContain('manualRangeSpreadsheetRowNumberCell">15</th>');
+    expect(markup).toContain('AGUARRAS PREMIUM');
+  });
+
   it('renders cell values from row values', () => {
     const markup = renderSpreadsheet();
 
@@ -502,7 +518,96 @@ describe('ManualRangeAdvancedRangeModal', () => {
     expect(markup).toContain('Aceptar');
     expect(markup).toContain('Tipo de operación');
     expect(markup).toContain('Trabajar con texto');
-    expect(markup).toContain('Pasos adicionales');
+    expect(markup).not.toContain('Pasos adicionales');
+    expect(markup).not.toContain('Sin pasos adicionales.');
+  });
+
+  it('renders range concat with the main compose parts model, not the legacy sidebar', () => {
+    vi.stubGlobal('document', { body: {} });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const concatRange = {
+      id: 'range-concat',
+      startRowNumber: 8,
+      endRowNumber: 13,
+      valueRecipe: {
+        source: { type: 'fixedText' as const, value: '' },
+        steps: [{
+          id: 'range-concat-step',
+          mode: 'text' as const,
+          type: 'concat' as const,
+          parts: [
+            { id: 'previous', source: { type: 'previousResult' as const } },
+            { id: 'pack', source: { type: 'input' as const, inputColumnId: 'input-pack' }, separatorBefore: ' - ' },
+          ],
+        }],
+      },
+    };
+    const concatRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [concatRange] };
+    const markup = renderToStaticMarkup(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={concatRecipe}
+        range={concatRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code', 'input-pack']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    consoleError.mockRestore();
+
+    expect(markup).toContain('Configurar rango');
+    expect(markup).toContain('composePartsBuilder');
+    expect(markup).toContain('Editor de partes');
+    expect(markup).toContain('compositionTokenList');
+    expect(markup).toContain('compositionTokenCard');
+    expect(markup).toContain('Parte seleccionada');
+    expect(markup).not.toContain('concatPartsSidebar');
+    expect(markup).not.toContain('rangeValueConcatWorkspaceFlat');
+  });
+
+  it('shows the evaluated concat valueRecipe in the covered rows result preview', () => {
+    vi.stubGlobal('document', { body: {} });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const concatRange = {
+      id: 'range-concat-preview',
+      startRowNumber: 8,
+      endRowNumber: 8,
+      valueRecipe: {
+        source: { type: 'fixedText' as const, value: '' },
+        steps: [{
+          id: 'range-concat-step',
+          mode: 'text' as const,
+          type: 'concat' as const,
+          parts: [
+            { id: 'code', source: { type: 'input' as const, inputColumnId: 'input-code' } },
+            { id: 'pack', source: { type: 'input' as const, inputColumnId: 'input-pack' }, separatorBefore: ' - ' },
+          ],
+        }],
+      },
+    };
+    const concatRecipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [concatRange] };
+    const markup = renderToStaticMarkup(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={concatRecipe}
+        range={concatRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code', 'input-pack']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    consoleError.mockRestore();
+
+    expect(markup).toContain('P-1 - 20L');
+    expect(markup).not.toContain('Configurado');
   });
 
   it('shows an empty covered rows state when no visible rows are inside the range', () => {

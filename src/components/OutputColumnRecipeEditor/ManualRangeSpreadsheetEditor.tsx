@@ -322,7 +322,7 @@ export function ManualRangeSpreadsheetEditor({
                           className="manualRangeSpreadsheetResultCell"
                           title="Resultado estimado según los rangos configurados."
                         >
-                          {getManualRangePreviewValueForRow(row.rowNumber, recipe.ranges)}
+                          {getManualRangePreviewValueForRow(row.rowNumber, recipe.ranges, manualRangeRows)}
                         </td>
                       ) : null}
                     </tr>

@@ -1,4 +1,5 @@
-import type { InputColumn, InputRow, ManualRangeValue, OutputRecipe } from '../../types/import';
+import { buildProcessedRows } from '../../domain/import/outputModel';
+import type { InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe } from '../../types/import';
 
 export type ManualRangeRecipe = Extract<OutputRecipe, { type: 'manualRange' }>;
 
@@ -214,12 +215,30 @@ export function getManualRangeDisplayValue(range: ManualRangeValue): string {
   return range.valueRecipe || range.valueSource ? 'Configurado' : '';
 }
 
+function getManualRangePreviewDisplayValue(range: ManualRangeValue, row?: InputRow): string {
+  if (row && range.valueRecipe) {
+    const previewColumnId = '__manual-range-preview__';
+    const previewRows = buildProcessedRows([row], [{
+      id: previewColumnId,
+      label: 'Resultado',
+      order: 0,
+      enabled: true,
+      recipe: { type: 'manualRange', ranges: [range] },
+    } satisfies OutputColumn]);
+
+    return previewRows[0]?.outputValues[previewColumnId] ?? getManualRangeDisplayValue(range);
+  }
+
+  return getManualRangeDisplayValue(range);
+}
+
 export function getManualRangePreviewValueForRow(
   rowNumber: number,
   ranges: ManualRangeValue[],
+  rows: InputRow[] = [],
 ): string {
   const range = getFirstManualRangeForRowNumber(rowNumber, ranges);
-  return range ? getManualRangeDisplayValue(range) : '';
+  return range ? getManualRangePreviewDisplayValue(range, rows.find((row) => row.rowNumber === rowNumber)) : '';
 }
 
 export function getManualRangePreviewRows(
@@ -229,7 +248,7 @@ export function getManualRangePreviewRows(
 ): ManualRangePreviewRow[] {
   const previewRows = rows.map((row) => {
     const range = getFirstManualRangeForRowNumber(row.rowNumber, ranges);
-    const value = range ? getManualRangeDisplayValue(range) : '';
+    const value = range ? getManualRangePreviewDisplayValue(range, row) : '';
 
     return {
       rowNumber: row.rowNumber,

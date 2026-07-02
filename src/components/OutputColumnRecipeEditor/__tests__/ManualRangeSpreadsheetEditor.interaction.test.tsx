@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { InputColumn, InputRow, OutputRecipe } from '../../../types/import';
@@ -39,6 +39,13 @@ const range = {
   valueRecipe: { source: { type: 'fixedText' as const, value: 'A' }, steps: [] },
 };
 
+const unconfiguredRange = {
+  id: 'range-empty',
+  startRowNumber: 8,
+  endRowNumber: 12,
+  valueRecipe: { source: { type: 'fixedText' as const, value: '' }, steps: [] },
+};
+
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
     this.setAttribute('open', '');
@@ -54,6 +61,26 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
 });
+
+async function selectDropdownOption(user: ReturnType<typeof userEvent.setup>, label: string, optionName: string) {
+  const triggers = screen.getAllByRole('button', { name: label });
+  await user.click(triggers[triggers.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
+
+async function selectModalDropdownOption(user: ReturnType<typeof userEvent.setup>, label: RegExp, optionName: string | RegExp) {
+  const dialog = screen.getByRole('dialog');
+  const triggers = within(dialog).getAllByRole('button', { name: label });
+  await user.click(triggers[triggers.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
+
+async function selectModalSearchableDropdownOption(user: ReturnType<typeof userEvent.setup>, label: RegExp, optionName: string | RegExp) {
+  const dialog = screen.getByRole('dialog');
+  const triggers = within(dialog).getAllByRole('combobox', { name: label });
+  await user.click(triggers[triggers.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
 
 describe('ManualRangeAdvancedRangeModal validation', () => {
   it('validates required, positive integer, and ordered bounds', () => {
@@ -136,6 +163,374 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     const secondRowCells = table.querySelectorAll('tbody tr')[1].querySelectorAll('td');
     expect(secondRowCells[1].textContent).toBe('');
     expect(table.textContent).not.toMatch(/â|Ã¢|Â/);
+  });
+  it('starts the range value editor unconfigured with condition and the new step layout', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Paso 1 .* Sin configurar/)).not.toBeNull();
+    expect(within(dialog).getByRole('button', { name: /Tipo de operaci.n/ }).textContent).toContain('Trabajar con texto');
+    expect(within(dialog).getByRole('button', { name: /Qu. quiero hacer/ }).textContent).toContain('Seleccionar');
+    expect(within(dialog).getByRole('button', { name: /Condici.n/ })).not.toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Agregar paso' })).not.toBeNull();
+    expect(within(dialog).queryByText('Pasos adicionales')).toBeNull();
+    expect(within(dialog).queryByText('Sin pasos adicionales.')).toBeNull();
+    expect(within(dialog).queryByLabelText('Texto')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Columna de entrada' })).toBeNull();
+    expect(document.querySelector('.rangeValueAdditionalHeader')).toBeNull();
+  });
+
+  it('does not render the old additional-steps section in range value modes', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    for (const mode of [/Trabajar con n.mero/, 'Trabajar con fechas', /Conversi.n/, 'Trabajar con texto']) {
+      await selectModalDropdownOption(user, /Tipo de operaci.n/, mode);
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).queryByText('Pasos adicionales')).toBeNull();
+      expect(within(dialog).queryByText('Sin pasos adicionales.')).toBeNull();
+      expect(within(dialog).getByRole('button', { name: 'Agregar paso' })).not.toBeNull();
+      expect(document.querySelector('.rangeValueAdditionalHeader')).toBeNull();
+    }
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Concatenar');
+    expect(screen.queryByText('Pasos adicionales')).toBeNull();
+    expect(screen.queryByText('Sin pasos adicionales.')).toBeNull();
+    expect(document.querySelector('.rangeValueAdditionalHeader')).toBeNull();
+  });
+
+  it('keeps range value derived inputs in the derived grid after selecting text actions', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const textInput = screen.getByLabelText('Texto');
+    expect(textInput.closest('.rangeValueSourceControls')).not.toBeNull();
+    expect(textInput.closest('.rangeValuePrimaryControls')).toBeNull();
+    expect(screen.getByRole('button', { name: /Condici.n/ })).not.toBeNull();
+    expect(screen.queryByText('Pasos adicionales')).toBeNull();
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar columna de entrada');
+    const columnButton = screen.getByRole('button', { name: 'Columna de entrada' });
+    expect(columnButton.closest('.rangeValueSourceControls')).not.toBeNull();
+    expect(columnButton.closest('.rangeValuePrimaryControls')).toBeNull();
+  });
+
+  it('keeps texto encontrado as the visible action after selecting a found range value', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Texto encontrado en el rango');
+    await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
+
+    const actionButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Qu. quiero hacer/ });
+    expect(actionButton.textContent).toContain('Texto encontrado en el rango');
+    expect(actionButton.textContent).not.toContain('Usar texto fijo');
+    expect(screen.getByDisplayValue('P-1')).not.toBeNull();
+    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('P-1');
+  });
+
+  it('keeps lowercase action when a cell text picker value is selected', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, /Convertir a min.sculas/);
+    await selectModalDropdownOption(user, /Qu. texto usar/, 'Elegir texto desde celda');
+    await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
+
+    const actionButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Qu. quiero hacer/ });
+    expect(actionButton.textContent).toMatch(/Convertir a min.sculas/);
+    expect(actionButton.textContent).not.toContain('Usar texto fijo');
+    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-1');
+  });
+
+  it('does not show the text input when a range number operation is selected', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Tipo de operaci.n/, /Trabajar con n.mero/);
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, /Operaci.n num.rica/);
+
+    expect(screen.queryByLabelText('Texto')).toBeNull();
+    expect(screen.queryByLabelText('Texto fijo')).toBeNull();
+    expect(screen.getByRole('button', { name: /Qu. valor usar/ })).not.toBeNull();
+    expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
+    expect(screen.getByLabelText('Valor')).not.toBeNull();
+  });
+
+  it('does not render mojibake in the range modal labels', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    const dialogText = screen.getByRole('dialog').textContent ?? '';
+    expect(dialogText).toContain('Seleccionar acción');
+    expect(dialogText).not.toMatch(/[ÃÂâ]/);
+  });
+
+  it('uses the main compose parts UI when choosing concat for a range value', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectDropdownOption(user, 'Qué quiero hacer', 'Concatenar');
+
+    expect(document.querySelector('.composePartsBuilder')).not.toBeNull();
+    expect(document.querySelector('.compositionTokenCard')).not.toBeNull();
+    expect(document.querySelector('.composeTokenInspector')).not.toBeNull();
+    expect(screen.getByText('Editor de partes')).not.toBeNull();
+    expect(screen.getByText('Parte seleccionada')).not.toBeNull();
+    expect(document.querySelector('.concatPartsSidebar')).toBeNull();
+    expect(document.querySelector('.rangeValueConcatWorkspaceFlat')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar parte' }));
+    expect(document.querySelectorAll('.compositionTokenCard')).toHaveLength(2);
+    expect(document.querySelector('.composeTokenInspectorHeader strong')?.textContent).toBe('Parte 2');
+
+    await user.click(screen.getAllByRole('button', { name: /Parte 1/ })[0]);
+    expect(document.querySelector('.composeTokenInspectorHeader strong')?.textContent).toBe('Parte 1');
+  });
+
+  it('starts range concat like the main concat editor instead of previous result', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Concatenar');
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Editor de partes')).not.toBeNull();
+    expect(within(dialog).getByText('Parte seleccionada')).not.toBeNull();
+    expect(within(dialog).queryByText('Resultado anterior')).toBeNull();
+    expect(within(dialog).queryByText(/Paso 1 .* Usar resultado anterior/)).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Columna de entrada' })).not.toBeNull();
+    expect(within(dialog).getByRole('button', { name: /Condici.n/ })).not.toBeNull();
+    expect(within(dialog).queryByText('Pasos adicionales')).toBeNull();
+    expect(within(dialog).queryByText('Sin pasos adicionales.')).toBeNull();
+
+    const conditionButton = within(dialog).getByRole('button', { name: /Condici.n/ });
+    const addStepButton = within(dialog).getByRole('button', { name: 'Agregar paso' });
+    expect(conditionButton.compareDocumentPosition(addStepButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(addStepButton.closest('.concatPartStepsActions')?.parentElement?.classList.contains('rangeValuePrimaryLayout')).toBe(true);
+  });
+
+  it('updates range concat part actions without getting stuck on previous result', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Concatenar');
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const fixedTextInput = screen.getByLabelText('Texto fijo');
+    expect(fixedTextInput).not.toBeNull();
+    expect(fixedTextInput.closest('.rangeValueSourceControls')).not.toBeNull();
+    expect(fixedTextInput.closest('.rangeValuePrimaryControls')).toBeNull();
+    expect(screen.queryByText('Resultado anterior')).toBeNull();
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar columna de entrada');
+    expect(screen.getByRole('button', { name: 'Columna de entrada' })).not.toBeNull();
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Agregar sufijo');
+    const suffixInput = screen.getByLabelText('Sufijo');
+    expect(suffixInput).not.toBeNull();
+    expect(suffixInput.closest('.rangeValuePrimaryControls')).toBeNull();
+    expect(screen.getByRole('button', { name: /Columna de entrada|valor usar/ })).not.toBeNull();
+    expect(screen.queryByText('Resultado anterior')).toBeNull();
+  });
+
+  it('keeps concat part cell text picker action after selecting a found value', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Concatenar');
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Elegir texto desde celda');
+    await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
+
+    const actionButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Qu. quiero hacer/ });
+    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Elegir texto desde celda');
+    expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
+    expect(screen.queryByText('Resultado anterior')).toBeNull();
+  });
+
+  it('shows useful number and date sources inside range concat parts', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={range}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Concatenar');
+    await selectModalDropdownOption(user, /Tipo de operaci.n/, /Trabajar con n.mero/);
+    expect(screen.queryByText('Resultado anterior')).toBeNull();
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar valor tal cual');
+    expect(screen.getByRole('button', { name: /valor usar/ })).not.toBeNull();
+    expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
+
+    await selectModalDropdownOption(user, /Tipo de operaci.n/, 'Trabajar con fechas');
+    expect(screen.queryByText('Resultado anterior')).toBeNull();
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar valor tal cual');
+    expect(screen.getByRole('button', { name: /fecha usar/ })).not.toBeNull();
+    expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
   });
 });
 

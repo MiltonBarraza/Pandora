@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { InputRow } from '../../../types/import';
 import {
   applyActiveColumnVisualOrder,
   getExcelRowNumberForInternalIndex,
@@ -244,19 +245,19 @@ describe('ImportWizard active column visual order', () => {
 });
 
 describe('ImportWizard manual range rows', () => {
-  it('excludes rows removed by input/output filters and row overrides', () => {
-    const inputRows = [
-      { rowNumber: 42, values: { 'input-0': 'A' } },
-      { rowNumber: 44, values: { 'input-0': 'B' } },
-      { rowNumber: 46, values: { 'input-0': 'C' } },
+  it('keeps real input rows for manual ranges even when output rows are ignored or missing', () => {
+    const inputRows: InputRow[] = [
+      { rowNumber: 12, values: { 'input-0': 'REMOVEDOR EN GEL' } },
+      { rowNumber: 13, values: { 'input-1': 'VIR 1', 'input-2': '12' } },
+      { rowNumber: 14, values: { 'input-0': 'Rapida accion', 'input-1': 'VIR 1', 'input-2': '12' } },
+      { rowNumber: 15, values: { 'input-0': 'AGUARRAS PREMIUM' } },
     ];
     const processedRows = [
-      { rowNumber: 42, inputValues: {}, outputValues: {}, status: 'included' as const },
-      { rowNumber: 44, inputValues: {}, outputValues: {}, status: 'ignored' as const },
-      { rowNumber: 46, inputValues: {}, outputValues: {}, status: 'included' as const },
+      { rowNumber: 13, inputValues: {}, outputValues: {}, status: 'included' as const },
+      { rowNumber: 14, inputValues: {}, outputValues: {}, status: 'ignored' as const },
     ];
 
-    expect(getManualRangeRowsForVisibleOutput(inputRows, processedRows).map((row) => row.rowNumber)).toEqual([42, 46]);
+    expect(getManualRangeRowsForVisibleOutput(inputRows, processedRows).map((row) => row.rowNumber)).toEqual([12, 13, 14, 15]);
   });
 
   it('keeps input-filtered rows available before output rows exist', () => {

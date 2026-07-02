@@ -6,9 +6,8 @@ import {
   updateManualRangeInputValue,
   updateManualRangeRangeTextValue,
   updateManualRangeValueRecipeSteps,
-  updateManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
-import type { InputColumn, InputRow, ManualRangeValue, TransformStep } from '../../types/import';
+import type { InputColumn, InputRow, ManualRangeValue, StepSource, TransformStep } from '../../types/import';
 import { Modal } from '../Modal/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import {
@@ -177,6 +176,28 @@ export function ManualRangeAdvancedRangeModal({
       return updater(currentRecipe, current.id).ranges[0] ?? current;
     });
   };
+  const updateDraftSource = (currentRecipe: ManualRangeRecipe, rangeId: string, source: StepSource) => {
+    if (source.type === 'input') {
+      return updateManualRangeInputValue(currentRecipe, rangeId, source.inputColumnId);
+    }
+
+    if (source.type === 'rangeText') {
+      return reconcileManualRangeTextSelections(
+        updateManualRangeRangeTextValue(currentRecipe, rangeId, {
+          inputColumnId: source.inputColumnId,
+          selectedText: source.selectedText,
+        }),
+        rangeId,
+        manualRangeRows,
+      );
+    }
+
+    if (source.type === 'fixedText') {
+      return updateManualRangeFixedTextValue(currentRecipe, rangeId, source.value);
+    }
+
+    return currentRecipe;
+  };
   const updateRowNumber = (field: 'startRowNumber' | 'endRowNumber', value: string) => {
     if (field === 'startRowNumber') {
       setStartRowInput(value);
@@ -296,7 +317,6 @@ export function ManualRangeAdvancedRangeModal({
               range={draftRange}
               inputColumns={inputColumns}
               manualRangeRows={manualRangeRows}
-              onValueSourceTypeChange={(type) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeValueSourceType(currentRecipe, rangeId, type, inputColumns))}
               onFixedTextChange={(value) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeFixedTextValue(currentRecipe, rangeId, value))}
               onInputColumnChange={(inputColumnId) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeInputValue(currentRecipe, rangeId, inputColumnId))}
               onRangeTextChange={(patch) => {
@@ -308,6 +328,11 @@ export function ManualRangeAdvancedRangeModal({
                   return reconcileManualRangeTextSelections(nextRecipe, rangeId, manualRangeRows);
                 });
               }}
+              onSourceChange={(source) => updateDraftRecipe((currentRecipe, rangeId) => updateDraftSource(currentRecipe, rangeId, source))}
+              onSourceAndStepsChange={(source, steps) => updateDraftRecipe((currentRecipe, rangeId) => {
+                const nextRecipe = updateDraftSource(currentRecipe, rangeId, source);
+                return updateManualRangeValueRecipeSteps(nextRecipe, rangeId, steps);
+              })}
               onStepsChange={(steps: TransformStep[]) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeValueRecipeSteps(currentRecipe, rangeId, steps))}
             />
           )}
@@ -384,7 +409,7 @@ function ManualRangeCoveredRowsPreview({
                   })}
                   {showResultColumn ? (
                     <td className="manualRangeCoveredRowsResultCell">
-                      {getManualRangePreviewValueForRow(row.rowNumber, ranges)}
+                      {getManualRangePreviewValueForRow(row.rowNumber, ranges, rows)}
                     </td>
                   ) : null}
                 </tr>

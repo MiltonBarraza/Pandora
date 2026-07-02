@@ -808,8 +808,8 @@
 
 .manualRangeAdvancedRangeModal {
   max-height: 90vh;
-  max-width: min(1120px, 96vw);
-  width: min(1120px, 96vw);
+  max-width: min(1440px, 98vw);
+  width: min(1440px, 98vw);
 }
 
 .manualRangeAdvancedRangeModalBody {
@@ -962,12 +962,15 @@
 }
 
 .manualRangeAdvancedRangeModal .rangeValuePrimaryLayout {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(2, minmax(220px, 280px));
+  justify-content: start;
 }
 
-.manualRangeAdvancedRangeModal .rangeValueConcatWorkspace {
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-  min-width: 0;
+.manualRangeAdvancedRangeModal .rangeValueSourceControls,
+.manualRangeAdvancedRangeModal .rangeValuePrimaryStepFields,
+.manualRangeAdvancedRangeModal .conditionFieldsRow {
+  grid-template-columns: repeat(2, minmax(220px, 280px));
+  justify-content: start;
 }
 
 .manualRangeColumnsModal {
@@ -1156,14 +1159,17 @@
     justify-content: flex-start;
   }
 
+  .manualRangeAdvancedRangeModal .rangeValuePrimaryLayout,
+  .manualRangeAdvancedRangeModal .rangeValueSourceControls,
+  .manualRangeAdvancedRangeModal .rangeValuePrimaryStepFields,
+  .manualRangeAdvancedRangeModal .conditionFieldsRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .manualRangeCoveredRowsHeader {
     align-items: stretch;
     flex-direction: column;
     gap: 8px;
-  }
-
-  .manualRangeAdvancedRangeModal .rangeValueConcatWorkspace {
-    grid-template-columns: 1fr;
   }
 
   .manualRangeSuggestedItemWarning {

@@ -17,13 +17,17 @@ import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
 import { buildSimpleCustomValueRecipeWithSteps, clearManualRangeValues, createNoopStep, getFirstStepSource, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
+type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
+type RecipeChange<TRecipe> = TRecipe | ((current: TRecipe) => TRecipe);
+type RecipeChangeHandler<TRecipe> = (recipe: RecipeChange<TRecipe>) => void;
+
 type CustomValueEditorRenderProps = {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   mode: CustomValueMode;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 };
 
 type ManualRangeRecipeEditorRenderProps = {
@@ -50,9 +54,9 @@ export type ComposePartEditorRenderProps = {
 };
 
 export type ComposeStepHeaderRenderProps = {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   inputColumns: InputColumn[];
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 };
 
 type RecipeStudioRenderers = {
@@ -83,10 +87,19 @@ export function RecipeStudioShell({
   sampleInputValues?: Record<string, string>;
   preview: string;
   customValueMode: CustomValueMode;
-  onChange: (recipe: EditableCustomRecipe) => void;
+  onChange: (recipe: EditableCustomRecipe | ((current: EditableCustomRecipe) => EditableCustomRecipe)) => void;
 } & RecipeStudioRenderers) {
   const [selectedStudioItemId, setSelectedStudioItemId] = useState<string | null>(null);
   const isComposeRecipe = recipe.type === 'combine' && getRecipeStudioMode(recipe) === 'compose';
+  const handleCombineChange: RecipeChangeHandler<CombineRecipe> = (nextRecipe) => {
+    onChange((currentRecipe) => {
+      if (currentRecipe.type !== 'combine') {
+        return currentRecipe;
+      }
+
+      return typeof nextRecipe === 'function' ? nextRecipe(currentRecipe) : nextRecipe;
+    });
+  };
 
   return (
     <div className="constructorModalContent recipeStudio">
@@ -102,14 +115,14 @@ export function RecipeStudioShell({
               onSelectedTokenChange={setSelectedStudioItemId}
               renderComposePartEditor={renderComposePartEditor}
               renderComposeStepHeader={renderComposeStepHeader}
-              onChange={onChange}
+              onChange={handleCombineChange}
             />
           ) : recipe.type === 'manualRange' ? (
             renderManualRangeRecipeEditor({
               recipe,
               inputColumns,
               manualRangeRows,
-              onChange,
+              onChange: (nextRecipe) => onChange(nextRecipe),
             })
           ) : (
             renderCustomValueEditor({
@@ -118,7 +131,7 @@ export function RecipeStudioShell({
               manualRangeRows,
               sampleInputValues,
               mode: customValueMode,
-              onChange,
+              onChange: handleCombineChange,
             })
           )}
         </main>
@@ -136,13 +149,13 @@ function TakeValueStudio({
   renderers,
   onChange,
 }: {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   customValueMode: CustomValueMode;
   renderers: RecipeStudioRenderers;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
   const selectedInputColumnId = getSimpleStudioInputColumnId(recipe);
   const selectedInputColumn = inputColumns.find((column) => column.id === selectedInputColumnId);
@@ -198,13 +211,13 @@ function FixedTextStudio({
   renderers,
   onChange,
 }: {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   customValueMode: CustomValueMode;
   renderers: RecipeStudioRenderers;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
   const fixedText = getSimpleStudioFixedText(recipe);
   const previewRows = getFixedTextPreviewRows(fixedText, manualRangeRows, sampleInputValues);
@@ -264,7 +277,7 @@ function ComposeValueStudio({
   renderComposeStepHeader,
   onChange,
 }: {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
@@ -272,7 +285,7 @@ function ComposeValueStudio({
   onSelectedTokenChange: (tokenId: string | null) => void;
   renderComposePartEditor: RecipeStudioRenderers['renderComposePartEditor'];
   renderComposeStepHeader: RecipeStudioRenderers['renderComposeStepHeader'];
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
   const previousTokenCountRef = useRef(getComposeTokens(recipe, inputColumns).length);
   const tokens = getComposeTokens(recipe, inputColumns);
@@ -446,12 +459,12 @@ function ComposeTokenInspector({
   renderComposePartEditor,
   onChange,
 }: {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   token: ComposeToken | null;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   renderComposePartEditor: RecipeStudioRenderers['renderComposePartEditor'];
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
   const parts = getComposeRecipeParts(recipe);
   const part = token ? parts[token.index] : undefined;
@@ -628,13 +641,13 @@ function SimpleStudioAdvanced({
   renderers,
   onChange,
 }: {
-  recipe: Extract<OutputRecipe, { type: 'combine' }>;
+  recipe: CombineRecipe;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   customValueMode: CustomValueMode;
   renderers: RecipeStudioRenderers;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
   return (
     <details className="simpleStudioAdvanced">

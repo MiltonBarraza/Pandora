@@ -570,6 +570,7 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
     id: crypto.randomUUID(),
     mode: inferStepModeFromType(type),
     type,
+    ...(shouldDefaultTextTransformToPreviousResult(type, stepIndex) ? { source: { type: 'previousResult' as const } } : {}),
     value: '',
     searchValue: '',
     replaceValue: '',
@@ -628,6 +629,18 @@ export function replaceStepType(
     mode,
     applyToEmptyValues: step.applyToEmptyValues,
   };
+}
+
+function shouldDefaultTextTransformToPreviousResult(type: TransformStepType, stepIndex: number) {
+  return stepIndex > 0 && [
+    'trim',
+    'uppercase',
+    'lowercase',
+    'addPrefix',
+    'addSuffix',
+    'removeText',
+    'replaceText',
+  ].includes(type);
 }
 
 export function replaceWholeStep(

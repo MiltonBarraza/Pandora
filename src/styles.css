@@ -1317,8 +1317,8 @@ tbody tr:hover {
 .modalDialogXl {
   height: 90vh;
   max-height: 90vh;
-  max-width: min(1500px, 96vw);
-  width: 96vw;
+  max-width: min(1680px, 98vw);
+  width: 98vw;
 }
 
 .modalDialog::backdrop {
@@ -1639,17 +1639,6 @@ tbody tr:hover {
   padding: 8px 14px;
 }
 
-.modalDialogXl .constructorModalContent .rangeValueOperationPanel .concatAddPartButton {
-  background: var(--color-action-secondary-bg);
-  border-color: transparent;
-  color: var(--color-action-secondary-text);
-}
-
-.modalDialogXl .constructorModalContent .rangeValueOperationPanel .concatAddPartButton:hover:not(:disabled) {
-  background: var(--color-action-secondary-bg-hover);
-  color: var(--color-action-secondary-text);
-}
-
 .concatPartListItem {
   align-items: center;
   background: var(--color-bg-surface);
@@ -1746,15 +1735,6 @@ tbody tr:hover {
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-.rangeValueConcatWorkspace {
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-  width: 100%;
-}
-
-.rangeValueConcatWorkspace .concatPartListItem {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .concatPartStepsActions {
@@ -2579,7 +2559,12 @@ tbody tr:hover {
 }
 
 .rangeValueSourceControls {
-  display: contents;
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  min-width: 0;
 }
 
 .rangeValuePrimaryStepFields {
@@ -2592,9 +2577,12 @@ tbody tr:hover {
 }
 
 .rangeValueOperationPanel .manualRangeValueHelp,
-.rangeValueOperationPanel .concatPartStepsBlock,
-.rangeValueOperationPanel .rangeValueConcatWorkspace,
-.stepDetailPanel .rangeValueConcatWorkspace {
+.rangeValueOperationPanel .concatPartStepsBlock {
+  grid-column: 1 / -1;
+}
+
+.rangeValuePrimaryLayout > .transformConditionBlock,
+.rangeValuePrimaryLayout > .concatPartStepsActions {
   grid-column: 1 / -1;
 }
 
