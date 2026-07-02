@@ -215,6 +215,60 @@ describe('multi-sheet batch management', () => {
     expect(second.sheets[1].source.id).toBe('sheet:1:2');
   });
 
+  it('rejects the same normalized sheet from the same source without mutating the batch', () => {
+    const firstResult = standardResult('sheet:1', 'DILUYENTES');
+    firstResult.sourceFileName = ' productos.xlsx ';
+    const batch = addProcessedResultToMultiSheetBatch(
+      createEmptyMultiSheetBatch('batch:1'),
+      firstResult,
+    ).batch;
+    const batchBefore = structuredClone(batch);
+    const duplicate = standardResult('sheet:2', ' diluyentes ');
+    duplicate.sourceFileName = 'PRODUCTOS.XLSX';
+
+    const rejected = addProcessedResultToMultiSheetBatch(batch, duplicate);
+
+    expect(rejected.ok).toBe(false);
+    expect(rejected.batch).toBe(batch);
+    expect(rejected.batch).toEqual(batchBefore);
+    expect(rejected.batch.sheets).toHaveLength(1);
+    expect(rejected.errors).toEqual([
+      'La hoja “diluyentes” ya está guardada en el lote. Si querés reemplazarla, remové la anterior y guardala de nuevo.',
+    ]);
+  });
+
+  it('allows the same sheet again after removing the stored one', () => {
+    const first = addProcessedResultToMultiSheetBatch(
+      createEmptyMultiSheetBatch('batch:1'),
+      standardResult('sheet:1', 'DILUYENTES'),
+    ).batch;
+    const removed = removeSheetFromMultiSheetBatch(first, 'sheet:1');
+
+    const addedAgain = addProcessedResultToMultiSheetBatch(
+      removed,
+      standardResult('sheet:2', 'DILUYENTES'),
+    );
+
+    expect(addedAgain.ok).toBe(true);
+    expect(addedAgain.batch.sheets.map((sheet) => sheet.id)).toEqual(['sheet:2']);
+  });
+
+  it('uses the source name as duplicate fallback when sheet names are missing', () => {
+    const firstResult = standardResult('sheet:1', 'unused');
+    firstResult.sheetName = undefined;
+    const first = addProcessedResultToMultiSheetBatch(
+      createEmptyMultiSheetBatch('batch:1'),
+      firstResult,
+    ).batch;
+    const duplicate = standardResult('sheet:2', 'unused');
+    duplicate.sheetName = undefined;
+
+    const rejected = addProcessedResultToMultiSheetBatch(first, duplicate);
+
+    expect(rejected.ok).toBe(false);
+    expect(rejected.errors[0]).toContain('Libro.xlsx');
+  });
+
   it('uses the first source file name and rejects a different source file', () => {
     const firstResult = standardResult('sheet:1', 'Hoja 1');
     firstResult.sourceFileName = 'ventas.xlsx';

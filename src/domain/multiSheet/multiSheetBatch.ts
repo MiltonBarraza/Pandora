@@ -67,6 +67,17 @@ export function addProcessedResultToMultiSheetBatch(
     };
   }
 
+  const source = createCombineSourceFromSanitizedResult(result);
+  const duplicateSheetError = getDuplicateSheetError(batch, result, source);
+  if (duplicateSheetError) {
+    return {
+      ok: false,
+      batch,
+      errors: [duplicateSheetError],
+      warnings: [],
+    };
+  }
+
   const validation = batch.outputSchema
     ? validateProcessedResultAgainstMultiSheetSchema(result, batch.outputSchema)
     : { valid: true, errors: [], warnings: [] };
@@ -83,17 +94,17 @@ export function addProcessedResultToMultiSheetBatch(
   const outputSchema = batch.outputSchema ?? createMultiSheetOutputSchema(result);
   const fileName = normalizeOptionalFileName(batch.fileName)
     ?? normalizeOptionalFileName(result.sourceFileName);
-  const source = createUniqueSource(
-    createCombineSourceFromSanitizedResult(result),
+  const uniqueSource = createUniqueSource(
+    source,
     new Set(batch.sheets.map((sheet) => sheet.id)),
   );
   const sheet: MultiSheetBatchSheet = {
-    id: source.id,
-    fileName: source.fileName,
-    sheetName: source.sheetName,
+    id: uniqueSource.id,
+    fileName: uniqueSource.fileName,
+    sheetName: uniqueSource.sheetName,
     status: 'configured',
-    rowCount: source.rows.length,
-    source,
+    rowCount: uniqueSource.rows.length,
+    source: uniqueSource,
     warnings: [...validation.warnings],
   };
 
@@ -239,4 +250,49 @@ function getSourceFileError(batchFileName?: string, resultFileName?: string) {
 
 function normalizeOptionalFileName(value?: string) {
   return value?.trim() || undefined;
+}
+
+function getDuplicateSheetError(
+  batch: MultiSheetBatch,
+  result: ProcessedExportResult,
+  source: CombineSource,
+) {
+  const sheetName = normalizeIdentity(result.sheetName);
+  const duplicate = batch.sheets.find((sheet) => {
+    if (!isSameSourceFile(batch.fileName, result.sourceFileName, sheet.source.fileName, source.fileName)) {
+      return false;
+    }
+
+    const storedSheetName = normalizeIdentity(sheet.sheetName);
+    return sheetName && storedSheetName
+      ? sheetName === storedSheetName
+      : !sheetName && !storedSheetName;
+  });
+
+  if (!duplicate) {
+    return null;
+  }
+
+  const displayName = result.sheetName?.trim() || source.fileName;
+  return `La hoja “${displayName}” ya está guardada en el lote. Si querés reemplazarla, remové la anterior y guardala de nuevo.`;
+}
+
+function isSameSourceFile(
+  batchFileName: string | undefined,
+  resultFileName: string | undefined,
+  storedSourceName: string,
+  incomingSourceName: string,
+) {
+  const expected = normalizeIdentity(batchFileName);
+  const actual = normalizeIdentity(resultFileName);
+
+  if (expected && actual) {
+    return expected === actual;
+  }
+
+  return normalizeIdentity(storedSourceName) === normalizeIdentity(incomingSourceName);
+}
+
+function normalizeIdentity(value?: string) {
+  return value?.trim().toLocaleLowerCase() || '';
 }

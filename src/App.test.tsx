@@ -233,10 +233,24 @@ describe('App multi-sheet batch wiring', () => {
     expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
     await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
     expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar segunda hoja' }));
 
     expect(screen.getByText(/2 hojas · 2 filas · 1 columnas/)).not.toBeNull();
     expect(showSuccessToast).toHaveBeenCalledWith('Hoja guardada en el lote multi-hoja.');
+  });
+
+  it('rejects a duplicate sheet with a visible message and preserves the batch', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+
+    expect(showErrorToast).toHaveBeenCalledWith(
+      'La hoja “Productos” ya está guardada en el lote. Si querés reemplazarla, remové la anterior y guardala de nuevo.',
+    );
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
   });
 
   it('rejects incompatible columns and a different source without changing the batch', async () => {
@@ -361,6 +375,7 @@ const processedResult: ProcessedExportResult = {
 const incompatibleResult: ProcessedExportResult = {
   ...processedResult,
   id: 'saved:incompatible',
+  sheetName: 'Incompatible',
   columns: [
     ...processedResult.columns,
     { id: 'name', label: 'Nombre', order: 1, enabled: true },
