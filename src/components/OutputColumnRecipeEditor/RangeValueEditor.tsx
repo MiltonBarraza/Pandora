@@ -276,6 +276,7 @@ function RangeValueStepsEditor({
   allowConcat = true,
   fixedTextInputLabel,
   renderFields,
+  uiStateKeyPrefix,
   onPrimarySourceAndStepsChange,
   showAdditionalStepsHeader = true,
   onChange,
@@ -289,6 +290,7 @@ function RangeValueStepsEditor({
   allowConcat?: boolean;
   fixedTextInputLabel?: string;
   renderFields?: StepEditorBlockFieldRenderer;
+  uiStateKeyPrefix?: string;
   onPrimarySourceAndStepsChange?: (source: StepSource, steps: TransformStep[]) => void;
   showAdditionalStepsHeader?: boolean;
   onChange: (steps: TransformStep[]) => void;
@@ -337,6 +339,7 @@ function RangeValueStepsEditor({
           <StepEditorBlock
             step={primaryPolicyStep}
             context={primaryContext}
+            uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
             inputColumns={inputColumns}
             manualRangeRows={manualRangeRows}
             showHeader={false}
@@ -351,6 +354,7 @@ function RangeValueStepsEditor({
         <StepEditorBlock
           step={primaryPolicyStep}
           context={primaryContext}
+          uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
           title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext)}`}
@@ -385,6 +389,7 @@ function RangeValueStepsEditor({
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
                 context={createRangeValueStepContext(contextKind, index + 1 + primaryStepIndex, inputColumns)}
+                uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${index + 1 + primaryStepIndex}` : undefined}
                 onChange={(patch) => updateStep(step.id, patch)}
                 onReplace={(nextStep) => replaceStep(step.id, nextStep)}
                 onDelete={() => deleteStep(step.id)}
@@ -408,6 +413,7 @@ function RangeValueStepEditor({
   inputColumns,
   manualRangeRows,
   context,
+  uiStateKey,
   onChange,
   onReplace,
   onDelete,
@@ -418,6 +424,7 @@ function RangeValueStepEditor({
   inputColumns: InputColumn[];
   manualRangeRows?: InputRow[];
   context: StepEditorContext;
+  uiStateKey?: string;
   onChange: (patch: Partial<TransformStep>) => void;
   onReplace: (step: TransformStep) => void;
   onDelete: () => void;
@@ -430,6 +437,7 @@ function RangeValueStepEditor({
     <StepEditorBlock
       step={step}
       context={context}
+      uiStateKey={uiStateKey}
       inputColumns={inputColumns}
       manualRangeRows={manualRangeRows}
       title={title}
@@ -546,6 +554,7 @@ function RangeValueConcatEditor({
                   manualRangeRows={manualRangeRows}
                   sourceForPrimary={selectedPart.source}
                   contextKind="rangeConcat"
+                  uiStateKeyPrefix={`rangeConcat:${selectedPart.id}`}
                   renderFields={({ visibleAction, stepSource, onSourceChange }) => {
                     if (visibleAction !== 'useRangeText' && stepSource.type !== 'rangeText') {
                       return undefined;

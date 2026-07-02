@@ -67,6 +67,7 @@ type StepEditorBlockProps = {
   gridClassName?: string;
   fixedTextInputLabel?: string;
   hideTransformSourceFields?: boolean;
+  uiStateKey?: string;
   previousResultPreviewValue?: string | null;
   renderCondition?: (step: TransformStep, onChange: (patch: Partial<TransformStep>) => void) => ReactNode;
   onChange: (patch: Partial<TransformStep>) => void;
@@ -127,6 +128,7 @@ export function StepEditorBlock({
   gridClassName = 'simpleCustomValueGrid',
   fixedTextInputLabel,
   hideTransformSourceFields = false,
+  uiStateKey,
   previousResultPreviewValue,
   renderCondition,
   onChange,
@@ -136,7 +138,7 @@ export function StepEditorBlock({
   renderFields,
 }: StepEditorBlockProps) {
   const mode = getStepModeForBlock(step);
-  const sourceActionOverrideIdentity = getSourceActionOverrideIdentity(step, context, mode);
+  const sourceActionOverrideIdentity = getSourceActionOverrideIdentity(step, context, mode, uiStateKey);
   const [sourceActionOverrideState, setSourceActionOverrideState] = useState<SourceActionOverrideState | undefined>(() => (
     context.sourceActionOverride ? { action: context.sourceActionOverride, identity: sourceActionOverrideIdentity } : undefined
   ));
@@ -153,9 +155,15 @@ export function StepEditorBlock({
     : 'rangeValuePrimaryStepFields rangeValueSourceControls stepExtraFieldsRow';
 
   useEffect(() => {
-    setSourceActionOverrideState(context.sourceActionOverride
-      ? { action: context.sourceActionOverride, identity: sourceActionOverrideIdentity }
-      : undefined);
+    setSourceActionOverrideState((current) => {
+      if (current?.identity === sourceActionOverrideIdentity) {
+        return current;
+      }
+
+      return context.sourceActionOverride
+        ? { action: context.sourceActionOverride, identity: sourceActionOverrideIdentity }
+        : undefined;
+    });
   }, [context.sourceActionOverride, sourceActionOverrideIdentity]);
 
   const setScopedSourceActionOverride = (action: StepSourceAction | undefined) => {
@@ -209,7 +217,7 @@ export function StepEditorBlock({
             }
 
             if (isStepSourceAction(action)) {
-              setScopedSourceActionOverride(action === 'pickColumnText' ? 'pickColumnText' : undefined);
+              setScopedSourceActionOverride(action === 'pickColumnText' || action === 'useInputColumn' ? action : undefined);
               replaceStep(replaceStepActionWithSource(step, action, effectiveContext));
               return;
             }
@@ -511,7 +519,7 @@ function getStepModeOptionsForContext(context: StepEditorContext) {
 }
 
 function getStepActionOptionsForContext(mode: TransformStepMode, context: StepEditorContext): Array<{ value: BlockAction; label: string }> {
-  const actions = getAllowedStepActions(mode, context).filter((action) => action !== 'unconfigured');
+  const actions = getAllowedStepActions(mode, context).filter((action) => action !== 'unconfigured' && action !== 'usePreviousResult');
   if (mode === 'number' && actions.includes('numericOperation')) {
     return [
       ...(actions.includes('useValueAsIs') ? [{ value: 'useValueAsIs' as const, label: useValueAsIsLabel }] : []),
@@ -546,12 +554,12 @@ function getStepModeForBlock(step: TransformStep): TransformStepMode {
   return 'text';
 }
 
-function getSourceActionOverrideIdentity(step: TransformStep, context: StepEditorContext, mode: TransformStepMode) {
+function getSourceActionOverrideIdentity(step: TransformStep, context: StepEditorContext, mode: TransformStepMode, uiStateKey?: string) {
   return [
     context.kind,
     context.stepIndex ?? 0,
     context.partIndex ?? '',
-    step.id,
+    uiStateKey ?? step.id,
     mode,
     step.type,
   ].join(':');

@@ -468,6 +468,16 @@
   padding-top: 16px;
 }
 
+.concatPartStepDivider .stepCardHeader {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  min-width: 0;
+}
+
+.concatPartStepDivider .stepCardHeader > .secondary {
+  justify-self: end;
+  white-space: nowrap;
+}
+
 .modalDialogXl .constructorModalContent .concatPartStepDivider .stepDetailPanel {
   background: transparent;
   border: 0;

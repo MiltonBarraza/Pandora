@@ -73,7 +73,7 @@ import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
-import type { StepEditorContext } from './OutputColumnRecipeEditor.stepPolicy';
+import { getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
   buildCombinePreview,
@@ -1489,7 +1489,7 @@ function SimpleStepBlock({
   };
   const isManualRangeStep = step.type === 'manualRange';
   const summarySource = step.source;
-  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, summarySource);
+  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getSimpleStepBlockTitle(step, index, inputColumns, summarySource);
   const title = `Paso ${index + 1}${summary ? ` · ${summary}` : ''}`;
   const handleChange = (patch: Partial<TransformStep>) => {
     onChange(patch);
@@ -1565,6 +1565,14 @@ function SimpleStepBlock({
       onDelete={onDelete}
     />
   );
+}
+
+function getSimpleStepBlockTitle(step: TransformStep, index: number, inputColumns: InputColumn[], source?: StepSource) {
+  if (step.type === 'noop' && source?.type === 'input' && (source.inputColumnId || index > 0)) {
+    return 'Usar columna de entrada';
+  }
+
+  return getRecipeStepTitle(step, inputColumns, source);
 }
 
 function StepDetailPanel({
@@ -1790,6 +1798,7 @@ function ConcatStepFields({
                 <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
               </div>
               <ConcatPartStepsEditor
+                partId={selectedPart.id}
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
                 steps={selectedPart.steps ?? []}
@@ -1840,6 +1849,7 @@ export function ComposePartEditor({
 
   return (
     <ConcatPartStepsEditor
+      partId={part.id}
       inputColumns={inputColumns}
       manualRangeRows={manualRangeRows}
       steps={part.steps ?? []}
@@ -1896,6 +1906,7 @@ export function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeSte
 }
 
 function ConcatPartStepsEditor({
+  partId,
   inputColumns,
   manualRangeRows,
   steps,
@@ -1907,6 +1918,7 @@ function ConcatPartStepsEditor({
   onBaseSourceChange,
   onChange,
 }: {
+  partId?: string;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
   steps: TransformStep[];
@@ -1920,16 +1932,24 @@ function ConcatPartStepsEditor({
 }) {
   const primaryStep = getVisibleConcatPartPrimaryStep(steps);
   const additionalSteps = steps.slice(1);
-  const updatePrimaryStep = (patch: Partial<TransformStep>) => {
-    onChange(updateConcatPartPrimaryStep(steps, patch));
-  };
-  const updatePrimaryStepSource = (source: StepSource, nextPrimaryStep?: TransformStep) => {
-    if (nextPrimaryStep) {
-      onBaseSourceChange(source, [nextPrimaryStep, ...additionalSteps]);
-      return;
-    }
+  const primaryContext = getConcatPartStepContext(0, getConcatPrimarySourceActionOverride(primaryStep, baseSource, steps.length > 0));
+  const primaryEditorStep = getStepWithConcatPartSource(primaryStep, baseSource, primaryContext, steps.length > 0);
+  const uiKeyPrefix = `concat:${partId ?? primaryStep.id}`;
+  const updatePrimaryStep = (nextStep: TransformStep) => {
+    const nextSource = nextStep.source ?? baseSource;
+    const normalizedStep = {
+      ...nextStep,
+      applyToEmptyValues: nextStep.applyToEmptyValues ?? false,
+    };
+    const visibleAction = getVisibleStepAction(nextStep, primaryContext);
+    const shouldKeepImplicitStep = steps.length === 0
+      && normalizedStep.type === 'noop'
+      && normalizedStep.mode === 'text'
+      && !nextStep.source
+      && visibleAction === 'unconfigured';
+    const nextSteps = shouldKeepImplicitStep ? [] : [normalizedStep, ...additionalSteps];
 
-    onBaseSourceChange(source, primaryStep.source ? clearPrimaryStepSource(steps) : undefined);
+    onBaseSourceChange(nextSource, nextSteps);
   };
   const addAdditionalStep = () => {
     onChange(appendConcatPartAdditionalStep(steps));
@@ -1938,6 +1958,12 @@ function ConcatPartStepsEditor({
     onChange([
       primaryStep,
       ...additionalSteps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
+    ]);
+  };
+  const replaceAdditionalStep = (stepId: string, nextStep: TransformStep) => {
+    onChange([
+      primaryStep,
+      ...additionalSteps.map((step) => (step.id === stepId ? nextStep : step)),
     ]);
   };
   const deleteAdditionalStep = (stepId: string) => {
@@ -1952,20 +1978,18 @@ function ConcatPartStepsEditor({
         </div>
       ) : null}
 
-      <StepDetailPanel
-        step={primaryStep}
-        index={0}
+      <StepEditorBlock
+        step={primaryEditorStep}
+        context={primaryContext}
+        uiStateKey={`${uiKeyPrefix}:0`}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        title={`Paso 1 · ${getConcatPartStepTitle(primaryEditorStep, primaryContext, inputColumns)}`}
         canDelete={false}
-        allowConcat={false}
-        stepSource={primaryStep.source ?? baseSource}
-        allowPreviousResultSource={false}
         previousResultPreviewValue={baseSource.type === 'previousResult' ? previousResultPreviewValue : null}
-        showSourceFields={showPrimarySourceFields}
-        onSourceChange={updatePrimaryStepSource}
-        onChange={updatePrimaryStep}
-        onReplace={(nextStep) => onChange([nextStep, ...additionalSteps])}
+        hideTransformSourceFields={!showPrimarySourceFields}
+        onChange={(patch) => updatePrimaryStep({ ...primaryEditorStep, ...patch })}
+        onReplace={updatePrimaryStep}
         onDelete={() => undefined}
       />
 
@@ -1974,23 +1998,21 @@ function ConcatPartStepsEditor({
           <div className="concatPartTransformList">
             {additionalSteps.map((step, index) => {
               const transformIndex = index + 1;
+              const context = getConcatPartStepContext(transformIndex);
 
               return (
                 <div key={step.id} className="concatPartStepDivider">
-                  <StepDetailPanel
+                  <StepEditorBlock
                     step={step}
-                    index={transformIndex}
+                    context={context}
+                    uiStateKey={`${uiKeyPrefix}:${transformIndex}`}
                     inputColumns={inputColumns}
                     manualRangeRows={manualRangeRows}
+                    title={`Paso ${transformIndex + 1} · ${getConcatPartStepTitle(step, context, inputColumns)}`}
                     canDelete
-                    allowConcat={false}
-                    allowPreviousResultSource
                     previousResultPreviewValue={previousResultPreviewValue}
                     onChange={(patch) => updateAdditionalStep(step.id, patch)}
-                    onReplace={(nextStep) => onChange([
-                      primaryStep,
-                      ...additionalSteps.map((item) => (item.id === step.id ? nextStep : item)),
-                    ])}
+                    onReplace={(nextStep) => replaceAdditionalStep(step.id, normalizeStepForContext(nextStep, context))}
                     onDelete={() => deleteAdditionalStep(step.id)}
                   />
                 </div>
@@ -2008,13 +2030,62 @@ function ConcatPartStepsEditor({
   );
 }
 
-function clearPrimaryStepSource(steps: TransformStep[]) {
-  if (steps.length === 0) {
-    return steps;
+function getConcatPartStepContext(stepIndex: number, sourceActionOverride?: StepSourceAction): StepEditorContext {
+  return {
+    kind: 'concat',
+    stepIndex,
+    defaultInputColumnId: '',
+    ...(sourceActionOverride ? { sourceActionOverride } : {}),
+  };
+}
+
+function getConcatPrimarySourceActionOverride(step: TransformStep, source: StepSource, hasStoredPrimaryStep: boolean): StepSourceAction | undefined {
+  if (!hasStoredPrimaryStep || step.type !== 'noop') {
+    return undefined;
   }
 
-  const [{ source: _source, ...primaryStep }, ...additionalSteps] = steps;
-  return [primaryStep, ...additionalSteps];
+  const visibleSource = step.source ?? source;
+  if (visibleSource.type === 'input') {
+    return 'useInputColumn';
+  }
+
+  if (visibleSource.type === 'fixedText') {
+    return 'useFixedText';
+  }
+
+  return undefined;
+}
+
+function getStepWithConcatPartSource(step: TransformStep, source: StepSource, context: StepEditorContext, forceConfiguredSource = false) {
+  if (step.source || step.type !== 'noop') {
+    return step;
+  }
+
+  if (!forceConfiguredSource && !isConfiguredConcatPartSource(source)) {
+    return step;
+  }
+
+  return normalizeStepForContext({ ...step, source }, context);
+}
+
+function isConfiguredConcatPartSource(source: StepSource) {
+  if (source.type === 'input') {
+    return source.inputColumnId.trim().length > 0;
+  }
+
+  if (source.type === 'fixedText') {
+    return source.value.trim().length > 0;
+  }
+
+  return true;
+}
+
+function getConcatPartStepTitle(step: TransformStep, context: StepEditorContext, inputColumns: InputColumn[]) {
+  if (getVisibleStepAction(step, context) === 'unconfigured') {
+    return 'Sin configurar';
+  }
+
+  return getRecipeStepTitle(step, inputColumns, step.source) || 'Sin configurar';
 }
 
 type StepFieldLabels = 'default' | 'workflow';

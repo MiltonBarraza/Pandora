@@ -77,6 +77,21 @@ function createFixedTextStepColumn(id = 'output-fixed-step'): OutputColumn {
   };
 }
 
+function createMainConcatColumn(id = 'output-main-concat'): OutputColumn {
+  return {
+    id,
+    label: 'Combinado',
+    order: 0,
+    enabled: true,
+    recipe: {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [{ id: 'part-1', type: 'input', inputColumnId: '' }],
+      separator: '',
+    },
+  };
+}
+
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
     this.setAttribute('open', '');
@@ -132,6 +147,29 @@ async function selectLastDropdownOption(user: ReturnType<typeof userEvent.setup>
 
 async function selectLastSearchableDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
   const buttons = screen.getAllByRole('combobox', { name: buttonName });
+  await user.click(buttons[buttons.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
+
+function getComposePartEditor() {
+  const editor = document.querySelector('.composePartTechnicalEditor') as HTMLElement | null;
+  if (!editor) {
+    throw new Error('Compose part editor not found');
+  }
+
+  return editor;
+}
+
+async function selectComposePartDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
+  const editor = getComposePartEditor();
+  const buttons = within(editor).getAllByRole('button', { name: buttonName });
+  await user.click(buttons[buttons.length - 1]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
+
+async function selectComposePartSearchableDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
+  const editor = getComposePartEditor();
+  const buttons = within(editor).getAllByRole('combobox', { name: buttonName });
   await user.click(buttons[buttons.length - 1]);
   await user.click(screen.getByRole('option', { name: optionName }));
 }
@@ -277,6 +315,209 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     expect(screen.getByLabelText('Partes de combinación')).not.toBeNull();
     expect(document.querySelector('.manualRangeSpreadsheet')).toBeNull();
+  });
+
+  it('renders the main concat part with the canonical step editor unconfigured', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-canonical')} />);
+
+    await openRecipeEditor(user);
+
+    const dialog = screen.getByRole('dialog', { name: /Crear valor personalizado/ });
+    const partEditor = document.querySelector('.composePartTechnicalEditor');
+    expect(partEditor).not.toBeNull();
+    expect(partEditor?.querySelector('.rangeValuePrimaryLayout')).not.toBeNull();
+    expect(partEditor?.querySelector('.concatStepTopRow')).toBeNull();
+    expect(within(dialog).getByText('Parte seleccionada')).not.toBeNull();
+    expect(within(partEditor as HTMLElement).getByText(/Paso 1/).textContent).toContain('Sin configurar');
+    expect(within(partEditor as HTMLElement).queryByText('Usar resultado anterior')).toBeNull();
+    expect(within(partEditor as HTMLElement).queryByText(/Columna A/)).toBeNull();
+    expect(within(partEditor as HTMLElement).queryByRole('button', { name: 'Columna de entrada' })).toBeNull();
+  });
+
+  it('edits fixed text in the main concat part on the first action click', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-fixed-text')} />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qué quiero hacer/, 'Usar texto fijo');
+
+    await waitFor(() => expect(screen.getByLabelText('Texto fijo')).not.toBeNull());
+    const partEditor = document.querySelector('.composePartTechnicalEditor') as HTMLElement;
+    const textInput = within(partEditor).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
+    expect(within(partEditor).getByText(/Paso 1/).textContent).toContain('Usar texto fijo');
+    textInput.focus();
+    await user.type(textInput, 'ABC', { skipClick: true });
+    await waitFor(() => expect((within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement).value).toBe('ABC'));
+    expect(screen.getAllByText('ABC').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.parts[0]).toMatchObject({
+      type: 'text',
+      value: 'ABC',
+      steps: [{ mode: 'text', type: 'noop' }],
+    });
+  });
+
+  it('edits an input column in the main concat part', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-input-column')} />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qué quiero hacer/, 'Usar columna de entrada');
+    await waitFor(() => expect(within(getComposePartEditor()).getByRole('button', { name: 'Columna de entrada' })).not.toBeNull());
+    await selectComposePartDropdownOption(user, /Columna de entrada/, 'A');
+
+    await waitFor(() => expect(within(getComposePartEditor()).getByRole('button', { name: 'Columna de entrada' }).textContent).toContain('A'));
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.parts[0]).toMatchObject({
+      type: 'input',
+      inputColumnId: 'input-code',
+    });
+  });
+
+  it('keeps main concat column-text picker source while preserving the transform action', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-picker-transform')} />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qué quiero hacer/, 'Convertir a mayúsculas');
+    await selectComposePartDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
+    await selectComposePartSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
+
+    const actionButtons = screen.getAllByRole('button', { name: /Qué quiero hacer/ });
+    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Convertir a mayúsculas');
+    expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
+    const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
+    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
+    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
+    expect(screen.queryByLabelText('Texto fijo')).toBeNull();
+    expect(screen.getAllByText('P-1').length).toBeGreaterThan(0);
+  });
+
+  it('keeps main concat direct column-text picker source on the first try and after changing actions', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-picker-direct')} />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qu. quiero hacer/, 'Elegir texto desde celda');
+    await selectComposePartSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
+
+    const firstActionButtons = screen.getAllByRole('button', { name: /Qu. quiero hacer/ });
+    expect(firstActionButtons[firstActionButtons.length - 1].textContent).toContain('Elegir texto desde celda');
+    expect(firstActionButtons[firstActionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
+    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
+
+    await selectComposePartDropdownOption(user, /Qu. quiero hacer/, /Convertir a may.sculas/);
+    await selectComposePartDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
+    await selectComposePartSearchableDropdownOption(user, /Texto encontrado/, 'P-2');
+
+    const updatedActionButtons = screen.getAllByRole('button', { name: /Qu. quiero hacer/ });
+    expect(updatedActionButtons[updatedActionButtons.length - 1].textContent).toMatch(/Convertir a may.sculas/);
+    expect(updatedActionButtons[updatedActionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
+    const sourceButtons = screen.getAllByRole('button', { name: /Qu. valor usar/ });
+    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
+    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-2'));
+    expect(screen.queryByLabelText('Texto fijo')).toBeNull();
+    expect(screen.getAllByText('P-2').length).toBeGreaterThan(0);
+  });
+
+  it('uses previous result only in additional main concat part steps', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createMainConcatColumn('output-compose-previous-result')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qué quiero hacer/, 'Usar texto fijo');
+    await waitFor(() => expect(screen.getByLabelText('Texto fijo')).not.toBeNull());
+    const textInput = within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
+    textInput.focus();
+    await user.type(textInput, 'abc', { skipClick: true });
+    await waitFor(() => expect((within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement).value).toBe('abc'));
+    expect(screen.queryByText('Usar resultado anterior')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectComposePartDropdownOption(user, /Qué quiero hacer/, 'Convertir a mayúsculas');
+
+    const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
+    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Usar resultado anterior');
+    expect(screen.getAllByText('ABC').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.parts[0].steps[1]).toMatchObject({
+      mode: 'text',
+      type: 'uppercase',
+      source: { type: 'previousResult' },
+    });
+  });
+
+  it('does not offer previous result as a dead-end main concat action', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createMainConcatColumn('output-compose-previous-result-action')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const textInput = within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
+    textInput.focus();
+    await user.type(textInput, 'abc', { skipClick: true });
+
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    const actionButtons = within(getComposePartEditor()).getAllByRole('button', { name: /Qu. quiero hacer/ });
+    await user.click(actionButtons[actionButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();
+    await user.click(screen.getByRole('option', { name: /Convertir a may.sculas/ }));
+
+    const sourceButtons = screen.getAllByRole('button', { name: /Qu. valor usar/ });
+    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Usar resultado anterior');
+    expect(within(getComposePartEditor()).getByText(/Paso 2/).textContent).not.toContain('Sin configurar');
+    expect(screen.getAllByText('ABC').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the additional-step delete button inside the main concat step card', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-delete-layout')} />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+
+    const partEditor = getComposePartEditor();
+    const deleteButton = within(partEditor).getByRole('button', { name: 'Eliminar paso' });
+    const stepPanel = deleteButton.closest('.stepDetailPanel');
+    expect(stepPanel).not.toBeNull();
+    expect(stepPanel?.closest('.concatPartStepDivider')).not.toBeNull();
+    expect(deleteButton.closest('.stepCardHeader')).toBe(stepPanel?.querySelector('.stepCardHeader'));
+  });
+
+  it('uses canonical number and date fields in the main concat part', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-number-date')} />);
+
+    await openRecipeEditor(user);
+    await selectComposePartDropdownOption(user, /Tipo de operación/, /Trabajar con número/);
+    const actionButtons = within(getComposePartEditor()).getAllByRole('button', { name: /Qué quiero hacer/ });
+    await user.click(actionButtons[actionButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Sumar valor' })).not.toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
+    expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
+    expect(screen.queryByLabelText('Texto fijo')).toBeNull();
+
+    await selectComposePartDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
+    await selectComposePartDropdownOption(user, /Qué quiero hacer/, 'Usar valor tal cual');
+    expect(screen.getByText('Qué fecha usar')).not.toBeNull();
+    await selectComposePartDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
+    expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
+    expect(screen.queryByText('Operación numérica')).toBeNull();
   });
 
   it('shows fixed text after date formatting and date-column selection are reset to text', async () => {
@@ -494,6 +735,38 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Sólo se agregan pasos cuando elegís una acción útil.')).toBeNull();
+  });
+
+  it('applies input-column action on the first click in a normal second step', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={{
+      ...createFixedTextStepColumn('output-second-input-column'),
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+        separator: '',
+        steps: [{ id: 'step-1', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'asd' } }],
+      },
+    }} />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Qu. quiero hacer/, 'Usar columna de entrada');
+
+    const actionButtons = screen.getAllByRole('button', { name: /Qu. quiero hacer/ });
+    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Usar columna de entrada');
+    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar columna de entrada');
+    expect(screen.getByText(/Paso 2/).textContent).not.toContain('Sin configurar');
+    expect(screen.getByRole('button', { name: 'Columna de entrada' })).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[1]).toMatchObject({
+      mode: 'text',
+      type: 'noop',
+      source: { type: 'input', inputColumnId: '' },
+    });
   });
 
   it('keeps previous result available for a useful second-step transformation', async () => {
