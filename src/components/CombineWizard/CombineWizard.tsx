@@ -139,8 +139,8 @@ export function CombineWizard({
 
       <div className="wizard">
         <section className="panel">
-          <h2>Combinar archivos</h2>
-          <p className="muted">Cargá los archivos que querés reunir.</p>
+          <h2>Fuentes</h2>
+          <p className="muted combineSourcesIntro">Cargá archivos o usá resultados guardados desde el sanitizador.</p>
           <div className="combineReadPolicy">
             <span><strong>Excel:</strong> primera hoja.</span>
             <span><strong>Encabezado:</strong> primera fila no vacía.</span>
@@ -176,9 +176,9 @@ export function CombineWizard({
                 <article key={source.id} className="combineSourceItem">
                   <div>
                     <strong>{source.fileName}</strong>
-                    {basketSourceIds.has(source.id) ? (
-                      <span className="combineSourceBadge">Guardado desde sanitizador</span>
-                    ) : null}
+                    <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
+                      {basketSourceIds.has(source.id) ? 'Guardado desde sanitizador' : 'Subido manualmente'}
+                    </span>
                     <p className="muted combineSourceMeta">
                       {source.sheetName ? `Hoja: ${source.sheetName} · ` : ''}
                       {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
@@ -193,50 +193,54 @@ export function CombineWizard({
               ))}
             </div>
           )}
+          <CombineSettingsActions
+            sources={sources}
+            outputColumns={outputColumns}
+            mappings={mappings}
+            outputFileName={outputFileName}
+            onApplySettings={applySettings}
+          />
         </section>
-        <CombineSettingsActions
-          sources={sources}
-          outputColumns={outputColumns}
-          mappings={mappings}
-          outputFileName={outputFileName}
-          onApplySettings={applySettings}
-        />
         <CombineOutputColumns
           sources={sources}
           outputColumns={outputColumns}
           onChange={setOutputColumns}
         />
-        <CombineMappingsEditor
-          sources={sources}
-          outputColumns={outputColumns}
-          mappings={mappings}
-          onMappingChange={(nextMapping) => setMappings((current) => reconcileCombineMappings({
-            sources,
-            outputColumns,
-            previousMappings: [
-              ...current.filter((mapping) => !(
-                mapping.sourceId === nextMapping.sourceId
-                && mapping.outputColumnId === nextMapping.outputColumnId
-              )),
-              nextMapping,
-            ],
-          }))}
-          onReapplyMappings={() => setMappings(reapplyCombineMappings(sources, outputColumns))}
-        />
-        <CombinedRowsPreview
-          sources={sources}
-          outputColumns={outputColumns}
-          mappings={mappings}
-          rows={combinedRows}
-        />
-        <CombineExportActions
-          sources={sources}
-          outputColumns={outputColumns}
-          mappings={mappings}
-          combinedRows={combinedRows}
-          outputFileName={outputFileName}
-          onOutputFileNameChange={setOutputFileName}
-        />
+        {sources.length > 0 && outputColumns.length > 0 ? (
+          <>
+            <CombineMappingsEditor
+              sources={sources}
+              outputColumns={outputColumns}
+              mappings={mappings}
+              onMappingChange={(nextMapping) => setMappings((current) => reconcileCombineMappings({
+                sources,
+                outputColumns,
+                previousMappings: [
+                  ...current.filter((mapping) => !(
+                    mapping.sourceId === nextMapping.sourceId
+                    && mapping.outputColumnId === nextMapping.outputColumnId
+                  )),
+                  nextMapping,
+                ],
+              }))}
+              onReapplyMappings={() => setMappings(reapplyCombineMappings(sources, outputColumns))}
+            />
+            <CombinedRowsPreview
+              sources={sources}
+              outputColumns={outputColumns}
+              mappings={mappings}
+              rows={combinedRows}
+            />
+            <CombineExportActions
+              sources={sources}
+              outputColumns={outputColumns}
+              mappings={mappings}
+              combinedRows={combinedRows}
+              outputFileName={outputFileName}
+              onOutputFileNameChange={setOutputFileName}
+            />
+          </>
+        ) : null}
       </div>
     </main>
   );

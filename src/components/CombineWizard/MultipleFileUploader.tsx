@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { ActionButton } from '../ui/ActionButton/ActionButton';
 
 type MultipleFileUploaderProps = {
   disabled?: boolean;
@@ -17,7 +16,7 @@ export function MultipleFileUploader({ disabled = false, onFilesSelected }: Mult
   };
 
   return (
-    <div className="fileUploader">
+    <div className="fileUploader combineFileUploader">
       <div
         className={`dropZone${isDragging ? ' isDragging' : ''}`}
         role="button"
@@ -58,12 +57,9 @@ export function MultipleFileUploader({ disabled = false, onFilesSelected }: Mult
             event.target.value = '';
           }}
         />
-        <strong>{disabled ? 'Leyendo archivos…' : 'Elegir archivos'}</strong>
+        <strong>{disabled ? 'Leyendo archivos…' : 'Cargar archivos'}</strong>
         <span className="dropZoneHelp">Arrastrá uno o varios archivos .xlsx, .xls, .xlsm o .csv</span>
-        <span className="dropZoneHelp dropZoneHelpSecondary">También podés seleccionarlos desde tu computadora</span>
-        <ActionButton action="upload" type="button" disabled={disabled} tabIndex={-1}>
-          Cargar archivos
-        </ActionButton>
+        <span className="dropZoneHelp dropZoneHelpSecondary">O hacé click para seleccionarlos desde tu computadora</span>
       </div>
     </div>
   );

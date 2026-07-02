@@ -8,6 +8,8 @@ import { useAppearanceTheme } from './components/AppearanceToolbar/useAppearance
 import { CombineWizard } from './components/CombineWizard/CombineWizard';
 import { ImportWizard } from './components/ImportWizard/ImportWizard';
 import { ActionButton } from './components/ui/ActionButton/ActionButton';
+import { ConfirmDialog } from './components/ui/ConfirmDialog/ConfirmDialog';
+import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
 
 type AppTool = 'sanitize' | 'combine';
 
@@ -16,7 +18,9 @@ export default function App() {
   const [combineHasLocalState, setCombineHasLocalState] = useState(false);
   const [sanitizerHasState, setSanitizerHasState] = useState(false);
   const [combineBasketSources, setCombineBasketSources] = useState<CombineSource[]>([]);
+  const [pendingToolChange, setPendingToolChange] = useState<AppTool | null>(null);
   const appearance = useAppearanceTheme();
+  useBeforeUnloadWarning(combineBasketSources.length > 0 || combineHasLocalState);
   const saveProcessedResult = (result: ProcessedExportResult) => {
     setCombineBasketSources((current) => addProcessedResultToCombineBasket(current, result));
     showSuccessToast('Resultado guardado para combinar.');
@@ -26,30 +30,37 @@ export default function App() {
       return;
     }
 
-    if (
-      selectedTool === 'sanitize'
-      && sanitizerHasState
-      && !window.confirm(
-        'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados que ya hayas guardado para combinar se conservarán hasta que recargues la página. ¿Querés continuar?',
-      )
-    ) {
+    const nextTool = selectedTool === 'combine' ? 'sanitize' : 'combine';
+    if (selectedTool === 'sanitize' && sanitizerHasState) {
+      setPendingToolChange(nextTool);
       return;
     }
 
-    if (
-      selectedTool === 'combine'
-      && combineHasLocalState
-      && !window.confirm(
-        'Vas a salir de Combinar archivos. Las fuentes subidas manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página.',
-      )
-    ) {
+    if (selectedTool === 'combine' && combineHasLocalState) {
+      setPendingToolChange(nextTool);
       return;
     }
 
+    changeTool(nextTool);
+  };
+  const changeTool = (nextTool: AppTool) => {
     setCombineHasLocalState(false);
     setSanitizerHasState(false);
-    setSelectedTool(selectedTool === 'combine' ? 'sanitize' : 'combine');
+    setPendingToolChange(null);
+    setSelectedTool(nextTool);
   };
+  const toolChangeConfirmation = (
+    <ConfirmDialog
+      open={pendingToolChange !== null}
+      title="Confirmar cambio de herramienta"
+      message={selectedTool === 'sanitize'
+        ? 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?'
+        : 'Vas a salir de Combinar archivos. Las fuentes subidas manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?'}
+      confirmLabel="Continuar"
+      onCancel={() => setPendingToolChange(null)}
+      onConfirm={() => pendingToolChange && changeTool(pendingToolChange)}
+    />
+  );
   const appearanceToolbar = (
     <AppearanceToolbar
       preference={appearance.preference}
@@ -67,24 +78,30 @@ export default function App() {
 
   if (selectedTool === 'sanitize') {
     return (
-      <ImportWizard
-        appearanceToolbar={appearanceToolbar}
-        onSaveProcessedResult={saveProcessedResult}
-        onStatePresenceChange={setSanitizerHasState}
-      />
+      <>
+        <ImportWizard
+          appearanceToolbar={appearanceToolbar}
+          onSaveProcessedResult={saveProcessedResult}
+          onStatePresenceChange={setSanitizerHasState}
+        />
+        {toolChangeConfirmation}
+      </>
     );
   }
 
   if (selectedTool === 'combine') {
     return (
-      <CombineWizard
-        appearanceToolbar={appearanceToolbar}
-        basketSources={combineBasketSources}
-        onRemoveBasketSource={(sourceId) => setCombineBasketSources((current) => (
-          current.filter((source) => source.id !== sourceId)
-        ))}
-        onLocalStatePresenceChange={setCombineHasLocalState}
-      />
+      <>
+        <CombineWizard
+          appearanceToolbar={appearanceToolbar}
+          basketSources={combineBasketSources}
+          onRemoveBasketSource={(sourceId) => setCombineBasketSources((current) => (
+            current.filter((source) => source.id !== sourceId)
+          ))}
+          onLocalStatePresenceChange={setCombineHasLocalState}
+        />
+        {toolChangeConfirmation}
+      </>
     );
   }
 

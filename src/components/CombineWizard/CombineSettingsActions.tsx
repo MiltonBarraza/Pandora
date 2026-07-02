@@ -77,7 +77,7 @@ export function CombineSettingsActions({
   };
 
   return (
-    <section className="panel">
+    <div className="combineSettingsCompact" aria-label="Configuración">
       <ConfirmDialog
         open={Boolean(pendingSnapshot)}
         title="Importar configuración"
@@ -87,10 +87,10 @@ export function CombineSettingsActions({
         onCancel={() => setPendingSnapshot(null)}
         onConfirm={() => pendingSnapshot && applySnapshot(pendingSnapshot)}
       />
-      <h2>Configuración</h2>
-      <p className="muted combineSettingsDescription">
-        Guardá o restaurá columnas, mapeos y nombre de salida. Los datos de archivos no se incluyen.
-      </p>
+      <div className="combineSettingsCompactCopy">
+        <strong>Configuración</strong>
+        <span className="muted">Guardá o restaurá columnas, mapeos y nombre de salida.</span>
+      </div>
       <input
         ref={inputRef}
         className="combineSettingsFileInput"
@@ -102,9 +102,9 @@ export function CombineSettingsActions({
           event.target.value = '';
         }}
       />
-      <div className="actions">
-        <ActionButton action="export" onClick={exportSettings}>Exportar configuración</ActionButton>
-        <ActionButton action="import" variant="secondary" onClick={() => inputRef.current?.click()}>
+      <div className="actions combineSettingsActions">
+        <ActionButton action="export" variant="secondary" size="sm" onClick={exportSettings}>Exportar configuración</ActionButton>
+        <ActionButton action="import" variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
           Importar configuración
         </ActionButton>
       </div>
@@ -112,6 +112,6 @@ export function CombineSettingsActions({
       {warnings.map((warning) => (
         <p key={warning} className="combineColumnWarning combineSettingsMessage">{warning}</p>
       ))}
-    </section>
+    </div>
   );
 }

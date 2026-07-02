@@ -33,16 +33,15 @@ export function CombinedRowsPreview({
   return (
     <section className="panel">
       <h2>Vista previa combinada</h2>
-      <div className="combinePreviewSummary">
-        <span><strong>{sources.length}</strong> {sources.length === 1 ? 'archivo' : 'archivos'}</span>
-        <span><strong>{rows.length}</strong> {rows.length === 1 ? 'fila combinada' : 'filas combinadas'}</span>
-        <span><strong>{outputColumns.length}</strong> {outputColumns.length === 1 ? 'columna de salida' : 'columnas de salida'}</span>
-        <span><strong>{unmappedMappingCount}</strong> {unmappedMappingCount === 1 ? 'mapeo pendiente' : 'mapeos pendientes'}</span>
-      </div>
+      <p className="combinePreviewOverview">
+        <strong>{sources.length}</strong> {sources.length === 1 ? 'fuente' : 'fuentes'} ·{' '}
+        <strong>{rows.length}</strong> {rows.length === 1 ? 'fila' : 'filas'} ·{' '}
+        <strong>{outputColumns.length}</strong> {outputColumns.length === 1 ? 'columna' : 'columnas'}
+      </p>
 
       {unmappedMappingCount > 0 ? (
         <p className="combineMappingNotice">
-          Las columnas sin mapear se mostrarán vacías para el archivo correspondiente.
+          Las columnas sin mapear generarán celdas vacías.
           {affectedCellCount > 0 ? ` Esto afecta ${affectedCellCount} ${affectedCellCount === 1 ? 'celda' : 'celdas'} en el resultado actual.` : ''}
         </p>
       ) : null}

@@ -40,16 +40,16 @@ export function CombineExportActions({
   return (
     <section className="panel">
       <h2>Exportar combinado</h2>
-      <div className="combinePreviewSummary">
-        <span><strong>{sources.length}</strong> {sources.length === 1 ? 'archivo combinado' : 'archivos combinados'}</span>
-        <span><strong>{combinedRows.length}</strong> {combinedRows.length === 1 ? 'fila' : 'filas'} a exportar</span>
-        <span><strong>{outputColumns.length}</strong> {outputColumns.length === 1 ? 'columna' : 'columnas'} a exportar</span>
-      </div>
+      <p className="muted combineExportSummary">
+        Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}
+        {outputColumns.length} {outputColumns.length === 1 ? 'columna' : 'columnas'} desde{' '}
+        {sources.length} {sources.length === 1 ? 'archivo' : 'archivos'}.
+      </p>
 
       {hasEmptyNames ? <p className="combineColumnWarning">Columnas sin nombre usarán “Columna sin nombre”.</p> : null}
       {hasDuplicateNames ? <p className="combineColumnWarning">Nombres duplicados se conservarán en el Excel.</p> : null}
       {hasUnmappedColumns ? (
-        <p className="combineMappingNotice">Mappings sin asignar generarán celdas vacías.</p>
+        <p className="combineMappingNotice">Las columnas sin mapear generarán celdas vacías.</p>
       ) : null}
 
       <div className="combineExportControls">

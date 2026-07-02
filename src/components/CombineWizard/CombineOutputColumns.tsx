@@ -55,12 +55,14 @@ export function CombineOutputColumns({
         <div className="emptyState combineOutputColumnsEmpty">
           <p>Todavía no definiste columnas de salida.</p>
           <div className="actions">
-            <ActionButton action="add" onClick={addColumn}>Agregar columna</ActionButton>
             {sources.length > 0 ? (
-              <ActionButton action="duplicate" variant="secondary" onClick={initializeFromFirstSource}>
+              <ActionButton action="duplicate" onClick={initializeFromFirstSource}>
                 Usar columnas del primer archivo
               </ActionButton>
             ) : null}
+            <ActionButton action="add" variant={sources.length > 0 ? 'secondary' : 'primary'} onClick={addColumn}>
+              Agregar columna
+            </ActionButton>
           </div>
         </div>
       ) : (
