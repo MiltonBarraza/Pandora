@@ -215,6 +215,43 @@ describe('multi-sheet batch management', () => {
     expect(second.sheets[1].source.id).toBe('sheet:1:2');
   });
 
+  it('uses the first source file name and rejects a different source file', () => {
+    const firstResult = standardResult('sheet:1', 'Hoja 1');
+    firstResult.sourceFileName = 'ventas.xlsx';
+    const batch = addProcessedResultToMultiSheetBatch(
+      createEmptyMultiSheetBatch('batch:1'),
+      firstResult,
+    ).batch;
+    const otherResult = standardResult('sheet:2', 'Hoja 2');
+    otherResult.sourceFileName = 'compras.xlsx';
+
+    const rejected = addProcessedResultToMultiSheetBatch(batch, otherResult);
+
+    expect(batch.fileName).toBe('ventas.xlsx');
+    expect(rejected.ok).toBe(false);
+    expect(rejected.batch).toBe(batch);
+    expect(rejected.errors).toEqual([
+      'Archivo fuente distinto: el lote corresponde a "ventas.xlsx" y la hoja pertenece a "compras.xlsx".',
+    ]);
+  });
+
+  it('does not block file compatibility when the new result has no source file name', () => {
+    const firstResult = standardResult('sheet:1', 'Hoja 1');
+    firstResult.sourceFileName = 'ventas.xlsx';
+    const batch = addProcessedResultToMultiSheetBatch(
+      createEmptyMultiSheetBatch('batch:1'),
+      firstResult,
+    ).batch;
+
+    const added = addProcessedResultToMultiSheetBatch(
+      batch,
+      standardResult('sheet:2', 'Hoja 2'),
+    );
+
+    expect(added.ok).toBe(true);
+    expect(added.batch.sheets).toHaveLength(2);
+  });
+
   it('removes an existing sheet and preserves the schema while sheets remain', () => {
     const batch = batchWithTwoSheets();
     const schema = batch.outputSchema;

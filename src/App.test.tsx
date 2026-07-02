@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,9 +8,14 @@ import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
 import App from './App';
 
-const { showSuccessToast } = vi.hoisted(() => ({ showSuccessToast: vi.fn() }));
+const { exportCombinedXlsx, showErrorToast, showSuccessToast } = vi.hoisted(() => ({
+  exportCombinedXlsx: vi.fn(),
+  showErrorToast: vi.fn(),
+  showSuccessToast: vi.fn(),
+}));
 
-vi.mock('./services/toastService', () => ({ showSuccessToast }));
+vi.mock('./services/toastService', () => ({ showErrorToast, showSuccessToast }));
+vi.mock('./domain/combine/exportCombinedXlsx', () => ({ exportCombinedXlsx }));
 vi.mock('./components/AppearanceToolbar/useAppearanceTheme', () => ({
   useAppearanceTheme: () => ({ preference: 'light', resolvedTheme: 'light', setPreference: vi.fn() }),
 }));
@@ -20,16 +25,24 @@ vi.mock('./components/AppearanceToolbar/AppearanceToolbar', () => ({
 vi.mock('./components/ImportWizard/ImportWizard', () => ({
   ImportWizard: ({
     appearanceToolbar,
+    multiSheetBatchPanel,
     onSaveProcessedResult,
+    onSaveToMultiSheetBatch,
     onStatePresenceChange,
   }: {
     appearanceToolbar?: ReactNode;
+    multiSheetBatchPanel?: ReactNode;
     onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+    onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
     onStatePresenceChange?: (hasState: boolean) => void;
   }) => (
     <div>
       {appearanceToolbar}
+      {multiSheetBatchPanel}
       <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Emitir resultado</button>
+      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(processedResult)}>Guardar hoja válida</button>
+      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(incompatibleResult)}>Guardar hoja incompatible</button>
+      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(foreignFileResult)}>Guardar hoja de otro archivo</button>
       <button type="button" onClick={() => onStatePresenceChange?.(true)}>Marcar sanitizador con estado</button>
     </div>
   ),
@@ -66,6 +79,8 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   showSuccessToast.mockClear();
+  showErrorToast.mockClear();
+  exportCombinedXlsx.mockClear();
 });
 
 describe('App combine basket wiring', () => {
@@ -208,11 +223,108 @@ describe('App combine basket wiring', () => {
   });
 });
 
+describe('App multi-sheet batch wiring', () => {
+  it('adds first and second compatible sheets and defines the summary', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+
+    expect(screen.getByText(/2 hojas · 2 filas · 1 columnas/)).not.toBeNull();
+    expect(showSuccessToast).toHaveBeenCalledWith('Hoja guardada en el lote multi-hoja.');
+  });
+
+  it('rejects incompatible columns and a different source without changing the batch', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja incompatible' }));
+    expect(showErrorToast).toHaveBeenCalledWith(expect.stringContaining('Cantidad de columnas distinta'));
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja de otro archivo' }));
+    expect(showErrorToast).toHaveBeenCalledWith(expect.stringContaining('Archivo fuente distinto'));
+    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
+  });
+
+  it('removes the last sheet and returns to empty state', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Remover Productos' }));
+
+    expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
+  });
+
+  it('clears the batch after confirmation', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Limpiar lote' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Limpiar lote' }));
+
+    expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
+  });
+
+  it('exports combined rows with a source-based file name', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+    await user.click(screen.getByRole('button', { name: 'Exportar lote combinado' }));
+
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    expect(exportCombinedXlsx).toHaveBeenCalledWith(expect.objectContaining({
+      fileName: 'origen-multi-hoja',
+      outputColumns: [expect.objectContaining({ id: 'output:0' })],
+    }));
+  });
+
+  it('warns before unload only after a batch sheet is saved', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    expect(dispatchBeforeUnload().defaultPrevented).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
+
+    expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
+  });
+});
+
 const processedResult: ProcessedExportResult = {
   id: 'saved:app',
   fileBaseName: 'resultado',
+  sourceFileName: 'origen.xlsx',
+  sheetName: 'Productos',
   columns: [{ id: 'code', label: 'Código', order: 0, enabled: true }],
   rows: [{ status: 'included', outputValues: { code: 'A1' } }],
+};
+
+const incompatibleResult: ProcessedExportResult = {
+  ...processedResult,
+  id: 'saved:incompatible',
+  columns: [
+    ...processedResult.columns,
+    { id: 'name', label: 'Nombre', order: 1, enabled: true },
+  ],
+};
+
+const foreignFileResult: ProcessedExportResult = {
+  ...processedResult,
+  id: 'saved:foreign',
+  sourceFileName: 'otro.xlsx',
 };
 
 const sanitizerExitConfirmationText = 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?';

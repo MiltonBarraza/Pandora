@@ -51,13 +51,17 @@ export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], proces
 
 type ImportWizardProps = {
   appearanceToolbar?: ReactNode;
+  multiSheetBatchPanel?: ReactNode;
   onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+  onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
   onStatePresenceChange?: (hasState: boolean) => void;
 };
 
 export function ImportWizard({
   appearanceToolbar,
+  multiSheetBatchPanel,
   onSaveProcessedResult,
+  onSaveToMultiSheetBatch,
   onStatePresenceChange,
 }: ImportWizardProps) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -596,6 +600,7 @@ export function ImportWizard({
       </header>
 
       <div className="wizard">
+        {multiSheetBatchPanel}
         <Step title="1. Archivo">
           <FileUploader
             fileName={fileName}
@@ -791,6 +796,7 @@ export function ImportWizard({
             shouldPromptSaveBeforeExcelDownload={shouldPromptSaveBeforeExcelDownload}
             onSaveSettingsBeforeExcelDownload={async () => saveCurrentSettings().ok}
             onSaveProcessedResult={onSaveProcessedResult}
+            onSaveToMultiSheetBatch={onSaveToMultiSheetBatch}
           />
         </Step>
           </>

@@ -19,6 +19,7 @@ type ExportActionsProps = {
   shouldPromptSaveBeforeExcelDownload?: boolean;
   onSaveSettingsBeforeExcelDownload?: () => boolean | Promise<boolean>;
   onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+  onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
 };
 
 export function ExportActions({
@@ -32,6 +33,7 @@ export function ExportActions({
   shouldPromptSaveBeforeExcelDownload = false,
   onSaveSettingsBeforeExcelDownload,
   onSaveProcessedResult,
+  onSaveToMultiSheetBatch,
 }: ExportActionsProps) {
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
   const includedRows = rows.filter((row) => row.status === 'included');
@@ -66,11 +68,12 @@ export function ExportActions({
     const { exportAuditXlsxFromProcessedRows } = await import('../../domain/import/exportXlsx');
     exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns);
   };
-  const saveProcessedResult = () => {
-    onSaveProcessedResult?.(createProcessedExportResult({
+  const emitProcessedResult = (callback: (result: ProcessedExportResult) => void) => {
+    callback(createProcessedExportResult({
       rows,
       outputColumns,
       fileBaseName: filename,
+      sourceFileName,
       sheetName,
     }));
   };
@@ -108,6 +111,9 @@ export function ExportActions({
           {onSaveProcessedResult ? (
             <p className="muted">Guarda este resultado en una bolsa temporal para combinarlo con otros archivos.</p>
           ) : null}
+          {onSaveToMultiSheetBatch ? (
+            <p className="muted">Guarda esta hoja en un lote multi-hoja. Todas las hojas del lote deben tener las mismas columnas de salida.</p>
+          ) : null}
         </div>
         <div className="actions">
           <ActionButton action="download" disabled={includedRows.length === 0} onClick={requestExcelDownload}>
@@ -121,9 +127,19 @@ export function ExportActions({
               action="save"
               variant="secondary"
               disabled={includedRows.length === 0 || !hasEnabledOutputColumns}
-              onClick={saveProcessedResult}
+              onClick={() => emitProcessedResult(onSaveProcessedResult)}
             >
               Guardar para combinar
+            </ActionButton>
+          ) : null}
+          {onSaveToMultiSheetBatch ? (
+            <ActionButton
+              action="save"
+              variant="secondary"
+              disabled={includedRows.length === 0 || !hasEnabledOutputColumns}
+              onClick={() => emitProcessedResult(onSaveToMultiSheetBatch)}
+            >
+              Guardar hoja en lote
             </ActionButton>
           ) : null}
         </div>
@@ -151,16 +167,19 @@ export function createProcessedExportResult({
   rows,
   outputColumns,
   fileBaseName,
+  sourceFileName,
   sheetName,
 }: {
   rows: ProcessedRow[];
   outputColumns: OutputColumn[];
   fileBaseName: string;
+  sourceFileName?: string;
   sheetName?: string;
 }): ProcessedExportResult {
   return {
     id: createProcessedExportId(),
     fileBaseName,
+    sourceFileName: sourceFileName || undefined,
     sheetName: sheetName || undefined,
     columns: outputColumns.map(({ id, label, order, enabled }) => ({ id, label, order, enabled })),
     rows: rows

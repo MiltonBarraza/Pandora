@@ -57,6 +57,16 @@ export function addProcessedResultToMultiSheetBatch(
   batch: MultiSheetBatch,
   result: ProcessedExportResult,
 ): AddProcessedResultToMultiSheetBatchResult {
+  const sourceFileError = getSourceFileError(batch.fileName, result.sourceFileName);
+  if (sourceFileError) {
+    return {
+      ok: false,
+      batch,
+      errors: [sourceFileError],
+      warnings: [],
+    };
+  }
+
   const validation = batch.outputSchema
     ? validateProcessedResultAgainstMultiSheetSchema(result, batch.outputSchema)
     : { valid: true, errors: [], warnings: [] };
@@ -71,6 +81,8 @@ export function addProcessedResultToMultiSheetBatch(
   }
 
   const outputSchema = batch.outputSchema ?? createMultiSheetOutputSchema(result);
+  const fileName = normalizeOptionalFileName(batch.fileName)
+    ?? normalizeOptionalFileName(result.sourceFileName);
   const source = createUniqueSource(
     createCombineSourceFromSanitizedResult(result),
     new Set(batch.sheets.map((sheet) => sheet.id)),
@@ -89,6 +101,7 @@ export function addProcessedResultToMultiSheetBatch(
     ok: true,
     batch: {
       ...batch,
+      ...(fileName ? { fileName } : {}),
       outputSchema,
       sheets: [...batch.sheets, sheet],
     },
@@ -211,4 +224,19 @@ function createUniqueSource(source: CombineSource, usedIds: Set<string>): Combin
   }
 
   return { ...source, id: `${source.id}:${suffix}` };
+}
+
+function getSourceFileError(batchFileName?: string, resultFileName?: string) {
+  const expected = normalizeOptionalFileName(batchFileName);
+  const actual = normalizeOptionalFileName(resultFileName);
+
+  if (!expected || !actual || expected.toLocaleLowerCase() === actual.toLocaleLowerCase()) {
+    return null;
+  }
+
+  return `Archivo fuente distinto: el lote corresponde a "${expected}" y la hoja pertenece a "${actual}".`;
+}
+
+function normalizeOptionalFileName(value?: string) {
+  return value?.trim() || undefined;
 }

@@ -19,6 +19,7 @@ describe('ExportActions processed result', () => {
     const result = onSaveProcessedResult.mock.calls[0][0];
     expect(result).toMatchObject({
       fileBaseName: 'resultado-final',
+      sourceFileName: 'origen.xlsx',
       sheetName: 'Productos',
       columns: [
         { id: 'code', label: 'Código', order: 0, enabled: true },
@@ -36,6 +37,21 @@ describe('ExportActions processed result', () => {
     renderExportActions();
 
     expect(screen.queryByRole('button', { name: 'Guardar para combinar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Guardar hoja en lote' })).toBeNull();
+  });
+
+  it('emits a neutral result for the multi-sheet batch action', async () => {
+    const onSaveToMultiSheetBatch = vi.fn();
+    renderExportActions({ onSaveToMultiSheetBatch });
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Guardar hoja en lote' }));
+
+    expect(onSaveToMultiSheetBatch).toHaveBeenCalledTimes(1);
+    expect(onSaveToMultiSheetBatch.mock.calls[0][0]).toMatchObject({
+      sourceFileName: 'origen.xlsx',
+      sheetName: 'Productos',
+      rows: [{ status: 'included' }],
+    });
   });
 
   it('disables the action without included rows', () => {
@@ -54,6 +70,24 @@ describe('ExportActions processed result', () => {
     });
 
     expect((screen.getByRole('button', { name: 'Guardar para combinar' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('disables the multi-sheet action without included rows', () => {
+    renderExportActions({
+      onSaveToMultiSheetBatch: vi.fn(),
+      rows: [{ ...includedRow, status: 'ignored' }],
+    });
+
+    expect((screen.getByRole('button', { name: 'Guardar hoja en lote' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('disables the multi-sheet action without enabled output columns', () => {
+    renderExportActions({
+      onSaveToMultiSheetBatch: vi.fn(),
+      outputColumns: outputColumns.map((column) => ({ ...column, enabled: false })),
+    });
+
+    expect((screen.getByRole('button', { name: 'Guardar hoja en lote' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('keeps existing download actions available', () => {
@@ -96,10 +130,12 @@ const fileNameSettings: FileNameSettings = {
 
 function renderExportActions({
   onSaveProcessedResult,
+  onSaveToMultiSheetBatch,
   rows = [includedRow, ignoredRow],
   outputColumns: columns = outputColumns,
 }: {
   onSaveProcessedResult?: Parameters<typeof ExportActions>[0]['onSaveProcessedResult'];
+  onSaveToMultiSheetBatch?: Parameters<typeof ExportActions>[0]['onSaveToMultiSheetBatch'];
   rows?: ProcessedRow[];
   outputColumns?: OutputColumn[];
 } = {}) {
@@ -112,6 +148,7 @@ function renderExportActions({
       sourceFileName="origen.xlsx"
       sheetName="Productos"
       onSaveProcessedResult={onSaveProcessedResult}
+      onSaveToMultiSheetBatch={onSaveToMultiSheetBatch}
     />,
   );
 }

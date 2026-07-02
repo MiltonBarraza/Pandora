@@ -520,6 +520,54 @@ h3 {
   display: grid;
 }
 
+.multiSheetBatchPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.multiSheetBatchHeader {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.multiSheetBatchHeader h2,
+.multiSheetBatchHeader p {
+  margin-bottom: 0;
+}
+
+.multiSheetBatchSummary strong {
+  color: var(--color-text-primary);
+}
+
+.multiSheetBatchSheets {
+  display: grid;
+  gap: 8px;
+}
+
+.multiSheetBatchSheet {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.multiSheetBatchSheet > div {
+  display: grid;
+  gap: 3px;
+}
+
+.multiSheetBatchTemporaryNotice {
+  font-size: 0.84rem;
+  margin: 0;
+}
+
 .combineReadErrors {
   display: grid;
   gap: 4px;

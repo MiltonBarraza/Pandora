@@ -1,12 +1,20 @@
 import { useState, type ReactNode } from 'react';
 import { addProcessedResultToCombineBasket } from './domain/combine/combineBasket';
-import { showSuccessToast } from './services/toastService';
+import { buildCombinedRows } from './domain/combine/buildCombinedRows';
+import {
+  addProcessedResultToMultiSheetBatch,
+  createCombinePayloadFromMultiSheetBatch,
+  createEmptyMultiSheetBatch,
+  removeSheetFromMultiSheetBatch,
+} from './domain/multiSheet/multiSheetBatch';
+import { showErrorToast, showSuccessToast } from './services/toastService';
 import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
 import { AppearanceToolbar } from './components/AppearanceToolbar/AppearanceToolbar';
 import { useAppearanceTheme } from './components/AppearanceToolbar/useAppearanceTheme';
 import { CombineWizard } from './components/CombineWizard/CombineWizard';
 import { ImportWizard } from './components/ImportWizard/ImportWizard';
+import { MultiSheetBatchPanel } from './components/MultiSheetBatchPanel/MultiSheetBatchPanel';
 import { ActionButton } from './components/ui/ActionButton/ActionButton';
 import { ConfirmDialog } from './components/ui/ConfirmDialog/ConfirmDialog';
 import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
@@ -18,12 +26,46 @@ export default function App() {
   const [combineHasLocalState, setCombineHasLocalState] = useState(false);
   const [sanitizerHasState, setSanitizerHasState] = useState(false);
   const [combineBasketSources, setCombineBasketSources] = useState<CombineSource[]>([]);
+  const [multiSheetBatch, setMultiSheetBatch] = useState(() => (
+    createEmptyMultiSheetBatch('multi-sheet-batch')
+  ));
   const [pendingToolChange, setPendingToolChange] = useState<AppTool | null>(null);
   const appearance = useAppearanceTheme();
-  useBeforeUnloadWarning(combineBasketSources.length > 0 || combineHasLocalState);
+  useBeforeUnloadWarning(
+    combineBasketSources.length > 0
+      || combineHasLocalState
+      || multiSheetBatch.sheets.length > 0,
+  );
   const saveProcessedResult = (result: ProcessedExportResult) => {
     setCombineBasketSources((current) => addProcessedResultToCombineBasket(current, result));
     showSuccessToast('Resultado guardado para combinar.');
+  };
+  const saveToMultiSheetBatch = (result: ProcessedExportResult) => {
+    const added = addProcessedResultToMultiSheetBatch(multiSheetBatch, result);
+    if (!added.ok) {
+      showErrorToast(added.errors.join(' '));
+      return;
+    }
+
+    setMultiSheetBatch(added.batch);
+    showSuccessToast('Hoja guardada en el lote multi-hoja.');
+  };
+  const clearMultiSheetBatch = () => {
+    setMultiSheetBatch(createEmptyMultiSheetBatch(multiSheetBatch.id));
+  };
+  const exportMultiSheetBatch = async () => {
+    if (multiSheetBatch.sheets.length === 0) {
+      return;
+    }
+
+    const payload = createCombinePayloadFromMultiSheetBatch(multiSheetBatch);
+    const combinedRows = buildCombinedRows(payload);
+    const { exportCombinedXlsx } = await import('./domain/combine/exportCombinedXlsx');
+    exportCombinedXlsx({
+      outputColumns: payload.outputColumns,
+      combinedRows,
+      fileName: buildMultiSheetExportFileName(multiSheetBatch.fileName),
+    });
   };
   const requestToolChange = () => {
     if (!selectedTool) {
@@ -81,7 +123,18 @@ export default function App() {
       <>
         <ImportWizard
           appearanceToolbar={appearanceToolbar}
+          multiSheetBatchPanel={(
+            <MultiSheetBatchPanel
+              batch={multiSheetBatch}
+              onRemoveSheet={(sheetId) => setMultiSheetBatch((current) => (
+                removeSheetFromMultiSheetBatch(current, sheetId)
+              ))}
+              onClear={clearMultiSheetBatch}
+              onExport={() => void exportMultiSheetBatch()}
+            />
+          )}
           onSaveProcessedResult={saveProcessedResult}
+          onSaveToMultiSheetBatch={saveToMultiSheetBatch}
           onStatePresenceChange={setSanitizerHasState}
         />
         {toolChangeConfirmation}
@@ -153,4 +206,9 @@ function ToolSelector({
 
 function getSavedSourceCountLabel(count: number) {
   return `${count} ${count === 1 ? 'guardado' : 'guardados'}`;
+}
+
+export function buildMultiSheetExportFileName(sourceFileName?: string) {
+  const baseName = sourceFileName?.trim().replace(/(\.xlsx)+$/i, '').trim();
+  return baseName ? `${baseName}-multi-hoja` : 'lote-multi-hoja';
 }

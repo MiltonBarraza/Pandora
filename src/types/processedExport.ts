@@ -14,6 +14,7 @@ export type ProcessedExportRow = {
 export type ProcessedExportResult = {
   id: string;
   fileBaseName: string;
+  sourceFileName?: string;
   sheetName?: string;
   columns: ProcessedExportColumn[];
   rows: ProcessedExportRow[];
