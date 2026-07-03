@@ -1,6 +1,6 @@
 import { useState, type DragEvent } from 'react';
 import { normalizeCombineColumnName } from '../../domain/combine/combineColumnMappings';
-import type { CombineOutputColumn, CombineSource } from '../../types/combine';
+import type { CombineColumnAssignmentMode, CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
@@ -9,13 +9,19 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 type CombineOutputColumnsProps = {
   sources: CombineSource[];
   outputColumns: CombineOutputColumn[];
+  columnAssignmentMode: CombineColumnAssignmentMode;
+  onColumnAssignmentModeChange: (mode: CombineColumnAssignmentMode) => void;
   onChange: (columns: CombineOutputColumn[]) => void;
+  onGenerateColumns: () => void;
 };
 
 export function CombineOutputColumns({
   sources,
   outputColumns,
+  columnAssignmentMode,
+  onColumnAssignmentModeChange,
   onChange,
+  onGenerateColumns,
 }: CombineOutputColumnsProps) {
   const hasEmptyNames = outputColumns.some((column) => column.name.trim() === '');
   const hasDuplicateNames = getDuplicateNormalizedNames(outputColumns).length > 0;
@@ -27,18 +33,6 @@ export function CombineOutputColumns({
       ...outputColumns,
       { id: crypto.randomUUID(), name: 'Nueva columna' },
     ]);
-  };
-
-  const initializeFromFirstSource = () => {
-    const firstSource = sources[0];
-    if (!firstSource) {
-      return;
-    }
-
-    onChange(firstSource.columns.map((column) => ({
-      id: crypto.randomUUID(),
-      name: column.name,
-    })));
   };
 
   const reorderColumns = (fromIndex: number, toIndex: number) => {
@@ -78,9 +72,9 @@ export function CombineOutputColumns({
         <p className="muted">Definí las columnas que tendrá el archivo combinado.</p>
         <div className="actions combineOutputColumnsActions">
           {sources.length > 0 && outputColumns.length === 0 ? (
-            <InfoTooltip content="Crea las columnas de salida copiando los encabezados del primer archivo cargado." placement="bottom">
-              <ActionButton action="duplicate" onClick={initializeFromFirstSource}>
-                Usar columnas del primer archivo
+            <InfoTooltip content="Crea las columnas de salida según el modo de asignación elegido." placement="bottom">
+              <ActionButton action="duplicate" onClick={onGenerateColumns}>
+                Generar columnas
               </ActionButton>
             </InfoTooltip>
           ) : null}
@@ -93,6 +87,40 @@ export function CombineOutputColumns({
               Agregar columna
             </ActionButton>
           </InfoTooltip>
+        </div>
+      </div>
+
+      <div className="combineAssignmentMode">
+        <div>
+          <h3 className="headingWithInfo">
+            <span>Modo de asignación de columnas</span>
+            <InfoTooltip
+              ariaLabel="Información sobre el modo de asignación de columnas"
+              placement="right"
+              content="Elegí si las columnas se unirán por nombre de encabezado o por posición dentro de cada fuente."
+            />
+          </h3>
+          <p className="muted">Elegí si las columnas se unirán por nombre de encabezado o por posición dentro de cada fuente.</p>
+        </div>
+        <div className="segmentedControl combineAssignmentModeOptions">
+          <label>
+            <input
+              type="radio"
+              name="combine-column-assignment-mode"
+              checked={columnAssignmentMode === 'byName'}
+              onChange={() => onColumnAssignmentModeChange('byName')}
+            />
+            Por nombre
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="combine-column-assignment-mode"
+              checked={columnAssignmentMode === 'byPosition'}
+              onChange={() => onColumnAssignmentModeChange('byPosition')}
+            />
+            Por posición
+          </label>
         </div>
       </div>
 

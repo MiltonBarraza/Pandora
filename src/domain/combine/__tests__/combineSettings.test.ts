@@ -31,6 +31,8 @@ describe('createCombineSettingsSnapshot', () => {
       app: 'excel-sanitizer',
       feature: 'combine-files',
       outputFileName: 'Salida mensual',
+      columnAssignmentMode: 'byName',
+      resultSort: { sortColumnId: null, sortDirection: 'asc' },
       outputColumns: [
         { id: 'output-code', name: 'Código', index: 0 },
         { id: 'output-description', name: 'Descripción', index: 1 },
@@ -75,6 +77,8 @@ describe('applyCombineSettingsSnapshot', () => {
     const result = applyCombineSettingsSnapshot({ snapshot, sources: [] });
 
     expect(result.outputFileName).toBe('Salida mensual');
+    expect(result.columnAssignmentMode).toBe('byName');
+    expect(result.resultSort).toEqual({ sortColumnId: null, sortDirection: 'asc' });
     expect(result.outputColumns).toEqual(outputColumns);
   });
 
@@ -117,6 +121,8 @@ describe('applyCombineSettingsSnapshot', () => {
         { sourceId: 'old-source:1', outputColumnId: 'output-description', sourceColumnId: 'old-stock-description' },
       ],
       outputFileName: 'Salida',
+      columnAssignmentMode: 'byName',
+      resultSort: { sortColumnId: 'output-description', sortDirection: 'desc' },
     });
     const currentSources = [
       source('new-stock', 'stock.csv', undefined, [
@@ -136,6 +142,7 @@ describe('applyCombineSettingsSnapshot', () => {
       { sourceId: 'new-sales', outputColumnId: 'output-code', sourceColumnId: 'new-sales-code' },
       { sourceId: 'new-sales', outputColumnId: 'output-description', sourceColumnId: null },
     ]);
+    expect(result.resultSort).toEqual({ sortColumnId: 'output-description', sortDirection: 'desc' });
   });
 
   it('uses exact normalized automapping for a newly loaded source', () => {
@@ -152,6 +159,30 @@ describe('applyCombineSettingsSnapshot', () => {
     ]);
   });
 
+  it('stores and restores position assignment mode', () => {
+    const snapshot = createCombineSettingsSnapshot({
+      sources: originalSources,
+      outputColumns,
+      mappings,
+      outputFileName: 'Salida por posición',
+      columnAssignmentMode: 'byPosition',
+      resultSort: { sortColumnId: null, sortDirection: 'asc' },
+    });
+    const currentSources = [source('source:position', 'nuevo.xlsx', 'Datos', [
+      { id: 'current-id', name: 'ID', index: 0 },
+      { id: 'current-product', name: 'Producto', index: 1 },
+    ])];
+
+    const result = applyCombineSettingsSnapshot({ snapshot, sources: currentSources });
+
+    expect(snapshot.columnAssignmentMode).toBe('byPosition');
+    expect(result.columnAssignmentMode).toBe('byPosition');
+    expect(result.mappings).toEqual([
+      { sourceId: 'source:position', outputColumnId: 'output-code', sourceColumnId: 'current-id' },
+      { sourceId: 'source:position', outputColumnId: 'output-description', sourceColumnId: 'current-product' },
+    ]);
+  });
+
   it('does not mutate snapshot or current sources', () => {
     const snapshot = createSnapshot();
     const currentSources = [source('source:2', 'ventas.xlsx', 'Datos', [
@@ -164,6 +195,17 @@ describe('applyCombineSettingsSnapshot', () => {
 
     expect(snapshot).toEqual(snapshotBefore);
     expect(currentSources).toEqual(sourcesBefore);
+  });
+
+  it('falls back to no final sort when saved sort column is gone', () => {
+    const snapshot = {
+      ...createSnapshot(),
+      resultSort: { sortColumnId: 'missing-output', sortDirection: 'desc' as const },
+    };
+
+    const result = applyCombineSettingsSnapshot({ snapshot, sources: [] });
+
+    expect(result.resultSort).toEqual({ sortColumnId: null, sortDirection: 'asc' });
   });
 });
 
@@ -199,6 +241,14 @@ describe('parseCombineSettingsSnapshotJson', () => {
 
     expect(parsed.ok && parsed.snapshot.outputFileName).toBe('Archivo combinado');
   });
+
+  it('loads old settings without final sort as no sort', () => {
+    const oldSnapshot = { ...createSnapshot() } as Record<string, unknown>;
+    delete oldSnapshot.resultSort;
+    const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(oldSnapshot));
+
+    expect(parsed.ok && parsed.snapshot.resultSort).toEqual({ sortColumnId: null, sortDirection: 'asc' });
+  });
 });
 
 function createSnapshot(): CombineSettingsSnapshot {
@@ -207,6 +257,8 @@ function createSnapshot(): CombineSettingsSnapshot {
     outputColumns,
     mappings,
     outputFileName: 'Salida mensual',
+    columnAssignmentMode: 'byName',
+    resultSort: { sortColumnId: null, sortDirection: 'asc' },
   });
 }
 

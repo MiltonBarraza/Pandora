@@ -12,15 +12,46 @@ afterEach(cleanup);
 describe('CombineOutputColumns', () => {
   it('renders a compact empty layout with contextual actions', async () => {
     const onChange = vi.fn();
-    render(<CombineOutputColumns sources={[source]} outputColumns={[]} onChange={onChange} />);
+    const onGenerateColumns = vi.fn();
+    render(
+      <CombineOutputColumns
+        sources={[source]}
+        outputColumns={[]}
+        columnAssignmentMode="byName"
+        onColumnAssignmentModeChange={vi.fn()}
+        onChange={onChange}
+        onGenerateColumns={onGenerateColumns}
+      />,
+    );
 
     expect(screen.getByRole('button', { name: 'Información sobre las columnas de salida' })).not.toBeNull();
+    expect(screen.getByText('Modo de asignación de columnas')).not.toBeNull();
+    expect((screen.getByRole('radio', { name: 'Por nombre' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Por posición' }) as HTMLInputElement).checked).toBe(false);
     expect(screen.queryByText('Todavía no definiste columnas de salida.')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }).parentElement?.classList).toContain('infoTooltip');
+    expect(screen.getByRole('button', { name: 'Generar columnas' }).parentElement?.classList).toContain('infoTooltip');
     expect(screen.getByRole('button', { name: 'Agregar columna' }).parentElement?.classList).toContain('infoTooltip');
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
-    expect(onChange).toHaveBeenCalledWith([{ id: expect.any(String), name: 'Código' }]);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Generar columnas' }));
+    expect(onGenerateColumns).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits assignment mode changes', async () => {
+    const onColumnAssignmentModeChange = vi.fn();
+    render(
+      <CombineOutputColumns
+        sources={[source]}
+        outputColumns={outputColumns}
+        columnAssignmentMode="byName"
+        onColumnAssignmentModeChange={onColumnAssignmentModeChange}
+        onChange={vi.fn()}
+        onGenerateColumns={vi.fn()}
+      />,
+    );
+
+    await userEvent.setup().click(screen.getByRole('radio', { name: 'Por posición' }));
+
+    expect(onColumnAssignmentModeChange).toHaveBeenCalledWith('byPosition');
   });
 
   it('keeps add, edit and remove behavior in compact rows', async () => {
@@ -68,7 +99,16 @@ describe('CombineOutputColumns', () => {
 
 function OutputColumnsHarness() {
   const [columns, setColumns] = useState(outputColumns);
-  return <CombineOutputColumns sources={[source]} outputColumns={columns} onChange={setColumns} />;
+  return (
+    <CombineOutputColumns
+      sources={[source]}
+      outputColumns={columns}
+      columnAssignmentMode="byName"
+      onColumnAssignmentModeChange={vi.fn()}
+      onChange={setColumns}
+      onGenerateColumns={vi.fn()}
+    />
+  );
 }
 
 const source: CombineSource = {

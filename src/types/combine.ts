@@ -40,6 +40,15 @@ export type CombineOutputColumn = {
   name: string;
 };
 
+export type CombineColumnAssignmentMode = 'byName' | 'byPosition';
+
+export type CombineResultSortDirection = 'asc' | 'desc';
+
+export type CombineResultSort = {
+  sortColumnId: string | null;
+  sortDirection: CombineResultSortDirection;
+};
+
 export type CombineColumnMapping = {
   sourceId: string;
   outputColumnId: string;

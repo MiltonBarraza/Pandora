@@ -1,16 +1,21 @@
 import type {
+  CombineColumnAssignmentMode,
   CombineColumnMapping,
   CombineOutputColumn,
+  CombineResultSort,
   CombineSource,
   CombineSourceColumn,
 } from '../../types/combine';
 import { buildInitialCombineMappings, normalizeCombineColumnName } from './combineColumnMappings';
+import { defaultCombineResultSort, normalizeCombineResultSort } from './sortCombinedRows';
 
 export type CombineSettingsSnapshot = {
   schemaVersion: 1;
   app: 'excel-sanitizer';
   feature: 'combine-files';
   outputFileName: string;
+  columnAssignmentMode: CombineColumnAssignmentMode;
+  resultSort: CombineResultSort;
   outputColumns: CombineSettingsOutputColumn[];
   sourceMappings: CombineSettingsSourceMapping[];
 };
@@ -41,6 +46,8 @@ type CreateCombineSettingsSnapshotInput = {
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   outputFileName: string;
+  columnAssignmentMode: CombineColumnAssignmentMode;
+  resultSort: CombineResultSort;
 };
 
 type ApplyCombineSettingsSnapshotInput = {
@@ -50,6 +57,8 @@ type ApplyCombineSettingsSnapshotInput = {
 
 export type AppliedCombineSettings = {
   outputFileName: string;
+  columnAssignmentMode: CombineColumnAssignmentMode;
+  resultSort: CombineResultSort;
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   warnings: string[];
@@ -64,6 +73,8 @@ export function createCombineSettingsSnapshot({
   outputColumns,
   mappings,
   outputFileName,
+  columnAssignmentMode,
+  resultSort,
 }: CreateCombineSettingsSnapshotInput): CombineSettingsSnapshot {
   const mappingsByPair = new Map(
     mappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
@@ -74,6 +85,8 @@ export function createCombineSettingsSnapshot({
     app: 'excel-sanitizer',
     feature: 'combine-files',
     outputFileName,
+    columnAssignmentMode,
+    resultSort,
     outputColumns: outputColumns.map((column, index) => ({
       id: column.id,
       name: column.name,
@@ -125,7 +138,9 @@ export function applyCombineSettingsSnapshot({
       }
     });
   }
-  const initialMappings = buildInitialCombineMappings(sources, outputColumns);
+  const columnAssignmentMode = snapshot.columnAssignmentMode ?? 'byName';
+  const resultSort = normalizeCombineResultSort(snapshot.resultSort ?? defaultCombineResultSort, outputColumns);
+  const initialMappings = buildInitialCombineMappings(sources, outputColumns, columnAssignmentMode);
   const initialByPair = new Map(
     initialMappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
   );
@@ -164,6 +179,8 @@ export function applyCombineSettingsSnapshot({
 
   return {
     outputFileName: snapshot.outputFileName,
+    columnAssignmentMode,
+    resultSort,
     outputColumns,
     mappings,
     warnings: [...new Set(warnings)],
@@ -204,6 +221,12 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
       app: 'excel-sanitizer',
       feature: 'combine-files',
       outputFileName: typeof value.outputFileName === 'string' ? value.outputFileName : 'Archivo combinado',
+      columnAssignmentMode: isCombineColumnAssignmentMode(value.columnAssignmentMode)
+        ? value.columnAssignmentMode
+        : 'byName',
+      resultSort: isCombineResultSort(value.resultSort)
+        ? value.resultSort
+        : defaultCombineResultSort,
       outputColumns: value.outputColumns,
       sourceMappings: value.sourceMappings,
     },
@@ -279,6 +302,16 @@ function isSettingsOutputColumn(value: unknown): value is CombineSettingsOutputC
     && typeof value.name === 'string'
     && Number.isInteger(value.index)
     && Number(value.index) >= 0;
+}
+
+function isCombineColumnAssignmentMode(value: unknown): value is CombineColumnAssignmentMode {
+  return value === 'byName' || value === 'byPosition';
+}
+
+function isCombineResultSort(value: unknown): value is CombineResultSort {
+  return isRecord(value)
+    && (value.sortColumnId === null || typeof value.sortColumnId === 'string')
+    && (value.sortDirection === 'asc' || value.sortDirection === 'desc');
 }
 
 function isSettingsSourceMapping(value: unknown): value is CombineSettingsSourceMapping {

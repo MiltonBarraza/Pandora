@@ -67,7 +67,7 @@ describe('CombineWizard basket sources', () => {
   it('numbers mapping, preview and export after output columns are initialized', async () => {
     render(<CombineWizard basketSources={[basketSource]} />);
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Generar columnas' }));
 
     expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
     expect(screen.getByRole('heading', { name: '5. Vista previa' })).not.toBeNull();
@@ -155,7 +155,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={orderedBasketSources.slice(0, 2)} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     dragSource(container, 0, 1);
 
     expect(getPreviewSourceOrder(container)).toEqual(['febrero.xlsx', 'enero.xlsx']);
@@ -173,7 +173,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={[twoColumnBasketSource]} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     dragOutputColumn(container, 0, 1);
 
     expect(Array.from(container.querySelectorAll('.combinePreviewTable thead th')).slice(-2).map((cell) => cell.textContent)).toEqual([
@@ -187,6 +187,227 @@ describe('CombineWizard basket sources', () => {
       'Nombre',
       'Código',
     ]);
+  });
+
+  it('renders the column assignment mode selector', () => {
+    render(<CombineWizard basketSources={[basketSource]} />);
+
+    expect(screen.getByText('Modo de asignación de columnas')).not.toBeNull();
+    expect((screen.getByRole('radio', { name: 'Por nombre' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Por posición' }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('combines by name using unique headers from all sources', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+
+    expect(getPreviewOutputHeaders(container)).toEqual([
+      'Código',
+      'Descripción',
+      'Precio',
+      'ID',
+      'Producto',
+      'Importe',
+    ]);
+    expect(getPreviewDataRows(container)).toEqual([
+      ['A-1', 'Lapiz', '10', '', '', ''],
+      ['', '', '', 'B-1', 'Cuaderno', '20'],
+    ]);
+  });
+
+  it('combines by position using names from the first ordered source', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: 'Por posición' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+
+    expect(getPreviewOutputHeaders(container)).toEqual(['Código', 'Descripción', 'Precio']);
+    expect(getPreviewDataRows(container)).toEqual([
+      ['A-1', 'Lapiz', '10'],
+      ['B-1', 'Cuaderno', '20'],
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    const exportPayload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
+    expect(exportPayload.outputColumns.map((column) => column.name)).toEqual(['Código', 'Descripción', 'Precio']);
+    expect(exportPayload.combinedRows.map((row) => exportPayload.outputColumns.map((column) => row.values[column.id]))).toEqual([
+      ['A-1', 'Lapiz', '10'],
+      ['B-1', 'Cuaderno', '20'],
+    ]);
+  });
+
+  it('uses the widest source in position mode and leaves missing positions empty', async () => {
+    const { container } = render(<CombineWizard basketSources={positionWidthSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: 'Por posición' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+
+    expect(getPreviewOutputHeaders(container)).toEqual(['Código', 'Descripción', 'Importe']);
+    expect(getPreviewDataRows(container)).toEqual([
+      ['A-1', 'Lapiz', ''],
+      ['B-1', 'Cuaderno', '20'],
+    ]);
+  });
+
+  it('updates preview and export when switching assignment modes', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    expect(getPreviewOutputHeaders(container)).toEqual([
+      'Código',
+      'Descripción',
+      'Precio',
+      'ID',
+      'Producto',
+      'Importe',
+    ]);
+
+    await user.click(screen.getByRole('radio', { name: 'Por posición' }));
+    expect(getPreviewOutputHeaders(container)).toEqual(['Código', 'Descripción', 'Precio']);
+    expect(getPreviewDataRows(container)[1]).toEqual(['B-1', 'Cuaderno', '20']);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(exportCombinedXlsx).mock.calls[0][0].outputColumns.map((column) => column.name)).toEqual([
+      'Código',
+      'Descripción',
+      'Precio',
+    ]);
+  });
+
+  it('updates position-mode base names when sources are reordered', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: 'Por posición' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    dragSource(container, 0, 1);
+
+    await waitFor(() => expect(getPreviewOutputHeaders(container)).toEqual(['ID', 'Producto', 'Importe']));
+    expect(getPreviewDataRows(container)).toEqual([
+      ['B-1', 'Cuaderno', '20'],
+      ['A-1', 'Lapiz', '10'],
+    ]);
+  });
+
+  it('keeps output column reordering working after switching mode', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await user.click(screen.getByRole('radio', { name: 'Por posición' }));
+    dragOutputColumn(container, 0, 2);
+
+    expect(getPreviewOutputHeaders(container)).toEqual(['Descripción', 'Precio', 'Código']);
+    expect(getPreviewDataRows(container)).toEqual([
+      ['Lapiz', '10', 'A-1'],
+      ['Cuaderno', '20', 'B-1'],
+    ]);
+  });
+
+  it('renders final result sort controls without sorting by default', async () => {
+    const { container } = render(<CombineWizard basketSources={sortModeSources} />);
+    const user = userEvent.setup();
+
+    expect(screen.getByText('Ordenar resultado final')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Ordenar por' }).textContent).toContain('Sin ordenar');
+    expect((screen.getByRole('radio', { name: 'Ascendente' }) as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Descendente' }) as HTMLInputElement).disabled).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+
+    expect(getPreviewSourceOrder(container)).toEqual(['orden-a.xlsx', 'orden-a.xlsx', 'orden-b.xlsx', 'orden-b.xlsx']);
+    expect(getPreviewDataRows(container).map((row) => row[0])).toEqual(['C2', 'C1', 'C4', 'C3']);
+  });
+
+  it('sorts final preview and export by text in both directions', async () => {
+    const { container } = render(<CombineWizard basketSources={sortModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await selectSortColumn(user, 'Producto');
+
+    expect(getPreviewDataRows(container).map((row) => row[1])).toEqual(['Ana', 'Ana', 'Luz', 'Zeta']);
+
+    await user.click(screen.getByRole('radio', { name: 'Descendente' }));
+    expect(getPreviewDataRows(container).map((row) => row[1])).toEqual(['Zeta', 'Luz', 'Ana', 'Ana']);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    const exportPayload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
+    expect(exportPayload.combinedRows.map((row) => row.values[exportPayload.outputColumns[1].id])).toEqual([
+      'Zeta',
+      'Luz',
+      'Ana',
+      'Ana',
+    ]);
+  });
+
+  it('sorts final preview numerically and keeps empty values last', async () => {
+    const { container } = render(<CombineWizard basketSources={sortModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await selectSortColumn(user, 'Precio');
+
+    expect(getPreviewDataRows(container).map((row) => row[2])).toEqual(['2', '10', '30', '']);
+
+    await user.click(screen.getByRole('radio', { name: 'Descendente' }));
+    expect(getPreviewDataRows(container).map((row) => row[2])).toEqual(['30', '10', '2', '']);
+  });
+
+  it('keeps stable final sort order for equivalent values', async () => {
+    const { container } = render(<CombineWizard basketSources={sortModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await selectSortColumn(user, 'Producto');
+
+    expect(getPreviewDataRows(container).map((row) => row[0])).toEqual(['C1', 'C4', 'C3', 'C2']);
+  });
+
+  it('sorts final result in byPosition mode', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: 'Por posición' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await selectSortColumn(user, 'Descripción');
+
+    expect(getPreviewDataRows(container)).toEqual([
+      ['B-1', 'Cuaderno', '20'],
+      ['A-1', 'Lapiz', '10'],
+    ]);
+  });
+
+  it('keeps selected sort column after output columns are reordered', async () => {
+    const { container } = render(<CombineWizard basketSources={sortModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await selectSortColumn(user, 'Precio');
+    dragOutputColumn(container, 2, 0);
+
+    expect(getPreviewOutputHeaders(container)).toEqual(['Precio', 'Código', 'Producto']);
+    expect(getPreviewDataRows(container).map((row) => row[0])).toEqual(['2', '10', '30', '']);
+  });
+
+  it('falls back to no final sort when selected output column is removed', async () => {
+    const { container } = render(<CombineWizard basketSources={[twoColumnBasketSource]} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await selectSortColumn(user, 'Nombre');
+    await user.click(screen.getByRole('button', { name: 'Remover columna Nombre' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ordenar por' }).textContent).toContain('Sin ordenar'));
+    expect(getPreviewOutputHeaders(container)).toEqual(['Código']);
   });
 });
 
@@ -223,7 +444,7 @@ describe('CombineWizard uploaded source sheets', () => {
     expect(screen.getByText('multi.xlsx').closest('.combineSourceMain')).toBe(
       screen.getByRole('button', { name: 'Hoja usada' }).closest('.combineSourceMain'),
     );
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     expect(screen.getAllByText('A1').length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'Hoja usada' }));
@@ -234,7 +455,7 @@ describe('CombineWizard uploaded source sheets', () => {
     expect(screen.getAllByText('A2').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Actual').length).toBeGreaterThan(0);
     expect(screen.queryByText('Anterior')).toBeNull();
-    expect(screen.getByText(/Se exportarán 2 filas y 2 columnas desde 1 archivo/)).not.toBeNull();
+    expect(screen.getByText(/Se exportarán 2 filas y 3 columnas desde 1 archivo/)).not.toBeNull();
   });
 
   it('shows static sheet text for a single-sheet Excel', async () => {
@@ -319,6 +540,67 @@ const twoColumnBasketSource: CombineSource = {
   rows: [{ id: 'two:row', values: { 'two:code': 'A1', 'two:name': 'Producto' } }],
 };
 
+const assignmentModeSources: CombineSource[] = [
+  {
+    id: 'assignment:a',
+    fileName: 'fuente-a.xlsx',
+    columns: [
+      { id: 'a:code', name: 'Código', index: 0 },
+      { id: 'a:description', name: 'Descripción', index: 1 },
+      { id: 'a:price', name: 'Precio', index: 2 },
+    ],
+    rows: [{ id: 'a:row', values: { 'a:code': 'A-1', 'a:description': 'Lapiz', 'a:price': '10' } }],
+  },
+  {
+    id: 'assignment:b',
+    fileName: 'fuente-b.xlsx',
+    columns: [
+      { id: 'b:id', name: 'ID', index: 0 },
+      { id: 'b:product', name: 'Producto', index: 1 },
+      { id: 'b:amount', name: 'Importe', index: 2 },
+    ],
+    rows: [{ id: 'b:row', values: { 'b:id': 'B-1', 'b:product': 'Cuaderno', 'b:amount': '20' } }],
+  },
+];
+
+const positionWidthSources: CombineSource[] = [
+  {
+    ...assignmentModeSources[0],
+    columns: assignmentModeSources[0].columns.slice(0, 2),
+    rows: [{ id: 'a:row', values: { 'a:code': 'A-1', 'a:description': 'Lapiz' } }],
+  },
+  assignmentModeSources[1],
+];
+
+const sortModeSources: CombineSource[] = [
+  {
+    id: 'sort:a',
+    fileName: 'orden-a.xlsx',
+    columns: [
+      { id: 'sort-a:code', name: 'Código', index: 0 },
+      { id: 'sort-a:product', name: 'Producto', index: 1 },
+      { id: 'sort-a:price', name: 'Precio', index: 2 },
+    ],
+    rows: [
+      { id: 'sort-a:row-1', values: { 'sort-a:code': 'C2', 'sort-a:product': 'Zeta', 'sort-a:price': '10' } },
+      { id: 'sort-a:row-2', values: { 'sort-a:code': 'C1', 'sort-a:product': 'Ana', 'sort-a:price': '2' } },
+    ],
+  },
+  {
+    id: 'sort:b',
+    fileName: 'orden-b.xlsx',
+    columns: [
+      { id: 'sort-b:code', name: 'Código', index: 0 },
+      { id: 'sort-b:product', name: 'Producto', index: 1 },
+      { id: 'sort-b:price', name: 'Precio', index: 2 },
+    ],
+    rows: [
+      { id: 'sort-b:row-1', values: { 'sort-b:code': 'C4', 'sort-b:product': 'Ana', 'sort-b:price': '' } },
+      { id: 'sort-b:row-2', values: { 'sort-b:code': 'C3', 'sort-b:product': 'Luz', 'sort-b:price': '30' } },
+    ],
+  },
+];
+
 function basketSourceForOrder(id: string, fileName: string, value: string): CombineSource {
   return {
     id,
@@ -337,6 +619,21 @@ function getVisibleSourceOrder(container: HTMLElement) {
 function getPreviewSourceOrder(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.combinePreviewTable tbody tr'))
     .map((row) => row.querySelector('td')?.textContent);
+}
+
+function getPreviewOutputHeaders(container: HTMLElement) {
+  const headers = Array.from(container.querySelectorAll('.combinePreviewTable thead th'));
+  const dataStartIndex = headers[1]?.textContent === 'Hoja' ? 2 : 1;
+  return headers
+    .slice(dataStartIndex)
+    .map((cell) => cell.textContent);
+}
+
+function getPreviewDataRows(container: HTMLElement) {
+  const headers = Array.from(container.querySelectorAll('.combinePreviewTable thead th'));
+  const dataStartIndex = headers[1]?.textContent === 'Hoja' ? 2 : 1;
+  return Array.from(container.querySelectorAll('.combinePreviewTable tbody tr'))
+    .map((row) => Array.from(row.querySelectorAll('td')).slice(dataStartIndex).map((cell) => cell.textContent));
 }
 
 function createDataTransfer() {
@@ -367,6 +664,11 @@ function dragOutputColumn(container: HTMLElement, fromIndex: number, toIndex: nu
   fireEvent.dragStart(handles[fromIndex], { dataTransfer });
   fireEvent.dragOver(items[toIndex], { dataTransfer });
   fireEvent.drop(items[toIndex], { dataTransfer });
+}
+
+async function selectSortColumn(user: ReturnType<typeof userEvent.setup>, columnName: string) {
+  await user.click(screen.getByRole('button', { name: 'Ordenar por' }));
+  await user.click(screen.getByRole('option', { name: columnName }));
 }
 
 function getUploadInput(container: HTMLElement) {

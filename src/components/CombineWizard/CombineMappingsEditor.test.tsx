@@ -20,6 +20,7 @@ describe('CombineMappingsEditor accordion', () => {
           outputColumnId: 'output-a',
           sourceColumnId: 'col:0',
         }]}
+        columnAssignmentMode="byName"
         onMappingChange={vi.fn()}
         onReapplyMappings={vi.fn()}
       />,

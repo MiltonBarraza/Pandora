@@ -938,6 +938,76 @@ h3 {
   justify-content: flex-end;
 }
 
+.combineAssignmentMode {
+  align-items: flex-start;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px 16px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px 12px;
+}
+
+.combineAssignmentMode h3,
+.combineAssignmentMode p {
+  margin: 0;
+}
+
+.combineAssignmentMode h3 {
+  font-size: 0.95rem;
+}
+
+.combineAssignmentMode p {
+  margin-top: 4px;
+}
+
+.combineAssignmentModeOptions {
+  flex: 0 0 auto;
+}
+
+.combineResultSortPanel {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px 16px;
+  justify-content: space-between;
+  padding-block: 12px;
+}
+
+.combineResultSortPanel h2,
+.combineResultSortPanel p {
+  margin: 0;
+}
+
+.combineResultSortPanel p {
+  margin-top: 4px;
+}
+
+.combineResultSortControls {
+  align-items: flex-end;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+.combineResultSortColumn {
+  min-width: 220px;
+}
+
+.combineResultSortDirection {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.combineResultSortDirection legend {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
 .combineColumnWarning {
   background: var(--color-warning-bg);
   border: 1px solid var(--color-warning-border);
@@ -1263,9 +1333,16 @@ h3 {
 
   .combineSettingsToolbar,
   .combineOutputColumnsToolbar,
+  .combineAssignmentMode,
+  .combineResultSortPanel,
+  .combineResultSortControls,
   .combineMappingsToolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .combineResultSortColumn {
+    min-width: 0;
   }
 
   .combineSourceItem {
