@@ -3522,9 +3522,4 @@ tbody tr:hover {
     justify-self: start;
   }
 
-  .simpleStudioPreviewBlock li {
-    align-items: start;
-    grid-template-columns: 1fr;
-  }
-
 }
