@@ -737,25 +737,32 @@ function createComposeStudioRecipe(recipe: EditableCustomRecipe): Extract<Output
     return { type: 'combine', customMode: 'concat', parts: [], separator: '', steps: [] };
   }
 
-  if (recipe.customMode === 'concat' || recipe.parts.length > 0 || getConfiguredConcatStep(recipe)) {
+  if (
+    recipe.customMode === 'concat'
+    || getConfiguredConcatStep(recipe)
+    || (!recipe.customMode && recipe.parts.length > 1)
+  ) {
     return { ...recipe, customMode: 'concat', separator: recipe.separator ?? '' };
   }
 
+  const hasOnlySimpleSetupStep = (recipe.steps ?? []).length <= 1;
   const firstSource = getFirstStepSource(recipe);
-  if (firstSource?.type === 'input') {
+  const simpleInputColumnId = getSimpleInputPart(recipe).inputColumnId;
+  if (hasOnlySimpleSetupStep && (firstSource?.type === 'input' || simpleInputColumnId)) {
     return {
-      ...recipe,
+      type: 'combine',
       customMode: 'concat',
-      parts: [createComposeInputPart(firstSource.inputColumnId)],
+      parts: [createComposeInputPart(firstSource?.type === 'input' ? firstSource.inputColumnId : simpleInputColumnId)],
       separator: recipe.separator ?? '',
     };
   }
 
-  if (firstSource?.type === 'fixedText') {
+  const simpleFixedText = getSimpleStudioFixedText(recipe);
+  if (hasOnlySimpleSetupStep && (firstSource?.type === 'fixedText' || simpleFixedText)) {
     return {
-      ...recipe,
+      type: 'combine',
       customMode: 'concat',
-      parts: [createComposeTextPart(firstSource.value)],
+      parts: [createComposeTextPart(firstSource?.type === 'fixedText' ? firstSource.value : simpleFixedText)],
       separator: recipe.separator ?? '',
     };
   }

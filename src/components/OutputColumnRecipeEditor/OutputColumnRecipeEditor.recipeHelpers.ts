@@ -424,7 +424,7 @@ export function buildStepBasedCustomValueRecipe(
       customMode: 'concat',
       parts: [],
       separator: '',
-      steps,
+      steps: [firstStep],
     };
   }
 

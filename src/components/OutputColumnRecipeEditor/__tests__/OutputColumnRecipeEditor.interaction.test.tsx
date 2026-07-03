@@ -145,6 +145,12 @@ async function selectLastDropdownOption(user: ReturnType<typeof userEvent.setup>
   await user.click(screen.getByRole('option', { name: optionName }));
 }
 
+async function selectDropdownOptionAt(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp, index: number) {
+  const buttons = screen.getAllByRole('button', { name: buttonName });
+  await user.click(buttons[index]);
+  await user.click(screen.getByRole('option', { name: optionName }));
+}
+
 async function selectLastSearchableDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
   const buttons = screen.getAllByRole('combobox', { name: buttonName });
   await user.click(buttons[buttons.length - 1]);
@@ -456,6 +462,72 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
       type: 'uppercase',
       source: { type: 'previousResult' },
     });
+  });
+
+  it('clears a normal multi-step preview when switching the first step to concat', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankCustomColumn('output-normal-multistep-to-concat')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const firstTextInput = getInputByLabelText('Texto fijo') as HTMLInputElement;
+    await user.click(firstTextInput);
+    await user.type(firstTextInput, 'asd');
+    await waitFor(() => expect((getInputByLabelText('Texto fijo') as HTMLInputElement).value).toBe('asd'));
+
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Qu. quiero hacer/, /Convertir a may.sculas/);
+    expect(screen.getAllByText('ASD').length).toBeGreaterThan(0);
+
+    await selectDropdownOptionAt(user, /Qu. quiero hacer/, 'Concatenar', 0);
+
+    await waitFor(() => expect(screen.getByText('Editor de partes')).not.toBeNull());
+    expect(screen.queryByText('ASD')).toBeNull();
+    expect(screen.queryByText(/Paso 2/)).toBeNull();
+
+    await selectComposePartDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const concatTextInput = within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
+    await user.click(concatTextInput);
+    await user.type(concatTextInput, 'xxx');
+
+    await waitFor(() => expect(screen.getAllByText('xxx').length).toBeGreaterThan(0));
+    expect(screen.queryByText('ASD')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.customMode).toBe('concat');
+    expect(persistedRecipe.steps).toHaveLength(1);
+    expect(persistedRecipe.steps[0].type).toBe('concat');
+    expect(persistedRecipe.steps.some((step: { type: string }) => step.type === 'uppercase')).toBe(false);
+  });
+
+  it('keeps normal single-step to concat responsive after configuring a concat part', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankCustomColumn('output-normal-single-step-to-concat')}
+      sampleInputValues={{ 'input-code': 'ignored' }}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const firstTextInput = getInputByLabelText('Texto fijo') as HTMLInputElement;
+    await user.click(firstTextInput);
+    await user.type(firstTextInput, 'asd');
+    await waitFor(() => expect((getInputByLabelText('Texto fijo') as HTMLInputElement).value).toBe('asd'));
+
+    await selectDropdownOptionAt(user, /Qu. quiero hacer/, 'Concatenar', 0);
+    await waitFor(() => expect(screen.getByText('Editor de partes')).not.toBeNull());
+
+    await selectComposePartDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const concatTextInput = within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
+    await user.click(concatTextInput);
+    await user.type(concatTextInput, 'xxx');
+
+    await waitFor(() => expect(screen.getAllByText('xxx').length).toBeGreaterThan(0));
+    expect(screen.queryByText('ASD')).toBeNull();
   });
 
   it('does not offer previous result as a dead-end main concat action', async () => {
