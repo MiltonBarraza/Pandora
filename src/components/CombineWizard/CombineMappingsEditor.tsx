@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type CombineMappingsEditorProps = {
   sources: CombineSource[];
@@ -43,43 +44,53 @@ export function CombineMappingsEditor({
   }, [sources]);
 
   return (
-    <section className="panel combineFlowPanel">
+    <section className="panel combineFlowPanel combineMappingsPanel">
       <ConfirmDialog
         open={isReapplyConfirmationOpen}
-        title="Recalcular mapeo automático"
-        message="Se reemplazarán los mapeos actuales usando coincidencia exacta por nombre normalizado."
+        title="Recalcular asignación automática"
+        message="Se reemplazarán las asignaciones actuales comparando nombres sin distinguir mayúsculas, tildes ni espacios extra."
         cancelLabel="Cancelar"
-        confirmLabel="Recalcular mapeo"
+        confirmLabel="Recalcular asignación"
         onCancel={() => setIsReapplyConfirmationOpen(false)}
         onConfirm={() => {
           setIsReapplyConfirmationOpen(false);
           onReapplyMappings();
         }}
       />
-      <div className="combineMappingsHeader">
-        <div>
-          <h2>4. Mapeo</h2>
-          <p className="muted">Automapeo exacto por nombre; no usa aliases ni coincidencias aproximadas.</p>
-        </div>
+      <h2 className="headingWithInfo">
+        <span>4. Asignar columnas</span>
+        <InfoTooltip
+          ariaLabel="Información sobre la asignación de columnas"
+          placement="right"
+          content="Compara nombres ignorando mayúsculas, tildes y espacios extra. No usa sinónimos ni coincidencias aproximadas."
+        />
+      </h2>
+      <div className="combineMappingsToolbar">
+        <p className="muted">Indicá qué columna de cada archivo corresponde a cada columna de salida.</p>
         {sources.length > 0 && outputColumns.length > 0 ? (
-          <ActionButton
-            action="configure"
-            variant="secondary"
-            onClick={() => setIsReapplyConfirmationOpen(true)}
+          <InfoTooltip
+            placement="bottom"
+            content="Vuelve a asignar columnas automáticamente cuando sus nombres coinciden ignorando mayúsculas, tildes y espacios extra."
           >
-            Recalcular mapeo automático
-          </ActionButton>
+            <ActionButton
+              action="configure"
+              variant="secondary"
+              onClick={() => setIsReapplyConfirmationOpen(true)}
+            >
+              Recalcular asignación automática
+            </ActionButton>
+          </InfoTooltip>
         ) : null}
       </div>
       {sources.length === 0 ? (
-        <div className="emptyState combineMappingsEmpty">Cargá archivos para mapear columnas.</div>
+        <div className="emptyState combineMappingsEmpty">Cargá archivos para asignar columnas.</div>
       ) : outputColumns.length === 0 ? (
-        <div className="emptyState combineMappingsEmpty">Definí columnas de salida para configurar el mapeo.</div>
+        <div className="emptyState combineMappingsEmpty">Definí columnas de salida para configurar la asignación.</div>
       ) : (
         <>
           {unmappedCount > 0 ? (
             <p className="combineMappingNotice">
-              Las columnas sin mapear generarán celdas vacías.
+              Las columnas sin asignar generarán celdas vacías.
             </p>
           ) : null}
           <div className="combineMappingSources">
@@ -106,7 +117,7 @@ export function CombineMappingsEditor({
                       </small>
                     </span>
                     <span className="combineMappingSourceProgress">
-                      <span>{mappedCount}/{outputColumns.length} mapeadas</span>
+                      <span>{mappedCount}/{outputColumns.length} columnas asignadas</span>
                       <span className="combineMappingChevron" aria-hidden="true">{isExpanded ? '▲' : '▼'}</span>
                     </span>
                   </button>
@@ -131,7 +142,7 @@ export function CombineMappingsEditor({
                                     <Dropdown
                                       value={sourceColumnId ?? ''}
                                       options={[
-                                        { value: '', label: 'Sin mapear' },
+                                        { value: '', label: 'Sin asignar' },
                                         ...source.columns.map((column) => ({
                                           value: column.id,
                                           label: `${column.name} (columna ${column.index + 1})`,
@@ -144,7 +155,7 @@ export function CombineMappingsEditor({
                                         sourceColumnId: value || null,
                                       })}
                                     />
-                                    {!sourceColumnId ? <span className="muted combineUnmappedText">Sin mapear</span> : null}
+                                    {!sourceColumnId ? <span className="muted combineUnmappedText">Sin asignar</span> : null}
                                   </td>
                                 </tr>
                               );

@@ -166,40 +166,40 @@ export function CombineWizard({
             </div>
           ) : null}
 
-          <div className="combineSourcesHeader">
-            <h3>Archivos cargados</h3>
-            <span
-              className="combineSourcesCount"
-              aria-label={`${sources.length} ${sources.length === 1 ? 'archivo cargado' : 'archivos cargados'}`}
-            >
-              {sources.length}
-            </span>
-          </div>
-          {sources.length === 0 ? (
-            <div className="emptyState combineSourcesEmpty">Todavía no hay archivos cargados.</div>
-          ) : (
-            <div className="combineSourceList">
-              {sources.map((source) => (
-                <article key={source.id} className="combineSourceItem">
-                  <div>
-                    <strong>{source.fileName}</strong>
-                    <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
-                      {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
-                    </span>
-                    <p className="muted combineSourceMeta">
-                      {source.sheetName ? `Hoja usada: ${source.sheetName} · ` : ''}
-                      {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
-                      {source.rows.length} {source.rows.length === 1 ? 'fila' : 'filas'} de datos
-                    </p>
-                  </div>
-                  <DeleteButton
-                    title={`Remover ${source.fileName}`}
-                    onClick={() => removeSource(source.id)}
-                  />
-                </article>
-              ))}
-            </div>
-          )}
+          {sources.length > 0 ? (
+            <>
+              <div className="combineSourcesHeader">
+                <h3>Archivos cargados</h3>
+                <span
+                  className="combineSourcesCount"
+                  aria-label={`${sources.length} ${sources.length === 1 ? 'archivo cargado' : 'archivos cargados'}`}
+                >
+                  {sources.length}
+                </span>
+              </div>
+              <div className="combineSourceList">
+                {sources.map((source) => (
+                  <article key={source.id} className="combineSourceItem">
+                    <div>
+                      <strong>{source.fileName}</strong>
+                      <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
+                        {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
+                      </span>
+                      <p className="muted combineSourceMeta">
+                        {source.sheetName ? `Hoja usada: ${source.sheetName} · ` : ''}
+                        {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
+                        {source.rows.length} {source.rows.length === 1 ? 'fila' : 'filas'} de datos
+                      </p>
+                    </div>
+                    <DeleteButton
+                      title={`Remover ${source.fileName}`}
+                      onClick={() => removeSource(source.id)}
+                    />
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
         </section>
         <CombineSettingsActions
           sources={sources}

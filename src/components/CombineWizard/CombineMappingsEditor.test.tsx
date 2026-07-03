@@ -28,7 +28,12 @@ describe('CombineMappingsEditor accordion', () => {
     const firstToggle = screen.getByRole('button', { name: /a\.xlsx/ });
     const secondToggle = screen.getByRole('button', { name: /b\.csv/ });
     await waitFor(() => expect(firstToggle.getAttribute('aria-expanded')).toBe('true'));
-    expect(screen.getByText('1/2 mapeadas')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
+    expect(screen.queryByRole('heading', { name: '4. Mapeo' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Recalcular asignación automática' }).parentElement?.classList).toContain('infoTooltip');
+    expect(screen.getByText('1/2 columnas asignadas')).not.toBeNull();
+    expect(screen.getByText('Las columnas sin asignar generarán celdas vacías.')).not.toBeNull();
+    expect(screen.getAllByText('Sin asignar').length).toBeGreaterThan(0);
     expect(screen.getByText('Origen A (columna 1)')).not.toBeNull();
 
     await user.click(secondToggle);

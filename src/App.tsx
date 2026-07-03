@@ -15,7 +15,7 @@ import { useAppearanceTheme } from './components/AppearanceToolbar/useAppearance
 import { CombineWizard } from './components/CombineWizard/CombineWizard';
 import { ImportWizard } from './components/ImportWizard/ImportWizard';
 import { MultiSheetBatchPanel } from './components/MultiSheetBatchPanel/MultiSheetBatchPanel';
-import { ActionButton } from './components/ui/ActionButton/ActionButton';
+import { AppIcon } from './components/ui/AppIcon/AppIcon';
 import { ConfirmDialog } from './components/ui/ConfirmDialog/ConfirmDialog';
 import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
 import { useInternalReloadGuard } from './hooks/useInternalReloadGuard';
@@ -212,7 +212,7 @@ function ToolSelector({
   onSelectTool: (tool: AppTool) => void;
 }) {
   return (
-    <main className="appShell">
+    <main className="appShell toolSelectorPage">
       {appearanceToolbar}
       <header className="hero">
         <div>
@@ -223,15 +223,33 @@ function ToolSelector({
       </header>
 
       <div className="wizard">
-        <section className="panel">
+        <section className="panel toolSelectorPanel">
           <h2>Elegir herramienta</h2>
-          <div className="actions">
-            <ActionButton action="edit" onClick={() => onSelectTool('sanitize')}>
-              Sanitizar archivo
-            </ActionButton>
-            <ActionButton action="duplicate" variant="secondary" onClick={() => onSelectTool('combine')}>
-              Combinar archivos{basketSourceCount > 0 ? ` (${getSavedSourceCountLabel(basketSourceCount)})` : ''}
-            </ActionButton>
+          <div className="toolChoiceGrid">
+            <button
+              type="button"
+              className="toolChoiceCard"
+              aria-label="Sanitizar archivo"
+              onClick={() => onSelectTool('sanitize')}
+            >
+              <span className="toolChoiceIcon" aria-hidden="true"><AppIcon name="edit" size={26} /></span>
+              <span className="toolChoiceCopy">
+                <strong>Sanitizar archivo</strong>
+                <span>Limpiá una planilla, configurá columnas, aplicá transformaciones y exportá un archivo final.</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="toolChoiceCard"
+              aria-label="Combinar archivos"
+              onClick={() => onSelectTool('combine')}
+            >
+              <span className="toolChoiceIcon" aria-hidden="true"><AppIcon name="duplicate" size={26} /></span>
+              <span className="toolChoiceCopy">
+                <strong>Combinar archivos{basketSourceCount > 0 ? ` (${getSavedSourceCountLabel(basketSourceCount)})` : ''}</strong>
+                <span>Uní archivos o resultados sanitizados en una única hoja de salida.</span>
+              </span>
+            </button>
           </div>
         </section>
       </div>

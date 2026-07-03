@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { normalizeCombineColumnName } from '../../domain/combine/combineColumnMappings';
 import type {
   CombineColumnMapping,
@@ -24,22 +25,34 @@ export function CombineExportActions({
   outputFileName,
   onOutputFileNameChange,
 }: CombineExportActionsProps) {
+  const [nameMode, setNameMode] = useState<'default' | 'custom'>(() => getCombineNameMode(outputFileName));
+  const [includeBaseText, setIncludeBaseText] = useState(true);
+  const [includeDate, setIncludeDate] = useState(false);
+  const [includeTime, setIncludeTime] = useState(false);
   const disabledReason = getExportDisabledReason(sources, outputColumns, combinedRows);
   const hasEmptyNames = outputColumns.some((column) => column.name.trim() === '');
   const hasDuplicateNames = hasDuplicateColumnNames(outputColumns);
   const hasUnmappedColumns = hasUnmappedMappings(sources, outputColumns, mappings);
+  const baseText = nameMode === 'default' ? 'Archivo combinado' : outputFileName;
+  const finalFileName = buildCombineFinalFileName({ baseText, includeBaseText, includeDate, includeTime });
+
+  useEffect(() => {
+    if (nameMode === 'default' && getCombineNameMode(outputFileName) === 'custom') {
+      setNameMode('custom');
+    }
+  }, [nameMode, outputFileName]);
 
   const download = async () => {
     if (disabledReason) {
       return;
     }
     const { exportCombinedXlsx } = await import('../../domain/combine/exportCombinedXlsx');
-    exportCombinedXlsx({ outputColumns, combinedRows, fileName: outputFileName });
+    exportCombinedXlsx({ outputColumns, combinedRows, fileName: finalFileName });
   };
 
   return (
     <section className="panel combineFlowPanel combineExportPanel">
-      <h2>6. Exportar</h2>
+      <h2>6. Nombre de archivo y descarga</h2>
       <p className="muted combineExportSummary">
         Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}
         {outputColumns.length} {outputColumns.length === 1 ? 'columna' : 'columnas'} desde{' '}
@@ -49,26 +62,137 @@ export function CombineExportActions({
       {hasEmptyNames ? <p className="combineColumnWarning">Columnas sin nombre usarán “Columna sin nombre”.</p> : null}
       {hasDuplicateNames ? <p className="combineColumnWarning">Nombres duplicados se conservarán en el Excel.</p> : null}
       {hasUnmappedColumns ? (
-        <p className="combineMappingNotice">Las columnas sin mapear generarán celdas vacías.</p>
+        <p className="combineMappingNotice">Las columnas sin asignar generarán celdas vacías.</p>
       ) : null}
 
-      <div className="combineExportControls">
-        <label className="combineExportFileName">
-          <span>Nombre del archivo</span>
-          <input
-            value={outputFileName}
-            placeholder="Archivo combinado"
-            onChange={(event) => onOutputFileNameChange(event.target.value)}
-          />
-          <small className="muted">La extensión .xlsx se agrega automáticamente.</small>
-        </label>
-        <ActionButton action="download" disabled={Boolean(disabledReason)} onClick={() => void download()}>
-          Descargar Excel combinado
-        </ActionButton>
+      <div className="manager combineExportNameManager">
+        <div className="segmentedControl">
+          <label>
+            <input
+              type="radio"
+              name="combine-file-name-mode"
+              checked={nameMode === 'default'}
+              onChange={() => {
+                setNameMode('default');
+                onOutputFileNameChange('Archivo combinado');
+              }}
+            />
+            Nombre predeterminado
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="combine-file-name-mode"
+              checked={nameMode === 'custom'}
+              onChange={() => setNameMode('custom')}
+            />
+            Nombre personalizado
+          </label>
+        </div>
+
+        {nameMode === 'custom' ? (
+          <label className="field combineExportBaseName">
+            <span>Nombre base</span>
+            <input
+              value={outputFileName}
+              placeholder="Archivo combinado"
+              onChange={(event) => onOutputFileNameChange(event.target.value)}
+            />
+          </label>
+        ) : null}
+
+        <div className="presetBar combineExportNameOptions">
+          <label className="checkboxField">
+            <input
+              type="checkbox"
+              checked={includeBaseText}
+              onChange={(event) => setIncludeBaseText(event.target.checked)}
+            />
+            Incluir texto base
+          </label>
+          <label className="checkboxField">
+            <input
+              type="checkbox"
+              checked={includeDate}
+              onChange={(event) => {
+                setIncludeDate(event.target.checked);
+                if (!event.target.checked) {
+                  setIncludeTime(false);
+                }
+              }}
+            />
+            Incluir fecha actual
+          </label>
+          <label className="checkboxField">
+            <input
+              type="checkbox"
+              checked={includeDate && includeTime}
+              disabled={!includeDate}
+              onChange={(event) => setIncludeTime(event.target.checked)}
+            />
+            Incluir hora actual
+          </label>
+        </div>
+
+        <div className="filenamePreview combineFinalName">
+          <div className="combineFinalNameCopy">
+            <strong>Nombre final</strong>
+            <span>{finalFileName}</span>
+          </div>
+          <ActionButton action="download" disabled={Boolean(disabledReason)} onClick={() => void download()}>
+            Descargar Excel combinado
+          </ActionButton>
+        </div>
       </div>
       {disabledReason ? <p className="muted combineExportDisabledReason">{disabledReason}</p> : null}
     </section>
   );
+}
+
+export function buildCombineFinalFileName({
+  baseText,
+  includeBaseText,
+  includeDate,
+  includeTime,
+  now = new Date(),
+}: {
+  baseText: string;
+  includeBaseText: boolean;
+  includeDate: boolean;
+  includeTime: boolean;
+  now?: Date;
+}) {
+  const parts = [
+    includeBaseText ? sanitizeCombineFileNamePart(baseText) : '',
+    includeDate ? formatCombineDatePart(now, includeTime) : '',
+  ].filter(Boolean);
+
+  return parts.join(' - ') || 'Archivo combinado';
+}
+
+function getCombineNameMode(fileName: string): 'default' | 'custom' {
+  return fileName.trim() === '' || fileName === 'Archivo combinado' ? 'default' : 'custom';
+}
+
+function sanitizeCombineFileNamePart(value: string) {
+  return value
+    .trim()
+    .replace(/(\.xlsx)+$/i, '')
+    .replace(/[\/\\:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatCombineDatePart(value: Date, includeTime: boolean) {
+  const date = [value.getFullYear(), value.getMonth() + 1, value.getDate()]
+    .map((part) => String(part).padStart(2, '0'))
+    .join('-');
+
+  if (!includeTime) {
+    return date;
+  }
+
+  return `${date}_${String(value.getHours()).padStart(2, '0')}-${String(value.getMinutes()).padStart(2, '0')}`;
 }
 
 function getExportDisabledReason(

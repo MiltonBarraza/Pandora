@@ -78,26 +78,24 @@ export function CombineSettingsActions({
   };
 
   return (
-    <section className="panel combineFlowPanel combineSettingsCompact" aria-labelledby="combine-settings-title">
+    <section className="panel combineFlowPanel combineSettingsPanel" aria-labelledby="combine-settings-title">
       <ConfirmDialog
         open={Boolean(pendingSnapshot)}
         title="Importar configuración"
-        message="Se reemplazarán las columnas de salida y los mapeos actuales."
+        message="Se reemplazarán las columnas de salida y las asignaciones actuales."
         cancelLabel="Cancelar"
         confirmLabel="Importar configuración"
         onCancel={() => setPendingSnapshot(null)}
         onConfirm={() => pendingSnapshot && applySnapshot(pendingSnapshot)}
       />
-      <div className="combineSettingsCompactCopy">
-        <h2 id="combine-settings-title" className="headingWithInfo">
-          <span>2. Configuración</span>
-          <InfoTooltip
-            ariaLabel="Información sobre la configuración de combinación"
-            placement="right"
-            content="Guardá o restaurá columnas, mapeos y nombre de salida para reutilizar esta combinación."
-          />
-        </h2>
-      </div>
+      <h2 id="combine-settings-title" className="headingWithInfo">
+        <span>2. Configuración</span>
+        <InfoTooltip
+          ariaLabel="Información sobre la configuración de combinación"
+          placement="right"
+          content="Guardá o restaurá columnas, asignaciones y nombre de salida para reutilizar esta combinación."
+        />
+      </h2>
       <input
         ref={inputRef}
         className="combineSettingsFileInput"
@@ -109,11 +107,14 @@ export function CombineSettingsActions({
           event.target.value = '';
         }}
       />
-      <div className="actions combineSettingsActions">
-        <ActionButton action="export" variant="secondary" size="sm" onClick={exportSettings}>Exportar configuración</ActionButton>
-        <ActionButton action="import" variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
-          Importar configuración
-        </ActionButton>
+      <div className="combineSettingsToolbar">
+        <p className="muted">Guardá o restaurá columnas, asignaciones y nombre de salida para reutilizar esta combinación.</p>
+        <div className="actions combineSettingsActions">
+          <ActionButton action="export" variant="secondary" onClick={exportSettings}>Exportar configuración</ActionButton>
+          <ActionButton action="import" variant="secondary" onClick={() => inputRef.current?.click()}>
+            Importar configuración
+          </ActionButton>
+        </div>
       </div>
       {importError ? <p className="errorText combineSettingsMessage">{importError}</p> : null}
       {warnings.map((warning) => (

@@ -44,7 +44,7 @@ export function CombineOutputColumns({
         <InfoTooltip
           ariaLabel="Información sobre las columnas de salida"
           placement="right"
-          content="Definí las columnas que tendrá el archivo combinado. Cada archivo cargado se mapeará a esta estructura de salida."
+          content="Definí las columnas que tendrá el archivo combinado. Cada archivo cargado se asignará a esta estructura de salida."
         />
       </h2>
       <div className="combineOutputColumnsToolbar">

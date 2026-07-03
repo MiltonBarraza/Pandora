@@ -41,7 +41,7 @@ export function CombinedRowsPreview({
 
       {unmappedMappingCount > 0 ? (
         <p className="combineMappingNotice">
-          Las columnas sin mapear generarán celdas vacías.
+          Las columnas sin asignar generarán celdas vacías.
           {affectedCellCount > 0 ? ` Esto afecta ${affectedCellCount} ${affectedCellCount === 1 ? 'celda' : 'celdas'} en el resultado actual.` : ''}
         </p>
       ) : null}

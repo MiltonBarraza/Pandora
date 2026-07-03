@@ -93,6 +93,19 @@ afterEach(() => {
 });
 
 describe('App combine basket wiring', () => {
+  it('shows two accessible tool cards with explanatory copy', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: 'Sanitizar archivo' }).classList).toContain('toolChoiceCard');
+    expect(screen.getByRole('button', { name: 'Combinar archivos' }).classList).toContain('toolChoiceCard');
+    expect(screen.getByText('Limpiá una planilla, configurá columnas, aplicá transformaciones y exportá un archivo final.')).not.toBeNull();
+    expect(screen.getByText('Uní archivos o resultados sanitizados en una única hoja de salida.')).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
+    expect(screen.getByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
+  });
+
   it('leaves an empty sanitizer without confirmation', async () => {
     const confirm = vi.spyOn(window, 'confirm');
     const user = userEvent.setup();
