@@ -3,10 +3,20 @@ import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
 import { mergeCombineSources, removeCombineSourceFromCollections } from '../../domain/combine/combineBasket';
 import { reapplyCombineMappings } from '../../domain/combine/combineColumnMappings';
 import type { AppliedCombineSettings } from '../../domain/combine/combineSettings';
-import { readCombineSource } from '../../domain/combine/readCombineSource';
+import {
+  createCombineSourceFromWorkbookSheet,
+  readLoadedCombineSource,
+} from '../../domain/combine/readCombineSource';
+import { reconcileMappingsAfterCombineSheetChange } from '../../domain/combine/reconcileMappingsAfterCombineSheetChange';
 import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
-import type { CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
+import type {
+  CombineColumnMapping,
+  CombineOutputColumn,
+  CombineSource,
+  LoadedCombineSource,
+} from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
@@ -22,13 +32,15 @@ type CombineWizardProps = {
   onLocalStatePresenceChange?: (hasState: boolean) => void;
 };
 
+const emptyBasketSources: CombineSource[] = [];
+
 export function CombineWizard({
   appearanceToolbar,
-  basketSources = [],
+  basketSources = emptyBasketSources,
   onRemoveBasketSource,
   onLocalStatePresenceChange,
 }: CombineWizardProps) {
-  const [uploadedSources, setUploadedSources] = useState<CombineSource[]>([]);
+  const [loadedUploadedSources, setLoadedUploadedSources] = useState<LoadedCombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
   const [mappings, setMappings] = useState<CombineColumnMapping[]>([]);
   const [outputFileName, setOutputFileName] = useState('Archivo combinado');
@@ -36,6 +48,10 @@ export function CombineWizard({
   const [isReading, setIsReading] = useState(false);
   const [hasImportedSettings, setHasImportedSettings] = useState(false);
   const nextSourceIndexRef = useRef(0);
+  const uploadedSources = useMemo(
+    () => loadedUploadedSources.map((loadedSource) => loadedSource.source),
+    [loadedUploadedSources],
+  );
   const sources = useMemo(
     () => mergeCombineSources(basketSources, uploadedSources),
     [basketSources, uploadedSources],
@@ -43,6 +59,10 @@ export function CombineWizard({
   const basketSourceIds = useMemo(
     () => new Set(basketSources.map((source) => source.id)),
     [basketSources],
+  );
+  const loadedUploadedSourcesById = useMemo(
+    () => new Map(loadedUploadedSources.map((loadedSource) => [loadedSource.source.id, loadedSource])),
+    [loadedUploadedSources],
   );
 
   useEffect(() => {
@@ -55,14 +75,14 @@ export function CombineWizard({
 
   useEffect(() => {
     onLocalStatePresenceChange?.(
-      uploadedSources.length > 0
+      loadedUploadedSources.length > 0
         || outputColumns.length > 0
         || mappings.length > 0
         || outputFileName !== 'Archivo combinado'
         || hasImportedSettings,
     );
   }, [
-    uploadedSources.length,
+    loadedUploadedSources.length,
     outputColumns.length,
     mappings.length,
     outputFileName,
@@ -92,7 +112,7 @@ export function CombineWizard({
 
     const results = await Promise.all(pendingFiles.map(async ({ file, sourceIndex }) => {
       try {
-        return { source: await readCombineSource(file, sourceIndex) };
+        return { loadedSource: await readLoadedCombineSource(file, sourceIndex) };
       } catch (error) {
         return {
           error: {
@@ -104,9 +124,9 @@ export function CombineWizard({
       }
     }));
 
-    setUploadedSources((current) => [
+    setLoadedUploadedSources((current) => [
       ...current,
-      ...results.flatMap((result) => result.source ? [result.source] : []),
+      ...results.flatMap((result) => result.loadedSource ? [result.loadedSource] : []),
     ]);
     setReadErrors((current) => [
       ...current,
@@ -115,13 +135,61 @@ export function CombineWizard({
     setIsReading(false);
   };
 
+  const changeUploadedSourceSheet = (sourceId: string, nextSheetName: string) => {
+    const loadedSource = loadedUploadedSourcesById.get(sourceId);
+    if (loadedSource?.kind !== 'excel') {
+      return;
+    }
+    if (loadedSource.source.sheetName === nextSheetName) {
+      setReadErrors((current) => current.filter((error) => error.id !== `sheet:${sourceId}`));
+      return;
+    }
+
+    try {
+      const previousSource = loadedSource.source;
+      const nextSource = createCombineSourceFromWorkbookSheet({
+        workbook: loadedSource.workbook,
+        fileName: previousSource.fileName,
+        sourceId,
+        sheetName: nextSheetName,
+      });
+
+      setLoadedUploadedSources((current) => current.map((item) => (
+        item.source.id === sourceId ? { ...item, source: nextSource } : item
+      )));
+      setMappings((current) => reconcileMappingsAfterCombineSheetChange({
+        sourceId,
+        outputColumns,
+        previousMappings: current,
+        previousSourceColumns: previousSource.columns,
+        nextSourceColumns: nextSource.columns,
+      }));
+      setReadErrors((current) => current.filter((error) => error.id !== `sheet:${sourceId}`));
+    } catch (error) {
+      setReadErrors((current) => [
+        ...current.filter((item) => item.id !== `sheet:${sourceId}`),
+        {
+          id: `sheet:${sourceId}`,
+          fileName: loadedSource.source.fileName,
+          message: error instanceof Error
+            ? `No se pudo usar la hoja "${nextSheetName}". ${error.message}`
+            : `No se pudo usar la hoja "${nextSheetName}".`,
+        },
+      ]);
+    }
+  };
+
   const removeSource = (sourceId: string) => {
     const result = removeCombineSourceFromCollections({
       sourceId,
       basketSources,
       uploadedSources,
     });
-    setUploadedSources(result.uploadedSources);
+    const remainingUploadedSourceIds = new Set(result.uploadedSources.map((source) => source.id));
+    setLoadedUploadedSources((current) => current.filter((loadedSource) => (
+      remainingUploadedSourceIds.has(loadedSource.source.id)
+    )));
+    setReadErrors((current) => current.filter((error) => error.id !== `sheet:${sourceId}`));
     if (result.removedBasketSourceId) {
       onRemoveBasketSource?.(result.removedBasketSourceId);
     }
@@ -145,7 +213,7 @@ export function CombineWizard({
             <InfoTooltip
               ariaLabel="Información sobre los archivos para combinar"
               placement="right"
-              content="Cargá archivos o usá resultados guardados desde el sanitizador. Excel: se usa la primera hoja. Encabezado: se toma la primera fila no vacía. CSV: se interpreta como tabla única."
+              content="Cargá archivos o usá resultados guardados desde el sanitizador. En Excel se usa una hoja por archivo. Si el archivo tiene varias hojas, podés elegir cuál usar. Encabezado: se toma la primera fila no vacía. CSV: se interpreta como tabla única."
             />
           </h2>
           <MultipleFileUploader disabled={isReading} onFilesSelected={(files) => void loadFiles(files)} />
@@ -178,25 +246,45 @@ export function CombineWizard({
                 </span>
               </div>
               <div className="combineSourceList">
-                {sources.map((source) => (
-                  <article key={source.id} className="combineSourceItem">
-                    <div>
-                      <strong>{source.fileName}</strong>
-                      <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
-                        {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
-                      </span>
-                      <p className="muted combineSourceMeta">
-                        {source.sheetName ? `Hoja usada: ${source.sheetName} · ` : ''}
-                        {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
-                        {source.rows.length} {source.rows.length === 1 ? 'fila' : 'filas'} de datos
-                      </p>
-                    </div>
-                    <DeleteButton
-                      title={`Remover ${source.fileName}`}
-                      onClick={() => removeSource(source.id)}
-                    />
-                  </article>
-                ))}
+                {sources.map((source) => {
+                  const loadedSource = basketSourceIds.has(source.id)
+                    ? undefined
+                    : loadedUploadedSourcesById.get(source.id);
+                  const hasSheetSelector = loadedSource?.kind === 'excel'
+                    && loadedSource.sheetNames.length > 1;
+
+                  return (
+                    <article key={source.id} className="combineSourceItem">
+                      <div className="combineSourceContent">
+                        <strong>{source.fileName}</strong>
+                        <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
+                          {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
+                        </span>
+                        {hasSheetSelector ? (
+                          <Dropdown
+                            className="compact combineSourceSheetSelector"
+                            label="Hoja usada"
+                            value={source.sheetName ?? ''}
+                            options={loadedSource.sheetNames.map((sheetName) => ({
+                              value: sheetName,
+                              label: sheetName,
+                            }))}
+                            onChange={(sheetName) => changeUploadedSourceSheet(source.id, sheetName)}
+                          />
+                        ) : null}
+                        <p className="muted combineSourceMeta">
+                          {!hasSheetSelector && source.sheetName ? `Hoja usada: ${source.sheetName} · ` : ''}
+                          {source.columns.length} {source.columns.length === 1 ? 'columna' : 'columnas'} ·{' '}
+                          {source.rows.length} {source.rows.length === 1 ? 'fila' : 'filas'} de datos
+                        </p>
+                      </div>
+                      <DeleteButton
+                        title={`Remover ${source.fileName}`}
+                        onClick={() => removeSource(source.id)}
+                      />
+                    </article>
+                  );
+                })}
               </div>
             </>
           ) : null}

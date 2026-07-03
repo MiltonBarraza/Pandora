@@ -899,7 +899,7 @@ h3 {
   padding: 8px 9px 8px 11px;
 }
 
-.combineSourceItem > div {
+.combineSourceContent {
   min-width: 0;
 }
 
@@ -917,6 +917,11 @@ h3 {
 .combineSourceMeta {
   font-size: 0.8rem;
   margin: 3px 0 0;
+}
+
+.combineSourceSheetSelector {
+  margin-top: 7px;
+  max-width: 320px;
 }
 
 .combineSettingsPanel {
