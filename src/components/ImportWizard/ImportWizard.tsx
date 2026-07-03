@@ -38,14 +38,8 @@ const initialOutputColumns = loadOutputColumns();
 export const headerRowOptionsHelpText = 'Seleccioná la fila que contiene los nombres de las columnas. Solo se muestran filas con contenido.';
 
 export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], processedRows: ProcessedRow[]) {
-  if (processedRows.length === 0) {
-    return inputRows;
-  }
-
-  const visibleRowNumbers = new Set(
-    processedRows.filter((row) => row.status === 'included').map((row) => row.rowNumber),
-  );
-  return inputRows.filter((row) => visibleRowNumbers.has(row.rowNumber));
+  void processedRows;
+  return inputRows;
 }
 
 export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactNode }) {

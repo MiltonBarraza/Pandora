@@ -1,0 +1,242 @@
+import { describe, expect, it } from 'vitest';
+import type { StepSource, TransformStep } from '../../../types/import';
+import {
+  createCanonicalSourceForAction,
+  createCanonicalStepForAction,
+  getAllowedSourceActions,
+  getAllowedStepActions,
+  getAllowedStepModes,
+  getVisibleStepAction,
+  isVisibleStepActionConfigured,
+  normalizeStepForContext,
+  replaceStepActionWithSource,
+  stepEditorPolicy,
+  type StepEditorContext,
+} from '../OutputColumnRecipeEditor.stepPolicy';
+
+const idFactory = () => 'step-id';
+const inputColumnId = 'input-name';
+
+function context(kind: StepEditorContext['kind'], stepIndex = 0): StepEditorContext {
+  return { kind, stepIndex, defaultInputColumnId: inputColumnId, idFactory };
+}
+
+function noop(source?: StepSource): TransformStep {
+  return {
+    id: 'noop',
+    mode: 'text',
+    type: 'noop',
+    ...(source ? { source } : {}),
+  };
+}
+
+describe('step editor policy', () => {
+  it('defines allowed modes by context', () => {
+    expect(stepEditorPolicy(context('normal')).allowManualRange).toBe(true);
+    expect(getAllowedStepModes(context('normal'))).toContain('manualRange');
+    expect(getAllowedStepModes(context('concat'))).not.toContain('manualRange');
+    expect(getAllowedStepModes(context('range'))).not.toContain('manualRange');
+    expect(getAllowedStepModes(context('rangeConcat'))).not.toContain('manualRange');
+  });
+
+  it('allows concat only where nesting is valid', () => {
+    expect(stepEditorPolicy(context('normal')).allowConcat).toBe(true);
+    expect(stepEditorPolicy(context('range')).allowConcat).toBe(true);
+    expect(stepEditorPolicy(context('concat')).allowConcat).toBe(false);
+    expect(stepEditorPolicy(context('rangeConcat')).allowConcat).toBe(false);
+    expect(getAllowedStepActions('text', context('normal'))).toContain('concat');
+    expect(getAllowedStepActions('text', context('range'))).toContain('concat');
+    expect(getAllowedStepActions('text', context('concat'))).not.toContain('concat');
+    expect(getAllowedStepActions('text', context('rangeConcat'))).not.toContain('concat');
+  });
+
+  it('allows previousResult only after a previous step exists', () => {
+    expect(stepEditorPolicy(context('normal', 0)).allowPreviousResult).toBe(false);
+    expect(stepEditorPolicy(context('normal', 1)).allowPreviousResult).toBe(true);
+    expect(stepEditorPolicy(context('concat', 0)).allowPreviousResult).toBe(false);
+    expect(stepEditorPolicy(context('concat', 1)).allowPreviousResult).toBe(true);
+    expect(stepEditorPolicy(context('rangeConcat', 0)).allowPreviousResult).toBe(false);
+    expect(stepEditorPolicy(context('rangeConcat', 1)).allowPreviousResult).toBe(true);
+    expect(getAllowedSourceActions(noop(), context('normal', 0))).not.toContain('usePreviousResult');
+    expect(getAllowedSourceActions(noop(), context('normal', 1))).toContain('usePreviousResult');
+  });
+
+  it('keeps unconfigured separate from use value as is', () => {
+    expect(getVisibleStepAction(noop(), context('normal'))).toBe('unconfigured');
+    expect(isVisibleStepActionConfigured(noop(), context('normal'))).toBe(false);
+    expect(getVisibleStepAction(noop({ type: 'input', inputColumnId }), context('normal'))).toBe('useInputColumn');
+    expect(getVisibleStepAction({ id: 'n', mode: 'number', type: 'noop' }, context('normal'))).toBe('unconfigured');
+    expect(getVisibleStepAction({
+      id: 'n',
+      mode: 'number',
+      type: 'noop',
+      source: { type: 'input', inputColumnId },
+    }, context('normal'))).toBe('useValueAsIs');
+  });
+
+  it('creates canonical text source steps', () => {
+    expect(replaceStepActionWithSource(noop(), 'useFixedText', context('normal'))).toMatchObject({
+      id: 'noop',
+      mode: 'text',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(replaceStepActionWithSource(noop(), 'useInputColumn', context('normal'))).toMatchObject({
+      source: { type: 'input', inputColumnId },
+    });
+    expect(createCanonicalSourceForAction('useRangeText', context('range'))).toEqual({
+      type: 'rangeText',
+      inputColumnId,
+      selectedText: '',
+    });
+  });
+
+  it('keeps found text as picker action when override says picker', () => {
+    const selectedTextStep = noop({ type: 'fixedText', value: 'P-1' });
+    expect(getVisibleStepAction(selectedTextStep, context('normal'))).toBe('useFixedText');
+    expect(getVisibleStepAction(selectedTextStep, {
+      ...context('normal'),
+      sourceActionOverride: 'pickColumnText',
+    })).toBe('pickColumnText');
+  });
+
+  it('allows valid sources for uppercase and lowercase actions', () => {
+    const upper = replaceStepActionWithSource(noop(), 'uppercase', context('normal'));
+    const lower = replaceStepActionWithSource(noop(), 'lowercase', context('normal', 1));
+    expect(upper).toMatchObject({ mode: 'text', type: 'uppercase', source: { type: 'input', inputColumnId } });
+    expect(lower).toMatchObject({ mode: 'text', type: 'lowercase', source: { type: 'previousResult' } });
+  });
+
+  it('creates numeric operations without stale text props', () => {
+    const staleTextStep: TransformStep = {
+      id: 'stale',
+      mode: 'text',
+      type: 'replaceText',
+      source: { type: 'fixedText', value: 'abc' },
+      value: 'x',
+      searchValue: 'a',
+      replaceValue: 'b',
+    };
+    const numericStep = replaceStepActionWithSource(staleTextStep, 'numericOperation', context('normal'));
+    expect(numericStep).toMatchObject({
+      id: 'stale',
+      mode: 'number',
+      type: 'numericOperation',
+      operation: 'add',
+      amount: 10,
+      source: { type: 'input', inputColumnId },
+    });
+    expect(numericStep).not.toHaveProperty('value');
+    expect(numericStep).not.toHaveProperty('searchValue');
+    expect(numericStep).not.toHaveProperty('replaceValue');
+    expect(numericStep).not.toHaveProperty('dateInputFormat');
+  });
+
+  it('creates useful value-as-is sources for number and date', () => {
+    expect(createCanonicalStepForAction('number', 'useValueAsIs', context('normal'))).toMatchObject({
+      mode: 'number',
+      type: 'noop',
+      source: { type: 'input', inputColumnId },
+    });
+    expect(createCanonicalStepForAction('date', 'useValueAsIs', context('normal'))).toMatchObject({
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'input', inputColumnId },
+    });
+  });
+
+  it('creates format date without stale text or number props', () => {
+    const staleNumberStep: TransformStep = {
+      id: 'date',
+      mode: 'number',
+      type: 'numericOperation',
+      operation: 'multiply',
+      amount: 2,
+      value: 'old',
+      searchValue: 'old',
+      replaceValue: 'new',
+    };
+    const dateStep = replaceStepActionWithSource(staleNumberStep, 'formatDate', context('normal'));
+    expect(dateStep).toMatchObject({
+      id: 'date',
+      mode: 'date',
+      type: 'formatDate',
+      source: { type: 'input', inputColumnId },
+      dateInputFormat: 'DD/MM/YYYY',
+      dateOutputFormat: 'YYYY-MM-DD',
+    });
+    expect(dateStep).not.toHaveProperty('value');
+    expect(dateStep).not.toHaveProperty('searchValue');
+    expect(dateStep).not.toHaveProperty('replaceValue');
+    expect(dateStep).not.toHaveProperty('operation');
+    expect(dateStep).not.toHaveProperty('amount');
+  });
+
+  it('cleans incompatible props across text/date/number transitions', () => {
+    const dateStep = replaceStepActionWithSource(noop(), 'formatDate', context('normal'));
+    const textStep = replaceStepActionWithSource(dateStep, 'replaceText', context('normal'));
+    const numberStep = replaceStepActionWithSource(textStep, 'numericOperation', context('normal'));
+    const backToText = replaceStepActionWithSource(numberStep, 'useFixedText', context('normal'));
+
+    expect(textStep).toMatchObject({ mode: 'text', type: 'replaceText', searchValue: '', replaceValue: '' });
+    expect(textStep).not.toHaveProperty('dateInputFormat');
+    expect(numberStep).toMatchObject({ mode: 'number', type: 'numericOperation' });
+    expect(numberStep).not.toHaveProperty('searchValue');
+    expect(backToText).toMatchObject({ mode: 'text', type: 'noop', source: { type: 'fixedText', value: '' } });
+    expect(backToText).not.toHaveProperty('operation');
+  });
+
+  it('turns action back into unconfigured without keeping stale source', () => {
+    const configured = replaceStepActionWithSource(noop(), 'useFixedText', context('normal'));
+    const unconfigured = replaceStepActionWithSource(configured, 'unconfigured', context('normal'));
+    expect(unconfigured).toMatchObject({ mode: 'text', type: 'noop' });
+    expect(unconfigured).not.toHaveProperty('source');
+  });
+
+  it('normalizes disallowed manualRange and nested concat by context', () => {
+    const rangeStep: TransformStep = { id: 'range', mode: 'manualRange', type: 'manualRange', ranges: [] };
+    const concatStep: TransformStep = { id: 'concat', mode: 'text', type: 'concat', parts: [] };
+
+    expect(normalizeStepForContext(rangeStep, context('normal'))).toMatchObject({ type: 'manualRange' });
+    expect(normalizeStepForContext(rangeStep, context('concat'))).toMatchObject({ type: 'noop' });
+    expect(normalizeStepForContext(rangeStep, context('rangeConcat'))).toMatchObject({ type: 'noop' });
+    expect(normalizeStepForContext(concatStep, context('range'))).toMatchObject({ type: 'concat' });
+    expect(normalizeStepForContext(concatStep, context('rangeConcat'))).toMatchObject({ type: 'noop' });
+  });
+
+  it('filters nested manualRange and concat steps inside concat parts', () => {
+    const concatStep: TransformStep = {
+      id: 'concat',
+      mode: 'text',
+      type: 'concat',
+      parts: [{
+        id: 'part',
+        source: { type: 'input', inputColumnId },
+        steps: [
+          { id: 'range', mode: 'manualRange', type: 'manualRange', ranges: [] },
+          { id: 'inner-concat', mode: 'text', type: 'concat', parts: [] },
+          { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'input', inputColumnId } },
+        ],
+      }],
+    };
+    const normalized = normalizeStepForContext(concatStep, context('normal'));
+    expect(normalized.parts?.[0]?.steps?.map((step) => step.type)).toEqual(['noop', 'noop', 'uppercase']);
+  });
+
+  it('preserves previous result sources on concat parts', () => {
+    const concatStep: TransformStep = {
+      id: 'concat',
+      mode: 'text',
+      type: 'concat',
+      parts: [
+        { id: 'previous', source: { type: 'previousResult' } },
+        { id: 'input', source: { type: 'input', inputColumnId } },
+      ],
+    };
+
+    const normalized = normalizeStepForContext(concatStep, context('range'));
+
+    expect(normalized.parts?.[0]?.source).toEqual({ type: 'previousResult' });
+    expect(normalized.parts?.[1]?.source).toEqual({ type: 'input', inputColumnId });
+  });
+});

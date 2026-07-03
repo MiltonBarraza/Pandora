@@ -1,0 +1,65 @@
+.warningTooltipTrigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  box-sizing: border-box;
+  color: var(--color-warning-text);
+  display: inline-flex;
+  flex: 0 0 19px;
+  height: 19px;
+  justify-content: center;
+  line-height: 0;
+  min-height: 19px;
+  min-width: 19px;
+  padding: 0;
+  width: 19px;
+  cursor: default;
+}
+
+.modalDialogXl .constructorModalContent button.warningTooltipTrigger {
+  height: 19px;
+  min-height: 19px;
+  min-width: 19px;
+  padding: 0;
+  width: 19px;
+}
+
+.warningTooltipTrigger:hover:not(:disabled),
+.warningTooltipTrigger:focus-visible {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.warningTooltipTrigger:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.warningTooltipIcon {
+  align-items: center;
+  border: 1.6px solid currentColor;
+  border-radius: 999px;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: 0 0 15px;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 650;
+  height: 15px;
+  justify-content: center;
+  line-height: 1;
+  padding-bottom: 0;
+  width: 15px;
+}
+
+.infoTooltipBubble.warningTooltipBubble {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.infoTooltipCustomTrigger.warningTooltipBubble {
+  background: transparent;
+  color: inherit;
+}

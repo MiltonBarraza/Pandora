@@ -25,6 +25,7 @@ import { getStepTypesForMode } from './OutputColumnRecipeEditor.optionHelpers';
 export type EditableCustomRecipe = Extract<OutputRecipe, { type: 'combine' }> | Extract<OutputRecipe, { type: 'manualRange' }>;
 export type CustomValueMode = '' | PersistedCustomValueMode;
 export type ValueConstructionMode = '' | 'steps' | 'concat';
+export type RecipeStudioMode = 'takeValue' | 'fixedText' | 'compose' | 'ranges' | 'advanced';
 
 export const outputRecipeTypeOptions: Array<{ value: OutputRecipe['type']; label: string }> = [
   { value: 'direct', label: 'Directa desde entrada' },
@@ -45,6 +46,45 @@ export function getOutputRecipeTypeOptions(recipe: OutputRecipe) {
 
 export function getRecipeEditorModalRecipe(recipe: OutputRecipe, draftRecipe: EditableCustomRecipe | null) {
   return recipe.type === 'combine' || recipe.type === 'manualRange' ? draftRecipe ?? recipe : null;
+}
+
+export function getRecipeStudioMode(recipe: OutputRecipe): RecipeStudioMode {
+  if (recipe.type === 'direct') {
+    return 'takeValue';
+  }
+
+  if (recipe.type === 'fixedText') {
+    return 'fixedText';
+  }
+
+  if (recipe.type === 'manualRange') {
+    return 'ranges';
+  }
+
+  if (recipe.type !== 'combine') {
+    return 'advanced';
+  }
+
+  if (hasConfiguredManualRangeStep(recipe)) {
+    return 'ranges';
+  }
+
+  if (getCustomValueMode(recipe) === 'concat' || hasConfiguredConcatStep(recipe)) {
+    return 'compose';
+  }
+
+  const simplePart = getSimpleInputPart(recipe);
+  const firstSource = getFirstStepSource(recipe);
+  const hasSingleTextPart = recipe.parts.length === 1 && recipe.parts[0]?.type === 'text';
+  if (firstSource?.type === 'fixedText' || hasSingleTextPart) {
+    return 'fixedText';
+  }
+
+  if (simplePart.inputColumnId || firstSource?.type === 'input') {
+    return 'takeValue';
+  }
+
+  return 'advanced';
 }
 
 export function applyRecipeEditorDraft(column: OutputColumn, draftRecipe: EditableCustomRecipe | null): OutputColumn {
@@ -384,14 +424,17 @@ export function buildStepBasedCustomValueRecipe(
       customMode: 'concat',
       parts: [],
       separator: '',
-      steps,
+      steps: [firstStep],
     };
   }
 
   const inferredMode = inferCustomModeFromSteps(steps, fallbackMode);
+  const firstStepInputColumnId = firstStep?.source?.type === 'input'
+    ? firstStep.source.inputColumnId
+    : undefined;
   return buildSimpleCustomValueRecipeWithSteps(
     inferredMode,
-    getSimpleInputPart(current).inputColumnId,
+    firstStepInputColumnId ?? getSimpleInputPart(current).inputColumnId,
     steps,
     current,
   );
@@ -487,6 +530,16 @@ export function createNoopStep(modeHint: TransformStepMode = 'text'): TransformS
 }
 
 function createTextOperationStep(type: TransformStepType, condition?: TransformCondition, stepIndex = 0): TransformStep {
+  if (type === 'noop') {
+    return {
+      id: crypto.randomUUID(),
+      mode: 'text',
+      type,
+      ...(condition ? { condition } : {}),
+      applyToEmptyValues: false,
+    };
+  }
+
   if (type === 'concat') {
     return {
       id: crypto.randomUUID(),
@@ -503,9 +556,6 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
       id: crypto.randomUUID(),
       mode: 'date',
       type,
-      value: '',
-      searchValue: '',
-      replaceValue: '',
       dateInputFormat: defaultDateInputFormat,
       dateOutputFormat: defaultDateOutputFormat,
       dateInvalidFallback: defaultDateInvalidFallback,
@@ -523,6 +573,7 @@ function createTextOperationStep(type: TransformStepType, condition?: TransformC
     id: crypto.randomUUID(),
     mode: inferStepModeFromType(type),
     type,
+    ...(shouldDefaultTextTransformToPreviousResult(type, stepIndex) ? { source: { type: 'previousResult' as const } } : {}),
     value: '',
     searchValue: '',
     replaceValue: '',
@@ -583,6 +634,104 @@ export function replaceStepType(
   };
 }
 
+function shouldDefaultTextTransformToPreviousResult(type: TransformStepType, stepIndex: number) {
+  return stepIndex > 0 && [
+    'trim',
+    'uppercase',
+    'lowercase',
+    'addPrefix',
+    'addSuffix',
+    'removeText',
+    'replaceText',
+  ].includes(type);
+}
+
+export function replaceWholeStep(
+  steps: TransformStep[],
+  id: string,
+  nextStep: TransformStep,
+) {
+  return steps.map((step) => (step.id === id ? nextStep : step));
+}
+
+export function replaceWholeStepForAction(
+  step: TransformStep,
+  type: TransformStepType,
+  mode: TransformStepMode,
+  operation?: NonNullable<TransformStep['operation']>,
+  stepIndex = 0,
+): TransformStep {
+  if (type === 'noop' && (mode === 'date' || mode === 'number')) {
+    return {
+      id: step.id,
+      mode,
+      type,
+      source: step.type === 'noop' && step.source ? step.source : { type: 'fixedText', value: '' },
+      ...(step.condition ? { condition: step.condition } : {}),
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  if (
+    step.type === type
+    && getStepMode(step, mode) === mode
+    && (type !== 'numericOperation' || step.operation === (operation ?? step.operation ?? 'add'))
+  ) {
+    return { ...step, mode };
+  }
+
+  if (type === 'numericOperation') {
+    return {
+      ...createNumericOperationStep(operation),
+      id: step.id,
+      mode,
+      condition: step.condition,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  if (type === 'manualRange') {
+    return {
+      ...createManualRangeStep(step.condition),
+      id: step.id,
+      mode,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  return {
+    ...createTextOperationStep(type, step.condition, stepIndex),
+    id: step.id,
+    mode,
+    applyToEmptyValues: step.applyToEmptyValues ?? false,
+  };
+}
+
+export function replaceWholeStepForMode(
+  step: TransformStep,
+  mode: TransformStepMode,
+  stepIndex = 0,
+): TransformStep {
+  const currentMode = getStepMode(step);
+  if (currentMode === mode && isStepAllowedForMode(step.type, mode)) {
+    return { ...step, mode };
+  }
+
+  if (mode === 'manualRange') {
+    return {
+      ...createManualRangeStep(step.condition),
+      id: step.id,
+      applyToEmptyValues: step.applyToEmptyValues ?? false,
+    };
+  }
+
+  if (isStepAllowedForMode(step.type, mode) && step.type !== 'noop') {
+    return replaceWholeStepForAction(step, step.type, mode, step.operation, stepIndex);
+  }
+
+  return createNoopStepFromStep(step, mode);
+}
+
 export function normalizeStepsForMode(steps: TransformStep[], fallbackMode: TransformStepMode): TransformStep[] {
   return steps.map((step) => {
     const mode = getStepMode(step, fallbackMode);
@@ -592,22 +741,6 @@ export function normalizeStepsForMode(steps: TransformStep[], fallbackMode: Tran
 
 function isStepAllowedForMode(type: TransformStepType, mode: TransformStepMode) {
   return getStepTypesForMode(mode).some((stepType) => stepType.value === type);
-}
-
-export function getVisibleStepSource(step: TransformStep, index: number, baseInputColumnId: string): StepSource {
-  if (step.source) {
-    if (index === 0 && step.source.type === 'previousResult') {
-      return { type: 'input', inputColumnId: baseInputColumnId };
-    }
-
-    return step.source;
-  }
-
-  if (index === 0) {
-    return { type: 'input', inputColumnId: baseInputColumnId };
-  }
-
-  return { type: 'previousResult' };
 }
 
 export function getVisibleLeftOperand(step: TransformStep, stepSource: StepSource): StepOperand {

@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
-import { parseOptionalNumberInput } from '../../domain/import/numberInput';
+import { describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
+import type { DateInputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -13,16 +11,12 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
-  dateInputFormatOptions,
-  dateInvalidFallbackOptions,
-  dateOutputFormatOptions,
   getDatePickerValue,
   getStepSourceForTextAction,
   getStepTextSourceAction,
-  parseRounding,
   updateStep,
   type StepTextSourceAction,
 } from './OutputColumnRecipeEditor.optionHelpers';
@@ -33,40 +27,43 @@ import {
   buildSimpleCustomValueRecipeWithSteps,
   buildStepBasedCustomValueRecipe,
   canPreviewNumericValue,
-  changeStepMode,
   clearManualRangeValues,
-  createDefaultConcatPart,
   createNoopStep,
-  describeConcatPartSource,
   getCustomValueMode,
   getDefaultStepModeForRecipe,
   getFirstStepSource,
   getInputColumnSummary,
-  getNextSelectedConcatPartIdAfterRemove,
   getRecipeEditorModalRecipe,
-  getSafeSelectedConcatPartId,
   getSimpleInputPart,
   getStepMode,
   getVisibleConcatPartPrimaryStep,
-  getVisibleLeftOperand,
   getVisibleRecipeSteps,
-  getVisibleRightOperand,
-  getVisibleStepSource,
-  hasConfiguredConcatStep,
-  hasConfiguredManualRangeStep,
-  hasConfiguredNumericStepOperands,
   hasRecipeEditorDraftChanges,
   isCustomValueConfigured,
-  normalizeConcatPartsAfterReorder,
-  replaceStepType,
-  shouldShowTextSourceFields,
-  updateConcatPartPrimaryStep,
-  updateConcatPartSteps,
+  replaceWholeStep,
+  replaceWholeStepForAction,
+  replaceWholeStepForMode,
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepModeSelect, StepTypeSelect } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
+import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
+import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
+import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
+import { getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
+export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
+import {
+  buildCombinePreview,
+  buildCustomValuePreview,
+  buildManualRangeRecipePreview,
+  getConstructorAdjustmentLabels,
+  getCustomValuePartsDisplayLabel,
+  getCustomValuePartsDisplaySummary,
+  getConfiguredConcatStep,
+  getRecipeStepTitle,
+  getStepSummary,
+} from './OutputColumnRecipeEditor.displayHelpers';
 
 export {
   dateInputFormatOptions,
@@ -90,6 +87,18 @@ export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelp
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
 export { StepConditionFields, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 export {
+  buildCombinePreview,
+  buildCustomValuePreview,
+  buildManualRangeAwarePreview,
+  buildManualRangeRecipePreview,
+  describeCombineParts,
+  getConstructorAdjustmentLabels,
+  getConstructorAdjustmentsSummary,
+  getConstructorPartsSummary,
+  getCustomValuePartsDisplayLabel,
+  getCustomValuePartsDisplaySummary,
+} from './OutputColumnRecipeEditor.displayHelpers';
+export {
   appendConcatPartAdditionalStep,
   applyRecipeEditorDraft,
   buildRecipeForSelectedType,
@@ -104,6 +113,7 @@ export {
   getOutputRecipeTypeOptions,
   getOutputRecipeTypeSelectorValue,
   getRecipeEditorModalRecipe,
+  getRecipeStudioMode,
   getSafeSelectedConcatPartId,
   getStepMode,
   getTextStepSourceLabel,
@@ -116,6 +126,9 @@ export {
   normalizeConcatPartsAfterReorder,
   normalizeStepsForMode,
   outputRecipeTypeOptions,
+  replaceWholeStep,
+  replaceWholeStepForAction,
+  replaceWholeStepForMode,
   shouldShowTextSourceFields,
   updateConcatPartPrimaryStep,
   updateConcatPartSteps,
@@ -193,6 +206,16 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     setDraftRecipe(recipe);
     setIsConstructorOpen(true);
   };
+  const updateDraftRecipe = (nextRecipe: EditableCustomRecipe | ((current: EditableCustomRecipe) => EditableCustomRecipe)) => {
+    setDraftRecipe((currentDraftRecipe) => {
+      const currentRecipe = currentDraftRecipe ?? modalRecipe;
+      if (!currentRecipe) {
+        return currentDraftRecipe;
+      }
+
+      return typeof nextRecipe === 'function' ? nextRecipe(currentRecipe) : nextRecipe;
+    });
+  };
   const closeConstructor = () => {
     isApplyingConstructorRef.current = false;
     setIsDiscardConfirmationOpen(false);
@@ -266,7 +289,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Vista previa del primer dato:</strong>
                 <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
               </div>
             )}
@@ -284,18 +307,22 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            <div className="constructorModalContent">
-              {modalCombineRecipe ? (
-                <CustomValueEditor
-                  recipe={modalCombineRecipe}
-                  inputColumns={activeInputColumns}
-                  manualRangeRows={manualRangeRows}
-                  sampleInputValues={sampleInputValues}
-                  mode={effectiveModalCustomValueMode}
-                  onChange={setDraftRecipe}
-                />
-              ) : null}
-            </div>
+            {isConstructorOpen && modalCombineRecipe ? (
+              <RecipeStudioShell
+                recipe={modalCombineRecipe}
+                inputColumns={activeInputColumns}
+                manualRangeRows={manualRangeRows}
+                sampleInputValues={sampleInputValues}
+                preview={buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows)}
+                customValueMode={effectiveModalCustomValueMode}
+                renderCustomValueEditor={(props) => <CustomValueEditor {...props} />}
+                renderComposePartEditor={(props) => <ComposePartEditor {...props} />}
+                renderComposeStepHeader={(props) => <ComposeStepHeader {...props} />}
+                renderManualRangeRecipeEditor={(props) => <ManualRangeRecipeEditor {...props} />}
+                renderManualRangeTextGenerator={(props) => <ManualRangeTextGenerator {...props} />}
+                onChange={updateDraftRecipe}
+              />
+            ) : null}
           </Modal>
           <ConfirmDialog
             open={isDiscardConfirmationOpen}
@@ -329,7 +356,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderPreview">
-                <strong>Vista previa:</strong>
+                <strong>Vista previa del primer dato:</strong>
                 <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
               </div>
             )}
@@ -347,16 +374,22 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
               </div>
             )}
           >
-            <div className="constructorModalContent">
-              {modalManualRangeRecipe ? (
-                <ManualRangeRecipeEditor
-                  recipe={modalManualRangeRecipe}
-                  inputColumns={activeInputColumns}
-                  manualRangeRows={manualRangeRows}
-                  onChange={setDraftRecipe}
-                />
-              ) : null}
-            </div>
+            {isConstructorOpen && modalManualRangeRecipe ? (
+              <RecipeStudioShell
+                recipe={modalManualRangeRecipe}
+                inputColumns={activeInputColumns}
+                manualRangeRows={manualRangeRows}
+                sampleInputValues={sampleInputValues}
+                preview={buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados'}
+                customValueMode=""
+                renderCustomValueEditor={(props) => <CustomValueEditor {...props} />}
+                renderComposePartEditor={(props) => <ComposePartEditor {...props} />}
+                renderComposeStepHeader={(props) => <ComposeStepHeader {...props} />}
+                renderManualRangeRecipeEditor={(props) => <ManualRangeRecipeEditor {...props} />}
+                renderManualRangeTextGenerator={(props) => <ManualRangeTextGenerator {...props} />}
+                onChange={updateDraftRecipe}
+              />
+            ) : null}
           </Modal>
           <ConfirmDialog
             open={isDiscardConfirmationOpen}
@@ -373,6 +406,7 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
     </div>
   );
 }
+
 function ManualRangeSummary({
   recipe,
   inputColumns,
@@ -411,7 +445,7 @@ function ManualRangeSummary({
   );
 }
 
-function ManualRangeRecipeEditor({
+export function ManualRangeRecipeEditor({
   recipe,
   inputColumns,
   manualRangeRows,
@@ -422,98 +456,18 @@ function ManualRangeRecipeEditor({
   manualRangeRows: InputRow[];
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 }) {
-  const [showGenerator, setShowGenerator] = useState(false);
-  const [isClearRangesConfirmationOpen, setIsClearRangesConfirmationOpen] = useState(false);
-  const hasOverlappingRanges = hasOverlappingManualRanges(recipe.ranges);
-  const clearRanges = () => {
-    onChange(clearManualRangeValues(recipe));
-    setIsClearRangesConfirmationOpen(false);
-  };
-
   return (
-    <div className="recipeSubBlock manualRangeEditor">
-      <div className="sectionHeader">
-        <div>
-          <strong className="manualRangeTitleGroup labelWithInfo">
-            <span>Valores por rangos</span>
-            <InfoTooltip
-              ariaLabel="Ayuda: valores por rangos"
-              content={manualRangeUsageHelpText}
-            />
-          </strong>
-        </div>
-        <div className="manualRangeHeaderActions">
-          <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'start'))}>
-            Agregar rango
-          </ActionButton>
-          <InfoTooltip content="Ordena los rangos por la fila de inicio.">
-            <button type="button" className="secondary" onClick={() => onChange(sortManualRangesByStart(recipe))}>
-              Ordenar por inicio
-            </button>
-          </InfoTooltip>
-          <InfoTooltip content="Elimina todos los rangos configurados.">
-            <button type="button" className="secondary" disabled={recipe.ranges.length === 0} onClick={() => setIsClearRangesConfirmationOpen(true)}>
-              Borrar rangos
-            </button>
-          </InfoTooltip>
-          <InfoTooltip content="Genera rangos automáticamente según los datos detectados.">
-            <button type="button" className="secondary" onClick={() => setShowGenerator(true)}>
-              Generar rangos sugeridos
-            </button>
-          </InfoTooltip>
-        </div>
-      </div>
-      {showGenerator ? (
-        <ManualRangeTextGenerator
-          recipe={recipe}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          onClose={() => setShowGenerator(false)}
-          onChange={onChange}
-        />
-      ) : null}
-
+    <div className="manualRangeEditor">
       {recipe.condition ? (
         <p className="manualRangeWarning">
           Esta configuración conserva una condición interna heredada: {describeManualRangeCondition(recipe, inputColumns)}. Para nuevas condiciones usá la condición general del paso.
         </p>
       ) : null}
-
-      {recipe.ranges.length === 0 ? (
-        <p className="muted">No hay rangos configurados.</p>
-      ) : (
-        <>
-          {hasOverlappingRanges ? (
-            <p className="manualRangeWarning">Hay rangos superpuestos. En filas repetidas se usará el primer rango configurado.</p>
-          ) : null}
-          <div className="manualRangeList">
-            {recipe.ranges.map((range) => (
-              <ManualRangeTableRow
-                key={range.id}
-                recipe={recipe}
-                range={range}
-                inputColumns={inputColumns}
-                manualRangeRows={manualRangeRows}
-                onChange={onChange}
-              />
-            ))}
-          </div>
-          <div className="manualRangeFooterActions">
-            <ActionButton action="add" variant="secondary" onClick={() => onChange(addManualRangeValue(recipe, 'end'))}>
-              Agregar rango
-            </ActionButton>
-          </div>
-        </>
-      )}
-      <ConfirmDialog
-        open={isClearRangesConfirmationOpen}
-        title="Borrar rangos"
-        message="¿Querés borrar todos los rangos configurados?"
-        cancelLabel="Cancelar"
-        confirmLabel="Borrar rangos"
-        variant="danger"
-        onCancel={() => setIsClearRangesConfirmationOpen(false)}
-        onConfirm={clearRanges}
+      <ManualRangeSpreadsheetEditor
+        recipe={recipe}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        onChange={onChange}
       />
     </div>
   );
@@ -1082,6 +1036,32 @@ export function ManualRangeTableRow({
     const nextRecipe = updateManualRangeValue(recipe, range.id, { endRowNumber: endRowNumber ?? 0 });
     onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
   };
+  const updateRangeSource = (source: StepSource) => {
+    if (source.type === 'input') {
+      return updateManualRangeInputValue(recipe, range.id, source.inputColumnId);
+    }
+
+    if (source.type === 'rangeText') {
+      return reconcileManualRangeTextSelections(
+        updateManualRangeRangeTextValue(recipe, range.id, {
+          inputColumnId: source.inputColumnId,
+          selectedText: source.selectedText,
+        }),
+        range.id,
+        manualRangeRows,
+      );
+    }
+
+    if (source.type === 'fixedText') {
+      return updateManualRangeFixedTextValue(recipe, range.id, source.value);
+    }
+
+    return recipe;
+  };
+  const updateRangeSourceAndSteps = (source: StepSource, steps: TransformStep[]) => {
+    const nextRecipe = updateRangeSource(source);
+    return updateManualRangeValueRecipeSteps(nextRecipe, range.id, steps);
+  };
 
   return (
     <div className="manualRangeRangeItem">
@@ -1149,16 +1129,7 @@ export function ManualRangeTableRow({
           range={range}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          onValueSourceTypeChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
-          onFixedTextChange={(value) => onChange(updateManualRangeFixedTextValue(recipe, range.id, value))}
-          onInputColumnChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))}
-          onRangeTextChange={(patch) => {
-            const nextPatch = patch.inputColumnId !== undefined && patch.selectedText === undefined
-              ? { ...patch, selectedText: '' }
-              : patch;
-            const nextRecipe = updateManualRangeRangeTextValue(recipe, range.id, nextPatch);
-            onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
-          }}
+          onSourceAndStepsChange={(source, steps) => onChange(updateRangeSourceAndSteps(source, steps))}
           onStepsChange={(steps) => onChange(updateManualRangeValueRecipeSteps(recipe, range.id, steps))}
         />
       </div>
@@ -1253,409 +1224,6 @@ function ManualRangeRowsPreview({
   );
 }
 
-export function describeCombineParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  if (recipe.parts.length === 0) {
-    return 'Sin partes configuradas';
-  }
-
-  return recipe.parts
-    .map((part) => {
-      if (part.type === 'text') {
-        return `Texto: "${part.value || ''}"`;
-      }
-
-      const inputColumn = inputColumns.find((column) => column.id === part.inputColumnId);
-      return inputColumn ? getInputColumnSummary(inputColumn) : 'Columna de entrada';
-    })
-    .join(' | ');
-}
-
-export function getConstructorPartsSummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  return `${recipe.parts.length === 1 ? 'Base' : 'Partes'}: ${describeCombineParts(recipe, inputColumns)}`;
-}
-
-export function getCustomValuePartsDisplayLabel(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  const concatStep = getConfiguredConcatStep(recipe);
-
-  if (!concatStep && recipe.parts.length === 1) {
-    return 'Origen/base';
-  }
-
-  return '';
-}
-
-export function getCustomValuePartsDisplaySummary(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  const concatStep = getConfiguredConcatStep(recipe);
-
-  if (concatStep?.parts?.length) {
-    return concatStep.parts.map((part) => describeConcatPartSource(part, inputColumns)).join(' | ');
-  }
-
-  if (recipe.parts.length === 0) {
-    return 'Sin partes configuradas';
-  }
-
-  return describeCombineParts(recipe, inputColumns);
-}
-
-export function getConstructorAdjustmentsSummary(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  inputColumns: InputColumn[],
-  limit = 3,
-) {
-  const adjustments = getConstructorAdjustmentDescriptions(recipe, inputColumns);
-
-  if (adjustments.length === 0) {
-    return '';
-  }
-
-  if (adjustments.length <= limit) {
-    return adjustments.join(' · ');
-  }
-
-  return `${adjustments.slice(0, limit).join(' · ')} · ${adjustments.length - limit} pasos más`;
-}
-
-export function getConstructorAdjustmentLabels(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  inputColumns: InputColumn[],
-  limit = 4,
-) {
-  const adjustments = getConstructorAdjustmentDescriptions(recipe, inputColumns);
-
-  if (adjustments.length <= limit) {
-    return adjustments.map(formatAdjustmentForDisplay);
-  }
-
-  return [
-    ...adjustments.slice(0, limit).map(formatAdjustmentForDisplay),
-    `${adjustments.length - limit} pasos más`,
-  ];
-}
-
-function getConstructorAdjustmentDescriptions(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
-  return [
-    ...recipe.parts.flatMap((part) => describePartAdjustments(part, inputColumns)),
-    ...describeStepAdjustments(recipe.steps ?? [], inputColumns),
-  ];
-}
-
-function getConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return (recipe.steps ?? []).find((step) => step.type === 'concat' && (step.parts?.length ?? 0) > 0);
-}
-
-function formatAdjustmentForDisplay(adjustment: string) {
-  const labels: Record<string, string> = {
-    'limpiar espacios': 'Limpiar espacios',
-    'sin operación seleccionada': 'Sin operación seleccionada',
-    mayúsculas: 'Mayúsculas',
-    minúsculas: 'Minúsculas',
-    concatenar: 'Concatenar',
-    'extraer número': 'Extraer número',
-    'convertir a número': 'Convertir a número',
-    'convertir a texto': 'Convertir a texto',
-    'sin redondeo': 'Sin redondeo',
-  };
-
-  return labels[adjustment] ?? adjustment.charAt(0).toUpperCase() + adjustment.slice(1);
-}
-
-function describePartAdjustments(part: RecipePart, inputColumns: InputColumn[]) {
-  const partLabel = part.type === 'text'
-    ? `Texto: "${part.value || ''}"`
-    : inputColumns.find((column) => column.id === part.inputColumnId)
-      ? getInputColumnSummary(inputColumns.find((column) => column.id === part.inputColumnId)!)
-      : 'Columna de entrada';
-  const stepAdjustments = describeStepAdjustments(part.steps ?? [], inputColumns).map((adjustment) => `${adjustment} en ${partLabel}`);
-  const separatorAdjustment = part.separatorAfter ? [`separador "${part.separatorAfter}" en ${partLabel}`] : [];
-
-  return [...stepAdjustments, ...separatorAdjustment];
-}
-
-function describeStepAdjustments(steps: TransformStep[], inputColumns: InputColumn[] = []) {
-  return steps.flatMap((step) => {
-    if (step.type === 'numericOperation') {
-      return [
-        describeNumericOperation(step),
-        describeRounding(step.rounding ?? 2),
-      ];
-    }
-
-    return describeSimpleStep(step, inputColumns);
-  }).filter(Boolean);
-}
-
-function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = []) {
-  if (step.type === 'trim') {
-    return ['limpiar espacios'];
-  }
-
-  if (step.type === 'noop') {
-    if (step.source?.type === 'fixedText') return ['usar texto fijo'];
-    if (step.source?.type === 'input') return ['usar columna de entrada'];
-    if (step.source?.type === 'previousResult') return ['usar resultado anterior'];
-    return ['usar valor tal cual'];
-  }
-
-  if (step.type === 'uppercase') {
-    return ['mayúsculas'];
-  }
-
-  if (step.type === 'lowercase') {
-    return ['minúsculas'];
-  }
-
-  if (step.type === 'addPrefix') {
-    return [`prefijo "${step.value ?? ''}"`];
-  }
-
-  if (step.type === 'addSuffix') {
-    return [`sufijo "${step.value ?? ''}"`];
-  }
-
-  if (step.type === 'removeText') {
-    return [`quitar "${step.value ?? ''}"`];
-  }
-
-  if (step.type === 'extractNumber') {
-    return ['extraer número'];
-  }
-
-  if (step.type === 'toNumber') {
-    return ['convertir a número'];
-  }
-
-  if (step.type === 'toText') {
-    return ['convertir a texto'];
-  }
-
-  if (step.type === 'formatDate') {
-    return ['formatear fecha'];
-  }
-
-  if (step.type === 'manualRange') {
-    return [describeManualRangeStepSummary(step, inputColumns)];
-  }
-
-  if (step.type === 'concat') {
-    return ['concatenar'];
-  }
-
-  return [`reemplazar "${step.searchValue ?? ''}" por "${step.replaceValue ?? ''}"`];
-}
-
-function describeNumericOperation(step: TransformStep) {
-  const amount = step.amount ?? 0;
-
-  if (step.operation === 'subtract') {
-    return `restar valor ${amount}`;
-  }
-
-  if (step.operation === 'multiply') {
-    return `multiplicar por ${amount}`;
-  }
-
-  if (step.operation === 'divide') {
-    return `dividir por ${amount}`;
-  }
-
-  if (step.operation === 'addPercentage') {
-    return `sumar ${amount}%`;
-  }
-
-  if (step.operation === 'subtractPercentage') {
-    return `restar ${amount}%`;
-  }
-
-  if (step.operation === 'removeIncludedPercentage') {
-    return `quitar ${amount}% incluido`;
-  }
-
-  return `sumar valor ${amount}`;
-}
-
-function describeRounding(rounding: TransformStep['rounding']) {
-  if (rounding === 'none') {
-    return 'sin redondeo';
-  }
-
-  return `${rounding ?? 2} decimales`;
-}
-
-function getStepSummary(step: TransformStep, inputColumns: InputColumn[] = []) {
-  if (step.type === 'numericOperation') {
-    return describeNumericOperation(step);
-  }
-
-  const [summary] = describeSimpleStep(step, inputColumns);
-  return summary;
-}
-
-export function buildCustomValuePreview(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  sampleInputValues?: Record<string, string>,
-  modal = false,
-  modeOverride?: CustomValueMode,
-  manualRangeRows: InputRow[] = [],
-) {
-  const mode = modeOverride ?? getCustomValueMode(recipe);
-
-  if (mode === '') {
-    return modal ? 'Configurá el Paso 1 para ver la vista previa.' : 'Sin valores configurados';
-  }
-
-  const hasNumericOperands = hasConfiguredNumericStepOperands(recipe);
-  const effectiveMode = hasNumericOperands ? 'number' : mode;
-
-  if (effectiveMode === 'number' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasNumericOperands) {
-    return 'Seleccioná una columna numérica.';
-  }
-
-  if (effectiveMode === 'text' && !getSimpleInputPart(recipe).inputColumnId && !getFirstStepSource(recipe) && !hasConfiguredManualRangeStep(recipe)) {
-    return 'Seleccioná una columna de texto.';
-  }
-
-  if (effectiveMode === 'concat' && recipe.parts.length === 0 && !hasConfiguredConcatStep(recipe)) {
-    return 'Agrega una parte para ver la vista previa.';
-  }
-
-  if (!isCustomValueConfigured(recipe, effectiveMode)) {
-    return 'No se han elegido valores suficientes.';
-  }
-
-  if (effectiveMode === 'number' && !canPreviewNumericValue(recipe, sampleInputValues)) {
-    return 'No se pudo calcular: valor no numérico.';
-  }
-
-  if (recipeHasManualRange(recipe)) {
-    return buildManualRangeAwarePreview(recipe, manualRangeRows) ?? 'Sin vista previa para los rangos configurados';
-  }
-
-  return buildCombinePreview(recipe, sampleInputValues) ?? 'Sin datos de ejemplo disponibles';
-}
-
-export function buildCombinePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
-  if (!sampleInputValues) {
-    return null;
-  }
-
-  const previewColumn: OutputColumn = {
-    id: 'constructor-preview',
-    label: 'Vista previa',
-    order: 0,
-    enabled: true,
-    recipe,
-  };
-  const [row] = buildProcessedRows([{ rowNumber: 1, values: sampleInputValues }], [previewColumn]);
-  return row?.outputValues[previewColumn.id] ?? '';
-}
-
-export function buildManualRangeAwarePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
-  const previewRows = getManualRangeAwarePreviewRows(recipe, rows);
-
-  if (previewRows.length === 0) {
-    return null;
-  }
-
-  const previewColumn: OutputColumn = {
-    id: 'constructor-preview',
-    label: 'Vista previa',
-    order: 0,
-    enabled: true,
-    recipe,
-  };
-
-  for (const row of previewRows) {
-    const [processedRow] = buildProcessedRows([row], [previewColumn]);
-    const value = processedRow?.outputValues[previewColumn.id] ?? '';
-    if (value.trim() !== '') {
-      return `Fila ${row.rowNumber}: ${value}`;
-    }
-  }
-
-  return null;
-}
-
-export function buildManualRangeRecipePreview(
-  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
-  rows: InputRow[],
-  sampleInputValues?: Record<string, string>,
-) {
-  const previewRows = getManualRangePreviewRows(recipe, rows, sampleInputValues);
-  if (previewRows.length === 0) {
-    return null;
-  }
-
-  const previewColumn: OutputColumn = {
-    id: 'manual-range-preview',
-    label: 'Vista previa',
-    order: 0,
-    enabled: true,
-    recipe,
-  };
-
-  for (const row of previewRows) {
-    const [processedRow] = buildProcessedRows([row], [previewColumn]);
-    const value = processedRow?.outputValues[previewColumn.id] ?? '';
-    if (value.trim() !== '') {
-      return `Fila ${row.rowNumber}: ${value}`;
-    }
-  }
-
-  return null;
-}
-
-function getManualRangeAwarePreviewRows(recipe: Extract<OutputRecipe, { type: 'combine' }>, rows: InputRow[]) {
-  const manualRangeSteps = collectManualRangeSteps(recipe.steps ?? []);
-  recipe.parts.forEach((part) => {
-    manualRangeSteps.push(...collectManualRangeSteps(part.steps ?? []));
-  });
-
-  if (manualRangeSteps.length === 0) {
-    return [];
-  }
-
-  return rows.filter((row) => manualRangeSteps.some((step) => (
-    (step.ranges ?? []).some((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)
-  )));
-}
-
-function collectManualRangeSteps(steps: TransformStep[]): TransformStep[] {
-  return steps.flatMap((step) => {
-    const nestedSteps = step.parts?.flatMap((part) => part.steps ?? []) ?? [];
-    const nestedManualRangeSteps = collectManualRangeSteps(nestedSteps);
-    return step.type === 'manualRange' ? [step, ...nestedManualRangeSteps] : nestedManualRangeSteps;
-  });
-}
-
-function getManualRangePreviewRows(
-  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
-  rows: InputRow[],
-  sampleInputValues?: Record<string, string>,
-) {
-  const rowsInRange = rows.filter((row) => recipe.ranges.some((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber));
-  if (rowsInRange.length > 0 || !sampleInputValues) {
-    return rowsInRange;
-  }
-
-  return recipe.ranges.map((range) => ({
-    rowNumber: range.startRowNumber,
-    values: sampleInputValues,
-  }));
-}
-
-function recipeHasManualRange(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return stepsHaveManualRange(recipe.steps ?? [])
-    || recipe.parts.some((part) => stepsHaveManualRange(part.steps ?? []));
-}
-
-function stepsHaveManualRange(steps: TransformStep[]): boolean {
-  return steps.some((step) => (
-    step.type === 'manualRange'
-    || stepsHaveManualRange(step.parts?.flatMap((part) => part.steps ?? []) ?? [])
-  ));
-}
-
 export function getPreviousStepPreviewValue(
   recipe: Extract<OutputRecipe, { type: 'combine' }>,
   sampleInputValues: Record<string, string> | undefined,
@@ -1669,7 +1237,7 @@ export function getPreviousStepPreviewValue(
   return buildCombinePreview({ ...recipe, steps: previousSteps }, sampleInputValues);
 }
 
-function CustomValueEditor({
+export function CustomValueEditor({
   recipe,
   inputColumns,
   manualRangeRows,
@@ -1682,7 +1250,7 @@ function CustomValueEditor({
   manualRangeRows: InputRow[];
   sampleInputValues?: Record<string, string>;
   mode: CustomValueMode;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }>) => void;
+  onChange: (recipe: Extract<OutputRecipe, { type: 'combine' }> | ((current: Extract<OutputRecipe, { type: 'combine' }>) => Extract<OutputRecipe, { type: 'combine' }>)) => void;
 }) {
   const baseInputPart = getSimpleInputPart(recipe);
   const visibleSteps = getVisibleRecipeSteps(recipe, mode);
@@ -1691,12 +1259,17 @@ function CustomValueEditor({
     const nextMode = defaultStepMode === 'number' ? 'number' : 'text';
     onChange(buildSimpleCustomValueRecipeWithSteps(nextMode, inputColumnId, visibleSteps, recipe));
   };
-  const updateSteps = (steps: TransformStep[]) => {
-    onChange(buildStepBasedCustomValueRecipe(recipe, steps, defaultStepMode));
+  const updateSteps = (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => {
+    onChange((currentRecipe) => {
+      const currentMode = getCustomValueMode(currentRecipe) || mode;
+      const currentSteps = getVisibleRecipeSteps(currentRecipe, currentMode);
+      const nextSteps = typeof steps === 'function' ? steps(currentSteps) : steps;
+      return buildStepBasedCustomValueRecipe(currentRecipe, nextSteps, getDefaultStepModeForRecipe(currentRecipe, currentMode));
+    });
   };
 
   return (
-    <div className="recipeSubBlock customValueEditor">
+    <div className="customValueEditor nonConcatStudio">
       <StepBlocksEditor
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
@@ -1704,6 +1277,7 @@ function CustomValueEditor({
         baseInputColumnId={baseInputPart.inputColumnId}
         steps={visibleSteps}
         requireAtLeastOne
+        studioLayout
         getPreviousStepPreviewValue={(stepIndex) => getPreviousStepPreviewValue(recipe, sampleInputValues, stepIndex)}
         onBaseInputColumnChange={updateBaseInputColumn}
         onStepsChange={updateSteps}
@@ -1719,6 +1293,7 @@ function StepBlocksEditor({
   baseInputColumnId,
   steps,
   requireAtLeastOne = false,
+  studioLayout = false,
   getPreviousStepPreviewValue,
   onBaseInputColumnChange,
   onStepsChange,
@@ -1729,12 +1304,13 @@ function StepBlocksEditor({
   baseInputColumnId: string;
   steps: TransformStep[];
   requireAtLeastOne?: boolean;
+  studioLayout?: boolean;
   getPreviousStepPreviewValue?: (stepIndex: number) => string | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
-  onStepsChange: (steps: TransformStep[]) => void;
+  onStepsChange: (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => void;
 }) {
   const addStep = () => {
-    onStepsChange([...steps, createNoopStep(defaultStepMode)]);
+    onStepsChange((currentSteps) => [...currentSteps, createNoopStep(defaultStepMode)]);
   };
 
   const deleteStep = (indexToDelete: number) => {
@@ -1742,8 +1318,66 @@ function StepBlocksEditor({
       return;
     }
 
-    onStepsChange(steps.filter((_, index) => index !== indexToDelete));
+    onStepsChange((currentSteps) => currentSteps.filter((_, index) => index !== indexToDelete));
   };
+
+  if (studioLayout && steps.length > 0) {
+    const [primaryStep, ...additionalSteps] = steps;
+
+    return (
+      <div className="simpleStepsEditor nonConcatStepsEditor">
+        <SimpleStepBlock
+          step={primaryStep}
+          index={0}
+          inputColumns={inputColumns}
+          manualRangeRows={manualRangeRows}
+          defaultStepMode={defaultStepMode}
+          baseInputColumnId={baseInputColumnId}
+          canDelete={false}
+          previousResultPreviewValue={getPreviousStepPreviewValue?.(0) ?? null}
+          studioLayout
+          studioActionContent={(
+            <>
+              {additionalSteps.length > 0 ? (
+                <div className="stepsBlock nonConcatAdditionalSteps">
+                  {additionalSteps.map((step, additionalIndex) => {
+                    const index = additionalIndex + 1;
+                    return (
+                      <div key={step.id} className="concatPartStepDivider">
+                        <SimpleStepBlock
+                          step={step}
+                          index={index}
+                          inputColumns={inputColumns}
+                          manualRangeRows={manualRangeRows}
+                          defaultStepMode={defaultStepMode}
+                          baseInputColumnId={baseInputColumnId}
+                          canDelete
+                          previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+                          onBaseInputColumnChange={onBaseInputColumnChange}
+                          onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
+                          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
+                          onDelete={() => deleteStep(index)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <div className="stepsBlockActions">
+                <InfoTooltip content="Agrega una transformacion nueva al valor.">
+                  <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
+                </InfoTooltip>
+              </div>
+            </>
+          )}
+          onBaseInputColumnChange={onBaseInputColumnChange}
+          onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, primaryStep.id, patch, 0))}
+          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, primaryStep.id, nextStep, 0))}
+          onDelete={() => undefined}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="simpleStepsEditor">
@@ -1763,7 +1397,8 @@ function StepBlocksEditor({
               canDelete={!requireAtLeastOne || steps.length > 1}
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
-              onChange={(patch) => onStepsChange(updateStep(steps, step.id, patch))}
+              onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
+              onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
               onDelete={() => deleteStep(index)}
             />
           ))}
@@ -1778,6 +1413,22 @@ function StepBlocksEditor({
   );
 }
 
+function updateStepWithIndexFallback(steps: TransformStep[], id: string, patch: Partial<TransformStep>, fallbackIndex: number) {
+  if (steps.some((step) => step.id === id)) {
+    return updateStep(steps, id, patch);
+  }
+
+  return steps.map((step, index) => (index === fallbackIndex ? { ...step, ...patch } : step));
+}
+
+function replaceWholeStepWithIndexFallback(steps: TransformStep[], id: string, nextStep: TransformStep, fallbackIndex: number) {
+  if (steps.some((step) => step.id === id)) {
+    return replaceWholeStep(steps, id, nextStep);
+  }
+
+  return steps.map((step, index) => (index === fallbackIndex ? nextStep : step));
+}
+
 function SimpleStepBlock({
   step,
   index,
@@ -1787,8 +1438,11 @@ function SimpleStepBlock({
   baseInputColumnId,
   canDelete,
   previousResultPreviewValue,
+  studioLayout = false,
+  studioActionContent,
   onBaseInputColumnChange,
   onChange,
+  onReplace,
   onDelete,
 }: {
   step: TransformStep;
@@ -1799,360 +1453,224 @@ function SimpleStepBlock({
   baseInputColumnId: string;
   canDelete: boolean;
   previousResultPreviewValue?: string | null;
+  studioLayout?: boolean;
+  studioActionContent?: ReactNode;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onChange: (patch: Partial<TransformStep>) => void;
+  onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
-  const [textSourceActionOverride, setTextSourceActionOverride] = useState<StepTextSourceAction | null>(null);
-  const summary = getStepSummary(step, inputColumns);
-  const stepMode = getStepMode(step, defaultStepMode);
+  const context: StepEditorContext = {
+    kind: 'normal',
+    stepIndex: index,
+    defaultInputColumnId: baseInputColumnId,
+  };
   const isManualRangeStep = step.type === 'manualRange';
-  const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
-  const stepSource = getVisibleStepSource(step, index, baseInputColumnId);
-  const textSourceAction = textSourceActionOverride ?? getStepTextSourceAction(stepSource);
-  const updateStepSource = (source: StepSource) => {
-    if (index === 0 && source.type === 'input') {
-      onBaseInputColumnChange(source.inputColumnId);
+  const summarySource = step.source;
+  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getSimpleStepBlockTitle(step, index, inputColumns, summarySource);
+  const title = `Paso ${index + 1}${summary ? ` · ${summary}` : ''}`;
+  const handleChange = (patch: Partial<TransformStep>) => {
+    onChange(patch);
+  };
+  const handleReplace = (nextStep: TransformStep) => {
+    onReplace(nextStep);
+  };
+  const renderManualRangeFields: StepEditorBlockFieldRenderer = ({ step: currentStep, onChange: onStepChange }) => {
+    if (currentStep.type !== 'manualRange') {
+      return undefined;
     }
 
-    onChange({ source });
-  };
-  const updateTextSourceAction = (action: StepTextSourceAction) => {
-    setTextSourceActionOverride(action);
-    onChange({
-      ...replaceStepType(step, 'noop', 'text', undefined, index),
-      source: getStepSourceForTextAction(action, stepSource, inputColumns),
-    });
-  };
-
-  return (
-    <div className="stepDetailPanel">
-      <div className="stepCardHeader">
-        <strong>
-          Paso {index + 1}{summary ? ` · ${summary}` : ''}
-        </strong>
-        {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
-      </div>
-      <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
-        {step.type === 'concat' || isManualRangeStep ? (
-          <div className="concatStepTopRow">
-            <div className="concatStepTopControls">
-              <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-              {showStepTypeSelect ? (
-                <StepTypeSelect
-                  step={step}
-                  mode={stepMode}
-                  textSourceAction={textSourceAction}
-                  allowPreviousResultSource={index > 0}
-                  onTextSourceAction={updateTextSourceAction}
-                  onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-                />
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <>
-            <StepModeSelect mode={stepMode} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-            <StepTypeSelect
-              step={step}
-              mode={stepMode}
-              textSourceAction={textSourceAction}
-              allowPreviousResultSource={index > 0}
-              onTextSourceAction={updateTextSourceAction}
-              onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-            />
-          </>
-        )}
-        <StepFields
-          step={step}
-          stepIndex={index}
-          stepSource={stepSource}
+    return (
+      <div className="manualRangeStepFields">
+        <ManualRangeRecipeEditor
+          recipe={manualRangeStepToRecipe(currentStep)}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          labels="workflow"
-          previousResultPreviewValue={previousResultPreviewValue}
-          textSourceAction={textSourceAction}
-          onSourceChange={updateStepSource}
-          onChange={onChange}
+          onChange={(recipe) => onStepChange(manualRangeRecipeToStepPatch(recipe))}
         />
-        {isManualRangeStep ? (
-          <div className="manualRangeStepCondition">
-            <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
-          </div>
-        ) : (
-          <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
-        )}
       </div>
+    );
+  };
+  const renderStepCondition = (currentStep: TransformStep, onStepChange: (patch: Partial<TransformStep>) => void) => currentStep.type === 'manualRange' ? (
+    <div className="manualRangeStepCondition">
+      <StepConditionFields step={currentStep} inputColumns={inputColumns} variant="manualRange" onChange={onStepChange} />
     </div>
+  ) : (
+    <StepConditionFields step={currentStep} inputColumns={inputColumns} onChange={onStepChange} />
+  );
+
+  if (studioLayout) {
+    return (
+      <>
+        <section className="recipeStudioSection recipeStudioGeneralSection" aria-label="Configuración general">
+          <div className="composeStudioHeaderTitle">
+            <span>Configuración general</span>
+            <strong>{title}</strong>
+          </div>
+          <StepEditorBlock
+            step={step}
+            context={context}
+            inputColumns={inputColumns}
+            manualRangeRows={manualRangeRows}
+            showHeader={false}
+            showCondition={false}
+            previousResultPreviewValue={previousResultPreviewValue}
+            renderFields={renderManualRangeFields}
+            onChange={handleChange}
+            onReplace={handleReplace}
+          />
+          {renderStepCondition(step, handleChange)}
+          {studioActionContent}
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <StepEditorBlock
+      step={step}
+      context={context}
+      inputColumns={inputColumns}
+      manualRangeRows={manualRangeRows}
+      title={title}
+      canDelete={canDelete}
+      gridClassName={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}
+      previousResultPreviewValue={previousResultPreviewValue}
+      renderFields={renderManualRangeFields}
+      renderCondition={renderStepCondition}
+      onChange={handleChange}
+      onReplace={handleReplace}
+      onDelete={onDelete}
+    />
   );
 }
 
-function StepDetailPanel({
-  step,
-  index,
-  inputColumns,
-  manualRangeRows = [],
-  canDelete,
-  allowConcat = true,
-  stepSource = step.source ?? { type: 'previousResult' },
-  allowPreviousResultSource,
-  previousResultPreviewValue,
-  onSourceChange,
-  onChange,
-  onDelete,
-  concatPart = false,
-}: {
-  step: TransformStep;
-  index: number;
-  inputColumns: InputColumn[];
-  manualRangeRows?: InputRow[];
-  canDelete: boolean;
-  allowConcat?: boolean;
-  stepSource?: StepSource;
-  allowPreviousResultSource?: boolean;
-  previousResultPreviewValue?: string | null;
-  onSourceChange?: (source: StepSource) => void;
-  onChange: (patch: Partial<TransformStep>) => void;
-  onDelete: () => void;
-  concatPart?: boolean;
-}) {
-  const [textSourceActionOverride, setTextSourceActionOverride] = useState<StepTextSourceAction | null>(null);
-  const summary = getStepSummary(step, inputColumns);
-  const stepMode = getStepMode(step);
-  const isManualRangeStep = step.type === 'manualRange';
-  const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
-  const textSourceAction = textSourceActionOverride ?? getStepTextSourceAction(stepSource);
-  const updateTextSourceAction = (action: StepTextSourceAction) => {
-    setTextSourceActionOverride(action);
-    const source = getStepSourceForTextAction(action, stepSource, inputColumns);
-    onSourceChange?.(source);
-    onChange({
-      ...replaceStepType(step, 'noop', 'text', undefined, index),
-      ...(onSourceChange ? {} : { source }),
-    });
-  };
-  return (
-    <div className="stepDetailPanel">
-      <div className="stepCardHeader">
-        <strong>
-          Paso {index + 1}{summary ? ` · ${summary}` : ''}
-        </strong>
-        {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
-      </div>
-      <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
-        {step.type === 'concat' || isManualRangeStep ? (
-          <div className="concatStepTopRow">
-            <div className="concatStepTopControls">
-              <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-              {showStepTypeSelect ? (
-                <StepTypeSelect
-                  step={step}
-                  mode={stepMode}
-                  allowConcat={allowConcat}
-                  textSourceAction={textSourceAction}
-                  allowPreviousResultSource={Boolean(allowPreviousResultSource)}
-                  onTextSourceAction={updateTextSourceAction}
-                  onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-                />
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <>
-            <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onChange(changeStepMode(step, mode))} />
-            <StepTypeSelect
-              step={step}
-              mode={stepMode}
-              allowConcat={allowConcat}
-              textSourceAction={textSourceAction}
-              allowPreviousResultSource={Boolean(allowPreviousResultSource)}
-              onTextSourceAction={updateTextSourceAction}
-              onChange={(type, operation) => onChange(replaceStepType(step, type, stepMode, operation, index))}
-            />
-          </>
-        )}
-        <StepFields
-          step={step}
-          stepIndex={index}
-          stepSource={stepSource}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          labels="workflow"
-          allowPreviousResultSource={allowPreviousResultSource}
-          previousResultPreviewValue={previousResultPreviewValue}
-          textSourceAction={textSourceAction}
-          showSourceFields={!(concatPart && (step.type === 'addPrefix' || step.type === 'addSuffix'))}
-          hideFixedTextInput={concatPart && (step.type === 'addPrefix' || step.type === 'addSuffix')}
-          onSourceChange={onSourceChange ?? ((source) => onChange({ source }))}
-          onChange={onChange}
-        />
-        {isManualRangeStep ? (
-          <div className="manualRangeStepCondition">
-            <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
-          </div>
-        ) : (
-          <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
-        )}
-      </div>
-    </div>
-  );
+function getSimpleStepBlockTitle(step: TransformStep, index: number, inputColumns: InputColumn[], source?: StepSource) {
+  if (step.type === 'noop' && source?.type === 'input' && (source.inputColumnId || index > 0)) {
+    return 'Usar columna de entrada';
+  }
+
+  return getRecipeStepTitle(step, inputColumns, source);
 }
 
-
-function ConcatStepFields({
-  parts,
+export function ComposePartEditor({
+  part,
   inputColumns,
   manualRangeRows,
-  allowPreviousResult,
-  previousResultPreviewValue,
+  sampleInputValues,
+  allowPreviousResultSource,
   onChange,
-}: {
-  parts: ConcatPart[];
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  allowPreviousResult: boolean;
-  previousResultPreviewValue?: string | null;
-  onChange: (parts: ConcatPart[]) => void;
-}) {
-  const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null);
-  const previousPartCountRef = useRef(parts.length);
-  const safeSelectedPartId = getSafeSelectedConcatPartId(parts, selectedPartId);
-  const selectedPart = parts.find((part) => part.id === safeSelectedPartId);
-  const selectedPartIndex = selectedPart ? parts.findIndex((part) => part.id === selectedPart.id) : -1;
-
-  useEffect(() => {
-    if (parts.length > previousPartCountRef.current) {
-      setSelectedPartId(parts[parts.length - 1]?.id ?? null);
-    }
-
-    previousPartCountRef.current = parts.length;
-  }, [parts]);
-
-  const updatePart = (partId: string, nextPart: ConcatPart) => {
-    onChange(parts.map((part) => (part.id === partId ? nextPart : part)));
-  };
-  const addPart = () => {
-    onChange([
-      ...parts,
-      createDefaultConcatPart(parts.length, allowPreviousResult),
-    ]);
-  };
-  const removePart = (partId: string) => {
-    setSelectedPartId(getNextSelectedConcatPartIdAfterRemove(parts, partId, safeSelectedPartId));
-    onChange(parts.filter((part) => part.id !== partId));
+}: ComposePartEditorRenderProps) {
+  const updateBaseSource = (source: StepSource, nextSteps?: TransformStep[]) => {
+    onChange({ ...part, source, ...(nextSteps ? { steps: nextSteps } : {}) });
   };
 
   return (
-    <div className="concatStepFields">
-      {parts.length === 0 ? (
-        <div className="concatPartsEmptyState">
-          <p className="muted">Agrega una parte para construir el valor.</p>
-          <InfoTooltip content="Agrega otro dato o texto a combinar.">
-            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-          </InfoTooltip>
-        </div>
-      ) : null}
-      {parts.length > 0 ? (
-        <div className="concatPartsWorkspace">
-          <div className="concatPartsSidebar">
-            <SortableList
-              items={parts}
-              onChange={(nextParts) => onChange(normalizeConcatPartsAfterReorder(nextParts))}
-              renderItem={(part, handle) => {
-                const index = parts.findIndex((item) => item.id === part.id);
+    <ConcatPartStepsEditor
+      partId={part.id}
+      inputColumns={inputColumns}
+      manualRangeRows={manualRangeRows}
+      sampleInputValues={sampleInputValues}
+      steps={part.steps ?? []}
+      baseSource={part.source}
+      allowPreviousResultSource={allowPreviousResultSource}
+      onBaseSourceChange={updateBaseSource}
+      onChange={(steps) => onChange({ ...part, steps })}
+    />
+  );
+}
 
-                return (
-                  <div className={`concatPartListItem${part.id === safeSelectedPartId ? ' selected' : ''}`}>
-                    {handle}
-                    <button
-                      type="button"
-                      className="concatPartSelectButton"
-                      onClick={() => setSelectedPartId(part.id)}
-                    >
-                      <strong>Parte {index + 1}</strong>
-                      <span>{describeConcatPartSource(part, inputColumns)}</span>
-                    </button>
-                  </div>
-                );
-              }}
-            />
-            <InfoTooltip content="Agrega otro dato o texto a combinar.">
-              <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-            </InfoTooltip>
-          </div>
-          {selectedPart ? (
-            <div className="concatPartDetailPanel">
-              <div className="concatPartHeader">
-                <strong className="headingWithInfo">
-                  <span>Parte {selectedPartIndex + 1}</span>
-                  <InfoTooltip content="Configurá el dato o texto de esta parte." />
-                </strong>
-                <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
-              </div>
-              <ConcatPartStepsEditor
-                inputColumns={inputColumns}
-                manualRangeRows={manualRangeRows}
-                steps={selectedPart.steps ?? []}
-                baseSource={selectedPart.source}
-                separatorFields={selectedPartIndex > 0 ? (
-                  <div className="concatPartFields">
-                    <label className="field compact">
-                      <span className="labelWithInfo">
-                        <span>Separador antes de esta parte</span>
-                        <InfoTooltip content="Texto que separa esta parte de la anterior." />
-                      </span>
-                      <input
-                        value={selectedPart.separatorBefore ?? ''}
-                        onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                previousResultPreviewValue={previousResultPreviewValue}
-                onBaseSourceChange={(source, nextSteps) => updatePart(
-                  selectedPart.id,
-                  {
-                    ...selectedPart,
-                    source,
-                    ...(nextSteps ? { steps: nextSteps } : {}),
-                  },
-                )}
-                onChange={(steps) => onChange(updateConcatPartSteps(parts, selectedPart.id, steps))}
-              />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+export function ComposeStepHeader({ recipe, inputColumns, onChange }: ComposeStepHeaderRenderProps) {
+  const configuredConcatStep = getConfiguredConcatStep(recipe);
+  const step: TransformStep = configuredConcatStep ?? {
+    id: 'compose-step',
+    mode: 'text',
+    type: 'concat',
+    parts: recipe.parts.map((part) => ({
+      id: part.id,
+      source: part.type === 'input'
+        ? { type: 'input', inputColumnId: part.inputColumnId }
+        : { type: 'fixedText', value: part.value },
+      ...(part.steps ? { steps: part.steps } : {}),
+    })),
+  };
+  const mode = getStepMode(step, 'text');
+  const currentSource = getFirstStepSource(recipe) ?? { type: 'input' as const, inputColumnId: inputColumns[0]?.id ?? '' };
+  const updateStep = (nextStep: TransformStep, nextMode: TransformStepMode) => {
+    onChange(buildStepBasedCustomValueRecipe(recipe, [nextStep], nextMode));
+  };
+  const updateTextSourceAction = (action: StepTextSourceAction) => {
+    updateStep({
+      ...replaceWholeStepForAction(step, 'noop', 'text', undefined, 0),
+      source: getStepSourceForTextAction(action, currentSource, inputColumns),
+    }, 'text');
+  };
+
+  return (
+    <>
+      <StepModeSelect
+        mode={mode}
+        onChange={(nextMode) => updateStep(replaceWholeStepForMode(step, nextMode, 0), nextMode)}
+      />
+      <StepTypeSelect
+        step={step}
+        mode={mode}
+        allowConcat
+        textSourceAction={getStepTextSourceAction(currentSource)}
+        onTextSourceAction={updateTextSourceAction}
+        onChange={(type, operation) => updateStep(replaceWholeStepForAction(step, type, mode, operation, 0), mode)}
+      />
+    </>
   );
 }
 
 function ConcatPartStepsEditor({
+  partId,
   inputColumns,
   manualRangeRows,
+  sampleInputValues,
   steps,
   baseSource,
   separatorFields,
   previousResultPreviewValue,
+  allowPreviousResultSource = true,
+  showPrimarySourceFields = true,
   onBaseSourceChange,
   onChange,
 }: {
+  partId?: string;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  sampleInputValues?: Record<string, string>;
   steps: TransformStep[];
   baseSource: StepSource;
   separatorFields?: ReactNode;
   previousResultPreviewValue?: string | null;
+  allowPreviousResultSource?: boolean;
+  showPrimarySourceFields?: boolean;
   onBaseSourceChange: (source: StepSource, nextSteps?: TransformStep[]) => void;
   onChange: (steps: TransformStep[]) => void;
 }) {
   const primaryStep = getVisibleConcatPartPrimaryStep(steps);
   const additionalSteps = steps.slice(1);
-  const updatePrimaryStep = (patch: Partial<TransformStep>) => {
-    onChange(updateConcatPartPrimaryStep(steps, patch));
-  };
-  const updatePrimaryStepSource = (source: StepSource) => {
-    onBaseSourceChange(source, primaryStep.source ? clearPrimaryStepSource(steps) : undefined);
+  const primaryContext = getConcatPartStepContext(0, getConcatPrimarySourceActionOverride(primaryStep, baseSource, steps.length > 0));
+  const primaryEditorStep = getStepWithConcatPartSource(primaryStep, baseSource, primaryContext, steps.length > 0);
+  const uiKeyPrefix = `concat:${partId ?? primaryStep.id}`;
+  const updatePrimaryStep = (nextStep: TransformStep) => {
+    const nextSource = nextStep.source ?? baseSource;
+    const normalizedStep = {
+      ...nextStep,
+      applyToEmptyValues: nextStep.applyToEmptyValues ?? false,
+    };
+    const visibleAction = getVisibleStepAction(nextStep, primaryContext);
+    const shouldKeepImplicitStep = steps.length === 0
+      && normalizedStep.type === 'noop'
+      && normalizedStep.mode === 'text'
+      && !nextStep.source
+      && visibleAction === 'unconfigured';
+    const nextSteps = shouldKeepImplicitStep ? [] : [normalizedStep, ...additionalSteps];
+
+    onBaseSourceChange(nextSource, nextSteps);
   };
   const addAdditionalStep = () => {
     onChange(appendConcatPartAdditionalStep(steps));
@@ -2161,6 +1679,12 @@ function ConcatPartStepsEditor({
     onChange([
       primaryStep,
       ...additionalSteps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
+    ]);
+  };
+  const replaceAdditionalStep = (stepId: string, nextStep: TransformStep) => {
+    onChange([
+      primaryStep,
+      ...additionalSteps.map((step) => (step.id === stepId ? nextStep : step)),
     ]);
   };
   const deleteAdditionalStep = (stepId: string) => {
@@ -2175,19 +1699,18 @@ function ConcatPartStepsEditor({
         </div>
       ) : null}
 
-      <StepDetailPanel
-        step={primaryStep}
-        index={0}
+      <StepEditorBlock
+        step={primaryEditorStep}
+        context={primaryContext}
+        uiStateKey={`${uiKeyPrefix}:0`}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        title={`Paso 1 · ${getConcatPartStepTitle(primaryEditorStep, primaryContext, inputColumns)}`}
         canDelete={false}
-        allowConcat={false}
-        stepSource={primaryStep.source ?? baseSource}
-        allowPreviousResultSource
         previousResultPreviewValue={baseSource.type === 'previousResult' ? previousResultPreviewValue : null}
-        concatPart
-        onSourceChange={updatePrimaryStepSource}
-        onChange={updatePrimaryStep}
+        hideTransformSourceFields={!showPrimarySourceFields}
+        onChange={(patch) => updatePrimaryStep({ ...primaryEditorStep, ...patch })}
+        onReplace={updatePrimaryStep}
         onDelete={() => undefined}
       />
 
@@ -2196,280 +1719,151 @@ function ConcatPartStepsEditor({
           <div className="concatPartTransformList">
             {additionalSteps.map((step, index) => {
               const transformIndex = index + 1;
+              const context = getConcatPartStepContext(transformIndex);
+              const previousStepPreviewValue = getConcatPartPreviousStepPreviewValue(
+                baseSource,
+                steps,
+                sampleInputValues,
+                transformIndex,
+                previousResultPreviewValue,
+              );
 
               return (
-                <StepDetailPanel
-                  key={step.id}
-                  step={step}
-                  index={transformIndex}
-                  inputColumns={inputColumns}
-                  manualRangeRows={manualRangeRows}
-                  canDelete
-                  allowConcat={false}
-                  allowPreviousResultSource
-                  previousResultPreviewValue={previousResultPreviewValue}
-                  concatPart
-                  onChange={(patch) => updateAdditionalStep(step.id, patch)}
-                  onDelete={() => deleteAdditionalStep(step.id)}
-                />
+                <div key={step.id} className="concatPartStepDivider">
+                  <StepEditorBlock
+                    step={step}
+                    context={context}
+                    uiStateKey={`${uiKeyPrefix}:${transformIndex}`}
+                    inputColumns={inputColumns}
+                    manualRangeRows={manualRangeRows}
+                    title={`Paso ${transformIndex + 1} · ${getConcatPartStepTitle(step, context, inputColumns)}`}
+                    canDelete
+                    previousResultPreviewValue={previousStepPreviewValue}
+                    onChange={(patch) => updateAdditionalStep(step.id, patch)}
+                    onReplace={(nextStep) => replaceAdditionalStep(step.id, normalizeStepForContext(nextStep, context))}
+                    onDelete={() => deleteAdditionalStep(step.id)}
+                  />
+                </div>
               );
             })}
           </div>
         ) : null}
         <div className="concatPartStepsActions">
-          <InfoTooltip content="Agrega una transformacion adicional a esta parte.">
-            <button type="button" className="secondary concatAddAdjustmentButton" onClick={addAdditionalStep}>{recipeEditorAdditionalStepLabel}</button>
-          </InfoTooltip>
+          <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addAdditionalStep}>
+            {recipeEditorAdditionalStepLabel}
+          </ActionButton>
         </div>
       </div>
     </div>
   );
 }
 
-function clearPrimaryStepSource(steps: TransformStep[]) {
-  if (steps.length === 0) {
-    return steps;
+function getConcatPartPreviousStepPreviewValue(
+  baseSource: StepSource,
+  steps: TransformStep[],
+  sampleInputValues: Record<string, string> | undefined,
+  stepIndex: number,
+  previousResultPreviewValue?: string | null,
+) {
+  if (stepIndex <= 0) {
+    return baseSource.type === 'previousResult' ? previousResultPreviewValue ?? null : null;
   }
 
-  const [{ source: _source, ...primaryStep }, ...additionalSteps] = steps;
-  return [primaryStep, ...additionalSteps];
+  const previewInputs = sampleInputValues ?? (baseSource.type === 'input' ? undefined : {});
+  if (!previewInputs) {
+    return null;
+  }
+
+  return buildCombinePreview({
+    type: 'combine',
+    parts: [createPreviewPartFromSource(baseSource, previousResultPreviewValue)],
+    separator: '',
+    steps: steps.slice(0, stepIndex),
+  }, previewInputs);
 }
 
-type StepFieldLabels = 'default' | 'workflow';
+function createPreviewPartFromSource(source: StepSource, previousResultPreviewValue?: string | null): RecipePart {
+  if (source.type === 'input') {
+    return { id: 'previous-result-preview-part', type: 'input', inputColumnId: source.inputColumnId };
+  }
 
-function StepFields({
-  step,
-  stepIndex = 0,
-  stepSource,
-  inputColumns,
-  manualRangeRows = [],
-  labels = 'default',
-  showSourceFields = true,
-  allowPreviousResultSource,
-  previousResultPreviewValue,
-  hideFixedTextInput = false,
-  textSourceAction,
-  onSourceChange,
-  onChange,
-}: {
-  step: TransformStep;
-  stepIndex?: number;
-  stepSource: StepSource;
-  inputColumns: InputColumn[];
-  manualRangeRows?: InputRow[];
-  labels?: StepFieldLabels;
-  showSourceFields?: boolean;
-  allowPreviousResultSource?: boolean;
-  previousResultPreviewValue?: string | null;
-  hideFixedTextInput?: boolean;
-  textSourceAction?: StepTextSourceAction;
-  onSourceChange: (source: StepSource) => void;
-  onChange: (patch: Partial<TransformStep>) => void;
-}) {
-  const canUsePreviousResultSource = allowPreviousResultSource ?? stepIndex > 0;
-  const usesFixedDateSource = step.type === 'formatDate' && stepSource.type === 'fixedText';
-  const updateSource = (source: StepSource) => {
-    if (step.type === 'formatDate' && source.type === 'fixedText') {
-      onChange({
-        source: { type: 'fixedText', value: getDatePickerValue(source.value, step.dateInputFormat ?? defaultDateInputFormat) },
-        dateInputFormat: 'YYYY-MM-DD',
-      });
-      return;
-    }
+  if (source.type === 'rangeText') {
+    return { id: 'previous-result-preview-part', type: 'text', value: source.selectedText };
+  }
 
-    onSourceChange(source);
+  if (source.type === 'previousResult') {
+    return { id: 'previous-result-preview-part', type: 'text', value: previousResultPreviewValue ?? '' };
+  }
+
+  return { id: 'previous-result-preview-part', type: 'text', value: source.value };
+}
+
+function getConcatPartStepContext(stepIndex: number, sourceActionOverride?: StepSourceAction): StepEditorContext {
+  return {
+    kind: 'concat',
+    stepIndex,
+    defaultInputColumnId: '',
+    ...(sourceActionOverride ? { sourceActionOverride } : {}),
   };
-  const sourceFields = showSourceFields && shouldShowTextSourceFields(step.type) ? (
-    <StepSourceFields
-      label={valueSourceLabel}
-      source={stepSource}
-      inputColumns={inputColumns}
-      inputRows={manualRangeRows}
-      allowPreviousResult={canUsePreviousResultSource}
-      previousResultPreviewValue={previousResultPreviewValue}
-      fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}
-      fixedTextDateInputFormat={step.dateInputFormat ?? defaultDateInputFormat}
-      hideFixedTextInput={hideFixedTextInput}
-      hideSourceSelector={(step.type === 'noop' && Boolean(textSourceAction)) || stepSource.type === 'fixedText'}
-      columnTextPickerOpen={step.type === 'noop' && textSourceAction === 'pickColumnText'}
-      onChange={updateSource}
-    />
-  ) : null;
-
-  if (step.type === 'noop') {
-    return sourceFields;
+}
+function getConcatPrimarySourceActionOverride(step: TransformStep, source: StepSource, hasStoredPrimaryStep: boolean): StepSourceAction | undefined {
+  if (!hasStoredPrimaryStep || step.type !== 'noop') {
+    return undefined;
   }
 
-  if (step.type === 'manualRange') {
-    return (
-      <div className="manualRangeStepFields">
-        <ManualRangeRecipeEditor
-          recipe={manualRangeStepToRecipe(step)}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          onChange={(recipe) => onChange(manualRangeRecipeToStepPatch(recipe))}
-        />
-      </div>
-    );
+  const visibleSource = step.source ?? source;
+  if (visibleSource.type === 'input') {
+    return 'useInputColumn';
   }
 
-  if (step.type === 'addPrefix') {
-    return (
-      <>
-        {sourceFields}
-        <label className="field compact">
-          <span>{labels === 'workflow' ? 'Prefijo' : 'Texto al inicio'}</span>
-          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-        </label>
-      </>
-    );
+  if (visibleSource.type === 'fixedText') {
+    return 'useFixedText';
   }
 
-  if (step.type === 'addSuffix') {
-    return (
-      <>
-        {sourceFields}
-        <label className="field compact">
-          <span>{labels === 'workflow' ? 'Sufijo' : 'Texto al final'}</span>
-          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-        </label>
-      </>
-    );
+  return undefined;
+}
+
+function getStepWithConcatPartSource(step: TransformStep, source: StepSource, context: StepEditorContext, forceConfiguredSource = false) {
+  if (step.source || step.type !== 'noop') {
+    return step;
   }
 
-  if (step.type === 'removeText') {
-    return (
-      <>
-        {sourceFields}
-        <label className="field compact">
-          <span>{labels === 'workflow' ? 'Texto a quitar' : 'Texto a quitar'}</span>
-          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-        </label>
-      </>
-    );
+  if (!forceConfiguredSource && !isConfiguredConcatPartSource(source)) {
+    return step;
   }
 
-  if (step.type === 'replaceText') {
-    return (
-      <>
-        {sourceFields}
-        <label className="field compact">
-          <span>Buscar</span>
-          <input value={step.searchValue ?? ''} onChange={(event) => onChange({ searchValue: event.target.value })} />
-        </label>
-        <label className="field compact">
-          <span>Reemplazar por</span>
-          <input value={step.replaceValue ?? ''} onChange={(event) => onChange({ replaceValue: event.target.value })} />
-        </label>
-      </>
-    );
+  return normalizeStepForContext({ ...step, source }, context);
+}
+
+function isConfiguredConcatPartSource(source: StepSource) {
+  if (source.type === 'input') {
+    return source.inputColumnId.trim().length > 0;
   }
 
-  if (step.type === 'numericOperation') {
-    const leftOperand = getVisibleLeftOperand(step, stepSource);
-    const rightOperand = getVisibleRightOperand(step);
-
-    return (
-      <div className="numericOperationFields">
-        <StepOperandFields
-          label="Primer valor"
-          operand={leftOperand}
-          inputColumns={inputColumns}
-          allowPreviousResult={canUsePreviousResultSource}
-          onChange={(leftOperand) => onChange({ leftOperand })}
-        />
-        <StepOperandFields
-          label="Segundo valor"
-          operand={rightOperand}
-          inputColumns={inputColumns}
-          allowPreviousResult={canUsePreviousResultSource}
-          onChange={(rightOperand) => onChange({
-            rightOperand,
-            ...(rightOperand.type === 'fixedText' ? { amount: parseOptionalNumberInput(rightOperand.value) } : {}),
-          })}
-        />
-        <Dropdown
-          className="compact"
-          label={labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}
-          labelInfo={<InfoTooltip content="Definí cómo mostrar los números del resultado." />}
-          value={String(step.rounding ?? 2)}
-          options={[
-            { value: 'none', label: 'Sin redondeo' },
-            { value: '0', label: '0 decimales' },
-            { value: '2', label: '2 decimales' },
-            { value: '4', label: '4 decimales' },
-          ]}
-          scrollStrategy="close"
-          onChange={(value) => onChange({ rounding: parseRounding(value) })}
-        />
-      </div>
-    );
+  if (source.type === 'fixedText') {
+    return source.value.trim().length > 0;
   }
 
-  if (step.type === 'concat') {
-    return (
-      <ConcatStepFields
-        parts={step.parts ?? []}
-        inputColumns={inputColumns}
-        manualRangeRows={manualRangeRows}
-        allowPreviousResult={canUsePreviousResultSource}
-        previousResultPreviewValue={previousResultPreviewValue}
-        onChange={(parts) => onChange({ parts })}
-      />
-    );
+  return true;
+}
+
+function getConcatPartStepTitle(step: TransformStep, context: StepEditorContext, inputColumns: InputColumn[]) {
+  if (getVisibleStepAction(step, context) === 'unconfigured') {
+    return 'Sin configurar';
   }
 
-  if (step.type === 'formatDate') {
-    return (
-      <>
-        {sourceFields}
-        {usesFixedDateSource ? null : (
-          <Dropdown<DateInputFormat>
-            className="compact"
-            label="Formato de entrada"
-            value={step.dateInputFormat ?? defaultDateInputFormat}
-            options={dateInputFormatOptions}
-            scrollStrategy="close"
-            onChange={(dateInputFormat) => onChange({ dateInputFormat })}
-          />
-        )}
-        <Dropdown<DateOutputFormat>
-          className="compact"
-          label="Formato de salida"
-          value={step.dateOutputFormat ?? defaultDateOutputFormat}
-          options={dateOutputFormatOptions}
-          scrollStrategy="close"
-          onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
-        />
-        <Dropdown<DateInvalidFallback>
-          className="compact"
-          label="Si no es una fecha válida"
-          value={step.dateInvalidFallback ?? defaultDateInvalidFallback}
-          options={dateInvalidFallbackOptions}
-          scrollStrategy="close"
-          onChange={(dateInvalidFallback) => onChange({ dateInvalidFallback })}
-        />
-        {(step.dateInvalidFallback ?? defaultDateInvalidFallback) === 'fixedText' ? (
-          <label className="field compact">
-            <span>Texto fallback</span>
-            <input value={step.dateInvalidFallbackText ?? ''} onChange={(event) => onChange({ dateInvalidFallbackText: event.target.value })} />
-          </label>
-        ) : null}
-      </>
-    );
+  return getRecipeStepTitle(step, inputColumns, step.source) || 'Sin configurar';
+}
+
+export function getFormatDateSourceSelection(value: string, inputFormat: DateInputFormat, preserveOriginalValue = false) {
+  const normalizedValue = getDatePickerValue(value, inputFormat);
+  if (value.trim() && !normalizedValue) {
+    return { accepted: false as const, warning: 'Ese valor no parece una fecha válida.' };
   }
 
-  if (step.type === 'extractNumber') {
-    return sourceFields;
-  }
-
-  if (step.type === 'toNumber') {
-    return sourceFields;
-  }
-
-  if (step.type === 'toText') {
-    return sourceFields;
-  }
-
-  return sourceFields;
+  return {
+    accepted: true as const,
+    sourceValue: preserveOriginalValue ? value : normalizedValue,
+    dateInputFormat: preserveOriginalValue ? inputFormat : 'YYYY-MM-DD' as const,
+  };
 }
