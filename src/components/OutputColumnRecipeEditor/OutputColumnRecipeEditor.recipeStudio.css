@@ -519,6 +519,11 @@
   padding: 0;
 }
 
+.constructorModalContent.recipeStudio .previousResultValueField input[readonly] {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+}
+
 .modalDialogXl .constructorModalContent.recipeStudio .recipeField input,
 .modalDialogXl .constructorModalContent.recipeStudio .recipeField button.dropdownTrigger {
   box-sizing: border-box;
@@ -557,7 +562,11 @@
 }
 
 .stepPrimaryFieldsRow,
-.stepExtraFieldsRow {
+.stepExtraFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepPrimaryFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .conditionFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .numericOperationFields {
   align-items: end;
   display: grid;
   gap: 10px;
@@ -572,18 +581,26 @@
   justify-content: start;
 }
 
+.constructorModalContent.recipeStudio .stepEditorBlock.rangeValuePrimaryLayout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .stepExtraFieldsRow:empty {
   display: none;
 }
 
-.stepExtraFieldsRow:has(> .manualRangeStepFields) {
+.stepExtraFieldsRow:has(> .manualRangeStepFields),
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow:has(> .manualRangeStepFields) {
   grid-template-columns: minmax(0, 1fr);
   justify-content: stretch;
 }
 
 .stepExtraFieldsRow > .numericOperationFields,
 .stepExtraFieldsRow > .manualRangeStepFields,
-.stepExtraFieldsRow > .concatStepFields {
+.stepExtraFieldsRow > .concatStepFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericOperationFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .manualRangeStepFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields {
   grid-column: 1 / -1;
 }
 
@@ -599,7 +616,11 @@
   }
 
   .stepPrimaryFieldsRow,
-  .stepExtraFieldsRow {
+  .stepExtraFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .stepPrimaryFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .conditionFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .numericOperationFields {
     grid-template-columns: minmax(0, 1fr);
   }
 }

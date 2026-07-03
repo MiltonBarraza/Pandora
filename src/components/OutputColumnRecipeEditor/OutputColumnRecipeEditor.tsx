@@ -1840,6 +1840,7 @@ export function ComposePartEditor({
   part,
   inputColumns,
   manualRangeRows,
+  sampleInputValues,
   allowPreviousResultSource,
   onChange,
 }: ComposePartEditorRenderProps) {
@@ -1852,6 +1853,7 @@ export function ComposePartEditor({
       partId={part.id}
       inputColumns={inputColumns}
       manualRangeRows={manualRangeRows}
+      sampleInputValues={sampleInputValues}
       steps={part.steps ?? []}
       baseSource={part.source}
       allowPreviousResultSource={allowPreviousResultSource}
@@ -1909,6 +1911,7 @@ function ConcatPartStepsEditor({
   partId,
   inputColumns,
   manualRangeRows,
+  sampleInputValues,
   steps,
   baseSource,
   separatorFields,
@@ -1921,6 +1924,7 @@ function ConcatPartStepsEditor({
   partId?: string;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  sampleInputValues?: Record<string, string>;
   steps: TransformStep[];
   baseSource: StepSource;
   separatorFields?: ReactNode;
@@ -1999,6 +2003,13 @@ function ConcatPartStepsEditor({
             {additionalSteps.map((step, index) => {
               const transformIndex = index + 1;
               const context = getConcatPartStepContext(transformIndex);
+              const previousStepPreviewValue = getConcatPartPreviousStepPreviewValue(
+                baseSource,
+                steps,
+                sampleInputValues,
+                transformIndex,
+                previousResultPreviewValue,
+              );
 
               return (
                 <div key={step.id} className="concatPartStepDivider">
@@ -2010,7 +2021,7 @@ function ConcatPartStepsEditor({
                     manualRangeRows={manualRangeRows}
                     title={`Paso ${transformIndex + 1} · ${getConcatPartStepTitle(step, context, inputColumns)}`}
                     canDelete
-                    previousResultPreviewValue={previousResultPreviewValue}
+                    previousResultPreviewValue={previousStepPreviewValue}
                     onChange={(patch) => updateAdditionalStep(step.id, patch)}
                     onReplace={(nextStep) => replaceAdditionalStep(step.id, normalizeStepForContext(nextStep, context))}
                     onDelete={() => deleteAdditionalStep(step.id)}
@@ -2028,6 +2039,46 @@ function ConcatPartStepsEditor({
       </div>
     </div>
   );
+}
+
+function getConcatPartPreviousStepPreviewValue(
+  baseSource: StepSource,
+  steps: TransformStep[],
+  sampleInputValues: Record<string, string> | undefined,
+  stepIndex: number,
+  previousResultPreviewValue?: string | null,
+) {
+  if (stepIndex <= 0) {
+    return baseSource.type === 'previousResult' ? previousResultPreviewValue ?? null : null;
+  }
+
+  const previewInputs = sampleInputValues ?? (baseSource.type === 'input' ? undefined : {});
+  if (!previewInputs) {
+    return null;
+  }
+
+  return buildCombinePreview({
+    type: 'combine',
+    parts: [createPreviewPartFromSource(baseSource, previousResultPreviewValue)],
+    separator: '',
+    steps: steps.slice(0, stepIndex),
+  }, previewInputs);
+}
+
+function createPreviewPartFromSource(source: StepSource, previousResultPreviewValue?: string | null): RecipePart {
+  if (source.type === 'input') {
+    return { id: 'previous-result-preview-part', type: 'input', inputColumnId: source.inputColumnId };
+  }
+
+  if (source.type === 'rangeText') {
+    return { id: 'previous-result-preview-part', type: 'text', value: source.selectedText };
+  }
+
+  if (source.type === 'previousResult') {
+    return { id: 'previous-result-preview-part', type: 'text', value: previousResultPreviewValue ?? '' };
+  }
+
+  return { id: 'previous-result-preview-part', type: 'text', value: source.value };
 }
 
 function getConcatPartStepContext(stepIndex: number, sourceActionOverride?: StepSourceAction): StepEditorContext {

@@ -973,6 +973,28 @@
   justify-content: start;
 }
 
+.manualRangeAdvancedRangeModal .stepEditorBlock.rangeValuePrimaryLayout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manualRangeAdvancedRangeModal .stepEditorBlock .stepPrimaryFieldsRow,
+.manualRangeAdvancedRangeModal .stepEditorBlock .stepExtraFieldsRow,
+.manualRangeAdvancedRangeModal .stepEditorBlock .conditionFieldsRow,
+.manualRangeAdvancedRangeModal .stepEditorBlock .numericOperationFields {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  justify-content: start;
+}
+
+.manualRangeAdvancedRangeModal .stepEditorBlock .stepExtraFieldsRow:has(> .manualRangeStepFields) {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+}
+
+.manualRangeAdvancedRangeModal .previousResultValueField input[readonly] {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+}
+
 .stepFullWidthFields {
   grid-column: 1 / -1;
   min-width: 0;
@@ -1173,7 +1195,11 @@
   .manualRangeAdvancedRangeModal .rangeValuePrimaryLayout,
   .manualRangeAdvancedRangeModal .rangeValueSourceControls,
   .manualRangeAdvancedRangeModal .rangeValuePrimaryStepFields,
-  .manualRangeAdvancedRangeModal .conditionFieldsRow {
+  .manualRangeAdvancedRangeModal .conditionFieldsRow,
+  .manualRangeAdvancedRangeModal .stepEditorBlock .stepPrimaryFieldsRow,
+  .manualRangeAdvancedRangeModal .stepEditorBlock .stepExtraFieldsRow,
+  .manualRangeAdvancedRangeModal .stepEditorBlock .conditionFieldsRow,
+  .manualRangeAdvancedRangeModal .stepEditorBlock .numericOperationFields {
     grid-template-columns: minmax(0, 1fr);
   }
 

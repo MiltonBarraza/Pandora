@@ -150,6 +150,7 @@ export function StepEditorBlock({
   const hasVisibleAction = isVisibleStepActionConfigured(step, effectiveContext);
   const stepSource = step.source ?? createFallbackSource(mode, context);
   const actionValue = getActionDropdownValue(step, visibleAction);
+  const showActionDropdown = mode !== 'manualRange';
   const fieldsClassName = step.type === 'concat'
     ? 'stepFullWidthFields'
     : 'rangeValuePrimaryStepFields rangeValueSourceControls stepExtraFieldsRow';
@@ -182,9 +183,35 @@ export function StepEditorBlock({
 
     replaceStep({ ...step, source });
   };
+  const fieldRendererProps = {
+    step,
+    context: effectiveContext,
+    stepSource,
+    visibleAction,
+    onSourceChange: updateSource,
+    onChange,
+    onReplace: replaceStep,
+  };
+  const fieldsContent = hasVisibleAction
+    ? renderFields?.(fieldRendererProps) ?? renderDefaultFields({
+      step,
+      context: effectiveContext,
+      visibleAction,
+      stepSource,
+      inputColumns,
+      manualRangeRows,
+      fixedTextInputLabel,
+      hideTransformSourceFields,
+      previousResultPreviewValue,
+      sourceActionOverride,
+      onSourceActionOverrideChange: setScopedSourceActionOverride,
+      onSourceChange: updateSource,
+      onChange,
+    })
+    : null;
 
   const body = (
-    <div className="rangeValuePrimaryLayout">
+    <div className="stepEditorBlock rangeValuePrimaryLayout">
       <div className="rangeValuePrimaryControls stepPrimaryFieldsRow">
         <Dropdown<TransformStepMode>
           className="compact recipeField"
@@ -198,60 +225,35 @@ export function StepEditorBlock({
             replaceStep(createCanonicalStepForMode(nextMode, { ...effectiveContext, idFactory: () => step.id }));
           }}
         />
-        <Dropdown<BlockAction>
-          className="compact recipeField"
-          label="Qué quiero hacer"
-          labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
-          value={actionValue}
-          options={getStepActionOptionsForContext(mode, effectiveContext)}
-          placeholder="Seleccionar acción"
-          scrollStrategy="close"
-          onChange={(action) => {
-            if (isNumericOperation(action)) {
+        {showActionDropdown ? (
+          <Dropdown<BlockAction>
+            className="compact recipeField"
+            label="Qué quiero hacer"
+            labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+            value={actionValue}
+            options={getStepActionOptionsForContext(mode, effectiveContext)}
+            placeholder="Seleccionar acción"
+            scrollStrategy="close"
+            onChange={(action) => {
+              if (isNumericOperation(action)) {
+                setScopedSourceActionOverride(undefined);
+                replaceStep(createNewNumericOperationStep(step.id, effectiveContext, action));
+                return;
+              }
+
+              if (isStepSourceAction(action)) {
+                setScopedSourceActionOverride(action === 'pickColumnText' || action === 'useInputColumn' ? action : undefined);
+                replaceStep(replaceStepActionWithSource(step, action, effectiveContext));
+                return;
+              }
+
               setScopedSourceActionOverride(undefined);
-              replaceStep({
-                ...createCanonicalStepForAction('number', 'numericOperation', { ...effectiveContext, idFactory: () => step.id }),
-                operation: action,
-              });
-              return;
-            }
-
-            if (isStepSourceAction(action)) {
-              setScopedSourceActionOverride(action === 'pickColumnText' || action === 'useInputColumn' ? action : undefined);
-              replaceStep(replaceStepActionWithSource(step, action, effectiveContext));
-              return;
-            }
-
-            setScopedSourceActionOverride(undefined);
-            replaceStep(createCanonicalStepForAction(mode, action, { ...effectiveContext, idFactory: () => step.id }));
-          }}
-        />
+              replaceStep(createCanonicalStepForAction(mode, action, { ...effectiveContext, idFactory: () => step.id }));
+            }}
+          />
+        ) : null}
       </div>
-      <div className={fieldsClassName}>
-        {hasVisibleAction ? renderFields?.({
-          step,
-          context: effectiveContext,
-          stepSource,
-          visibleAction,
-          onSourceChange: updateSource,
-          onChange,
-          onReplace: replaceStep,
-        }) ?? renderDefaultFields({
-          step,
-          context: effectiveContext,
-          visibleAction,
-          stepSource,
-          inputColumns,
-          manualRangeRows,
-          fixedTextInputLabel,
-          hideTransformSourceFields,
-          previousResultPreviewValue,
-          sourceActionOverride,
-          onSourceActionOverrideChange: setScopedSourceActionOverride,
-          onSourceChange: updateSource,
-          onChange,
-        }) : null}
-      </div>
+      {fieldsContent ? <div className={fieldsClassName}>{fieldsContent}</div> : null}
       {showCondition ? (
         renderCondition?.(step, onChange) ?? <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
       ) : null}
@@ -449,7 +451,7 @@ function renderDefaultFields({
         <Dropdown
           className="compact recipeField"
           label="Decimales / redondeo"
-          value={String(step.rounding ?? 2)}
+          value={String(step.rounding ?? 0)}
           options={[
             { value: 'none', label: 'Sin redondeo' },
             { value: '0', label: '0 decimales' },
@@ -540,6 +542,17 @@ function getActionDropdownValue(step: TransformStep, visibleAction: VisibleStepA
   }
 
   return visibleAction;
+}
+
+function createNewNumericOperationStep(stepId: string, context: StepEditorContext, operation: NumericOperation): TransformStep {
+  const { amount: _amount, rightOperand: _rightOperand, rounding: _rounding, ...step } = createCanonicalStepForAction('number', 'numericOperation', { ...context, idFactory: () => stepId });
+  return {
+    ...step,
+    operation,
+    leftOperand: { type: 'fixedText', value: '' },
+    rightOperand: { type: 'fixedText', value: '' },
+    rounding: 0,
+  };
 }
 
 function getStepModeForBlock(step: TransformStep): TransformStepMode {

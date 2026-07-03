@@ -266,8 +266,8 @@ export function StepSourceFields({
     ? { type: 'input' as const, inputColumnId: '' }
     : source;
   const effectiveColumnTextPickerOpen = columnTextPickerOpen || isColumnTextPickerOpen;
-  const showPreviousResultHelp = !effectiveColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
-  const showPreviousResultPreview = showPreviousResultHelp && previousResultPreviewValue !== null && previousResultPreviewValue !== undefined && previousResultPreviewValue !== '';
+  const showPreviousResultField = !effectiveColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
+  const previousResultValue = previousResultPreviewValue ?? '';
   const usesTypedValuePicker = valueKind === 'number' || valueKind === 'date';
   const canPickColumnText = valueKind === 'text';
   const isAllowedDateValue = dateValueValidator ?? isDatePickerValue;
@@ -316,13 +316,14 @@ export function StepSourceFields({
       ) : null}
       {afterSourceSelector}
 
-      {showPreviousResultHelp ? (
-        <div className="muted sourceHelpText">
-          <p>{recipeEditorPreviousResultHelpText}</p>
-          {showPreviousResultPreview ? (
-            <p>Valor disponible: <strong>{previousResultPreviewValue}</strong></p>
-          ) : null}
-        </div>
+      {showPreviousResultField ? (
+        <label className="field compact recipeField previousResultValueField">
+          <span className="labelWithInfo">
+            <span>Resultado anterior</span>
+            <InfoTooltip content={recipeEditorPreviousResultHelpText} />
+          </span>
+          <input readOnly value={previousResultValue} placeholder="Sin valor disponible" />
+        </label>
       ) : null}
 
       {effectiveColumnTextPickerOpen ? (
@@ -420,7 +421,7 @@ export function StepOperandFields({
             return;
           }
 
-          onChange({ type: 'fixedText', value: '0', numericFallback: 0 });
+          onChange({ type: 'fixedText', value: '' });
         }}
       />
 

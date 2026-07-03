@@ -49,6 +49,7 @@ export type ComposePartEditorRenderProps = {
   part: ConcatPart;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  sampleInputValues?: Record<string, string>;
   allowPreviousResultSource: boolean;
   onChange: (part: ConcatPart) => void;
 };
@@ -370,6 +371,7 @@ function ComposeValueStudio({
         token={selectedToken}
         inputColumns={inputColumns}
         manualRangeRows={manualRangeRows}
+        sampleInputValues={sampleInputValues}
         renderComposePartEditor={renderComposePartEditor}
         onChange={onChange}
       />
@@ -456,6 +458,7 @@ function ComposeTokenInspector({
   token,
   inputColumns,
   manualRangeRows,
+  sampleInputValues,
   renderComposePartEditor,
   onChange,
 }: {
@@ -463,6 +466,7 @@ function ComposeTokenInspector({
   token: ComposeToken | null;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  sampleInputValues?: Record<string, string>;
   renderComposePartEditor: RecipeStudioRenderers['renderComposePartEditor'];
   onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
@@ -493,6 +497,7 @@ function ComposeTokenInspector({
             part: concatPart,
             inputColumns,
             manualRangeRows,
+            sampleInputValues,
             allowPreviousResultSource: hasLegacyConcatParts,
             onChange: (nextPart) => onChange(updateComposeConcatPart(recipe, token.index, nextPart)),
           })}

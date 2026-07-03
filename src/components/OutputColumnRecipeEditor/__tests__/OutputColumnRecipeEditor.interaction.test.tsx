@@ -290,6 +290,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     expect(screen.getAllByText('Vista de filas para rangos')).toHaveLength(1);
     expect(document.querySelectorAll('.manualRangeSpreadsheet')).toHaveLength(1);
+    expect(within(dialog).queryByRole('button', { name: /Qu. quiero hacer/ })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Tipo de operación' }).textContent).toContain('Trabajar con rangos');
   });
 
@@ -436,8 +437,8 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await waitFor(() => expect(screen.getByLabelText('Texto fijo')).not.toBeNull());
     const textInput = within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
     textInput.focus();
-    await user.type(textInput, 'abc', { skipClick: true });
-    await waitFor(() => expect((within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement).value).toBe('abc'));
+    await user.type(textInput, 'asd', { skipClick: true });
+    await waitFor(() => expect((within(getComposePartEditor()).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement).value).toBe('asd'));
     expect(screen.queryByText('Usar resultado anterior')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
@@ -445,7 +446,8 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Usar resultado anterior');
-    expect(screen.getAllByText('ABC').length).toBeGreaterThan(0);
+    expect(getComposePartEditor().querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('asd');
+    expect(screen.getAllByText('ASD').length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
@@ -613,7 +615,9 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Decimales / redondeo' })).not.toBeNull();
+    expect((getInputByLabelText('Primer valor: valor fijo') as HTMLInputElement).value).toBe('');
+    expect((getInputByLabelText('Segundo valor: valor fijo') as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
   });
 
   it('keeps normal text picker source while preserving the transform action', async () => {
@@ -645,6 +649,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByText('Buscar valores en')).toBeNull();
     expect(screen.queryByText('Valor encontrado')).toBeNull();
     expect(screen.queryByText('Valor fijo')).toBeNull();
+    expect(document.querySelector('.stepEditorBlock .stepExtraFieldsRow')).toBeNull();
 
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
     expect(screen.getByText('Seleccionar acción')).not.toBeNull();
@@ -771,28 +776,36 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
   it('keeps previous result available for a useful second-step transformation', async () => {
     const user = userEvent.setup();
-    render(<ControlledRecipeEditor initialColumn={{
-      id: 'output-previous-result',
-      label: 'Resultado previo',
-      order: 0,
-      enabled: true,
-      recipe: {
-        type: 'combine',
-        customMode: 'text',
-        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
-        separator: '',
-        steps: [
-          { id: 'base-step', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
-          { id: 'upper-step', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
-        ],
-      },
-    }} />);
+    render(<ControlledRecipeEditor
+      initialColumn={{
+        id: 'output-previous-result',
+        label: 'Resultado previo',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [
+            { id: 'base-step', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+            { id: 'upper-step', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+          ],
+        },
+      }}
+      sampleInputValues={{ 'input-code': 'ACCESORIOS' }}
+    />);
 
     await openRecipeEditor(user);
     expect(screen.getByText(/Paso 2/).textContent).toContain('Mayúsculas');
     expect(screen.getByText('Qué valor usar')).not.toBeNull();
     expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
-    expect(screen.getByText('Toma el valor que salió del paso anterior, no de la parte anterior.')).not.toBeNull();
+    expect(screen.getByDisplayValue('ACCESORIOS')).not.toBeNull();
+    expect(screen.queryByText('Toma el valor que salió del paso anterior, no de la parte anterior.')).toBeNull();
+
+    const previousResultField = screen.getByText('Resultado anterior').closest('.previousResultValueField') as HTMLElement;
+    await user.hover(within(previousResultField).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByText('Toma el valor que salió del paso anterior, no de la parte anterior.')).not.toBeNull());
   });
 
   it('keeps previous result selected and allows choosing a useful transformation', async () => {
@@ -841,6 +854,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Qué quiero hacer/, 'Agregar sufijo');
 
     expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
+    expect(document.querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('abc');
     expect(screen.getByLabelText('Sufijo')).not.toBeNull();
     expect(screen.queryByLabelText('Valor fijo')).toBeNull();
 
@@ -885,7 +899,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getAllByText('zz-x').length).toBeGreaterThan(0);
   });
 
-  it('keeps the suffix to the right of its source selector before previous-result help', async () => {
+  it('keeps the suffix to the right of its source selector before previous-result value field', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={createFixedTextStepColumn('output-second-suffix-layout')}
@@ -899,11 +913,11 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const suffixField = screen.getByLabelText('Sufijo').closest('.recipeField');
     const sourceButtons = screen.getAllByRole('button', { name: 'Qué valor usar' });
     const sourceField = sourceButtons[sourceButtons.length - 1]?.closest('.recipeField');
-    const helpText = screen.getByText('Toma el valor que salió del paso anterior, no de la parte anterior.').closest('.sourceHelpText');
+    const previousResultField = screen.getByText('Resultado anterior').closest('.previousResultValueField');
 
     expect(suffixField?.parentElement).toBe(sourceField?.parentElement);
-    expect(sourceField?.parentElement).toBe(helpText?.parentElement);
+    expect(sourceField?.parentElement).toBe(previousResultField?.parentElement);
     expect(suffixField && sourceField ? sourceField.compareDocumentPosition(suffixField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
-    expect(helpText && suffixField ? suffixField.compareDocumentPosition(helpText) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
+    expect(previousResultField && suffixField ? suffixField.compareDocumentPosition(previousResultField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
   });
 });

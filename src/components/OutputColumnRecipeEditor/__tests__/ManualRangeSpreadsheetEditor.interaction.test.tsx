@@ -558,6 +558,69 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-2');
   });
 
+  it('shows previous result value for additional range value steps', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const textInput = within(screen.getByRole('dialog')).getByText('Texto').closest('label')?.querySelector('input') as HTMLInputElement;
+    textInput.focus();
+    await user.type(textInput, 'asd', { skipClick: true });
+    await waitFor(() => expect((within(screen.getByRole('dialog')).getByText('Texto').closest('label')?.querySelector('input') as HTMLInputElement).value).toBe('asd'));
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, /Convertir a may.sculas/);
+
+    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('asd');
+    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('ASD');
+  });
+
+  it('shows previous result value for additional range concat part steps', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open
+        recipe={recipe}
+        range={unconfiguredRange}
+        inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows}
+        visibleColumnIds={['input-code']}
+        showResultColumn
+        onChange={() => undefined}
+        onClose={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Concatenar');
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, 'Usar texto fijo');
+    const fixedTextInput = within(screen.getByRole('dialog')).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement;
+    fixedTextInput.focus();
+    await user.type(fixedTextInput, 'asd', { skipClick: true });
+    await waitFor(() => expect((within(screen.getByRole('dialog')).getByText('Texto fijo').closest('label')?.querySelector('input') as HTMLInputElement).value).toBe('asd'));
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
+    await selectModalDropdownOption(user, /Qu. quiero hacer/, /Convertir a may.sculas/);
+
+    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('asd');
+    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('ASD');
+  });
+
   it('keeps the additional-step delete button inside the range concat step card', async () => {
     const user = userEvent.setup();
     const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
