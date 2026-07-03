@@ -9,28 +9,13 @@ import { ExportActions } from './ExportActions';
 afterEach(cleanup);
 
 describe('ExportActions processed result', () => {
-  it('emits a neutral export result from included rows', async () => {
-    const onSaveProcessedResult = vi.fn();
-    renderExportActions({ onSaveProcessedResult });
+  it('runs the shared save-for-combine handler', async () => {
+    const onSaveForCombine = vi.fn();
+    renderExportActions({ onSaveForCombine });
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Guardar para combinar' }));
 
-    expect(onSaveProcessedResult).toHaveBeenCalledTimes(1);
-    const result = onSaveProcessedResult.mock.calls[0][0];
-    expect(result).toMatchObject({
-      fileBaseName: 'resultado-final',
-      sourceFileName: 'origen.xlsx',
-      sheetName: 'Productos',
-      columns: [
-        { id: 'code', label: 'Código', order: 0, enabled: true },
-        { id: 'internal', label: 'Interno', order: 1, enabled: false },
-      ],
-      rows: [{ status: 'included', outputValues: { code: 'A1', internal: 'X' } }],
-    });
-    expect(typeof result.id).toBe('string');
-    expect(result.rows[0]).not.toHaveProperty('inputValues');
-    expect(result.rows[0]).not.toHaveProperty('warnings');
-    expect(result.columns[0]).not.toHaveProperty('recipe');
+    expect(onSaveForCombine).toHaveBeenCalledTimes(1);
   });
 
   it('does not render the action without a callback', () => {
@@ -40,23 +25,10 @@ describe('ExportActions processed result', () => {
     expect(screen.queryByRole('button', { name: 'Guardar hoja en lote' })).toBeNull();
   });
 
-  it('emits a neutral result for the multi-sheet batch action', async () => {
-    const onSaveToMultiSheetBatch = vi.fn();
-    renderExportActions({ onSaveToMultiSheetBatch });
-
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Guardar hoja en lote' }));
-
-    expect(onSaveToMultiSheetBatch).toHaveBeenCalledTimes(1);
-    expect(onSaveToMultiSheetBatch.mock.calls[0][0]).toMatchObject({
-      sourceFileName: 'origen.xlsx',
-      sheetName: 'Productos',
-      rows: [{ status: 'included' }],
-    });
-  });
-
   it('disables the action without included rows', () => {
     renderExportActions({
-      onSaveProcessedResult: vi.fn(),
+      onSaveForCombine: vi.fn(),
+      saveForCombineDisabled: true,
       rows: [{ ...includedRow, status: 'ignored' }],
     });
 
@@ -65,33 +37,16 @@ describe('ExportActions processed result', () => {
 
   it('disables the action without enabled output columns', () => {
     renderExportActions({
-      onSaveProcessedResult: vi.fn(),
+      onSaveForCombine: vi.fn(),
+      saveForCombineDisabled: true,
       outputColumns: outputColumns.map((column) => ({ ...column, enabled: false })),
     });
 
     expect((screen.getByRole('button', { name: 'Guardar para combinar' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('disables the multi-sheet action without included rows', () => {
-    renderExportActions({
-      onSaveToMultiSheetBatch: vi.fn(),
-      rows: [{ ...includedRow, status: 'ignored' }],
-    });
-
-    expect((screen.getByRole('button', { name: 'Guardar hoja en lote' }) as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('disables the multi-sheet action without enabled output columns', () => {
-    renderExportActions({
-      onSaveToMultiSheetBatch: vi.fn(),
-      outputColumns: outputColumns.map((column) => ({ ...column, enabled: false })),
-    });
-
-    expect((screen.getByRole('button', { name: 'Guardar hoja en lote' }) as HTMLButtonElement).disabled).toBe(true);
-  });
-
   it('keeps existing download actions available', () => {
-    renderExportActions({ onSaveProcessedResult: vi.fn() });
+    renderExportActions({ onSaveForCombine: vi.fn() });
 
     expect((screen.getByRole('button', { name: 'Descargar Excel' }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole('button', { name: 'Descargar CSV' }) as HTMLButtonElement).disabled).toBe(false);
@@ -129,13 +84,13 @@ const fileNameSettings: FileNameSettings = {
 };
 
 function renderExportActions({
-  onSaveProcessedResult,
-  onSaveToMultiSheetBatch,
+  onSaveForCombine,
+  saveForCombineDisabled,
   rows = [includedRow, ignoredRow],
   outputColumns: columns = outputColumns,
 }: {
-  onSaveProcessedResult?: Parameters<typeof ExportActions>[0]['onSaveProcessedResult'];
-  onSaveToMultiSheetBatch?: Parameters<typeof ExportActions>[0]['onSaveToMultiSheetBatch'];
+  onSaveForCombine?: Parameters<typeof ExportActions>[0]['onSaveForCombine'];
+  saveForCombineDisabled?: boolean;
   rows?: ProcessedRow[];
   outputColumns?: OutputColumn[];
 } = {}) {
@@ -147,8 +102,8 @@ function renderExportActions({
       fileNameSettings={fileNameSettings}
       sourceFileName="origen.xlsx"
       sheetName="Productos"
-      onSaveProcessedResult={onSaveProcessedResult}
-      onSaveToMultiSheetBatch={onSaveToMultiSheetBatch}
+      onSaveForCombine={onSaveForCombine}
+      saveForCombineDisabled={saveForCombineDisabled}
     />,
   );
 }

@@ -603,15 +603,6 @@ h3 {
   width: 1px;
 }
 
-.multiSheetBatchPanel {
-  background: var(--color-bg-surface-muted);
-  border-color: var(--color-border-muted);
-  border-radius: 10px;
-  box-shadow: none;
-  display: grid;
-  gap: 10px;
-}
-
 .sheetConfigurationWorkspace {
   display: grid;
   gap: 12px;
@@ -619,12 +610,39 @@ h3 {
   min-width: 0;
 }
 
-.sheetConfigurationWorkspace.hasMultiSheetBatch {
-  grid-template-columns: minmax(0, 1fr);
+.currentSheetQuickActions {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 10px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 11px 12px;
 }
 
-.sheetConfigurationWorkspace .settingsActions,
-.sheetConfigurationWorkspace .multiSheetBatchPanel {
+.currentSheetQuickActions > div {
+  display: grid;
+  gap: 2px;
+}
+
+.currentSheetQuickActions p {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.currentSheetQuickActions .actionButton {
+  flex: 0 0 auto;
+  min-height: 36px;
+}
+
+.currentSheetQuickActions > .infoTooltipCustomTrigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.sheetConfigurationWorkspace .settingsActions {
   margin-top: 0;
   min-width: 0;
 }
@@ -650,146 +668,6 @@ h3 {
 .sheetConfigurationWorkspace .settingsActions .actionButton {
   min-height: 36px;
   padding-inline: 11px;
-}
-
-.sheetConfigurationWorkspace .multiSheetBatchPanel {
-  padding: 12px;
-}
-
-.sheetConfigurationWorkspace .multiSheetBatchTitleRow h3 {
-  font-size: 1rem;
-}
-
-.multiSheetBatchPanelEmpty {
-  gap: 8px;
-  padding-block: 12px;
-}
-
-.multiSheetBatchHeader {
-  align-items: flex-start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.multiSheetBatchTitleBlock {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.multiSheetBatchTitleRow {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-}
-
-.multiSheetBatchTitleRow h3 {
-  font-size: 1.18rem;
-  margin: 0;
-}
-
-.multiSheetBatchFileName {
-  font-size: 0.88rem;
-  font-weight: 700;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.multiSheetBatchFileName span {
-  color: var(--color-text-muted);
-  font-weight: 600;
-}
-
-.multiSheetBatchSummary {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.multiSheetBatchSummaryLabel {
-  color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.multiSheetBatchSummaryChip {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 999px;
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-  padding: 3px 8px;
-}
-
-.multiSheetBatchSummary strong {
-  color: var(--color-text-secondary);
-}
-
-.multiSheetBatchEmptyCopy {
-  display: grid;
-  gap: 2px;
-}
-
-.multiSheetBatchEmptyCopy p {
-  margin: 0;
-}
-
-.multiSheetBatchEmptyCopy span {
-  font-size: 0.78rem;
-}
-
-.multiSheetBatchHeader .actions {
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.multiSheetBatchHeader .actionButton {
-  min-height: 36px;
-}
-
-.multiSheetBatchSheets {
-  display: grid;
-  gap: 8px;
-}
-
-.multiSheetBatchSheet {
-  align-items: center;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  padding: 7px 9px 7px 11px;
-}
-
-.multiSheetBatchSheetMeta {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.8rem;
-  gap: 7px;
-}
-
-.multiSheetBatchSheetStatus {
-  color: var(--color-success-text);
-  font-size: 0.74rem;
-  font-weight: 700;
-}
-
-.multiSheetBatchSheet .actionButton {
-  height: 34px;
-  min-height: 32px;
-  padding: 0;
-  width: 34px;
-}
-
-.multiSheetBatchSheet > div {
-  display: grid;
-  gap: 3px;
 }
 
 .combineHero {
@@ -1274,13 +1152,14 @@ h3 {
 }
 
 @media (max-width: 720px) {
-  .multiSheetBatchHeader {
+  .currentSheetQuickActions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .multiSheetBatchHeader .actions {
-    justify-content: flex-start;
+  .currentSheetQuickActions > .infoTooltipCustomTrigger,
+  .currentSheetQuickActions .actionButton {
+    width: 100%;
   }
 
   .combineSettingsToolbar,
@@ -1319,13 +1198,6 @@ h3 {
 
   .toolChoiceGrid {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .multiSheetBatchHeader .actions,
-  .multiSheetBatchHeader .actionButton {
-    width: 100%;
   }
 }
 

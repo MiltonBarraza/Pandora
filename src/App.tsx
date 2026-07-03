@@ -1,20 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { addProcessedResultToCombineBasket } from './domain/combine/combineBasket';
-import { buildCombinedRows } from './domain/combine/buildCombinedRows';
-import {
-  addProcessedResultToMultiSheetBatch,
-  createCombinePayloadFromMultiSheetBatch,
-  createEmptyMultiSheetBatch,
-  removeSheetFromMultiSheetBatch,
-} from './domain/multiSheet/multiSheetBatch';
-import { showErrorToast, showSuccessToast } from './services/toastService';
+import { showSuccessToast } from './services/toastService';
 import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
 import { AppearanceToolbar } from './components/AppearanceToolbar/AppearanceToolbar';
 import { useAppearanceTheme } from './components/AppearanceToolbar/useAppearanceTheme';
 import { CombineWizard } from './components/CombineWizard/CombineWizard';
 import { ImportWizard } from './components/ImportWizard/ImportWizard';
-import { MultiSheetBatchPanel } from './components/MultiSheetBatchPanel/MultiSheetBatchPanel';
 import { AppIcon } from './components/ui/AppIcon/AppIcon';
 import { ConfirmDialog } from './components/ui/ConfirmDialog/ConfirmDialog';
 import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
@@ -27,17 +19,13 @@ export default function App() {
   const [combineHasLocalState, setCombineHasLocalState] = useState(false);
   const [sanitizerHasState, setSanitizerHasState] = useState(false);
   const [combineBasketSources, setCombineBasketSources] = useState<CombineSource[]>([]);
-  const [multiSheetBatch, setMultiSheetBatch] = useState(() => (
-    createEmptyMultiSheetBatch('multi-sheet-batch')
-  ));
   const [pendingToolChange, setPendingToolChange] = useState<AppTool | null>(null);
   const [isReloadConfirmationOpen, setIsReloadConfirmationOpen] = useState(false);
   const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
   const appearance = useAppearanceTheme();
   const hasReloadStateToProtect = combineBasketSources.length > 0
     || combineHasLocalState
-    || sanitizerHasState
-    || multiSheetBatch.sheets.length > 0;
+    || sanitizerHasState;
   useBeforeUnloadWarning(
     hasReloadStateToProtect && !isBeforeUnloadSuppressed,
   );
@@ -45,33 +33,6 @@ export default function App() {
   const saveProcessedResult = (result: ProcessedExportResult) => {
     setCombineBasketSources((current) => addProcessedResultToCombineBasket(current, result));
     showSuccessToast('Resultado guardado para combinar.');
-  };
-  const saveToMultiSheetBatch = (result: ProcessedExportResult) => {
-    const added = addProcessedResultToMultiSheetBatch(multiSheetBatch, result);
-    if (!added.ok) {
-      showErrorToast(added.errors.join(' '));
-      return;
-    }
-
-    setMultiSheetBatch(added.batch);
-    showSuccessToast('Hoja guardada en el lote multi-hoja.');
-  };
-  const clearMultiSheetBatch = () => {
-    setMultiSheetBatch(createEmptyMultiSheetBatch(multiSheetBatch.id));
-  };
-  const exportMultiSheetBatch = async () => {
-    if (multiSheetBatch.sheets.length === 0) {
-      return;
-    }
-
-    const payload = createCombinePayloadFromMultiSheetBatch(multiSheetBatch);
-    const combinedRows = buildCombinedRows(payload);
-    const { exportCombinedXlsx } = await import('./domain/combine/exportCombinedXlsx');
-    exportCombinedXlsx({
-      outputColumns: payload.outputColumns,
-      combinedRows,
-      fileName: buildMultiSheetExportFileName(multiSheetBatch.fileName),
-    });
   };
   const requestToolChange = () => {
     if (!selectedTool) {
@@ -113,7 +74,7 @@ export default function App() {
     <ConfirmDialog
       open={isReloadConfirmationOpen}
       title="Confirmar recarga"
-      message="Si recargás la página, se perderán el lote multi-hoja y los demás datos temporales sin guardar. ¿Querés continuar?"
+      message="Si recargás la página, se perderán los datos temporales sin guardar. ¿Querés continuar?"
       confirmLabel="Recargar página"
       variant="danger"
       onCancel={() => setIsReloadConfirmationOpen(false)}
@@ -144,25 +105,7 @@ export default function App() {
       <>
         <ImportWizard
           appearanceToolbar={appearanceToolbar}
-          multiSheetBatchPanel={({
-            onSaveCurrentSheet,
-            saveCurrentSheetDisabled,
-            saveCurrentSheetDisabledReason,
-          }) => (
-            <MultiSheetBatchPanel
-              batch={multiSheetBatch}
-              onSaveCurrentSheet={onSaveCurrentSheet}
-              saveCurrentSheetDisabled={saveCurrentSheetDisabled}
-              saveCurrentSheetDisabledReason={saveCurrentSheetDisabledReason}
-              onRemoveSheet={(sheetId) => setMultiSheetBatch((current) => (
-                removeSheetFromMultiSheetBatch(current, sheetId)
-              ))}
-              onClear={clearMultiSheetBatch}
-              onExport={() => void exportMultiSheetBatch()}
-            />
-          )}
           onSaveProcessedResult={saveProcessedResult}
-          onSaveToMultiSheetBatch={saveToMultiSheetBatch}
           onStatePresenceChange={setSanitizerHasState}
           externalReloadGuardActive={hasReloadStateToProtect}
           suppressBeforeUnloadWarning={isBeforeUnloadSuppressed}
@@ -259,9 +202,4 @@ function ToolSelector({
 
 function getSavedSourceCountLabel(count: number) {
   return `${count} ${count === 1 ? 'guardado' : 'guardados'}`;
-}
-
-export function buildMultiSheetExportFileName(sourceFileName?: string) {
-  const baseName = sourceFileName?.trim().replace(/(\.xlsx)+$/i, '').trim();
-  return baseName ? `${baseName}-multi-hoja` : 'lote-multi-hoja';
 }

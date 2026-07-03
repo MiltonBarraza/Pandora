@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
-import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
 import { buildOutputFileBaseName } from '../../domain/import/downloadNames';
+import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
 import { createProcessedExportResult, getProcessedExportAvailability } from '../../domain/import/processedExportResult';
@@ -32,6 +32,7 @@ import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRows
 import { RawPreview } from '../RawPreview/RawPreview';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -53,25 +54,15 @@ export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], proces
 
 type ImportWizardProps = {
   appearanceToolbar?: ReactNode;
-  multiSheetBatchPanel?: (props: MultiSheetBatchPanelRenderProps) => ReactNode;
   onSaveProcessedResult?: (result: ProcessedExportResult) => void;
-  onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
   onStatePresenceChange?: (hasState: boolean) => void;
   externalReloadGuardActive?: boolean;
   suppressBeforeUnloadWarning?: boolean;
 };
 
-export type MultiSheetBatchPanelRenderProps = {
-  onSaveCurrentSheet: () => void;
-  saveCurrentSheetDisabled: boolean;
-  saveCurrentSheetDisabledReason: string;
-};
-
 export function ImportWizard({
   appearanceToolbar,
-  multiSheetBatchPanel,
   onSaveProcessedResult,
-  onSaveToMultiSheetBatch,
   onStatePresenceChange,
   externalReloadGuardActive = false,
   suppressBeforeUnloadWarning = false,
@@ -246,16 +237,16 @@ export function ImportWizard({
     ].sort((left, right) => left.rowNumber - right.rowNumber),
     [processedPipeline.ignoredInputRows, processedRowsWithStatus],
   );
-  const multiSheetSaveAvailability = getProcessedExportAvailability(
+  const saveForCombineAvailability = getProcessedExportAvailability(
     processedRowsWithStatus,
     processedPipeline.outputColumns,
   );
-  const saveCurrentSheetToMultiSheetBatch = () => {
-    if (!onSaveToMultiSheetBatch || !multiSheetSaveAvailability.exportable) {
+  const saveCurrentSheetForCombine = () => {
+    if (!onSaveProcessedResult || !saveForCombineAvailability.exportable) {
       return;
     }
 
-    onSaveToMultiSheetBatch(createProcessedExportResult({
+    onSaveProcessedResult(createProcessedExportResult({
       rows: processedRowsWithStatus,
       outputColumns: processedPipeline.outputColumns,
       fileBaseName: buildOutputFileBaseName({
@@ -658,7 +649,7 @@ export function ImportWizard({
               onSelectSheet={changeSelectedSheet}
             />
           )}
-          <div className={`sheetConfigurationWorkspace${multiSheetBatchPanel ? ' hasMultiSheetBatch' : ''}`}>
+          <div className="sheetConfigurationWorkspace">
             <SettingsActions
               key={configurationRevision}
               fileType={fileType}
@@ -672,12 +663,13 @@ export function ImportWizard({
               onApplySettings={applyImportedSettings}
               onSettingsImported={() => setIsConfigurationDirty(true)}
             />
-            {multiSheetBatchPanel?.({
-              onSaveCurrentSheet: saveCurrentSheetToMultiSheetBatch,
-              saveCurrentSheetDisabled: !multiSheetSaveAvailability.exportable,
-              saveCurrentSheetDisabledReason: multiSheetSaveAvailability.disabledReason,
-            })}
           </div>
+          {onSaveProcessedResult ? (
+            <CurrentSheetQuickActions
+              disabled={!saveForCombineAvailability.exportable}
+              onSave={saveCurrentSheetForCombine}
+            />
+          ) : null}
         </Step>
 
         <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta.">
@@ -838,14 +830,46 @@ export function ImportWizard({
             sheetName={selectedSheet}
             shouldPromptSaveBeforeExcelDownload={shouldPromptSaveBeforeExcelDownload}
             onSaveSettingsBeforeExcelDownload={async () => saveCurrentSettings().ok}
-            onSaveProcessedResult={onSaveProcessedResult}
-            onSaveToMultiSheetBatch={onSaveToMultiSheetBatch}
+            onSaveForCombine={onSaveProcessedResult ? saveCurrentSheetForCombine : undefined}
+            saveForCombineDisabled={!saveForCombineAvailability.exportable}
           />
         </Step>
           </>
         ) : null}
       </div>
     </main>
+  );
+}
+
+export function CurrentSheetQuickActions({
+  disabled,
+  onSave,
+}: {
+  disabled: boolean;
+  onSave: () => void;
+}) {
+  return (
+    <aside className="currentSheetQuickActions" aria-label="Acciones rápidas de la hoja actual">
+      <div>
+        <strong className="headingWithInfo">
+          <span>Guardar esta hoja para combinar</span>
+          <InfoTooltip
+            content="Usá esta acción cuando estés preparando varias hojas. Guarda el resultado procesado de la hoja actual para usarlo luego en Combinar archivos."
+            ariaLabel="Ayuda: Guardar esta hoja para combinar"
+            placement="right"
+          />
+        </strong>
+        <p className="muted">Guardá el resultado procesado de esta hoja para usarlo luego en Combinar archivos.</p>
+      </div>
+      <InfoTooltip
+        content={`Guarda el resultado procesado de esta hoja como fuente “Desde sanitizador” en Combinar archivos. La combinación, el orden, la vista previa y la exportación se hacen desde esa pantalla.${disabled ? ' Disponible cuando haya un resultado válido para guardar.' : ''}`}
+        placement="left"
+      >
+        <ActionButton action="save" variant="secondary" disabled={disabled} onClick={onSave}>
+          Guardar para combinar
+        </ActionButton>
+      </InfoTooltip>
+    </aside>
   );
 }
 

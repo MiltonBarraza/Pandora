@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,14 +8,11 @@ import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
 import App from './App';
 
-const { exportCombinedXlsx, showErrorToast, showSuccessToast } = vi.hoisted(() => ({
-  exportCombinedXlsx: vi.fn(),
-  showErrorToast: vi.fn(),
+const { showSuccessToast } = vi.hoisted(() => ({
   showSuccessToast: vi.fn(),
 }));
 
-vi.mock('./services/toastService', () => ({ showErrorToast, showSuccessToast }));
-vi.mock('./domain/combine/exportCombinedXlsx', () => ({ exportCombinedXlsx }));
+vi.mock('./services/toastService', () => ({ showSuccessToast }));
 vi.mock('./components/AppearanceToolbar/useAppearanceTheme', () => ({
   useAppearanceTheme: () => ({ preference: 'light', resolvedTheme: 'light', setPreference: vi.fn() }),
 }));
@@ -25,33 +22,17 @@ vi.mock('./components/AppearanceToolbar/AppearanceToolbar', () => ({
 vi.mock('./components/ImportWizard/ImportWizard', () => ({
   ImportWizard: ({
     appearanceToolbar,
-    multiSheetBatchPanel,
     onSaveProcessedResult,
-    onSaveToMultiSheetBatch,
     onStatePresenceChange,
   }: {
     appearanceToolbar?: ReactNode;
-    multiSheetBatchPanel?: (props: {
-      onSaveCurrentSheet: () => void;
-      saveCurrentSheetDisabled: boolean;
-      saveCurrentSheetDisabledReason: string;
-    }) => ReactNode;
     onSaveProcessedResult?: (result: ProcessedExportResult) => void;
-    onSaveToMultiSheetBatch?: (result: ProcessedExportResult) => void;
     onStatePresenceChange?: (hasState: boolean) => void;
   }) => (
     <div>
       {appearanceToolbar}
-      {multiSheetBatchPanel?.({
-        onSaveCurrentSheet: () => onSaveToMultiSheetBatch?.(processedResult),
-        saveCurrentSheetDisabled: false,
-        saveCurrentSheetDisabledReason: '',
-      })}
       <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Emitir resultado</button>
-      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(processedResult)}>Guardar hoja válida</button>
-      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(compatibleSecondResult)}>Guardar segunda hoja</button>
-      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(incompatibleResult)}>Guardar hoja incompatible</button>
-      <button type="button" onClick={() => onSaveToMultiSheetBatch?.(foreignFileResult)}>Guardar hoja de otro archivo</button>
+      <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Guardar rápido para combinar</button>
       <button type="button" onClick={() => onStatePresenceChange?.(true)}>Marcar sanitizador con estado</button>
     </div>
   ),
@@ -88,8 +69,6 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   showSuccessToast.mockClear();
-  showErrorToast.mockClear();
-  exportCombinedXlsx.mockClear();
 });
 
 describe('App combine basket wiring', () => {
@@ -159,6 +138,28 @@ describe('App combine basket wiring', () => {
     expect(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' })).not.toBeNull();
     await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
     expect(screen.getByText('resultado.xlsx')).not.toBeNull();
+  });
+
+  it('adds a basket source through the sanitizer quick save access', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar rápido para combinar' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
+
+    expect(screen.getByText('resultado.xlsx')).not.toBeNull();
+    expect(showSuccessToast).toHaveBeenCalledWith('Resultado guardado para combinar.');
+  });
+
+  it('does not wire the removed multi-sheet batch UI into sanitizer', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+
+    expect(screen.queryByText('Lote multi-hoja')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Guardar hoja en lote' })).toBeNull();
   });
 
   it('keeps basket sources without confirmation when combine has no local state', async () => {
@@ -245,156 +246,6 @@ describe('App combine basket wiring', () => {
   });
 });
 
-describe('App multi-sheet batch wiring', () => {
-  it('adds the current sheet through the upper batch action', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja en lote' }));
-
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-    expect(showSuccessToast).toHaveBeenCalledWith('Hoja guardada en el lote multi-hoja.');
-  });
-
-  it('adds first and second compatible sheets and defines the summary', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Guardar segunda hoja' }));
-
-    expect(screen.getByText(/2 hojas · 2 filas · 1 columnas/)).not.toBeNull();
-    expect(showSuccessToast).toHaveBeenCalledWith('Hoja guardada en el lote multi-hoja.');
-  });
-
-  it('rejects a duplicate sheet with a visible message and preserves the batch', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-
-    expect(showErrorToast).toHaveBeenCalledWith(
-      'La hoja “Productos” ya está guardada en el lote. Si querés reemplazarla, remové la anterior y guardala de nuevo.',
-    );
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-  });
-
-  it('rejects incompatible columns and a different source without changing the batch', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja incompatible' }));
-    expect(showErrorToast).toHaveBeenCalledWith(expect.stringContaining('Cantidad de columnas distinta'));
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja de otro archivo' }));
-    expect(showErrorToast).toHaveBeenCalledWith(expect.stringContaining('Archivo fuente distinto'));
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-  });
-
-  it('updates the summary when removing sheets and clears after the last one', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar segunda hoja' }));
-    await user.click(screen.getByRole('button', { name: 'Remover Productos' }));
-
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Remover Febrero' }));
-
-    expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
-  });
-
-  it('clears the batch after confirmation', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    await user.click(screen.getByRole('button', { name: 'Limpiar lote' }));
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Limpiar lote' }));
-
-    expect(screen.getByText(/Todavía no guardaste hojas/)).not.toBeNull();
-  });
-
-  it('exports combined rows with a source-based file name', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar segunda hoja' }));
-    await user.click(screen.getByRole('button', { name: 'Exportar lote combinado' }));
-
-    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
-    expect(exportCombinedXlsx).toHaveBeenCalledWith(expect.objectContaining({
-      fileName: 'origen-multi-hoja',
-      outputColumns: [expect.objectContaining({ id: 'output:0' })],
-      combinedRows: [
-        expect.objectContaining({ sourceSheetName: 'Productos', values: { 'output:0': 'A1' } }),
-        expect.objectContaining({ sourceSheetName: 'Febrero', values: { 'output:0': 'B2' } }),
-      ],
-    }));
-  });
-
-  it('uses the app confirmation for F5 when the batch has sheets', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    const event = new KeyboardEvent('keydown', { key: 'F5', cancelable: true, bubbles: true });
-    fireEvent(document, event);
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(screen.getByRole('heading', { name: 'Confirmar recarga' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Recargar página' })).not.toBeNull();
-  });
-
-  it('does not open the app reload confirmation when state is empty', () => {
-    render(<App />);
-
-    const event = new KeyboardEvent('keydown', { key: 'F5', cancelable: true, bubbles: true });
-    fireEvent(document, event);
-
-    expect(event.defaultPrevented).toBe(false);
-    expect(screen.queryByRole('heading', { name: 'Confirmar recarga' })).toBeNull();
-  });
-
-  it('warns before unload only after a batch sheet is saved', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    expect(dispatchBeforeUnload().defaultPrevented).toBe(false);
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-
-    expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
-  });
-
-  it('preserves the batch while switching between tools', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar hoja válida' }));
-    await user.click(screen.getByRole('button', { name: 'Ir a Combinar' }));
-    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
-
-    expect(screen.getByText(/1 hoja · 1 filas · 1 columnas/)).not.toBeNull();
-  });
-});
-
 const processedResult: ProcessedExportResult = {
   id: 'saved:app',
   fileBaseName: 'resultado',
@@ -402,29 +253,6 @@ const processedResult: ProcessedExportResult = {
   sheetName: 'Productos',
   columns: [{ id: 'code', label: 'Código', order: 0, enabled: true }],
   rows: [{ status: 'included', outputValues: { code: 'A1' } }],
-};
-
-const incompatibleResult: ProcessedExportResult = {
-  ...processedResult,
-  id: 'saved:incompatible',
-  sheetName: 'Incompatible',
-  columns: [
-    ...processedResult.columns,
-    { id: 'name', label: 'Nombre', order: 1, enabled: true },
-  ],
-};
-
-const compatibleSecondResult: ProcessedExportResult = {
-  ...processedResult,
-  id: 'saved:second',
-  sheetName: 'Febrero',
-  rows: [{ status: 'included', outputValues: { code: 'B2' } }],
-};
-
-const foreignFileResult: ProcessedExportResult = {
-  ...processedResult,
-  id: 'saved:foreign',
-  sourceFileName: 'otro.xlsx',
 };
 
 const sanitizerExitConfirmationText = 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?';
