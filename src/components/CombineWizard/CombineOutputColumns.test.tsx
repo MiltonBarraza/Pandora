@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -34,12 +34,35 @@ describe('CombineOutputColumns', () => {
     await user.type(screen.getByRole('textbox', { name: 'Nombre de columna de salida 1' }), 'SKU');
     expect((screen.getByRole('textbox', { name: 'Nombre de columna de salida 1' }) as HTMLInputElement).value).toBe('SKU');
 
-    await user.click(screen.getByRole('button', { name: 'Eliminar columna SKU' }));
+    const removeButton = screen.getByRole('button', { name: 'Remover columna SKU' });
+    expect(removeButton.getAttribute('title')).toBeNull();
+    await user.hover(removeButton);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Remover');
+    await user.unhover(removeButton);
+    await user.click(removeButton);
     expect(container.querySelectorAll('.combineOutputColumnItem')).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'Agregar columna' }));
     expect(container.querySelectorAll('.combineOutputColumnItem')).toHaveLength(2);
     expect((screen.getByRole('textbox', { name: 'Nombre de columna de salida 2' }) as HTMLInputElement).value).toBe('Nueva columna');
+  });
+
+  it('reorders output columns by dragging the right-side handle', () => {
+    const { container } = render(<OutputColumnsHarness />);
+    const items = Array.from(container.querySelectorAll<HTMLElement>('.combineOutputColumnItem'));
+    const handles = Array.from(container.querySelectorAll<HTMLElement>('.combineOutputColumnDragHandle'));
+    const dataTransfer = createDataTransfer();
+
+    expect(items[0].lastElementChild?.classList).toContain('combineOutputColumnActions');
+    expect(items[0].lastElementChild?.querySelector('.combineOutputColumnDragHandle')).not.toBeNull();
+    fireEvent.dragStart(handles[0], { dataTransfer });
+    fireEvent.dragOver(items[1], { dataTransfer });
+    fireEvent.drop(items[1], { dataTransfer });
+
+    expect(screen.getAllByRole('textbox').map((input) => (input as HTMLInputElement).value)).toEqual([
+      'Nombre',
+      'Código',
+    ]);
   });
 });
 
@@ -59,3 +82,15 @@ const outputColumns: CombineOutputColumn[] = [
   { id: 'output:1', name: 'Código' },
   { id: 'output:2', name: 'Nombre' },
 ];
+
+function createDataTransfer() {
+  const values = new Map<string, string>();
+  return {
+    dropEffect: 'none',
+    effectAllowed: 'none',
+    getData: (format: string) => values.get(format) ?? '',
+    setData: (format: string, value: string) => {
+      values.set(format, value);
+    },
+  } as unknown as DataTransfer;
+}

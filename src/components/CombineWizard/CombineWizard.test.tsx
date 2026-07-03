@@ -1,13 +1,21 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as XLSX from 'xlsx';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { exportCombinedXlsx } from '../../domain/combine/exportCombinedXlsx';
 import type { CombineSource } from '../../types/combine';
 import { CombineWizard } from './CombineWizard';
 
-afterEach(cleanup);
+vi.mock('../../domain/combine/exportCombinedXlsx', () => ({
+  exportCombinedXlsx: vi.fn(),
+}));
+
+afterEach(() => {
+  cleanup();
+  vi.mocked(exportCombinedXlsx).mockClear();
+});
 
 describe('CombineWizard basket sources', () => {
   it('keeps the files section clean while no files are loaded', () => {
@@ -91,9 +99,111 @@ describe('CombineWizard basket sources', () => {
 
     await waitFor(() => expect(onLocalStatePresenceChange).toHaveBeenLastCalledWith(false));
   });
+
+  it('renders compact sanitizer source rows without move arrow buttons', () => {
+    const { container } = render(<CombineWizard basketSources={orderedBasketSources} />);
+
+    expect(getVisibleSourceOrder(container)).toEqual(['enero.xlsx', 'febrero.xlsx', 'marzo.xlsx']);
+    expect(screen.queryByRole('button', { name: 'Subir enero.xlsx' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Bajar enero.xlsx' })).toBeNull();
+    const firstItem = container.querySelector('.combineSourceItem');
+    expect(firstItem?.lastElementChild?.classList).toContain('combineSourceActions');
+    expect(firstItem?.lastElementChild?.querySelector('.combineSourceDragHandle')).not.toBeNull();
+    expect(screen.getAllByText('Desde sanitizador')).toHaveLength(3);
+  });
+
+  it('truncates long source names with an app tooltip and wraps remove in an app tooltip', async () => {
+    const longName = 'reporte-mensual-con-un-nombre-muy-largo-para-combinar.xlsx';
+    render(<CombineWizard basketSources={[basketSourceForOrder('basket:long', longName, 'L1')]} />);
+    const user = userEvent.setup();
+    const fileName = screen.getByText(longName);
+
+    expect(fileName.classList).toContain('truncatedText');
+    expect(fileName.parentElement?.classList).toContain('infoTooltipCustomTrigger');
+    await user.hover(fileName);
+    expect((await screen.findByRole('tooltip')).textContent).toBe(longName);
+    await user.unhover(fileName);
+
+    const removeButton = screen.getByRole('button', { name: `Remover ${longName}` });
+    expect(removeButton.getAttribute('title')).toBeNull();
+    await user.hover(removeButton);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Remover');
+  });
+
+  it('reorders sources through drag and drop', () => {
+    const { container } = render(<CombineWizard basketSources={orderedBasketSources} />);
+    dragSource(container, 0, 2);
+
+    expect(getVisibleSourceOrder(container)).toEqual(['febrero.xlsx', 'marzo.xlsx', 'enero.xlsx']);
+  });
+
+  it('reports reordered basket sources as local state', async () => {
+    const onLocalStatePresenceChange = vi.fn();
+    render(
+      <CombineWizard
+        basketSources={orderedBasketSources}
+        onLocalStatePresenceChange={onLocalStatePresenceChange}
+      />,
+    );
+
+    await waitFor(() => expect(onLocalStatePresenceChange).toHaveBeenLastCalledWith(false));
+    dragSource(document.body, 0, 1);
+    await waitFor(() => expect(onLocalStatePresenceChange).toHaveBeenLastCalledWith(true));
+  });
+
+  it('uses visible source order in preview and export', async () => {
+    const { container } = render(<CombineWizard basketSources={orderedBasketSources.slice(0, 2)} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    dragSource(container, 0, 1);
+
+    expect(getPreviewSourceOrder(container)).toEqual(['febrero.xlsx', 'enero.xlsx']);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    const exportPayload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
+    expect(exportPayload.combinedRows.map((row) => row.sourceFileName)).toEqual([
+      'febrero.xlsx',
+      'enero.xlsx',
+    ]);
+  });
+
+  it('uses section 3 drag order in preview and export columns', async () => {
+    const { container } = render(<CombineWizard basketSources={[twoColumnBasketSource]} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    dragOutputColumn(container, 0, 1);
+
+    expect(Array.from(container.querySelectorAll('.combinePreviewTable thead th')).slice(-2).map((cell) => cell.textContent)).toEqual([
+      'Nombre',
+      'Código',
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(exportCombinedXlsx).mock.calls[0][0].outputColumns.map((column) => column.name)).toEqual([
+      'Nombre',
+      'Código',
+    ]);
+  });
 });
 
 describe('CombineWizard uploaded source sheets', () => {
+  it('reorders manual and sanitizer sources in the same list', async () => {
+    const { container } = render(<CombineWizard basketSources={[orderedBasketSources[0]]} />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), csvFile('manual.csv', 'Código\nU1'));
+    await screen.findByText('manual.csv');
+    dragSource(container, 1, 0);
+
+    expect(getVisibleSourceOrder(container)).toEqual(['manual.csv', 'enero.xlsx']);
+    expect(screen.getByText('Manual')).not.toBeNull();
+    expect(screen.getByText('Desde sanitizador')).not.toBeNull();
+  });
+
   it('shows a selector for multiple sheets and updates source data and preview', async () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
@@ -110,6 +220,9 @@ describe('CombineWizard uploaded source sheets', () => {
 
     await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
     await screen.findByText('multi.xlsx');
+    expect(screen.getByText('multi.xlsx').closest('.combineSourceMain')).toBe(
+      screen.getByRole('button', { name: 'Hoja usada' }).closest('.combineSourceMain'),
+    );
     await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
     expect(screen.getAllByText('A1').length).toBeGreaterThan(0);
 
@@ -188,6 +301,73 @@ const basketSource: CombineSource = {
 };
 
 const emptySources: CombineSource[] = [];
+
+const orderedBasketSources: CombineSource[] = [
+  basketSourceForOrder('basket:enero', 'enero.xlsx', 'E1'),
+  basketSourceForOrder('basket:febrero', 'febrero.xlsx', 'F1'),
+  basketSourceForOrder('basket:marzo', 'marzo.xlsx', 'M1'),
+];
+
+const twoColumnBasketSource: CombineSource = {
+  id: 'basket:two-columns',
+  fileName: 'dos-columnas.xlsx',
+  sheetName: 'Datos',
+  columns: [
+    { id: 'two:code', name: 'Código', index: 0 },
+    { id: 'two:name', name: 'Nombre', index: 1 },
+  ],
+  rows: [{ id: 'two:row', values: { 'two:code': 'A1', 'two:name': 'Producto' } }],
+};
+
+function basketSourceForOrder(id: string, fileName: string, value: string): CombineSource {
+  return {
+    id,
+    fileName,
+    sheetName: 'Datos',
+    columns: [{ id: `${id}:column`, name: 'Código', index: 0 }],
+    rows: [{ id: `${id}:row`, values: { [`${id}:column`]: value } }],
+  };
+}
+
+function getVisibleSourceOrder(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('.combineSourceFileName .truncatedText'))
+    .map((element) => element.textContent);
+}
+
+function getPreviewSourceOrder(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('.combinePreviewTable tbody tr'))
+    .map((row) => row.querySelector('td')?.textContent);
+}
+
+function createDataTransfer() {
+  const values = new Map<string, string>();
+  return {
+    dropEffect: 'none',
+    effectAllowed: 'none',
+    getData: (format: string) => values.get(format) ?? '',
+    setData: (format: string, value: string) => {
+      values.set(format, value);
+    },
+  } as unknown as DataTransfer;
+}
+
+function dragSource(container: HTMLElement, fromIndex: number, toIndex: number) {
+  const sourceItems = Array.from(container.querySelectorAll<HTMLElement>('.combineSourceItem'));
+  const dragHandles = Array.from(container.querySelectorAll<HTMLElement>('.combineSourceDragHandle'));
+  const dataTransfer = createDataTransfer();
+  fireEvent.dragStart(dragHandles[fromIndex], { dataTransfer });
+  fireEvent.dragOver(sourceItems[toIndex], { dataTransfer });
+  fireEvent.drop(sourceItems[toIndex], { dataTransfer });
+}
+
+function dragOutputColumn(container: HTMLElement, fromIndex: number, toIndex: number) {
+  const items = Array.from(container.querySelectorAll<HTMLElement>('.combineOutputColumnItem'));
+  const handles = Array.from(container.querySelectorAll<HTMLElement>('.combineOutputColumnDragHandle'));
+  const dataTransfer = createDataTransfer();
+  fireEvent.dragStart(handles[fromIndex], { dataTransfer });
+  fireEvent.dragOver(items[toIndex], { dataTransfer });
+  fireEvent.drop(items[toIndex], { dataTransfer });
+}
 
 function getUploadInput(container: HTMLElement) {
   const input = container.querySelector<HTMLInputElement>('input[type="file"]');

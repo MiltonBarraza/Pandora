@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
 import { mergeCombineSources, removeCombineSourceFromCollections } from '../../domain/combine/combineBasket';
 import { reapplyCombineMappings } from '../../domain/combine/combineColumnMappings';
@@ -16,8 +16,10 @@ import type {
   LoadedCombineSource,
 } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
@@ -47,14 +49,21 @@ export function CombineWizard({
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const [hasImportedSettings, setHasImportedSettings] = useState(false);
+  const [sourceOrder, setSourceOrder] = useState<string[]>([]);
+  const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
+  const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
   const nextSourceIndexRef = useRef(0);
   const uploadedSources = useMemo(
     () => loadedUploadedSources.map((loadedSource) => loadedSource.source),
     [loadedUploadedSources],
   );
-  const sources = useMemo(
+  const mergedSources = useMemo(
     () => mergeCombineSources(basketSources, uploadedSources),
     [basketSources, uploadedSources],
+  );
+  const sources = useMemo(
+    () => applyCombineSourceOrder(mergedSources, sourceOrder),
+    [mergedSources, sourceOrder],
   );
   const basketSourceIds = useMemo(
     () => new Set(basketSources.map((source) => source.id)),
@@ -79,7 +88,8 @@ export function CombineWizard({
         || outputColumns.length > 0
         || mappings.length > 0
         || outputFileName !== 'Archivo combinado'
-        || hasImportedSettings,
+        || hasImportedSettings
+        || sourceOrder.length > 0,
     );
   }, [
     loadedUploadedSources.length,
@@ -87,6 +97,7 @@ export function CombineWizard({
     mappings.length,
     outputFileName,
     hasImportedSettings,
+    sourceOrder.length,
     onLocalStatePresenceChange,
   ]);
 
@@ -190,9 +201,37 @@ export function CombineWizard({
       remainingUploadedSourceIds.has(loadedSource.source.id)
     )));
     setReadErrors((current) => current.filter((error) => error.id !== `sheet:${sourceId}`));
+    setSourceOrder((current) => {
+      const remaining = current.filter((id) => id !== sourceId);
+      return remaining.length > 1 ? remaining : [];
+    });
     if (result.removedBasketSourceId) {
       onRemoveBasketSource?.(result.removedBasketSourceId);
     }
+  };
+
+  const reorderSources = (fromIndex: number, toIndex: number) => {
+    const reordered = reorderCombineSources(sources, fromIndex, toIndex);
+    if (reordered === sources) {
+      return;
+    }
+    setSourceOrder(reordered.map((source) => source.id));
+  };
+
+  const startSourceDrag = (sourceId: string, event: DragEvent<HTMLElement>) => {
+    setDraggedSourceId(sourceId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', sourceId);
+  };
+
+  const dropSource = (targetSourceId: string, event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData('text/plain') || draggedSourceId;
+    const fromIndex = sources.findIndex((source) => source.id === sourceId);
+    const toIndex = sources.findIndex((source) => source.id === targetSourceId);
+    reorderSources(fromIndex, toIndex);
+    setDraggedSourceId(null);
+    setDragOverSourceId(null);
   };
 
   return (
@@ -245,6 +284,9 @@ export function CombineWizard({
                   {sources.length}
                 </span>
               </div>
+              <p className="muted combineSourcesOrderHint">
+                Ordená las fuentes para definir cómo se unirán en el archivo final.
+              </p>
               <div className="combineSourceList">
                 {sources.map((source) => {
                   const loadedSource = basketSourceIds.has(source.id)
@@ -254,12 +296,30 @@ export function CombineWizard({
                     && loadedSource.sheetNames.length > 1;
 
                   return (
-                    <article key={source.id} className="combineSourceItem">
-                      <div className="combineSourceContent">
-                        <strong>{source.fileName}</strong>
-                        <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
-                          {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
-                        </span>
+                    <article
+                      key={source.id}
+                      className={`combineSourceItem${draggedSourceId === source.id ? ' isDragging' : ''}${dragOverSourceId === source.id && draggedSourceId !== source.id ? ' isDragTarget' : ''}`}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        setDragOverSourceId(source.id);
+                      }}
+                      onDragLeave={() => setDragOverSourceId((current) => current === source.id ? null : current)}
+                      onDrop={(event) => dropSource(source.id, event)}
+                      onDragEnd={() => {
+                        setDraggedSourceId(null);
+                        setDragOverSourceId(null);
+                      }}
+                    >
+                      <div className="combineSourceMain">
+                        <div className="combineSourceIdentity">
+                          <strong className="combineSourceFileName">
+                            <TruncatedText text={source.fileName} tooltipThreshold={24} />
+                          </strong>
+                          <span className={`combineSourceBadge${basketSourceIds.has(source.id) ? '' : ' isManual'}`}>
+                            {basketSourceIds.has(source.id) ? 'Desde sanitizador' : 'Manual'}
+                          </span>
+                        </div>
                         {hasSheetSelector ? (
                           <Dropdown
                             className="compact combineSourceSheetSelector"
@@ -278,10 +338,26 @@ export function CombineWizard({
                           {source.rows.length} {source.rows.length === 1 ? 'fila' : 'filas'} de datos
                         </p>
                       </div>
-                      <DeleteButton
-                        title={`Remover ${source.fileName}`}
-                        onClick={() => removeSource(source.id)}
-                      />
+                      <div className="combineSourceActions">
+                        <span
+                          className="dragHandle combineSourceDragHandle"
+                          draggable
+                          aria-hidden="true"
+                          onDragStart={(event) => startSourceDrag(source.id, event)}
+                          onDragEnd={() => {
+                            setDraggedSourceId(null);
+                            setDragOverSourceId(null);
+                          }}
+                        >
+                          <AppIcon name="reorder" size={18} />
+                        </span>
+                        <InfoTooltip content="Remover" placement="left">
+                          <DeleteButton
+                            title={`Remover ${source.fileName}`}
+                            onClick={() => removeSource(source.id)}
+                          />
+                        </InfoTooltip>
+                      </div>
                     </article>
                   );
                 })}
@@ -346,3 +422,32 @@ type CombineReadError = {
   fileName: string;
   message: string;
 };
+
+export function applyCombineSourceOrder(sources: CombineSource[], sourceOrder: string[]) {
+  const sourcesById = new Map(sources.map((source) => [source.id, source]));
+  const orderedSourceIds = new Set(sourceOrder);
+  return [
+    ...sourceOrder.flatMap((sourceId) => {
+      const source = sourcesById.get(sourceId);
+      return source ? [source] : [];
+    }),
+    ...sources.filter((source) => !orderedSourceIds.has(source.id)),
+  ];
+}
+
+export function reorderCombineSources(sources: CombineSource[], fromIndex: number, toIndex: number) {
+  if (
+    fromIndex === toIndex
+    || fromIndex < 0
+    || toIndex < 0
+    || fromIndex >= sources.length
+    || toIndex >= sources.length
+  ) {
+    return sources;
+  }
+
+  const reordered = [...sources];
+  const [movedSource] = reordered.splice(fromIndex, 1);
+  reordered.splice(toIndex, 0, movedSource);
+  return reordered;
+}

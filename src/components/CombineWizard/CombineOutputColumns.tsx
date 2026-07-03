@@ -1,7 +1,9 @@
+import { useState, type DragEvent } from 'react';
 import { normalizeCombineColumnName } from '../../domain/combine/combineColumnMappings';
 import type { CombineOutputColumn, CombineSource } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type CombineOutputColumnsProps = {
@@ -17,6 +19,8 @@ export function CombineOutputColumns({
 }: CombineOutputColumnsProps) {
   const hasEmptyNames = outputColumns.some((column) => column.name.trim() === '');
   const hasDuplicateNames = getDuplicateNormalizedNames(outputColumns).length > 0;
+  const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
   const addColumn = () => {
     onChange([
@@ -35,6 +39,29 @@ export function CombineOutputColumns({
       id: crypto.randomUUID(),
       name: column.name,
     })));
+  };
+
+  const reorderColumns = (fromIndex: number, toIndex: number) => {
+    const reordered = reorderCombineOutputColumns(outputColumns, fromIndex, toIndex);
+    if (reordered !== outputColumns) {
+      onChange(reordered);
+    }
+  };
+
+  const startColumnDrag = (columnId: string, event: DragEvent<HTMLElement>) => {
+    setDraggedColumnId(columnId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', columnId);
+  };
+
+  const dropColumn = (targetColumnId: string, event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const columnId = event.dataTransfer.getData('text/plain') || draggedColumnId;
+    const fromIndex = outputColumns.findIndex((column) => column.id === columnId);
+    const toIndex = outputColumns.findIndex((column) => column.id === targetColumnId);
+    reorderColumns(fromIndex, toIndex);
+    setDraggedColumnId(null);
+    setDragOverColumnId(null);
   };
 
   return (
@@ -75,7 +102,17 @@ export function CombineOutputColumns({
       {outputColumns.length > 0 ? (
         <div className="combineOutputColumnList">
           {outputColumns.map((column, index) => (
-            <div key={column.id} className="combineOutputColumnItem">
+            <div
+              key={column.id}
+              className={`combineOutputColumnItem${draggedColumnId === column.id ? ' isDragging' : ''}${dragOverColumnId === column.id && draggedColumnId !== column.id ? ' isDragTarget' : ''}`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                setDragOverColumnId(column.id);
+              }}
+              onDragLeave={() => setDragOverColumnId((current) => current === column.id ? null : current)}
+              onDrop={(event) => dropColumn(column.id, event)}
+            >
               <label>
                 <span>Columna {index + 1}</span>
                 <input
@@ -86,10 +123,26 @@ export function CombineOutputColumns({
                   )))}
                 />
               </label>
-              <DeleteButton
-                title={`Eliminar columna ${column.name || index + 1}`}
-                onClick={() => onChange(outputColumns.filter((item) => item.id !== column.id))}
-              />
+              <div className="combineOutputColumnActions">
+                <span
+                  className="dragHandle combineOutputColumnDragHandle"
+                  draggable
+                  aria-hidden="true"
+                  onDragStart={(event) => startColumnDrag(column.id, event)}
+                  onDragEnd={() => {
+                    setDraggedColumnId(null);
+                    setDragOverColumnId(null);
+                  }}
+                >
+                  <AppIcon name="reorder" size={18} />
+                </span>
+                <InfoTooltip content="Remover" placement="left">
+                  <DeleteButton
+                    title={`Remover columna ${column.name || index + 1}`}
+                    onClick={() => onChange(outputColumns.filter((item) => item.id !== column.id))}
+                  />
+                </InfoTooltip>
+              </div>
             </div>
           ))}
         </div>
@@ -114,4 +167,25 @@ function getDuplicateNormalizedNames(outputColumns: CombineOutputColumn[]) {
   });
 
   return [...duplicates];
+}
+
+export function reorderCombineOutputColumns(
+  outputColumns: CombineOutputColumn[],
+  fromIndex: number,
+  toIndex: number,
+) {
+  if (
+    fromIndex === toIndex
+    || fromIndex < 0
+    || toIndex < 0
+    || fromIndex >= outputColumns.length
+    || toIndex >= outputColumns.length
+  ) {
+    return outputColumns;
+  }
+
+  const reordered = [...outputColumns];
+  const [movedColumn] = reordered.splice(fromIndex, 1);
+  reordered.splice(toIndex, 0, movedColumn);
+  return reordered;
 }

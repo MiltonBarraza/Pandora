@@ -765,6 +765,11 @@ h3 {
   margin-top: 6px;
 }
 
+.combineSourcesOrderHint {
+  font-size: 0.8rem;
+  margin: 4px 0 0;
+}
+
 .combineSourceItem {
   align-items: center;
   background: var(--color-bg-surface-muted);
@@ -773,12 +778,77 @@ h3 {
   display: flex;
   gap: 10px;
   justify-content: space-between;
+  min-height: 58px;
   min-width: 0;
   padding: 8px 9px 8px 11px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
 
-.combineSourceContent {
+.combineSourceItem.isDragging,
+.combineOutputColumnItem.isDragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+.combineSourceItem.isDragTarget,
+.combineOutputColumnItem.isDragTarget {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 2px var(--color-accent-bg-soft);
+}
+
+.combineSourceDragHandle {
+  border-radius: 6px;
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
+}
+
+.combineSourceMain {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 12px;
   min-width: 0;
+}
+
+.combineSourceIdentity {
+  align-items: center;
+  display: flex;
+  flex: 1 1 240px;
+  gap: 7px;
+  max-width: 420px;
+  min-width: 120px;
+  overflow: hidden;
+}
+
+.combineSourceFileName {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.combineSourceFileName > .infoTooltipCustomTrigger {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.combineSourceIdentity .combineSourceBadge {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+.combineSourceActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.combineSourceActions > .infoTooltipCustomTrigger,
+.combineOutputColumnActions > .infoTooltipCustomTrigger {
+  display: inline-flex;
 }
 
 .combineSourceItem .actionButton-iconOnly,
@@ -793,13 +863,27 @@ h3 {
 }
 
 .combineSourceMeta {
+  flex: 0 0 auto;
   font-size: 0.8rem;
-  margin: 3px 0 0;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .combineSourceSheetSelector {
-  margin-top: 7px;
-  max-width: 320px;
+  flex: 0 1 230px;
+  margin-top: 0;
+  max-width: 230px;
+  min-width: 150px;
+}
+
+.combineSourceSheetSelector .dropdownLabel {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .combineSettingsPanel {
@@ -877,6 +961,7 @@ h3 {
   display: flex;
   gap: 10px;
   padding: 6px 8px 6px 10px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
 
 .combineOutputColumnItem label {
@@ -892,6 +977,20 @@ h3 {
   color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.combineOutputColumnActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.combineOutputColumnDragHandle {
+  border-radius: 6px;
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
 }
 
 .combineOutputColumnItem input {
@@ -1164,10 +1263,36 @@ h3 {
 
   .combineSettingsToolbar,
   .combineOutputColumnsToolbar,
-  .combineMappingsToolbar,
-  .combineSourceItem {
+  .combineMappingsToolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .combineSourceItem {
+    align-items: flex-start;
+  }
+
+  .combineSourceMain {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .combineSourceIdentity {
+    flex-basis: auto;
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .combineSourceSheetSelector {
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .combineSourceMeta {
+    white-space: normal;
   }
 
   .combineSettingsActions,
