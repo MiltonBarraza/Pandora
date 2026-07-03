@@ -1,3 +1,5 @@
+import type { WorkBook } from 'xlsx';
+
 export type CombineSourceColumn = {
   id: string;
   name: string;
@@ -16,6 +18,22 @@ export type CombineSource = {
   columns: CombineSourceColumn[];
   rows: CombineSourceRow[];
 };
+
+export type LoadedCombineSource =
+  | {
+      kind: 'csv';
+      source: CombineSource;
+    }
+  | {
+      kind: 'excel';
+      source: CombineSource;
+      sheetNames: string[];
+      workbook: WorkBook;
+    }
+  | {
+      kind: 'static';
+      source: CombineSource;
+    };
 
 export type CombineOutputColumn = {
   id: string;

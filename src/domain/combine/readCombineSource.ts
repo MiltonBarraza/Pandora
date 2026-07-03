@@ -1,5 +1,6 @@
 import type { RawRow } from '../../types/import';
-import type { CombineSource } from '../../types/combine';
+import type { CombineSource, LoadedCombineSource } from '../../types/combine';
+import type { WorkBook } from 'xlsx';
 import { columnLetter } from '../import/columnAnalysis';
 import { getSheetRows } from '../import/getSheetRows';
 import { readCsv } from '../import/readCsv';
@@ -8,28 +9,69 @@ import { readWorkbook } from '../import/readWorkbook';
 const supportedSpreadsheetExtensions = ['.xlsx', '.xls', '.xlsm'];
 
 export async function readCombineSource(file: File, sourceIndex: number): Promise<CombineSource> {
+  return (await readLoadedCombineSource(file, sourceIndex)).source;
+}
+
+export async function readLoadedCombineSource(
+  file: File,
+  sourceIndex: number,
+): Promise<LoadedCombineSource> {
   const lowerName = file.name.toLowerCase();
-  let rows: RawRow[];
-  let sheetName: string | undefined;
 
   if (lowerName.endsWith('.csv')) {
-    rows = await readCsv(file);
-  } else if (supportedSpreadsheetExtensions.some((extension) => lowerName.endsWith(extension))) {
+    return {
+      kind: 'csv',
+      source: buildCombineSourceFromRows({
+        id: `source:${sourceIndex}`,
+        fileName: file.name,
+        rows: await readCsv(file),
+      }),
+    };
+  }
+
+  if (supportedSpreadsheetExtensions.some((extension) => lowerName.endsWith(extension))) {
     const workbook = await readWorkbook(await file.arrayBuffer());
-    sheetName = workbook.SheetNames[0];
+    const sheetName = workbook.SheetNames[0];
     if (!sheetName) {
       throw new Error('El archivo Excel no contiene hojas.');
     }
-    rows = getSheetRows(workbook, sheetName);
-  } else {
-    throw new Error('Formato no compatible. Usá .xlsx, .xls, .xlsm o .csv.');
+
+    return {
+      kind: 'excel',
+      source: createCombineSourceFromWorkbookSheet({
+        workbook,
+        fileName: file.name,
+        sourceId: `source:${sourceIndex}`,
+        sheetName,
+      }),
+      sheetNames: [...workbook.SheetNames],
+      workbook,
+    };
+  }
+
+  throw new Error('Formato no compatible. Usá .xlsx, .xls, .xlsm o .csv.');
+}
+
+export function createCombineSourceFromWorkbookSheet({
+  workbook,
+  fileName,
+  sourceId,
+  sheetName,
+}: {
+  workbook: WorkBook;
+  fileName: string;
+  sourceId: string;
+  sheetName: string;
+}): CombineSource {
+  if (!workbook.Sheets[sheetName]) {
+    throw new Error(`La hoja "${sheetName}" no existe en el archivo.`);
   }
 
   return buildCombineSourceFromRows({
-    id: `source:${sourceIndex}`,
-    fileName: file.name,
+    id: sourceId,
+    fileName,
     sheetName,
-    rows,
+    rows: getSheetRows(workbook, sheetName),
   });
 }
 
