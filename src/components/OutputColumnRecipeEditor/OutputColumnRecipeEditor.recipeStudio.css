@@ -3,8 +3,7 @@
 }
 
 .recipeStudioEyebrow,
-.composeTokenInspectorHeader span,
-.rangeRuleInspectorHeader span {
+.composeTokenInspectorHeader span {
   color: var(--color-text-muted);
   font-size: 0.72rem;
   font-weight: 800;
@@ -23,7 +22,6 @@
 }
 
 .composeTokenInspector,
-.rangeRuleInspector,
 .recipeStudioMain {
   min-width: 0;
 }
@@ -752,8 +750,7 @@
   min-width: 0;
 }
 
-.rangeStudioToolbar,
-.rangeRuleInspectorActions {
+.rangeStudioToolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -868,29 +865,6 @@
   gap: 4px;
 }
 
-.rangeRuleInspector {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  padding: 12px;
-}
-
-.rangeRuleInspectorHeader {
-  display: grid;
-  gap: 3px;
-}
-
-.rangeRuleInspectorHeader span {
-  color: var(--color-text-muted);
-  font-size: 0.76rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.rangeRuleInspectorFields,
 .rangeConditionFields {
   display: grid;
   gap: 10px;
@@ -912,13 +886,4 @@
 
 .rangeConditionFields {
   padding: 0 12px 12px;
-}
-
-.rangeRuleInspector {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
-  display: grid;
-  gap: 12px;
-  padding: 12px;
 }

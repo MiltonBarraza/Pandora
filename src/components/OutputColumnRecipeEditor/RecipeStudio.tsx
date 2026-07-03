@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { addManualRangeValue, describeManualRangeCondition, duplicateManualRangeValue, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, hasOverlappingManualRanges, manualRangeValueSourceOptions, parseManualRangeRowInput, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueSourceType, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
+import { addManualRangeValue, describeManualRangeCondition, duplicateManualRangeValue, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeValueSourceType, hasOverlappingManualRanges, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { ConcatPart, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
@@ -9,8 +9,6 @@ import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
-import { getInvalidPickerTooltip, invalidPickerValuesLabel } from './ColumnTextPicker';
 import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
 import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
@@ -1295,14 +1293,6 @@ function RangeValueStudio({
   );
 }
 
-function RangeStudioPlaceholder() {
-  return (
-    <div className="rangeRulesEmpty" role="status">
-      Esta receta mantiene su configuración actual. La edición de rangos no está disponible en este paso.
-    </div>
-  );
-}
-
 function RangeRulesList({
   recipe,
   inputColumns,
@@ -1367,115 +1357,6 @@ function RangeRuleCard({
       <div className="rangeRuleActions">
         <ActionButton action="duplicate" variant="icon" size="sm" title="Duplicar rango" aria-label="Duplicar rango" onClick={onDuplicate} />
         <DeleteButton title="Eliminar rango" onClick={onRemove} />
-      </div>
-    </div>
-  );
-}
-
-function RangeRuleInspector({
-  recipe,
-  range,
-  inputColumns,
-  manualRangeRows,
-  onChange,
-  onDuplicate,
-  onRemove,
-}: {
-  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
-  range: ManualRangeValue | null;
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
-  onDuplicate: (rangeId: string) => void;
-  onRemove: (rangeId: string) => void;
-}) {
-  if (!range) {
-    return (
-      <div className="rangeRuleInspector">
-        <strong>Inspector de rango</strong>
-        <p>Seleccioná un rango.</p>
-      </div>
-    );
-  }
-
-  const valueSourceType = getManualRangeValueSourceType(range);
-  const rangeTextSource = getManualRangeRangeTextSource(range);
-  const inputSource = getManualRangeInputSource(range);
-  const selectedTextOptions = getManualRangeTextOptions(manualRangeRows, range, rangeTextSource.inputColumnId);
-  const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: noActiveColumnsLabel }]
-    : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
-  const rangeIndex = recipe.ranges.findIndex((item) => item.id === range.id);
-  const updateRange = (patch: Partial<ManualRangeValue>) => onChange(updateManualRangeValue(recipe, range.id, patch));
-  const moveRange = (direction: -1 | 1) => {
-    const nextIndex = rangeIndex + direction;
-    if (nextIndex < 0 || nextIndex >= recipe.ranges.length) {
-      return;
-    }
-    const nextRanges = [...recipe.ranges];
-    [nextRanges[rangeIndex], nextRanges[nextIndex]] = [nextRanges[nextIndex], nextRanges[rangeIndex]];
-    onChange({ ...recipe, ranges: nextRanges });
-  };
-
-  return (
-    <div className="rangeRuleInspector">
-      <div className="rangeRuleInspectorHeader">
-        <span>Rango seleccionado</span>
-        <strong>Filas {formatRangeRowNumber(range.startRowNumber)} - {formatRangeRowNumber(range.endRowNumber)}</strong>
-      </div>
-      <div className="rangeRuleInspectorFields">
-        <label className="field compact">
-          <span>Fila inicio</span>
-          <input type="number" min="1" value={formatManualRangeRowInput(range.startRowNumber)} onChange={(event) => updateRange({ startRowNumber: parseManualRangeRowInput(event.target.value) ?? 0 })} />
-        </label>
-        <label className="field compact">
-          <span>Fila fin</span>
-          <input type="number" min="1" value={formatManualRangeRowInput(range.endRowNumber)} onChange={(event) => updateRange({ endRowNumber: parseManualRangeRowInput(event.target.value) ?? 0 })} />
-        </label>
-        <Dropdown<ManualRangeValueSourceType>
-          className="compact"
-          label="Modo de valor"
-          value={valueSourceType}
-          options={manualRangeValueSourceOptions}
-          scrollStrategy="close"
-          onChange={(type) => onChange(updateManualRangeValueSourceType(recipe, range.id, type, inputColumns))}
-        />
-        {valueSourceType === 'fixedText' ? (
-          <label className="field compact">
-            <span>Texto fijo</span>
-            <input value={getManualRangeFixedTextValue(range)} onChange={(event) => onChange(updateManualRangeFixedTextValue(recipe, range.id, event.target.value))} />
-          </label>
-        ) : null}
-        {valueSourceType === 'input' ? (
-          <Dropdown className="compact" label="Columna de entrada" value={inputSource.inputColumnId} options={inputColumnOptions} scrollStrategy="close" onChange={(inputColumnId) => onChange(updateManualRangeInputValue(recipe, range.id, inputColumnId))} />
-        ) : null}
-        {valueSourceType === 'rangeText' ? (
-          <>
-            <Dropdown className="compact" label="Buscar textos en" value={rangeTextSource.inputColumnId} options={inputColumnOptions} scrollStrategy="close" onChange={(inputColumnId) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { inputColumnId }))} />
-            <Dropdown
-              className="compact"
-              label="Texto encontrado"
-              value={rangeTextSource.selectedText}
-              labelInfo={selectedTextOptions.length === 0 ? <WarningTooltip content={getInvalidPickerTooltip('No se encontraron textos en este rango para la columna seleccionada.')} /> : undefined}
-              options={selectedTextOptions.length === 0 ? [{ value: '', label: invalidPickerValuesLabel, disabled: true }] : selectedTextOptions.map((text) => ({ value: text, label: text }))}
-              disabled={selectedTextOptions.length === 0}
-              searchable
-              searchPlaceholder="Buscar texto"
-              scrollStrategy="close"
-              onChange={(selectedText) => onChange(updateManualRangeRangeTextValue(recipe, range.id, { selectedText }))}
-            />
-          </>
-        ) : null}
-      </div>
-      <details className="rangeConditionPanel">
-        <summary>{recipe.condition ? `Condición: ${describeManualRangeCondition(recipe, inputColumns)}` : '+ Agregar condición'}</summary>
-        <RangeConditionEditor recipe={recipe} inputColumns={inputColumns} onChange={onChange} />
-      </details>
-      <div className="rangeRuleInspectorActions">
-        <ActionButton action="duplicate" variant="secondary" onClick={() => onDuplicate(range.id)}>Duplicar</ActionButton>
-        <ActionButton variant="secondary" disabled={rangeIndex <= 0} onClick={() => moveRange(-1)}>Subir</ActionButton>
-        <ActionButton variant="secondary" disabled={rangeIndex >= recipe.ranges.length - 1} onClick={() => moveRange(1)}>Bajar</ActionButton>
-        <DeleteButton title="Eliminar rango" onClick={() => onRemove(range.id)} />
       </div>
     </div>
   );

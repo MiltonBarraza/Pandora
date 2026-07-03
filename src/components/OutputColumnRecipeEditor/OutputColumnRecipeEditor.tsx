@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { defaultDateInputFormat, defaultDateInvalidFallback, defaultDateOutputFormat } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
-import { parseOptionalNumberInput } from '../../domain/import/numberInput';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { ConcatPart, DateInputFormat, DateInvalidFallback, DateOutputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
+import type { DateInputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
@@ -13,18 +11,12 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
-import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
-import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
-  dateInputFormatOptions,
-  dateInvalidFallbackOptions,
-  dateOutputFormatOptions,
-  conditionOperators,
   getDatePickerValue,
   getStepSourceForTextAction,
   getStepTextSourceAction,
-  parseRounding,
   updateStep,
   type StepTextSourceAction,
 } from './OutputColumnRecipeEditor.optionHelpers';
@@ -36,39 +28,25 @@ import {
   buildStepBasedCustomValueRecipe,
   canPreviewNumericValue,
   clearManualRangeValues,
-  createDefaultConcatPart,
   createNoopStep,
-  describeConcatPartSource,
   getCustomValueMode,
   getDefaultStepModeForRecipe,
   getFirstStepSource,
   getInputColumnSummary,
-  getNextSelectedConcatPartIdAfterRemove,
   getRecipeEditorModalRecipe,
-  getSafeSelectedConcatPartId,
   getSimpleInputPart,
   getStepMode,
   getVisibleConcatPartPrimaryStep,
-  getVisibleLeftOperand,
   getVisibleRecipeSteps,
-  getVisibleRightOperand,
-  getVisibleStepSource,
-  hasConfiguredConcatStep,
-  hasConfiguredManualRangeStep,
-  hasConfiguredNumericStepOperands,
   hasRecipeEditorDraftChanges,
   isCustomValueConfigured,
-  normalizeConcatPartsAfterReorder,
   replaceWholeStep,
   replaceWholeStepForAction,
   replaceWholeStepForMode,
-  shouldShowTextSourceFields,
-  updateConcatPartPrimaryStep,
-  updateConcatPartSteps,
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepModeSelect, StepOperandFields, StepSourceFields, StepTypeSelect, isVisibleStepActionConfigured, shouldShowStepTypeSelectForStep, type StepSourceChangeContext } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepModeSelect, StepTypeSelect } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
@@ -1575,267 +1553,6 @@ function getSimpleStepBlockTitle(step: TransformStep, index: number, inputColumn
   return getRecipeStepTitle(step, inputColumns, source);
 }
 
-function StepDetailPanel({
-  step,
-  index,
-  inputColumns,
-  manualRangeRows = [],
-  canDelete,
-  allowConcat = true,
-  stepSource = step.source ?? { type: 'previousResult' },
-  allowPreviousResultSource,
-  previousResultPreviewValue,
-  onSourceChange,
-  onChange,
-  onReplace,
-  onDelete,
-  showSourceFields = true,
-}: {
-  step: TransformStep;
-  index: number;
-  inputColumns: InputColumn[];
-  manualRangeRows?: InputRow[];
-  canDelete: boolean;
-  allowConcat?: boolean;
-  stepSource?: StepSource;
-  allowPreviousResultSource?: boolean;
-  previousResultPreviewValue?: string | null;
-  onSourceChange?: (source: StepSource, nextStep?: TransformStep) => void;
-  onChange: (patch: Partial<TransformStep>) => void;
-  onReplace: (step: TransformStep) => void;
-  onDelete: () => void;
-  showSourceFields?: boolean;
-}) {
-  const [textSourceActionOverride, setTextSourceActionOverride] = useState<StepTextSourceAction | null>(null);
-  const stepMode = getStepMode(step);
-  const isManualRangeStep = step.type === 'manualRange';
-  const showStepTypeSelect = shouldShowStepTypeSelectForStep(step);
-  const inferredTextSourceAction = textSourceActionOverride
-    ?? (!allowPreviousResultSource && stepSource.type === 'previousResult' ? 'useInputColumn' : getStepTextSourceAction(stepSource));
-  const hasConfiguredTextSourceAction = step.type === 'noop' && (
-    textSourceActionOverride !== null
-    || Boolean(step.source)
-    || (showSourceFields && Boolean(onSourceChange) && stepSource.type !== 'previousResult')
-  );
-  const textSourceAction = stepMode === 'text' && hasConfiguredTextSourceAction ? inferredTextSourceAction : undefined;
-  const hasConfiguredVisibleAction = isVisibleStepActionConfigured(step, stepMode, textSourceAction);
-  const summarySource = hasConfiguredVisibleAction ? stepSource : undefined;
-  const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getRecipeStepTitle(step, inputColumns, summarySource);
-  useEffect(() => {
-    setTextSourceActionOverride(null);
-  }, [step.id, stepMode]);
-  const updateTextSourceAction = (action: StepTextSourceAction) => {
-    setTextSourceActionOverride(action);
-    const source = getStepSourceForTextAction(action, stepSource, inputColumns);
-    const nextStep = {
-      ...replaceWholeStepForAction(step, 'noop', 'text', undefined, index),
-      ...(onSourceChange ? {} : { source }),
-    };
-    if (onSourceChange) {
-      onSourceChange(source, nextStep);
-      return;
-    }
-
-    onReplace(nextStep);
-  };
-  return (
-    <div className="stepDetailPanel">
-      <div className="stepCardHeader">
-        <strong>
-          Paso {index + 1}{summary ? ` · ${summary}` : ''}
-        </strong>
-        {canDelete ? <DeleteButton title="Eliminar paso" onClick={onDelete} /> : <span aria-hidden="true" />}
-      </div>
-      <div className={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}>
-        {step.type === 'concat' || isManualRangeStep ? (
-          <div className="concatStepTopRow">
-            <div className="concatStepTopControls">
-              <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
-              {showStepTypeSelect ? (
-                <StepTypeSelect
-                  step={step}
-                  mode={stepMode}
-                  allowConcat={allowConcat}
-                  textSourceAction={textSourceAction}
-                  allowPreviousResultSource={Boolean(allowPreviousResultSource)}
-                  onTextSourceAction={showSourceFields ? updateTextSourceAction : undefined}
-                  onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
-                />
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <div className="stepPrimaryFieldsRow">
-            <StepModeSelect mode={stepMode} allowManualRange={allowConcat} onChange={(mode) => onReplace(replaceWholeStepForMode(step, mode, index))} />
-            <StepTypeSelect
-              step={step}
-              mode={stepMode}
-              allowConcat={allowConcat}
-              textSourceAction={textSourceAction}
-              allowPreviousResultSource={Boolean(allowPreviousResultSource)}
-              onTextSourceAction={showSourceFields ? updateTextSourceAction : undefined}
-              onChange={(type, operation) => onReplace(replaceWholeStepForAction(step, type, stepMode, operation, index))}
-            />
-          </div>
-        )}
-        <div className="stepExtraFieldsRow">
-          <StepFields
-            step={step}
-            stepIndex={index}
-            stepSource={stepSource}
-            inputColumns={inputColumns}
-            manualRangeRows={manualRangeRows}
-            labels="workflow"
-            allowPreviousResultSource={allowPreviousResultSource}
-            previousResultPreviewValue={previousResultPreviewValue}
-            textSourceAction={textSourceAction}
-            showSourceFields={showSourceFields}
-            onSourceChange={onSourceChange ?? ((source) => onChange({ source }))}
-            onChange={onChange}
-          />
-        </div>
-        {isManualRangeStep ? (
-          <div className="manualRangeStepCondition">
-            <StepConditionFields step={step} inputColumns={inputColumns} variant="manualRange" onChange={onChange} />
-          </div>
-        ) : (
-          <StepConditionFields step={step} inputColumns={inputColumns} onChange={onChange} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-function ConcatStepFields({
-  parts,
-  inputColumns,
-  manualRangeRows,
-  allowPreviousResult,
-  previousResultPreviewValue,
-  onChange,
-}: {
-  parts: ConcatPart[];
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  allowPreviousResult: boolean;
-  previousResultPreviewValue?: string | null;
-  onChange: (parts: ConcatPart[]) => void;
-}) {
-  const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null);
-  const previousPartCountRef = useRef(parts.length);
-  const safeSelectedPartId = getSafeSelectedConcatPartId(parts, selectedPartId);
-  const selectedPart = parts.find((part) => part.id === safeSelectedPartId);
-  const selectedPartIndex = selectedPart ? parts.findIndex((part) => part.id === selectedPart.id) : -1;
-
-  useEffect(() => {
-    if (parts.length > previousPartCountRef.current) {
-      setSelectedPartId(parts[parts.length - 1]?.id ?? null);
-    }
-
-    previousPartCountRef.current = parts.length;
-  }, [parts]);
-
-  const updatePart = (partId: string, nextPart: ConcatPart) => {
-    onChange(parts.map((part) => (part.id === partId ? nextPart : part)));
-  };
-  const addPart = () => {
-    onChange([
-      ...parts,
-      createDefaultConcatPart(parts.length, allowPreviousResult),
-    ]);
-  };
-  const removePart = (partId: string) => {
-    setSelectedPartId(getNextSelectedConcatPartIdAfterRemove(parts, partId, safeSelectedPartId));
-    onChange(parts.filter((part) => part.id !== partId));
-  };
-
-  return (
-    <div className="concatStepFields">
-      {parts.length === 0 ? (
-        <div className="concatPartsEmptyState">
-          <p className="muted">Agrega una parte para construir el valor.</p>
-          <InfoTooltip content="Agrega otro dato o texto a combinar.">
-            <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-          </InfoTooltip>
-        </div>
-      ) : null}
-      {parts.length > 0 ? (
-        <div className="concatPartsWorkspace">
-          <div className="concatPartsSidebar">
-            <SortableList
-              items={parts}
-              onChange={(nextParts) => onChange(normalizeConcatPartsAfterReorder(nextParts))}
-              renderItem={(part, handle) => {
-                const index = parts.findIndex((item) => item.id === part.id);
-
-                return (
-                  <div className={`concatPartListItem${part.id === safeSelectedPartId ? ' selected' : ''}`}>
-                    {handle}
-                    <button
-                      type="button"
-                      className="concatPartSelectButton"
-                      onClick={() => setSelectedPartId(part.id)}
-                    >
-                      <strong>Parte {index + 1}</strong>
-                      <span>{describeConcatPartSource(part, inputColumns)}</span>
-                    </button>
-                  </div>
-                );
-              }}
-            />
-            <InfoTooltip content="Agrega otro dato o texto a combinar.">
-              <button type="button" className="secondary concatAddPartButton" onClick={addPart}>{addPartLabel}</button>
-            </InfoTooltip>
-          </div>
-          {selectedPart ? (
-            <div className="concatPartDetailPanel">
-              <div className="concatPartHeader">
-                <strong className="headingWithInfo">
-                  <span>Parte {selectedPartIndex + 1}</span>
-                  <InfoTooltip content="Configurá el dato o texto de esta parte." />
-                </strong>
-                <DeleteButton title="Eliminar parte" onClick={() => removePart(selectedPart.id)} />
-              </div>
-              <ConcatPartStepsEditor
-                partId={selectedPart.id}
-                inputColumns={inputColumns}
-                manualRangeRows={manualRangeRows}
-                steps={selectedPart.steps ?? []}
-                baseSource={selectedPart.source}
-                separatorFields={selectedPartIndex > 0 ? (
-                  <div className="concatPartFields">
-                    <label className="field compact">
-                      <span className="labelWithInfo">
-                        <span>Separador antes de esta parte</span>
-                        <InfoTooltip content="Texto que separa esta parte de la anterior." />
-                      </span>
-                      <input
-                        value={selectedPart.separatorBefore ?? ''}
-                        onChange={(event) => updatePart(selectedPart.id, { ...selectedPart, separatorBefore: event.target.value })}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                previousResultPreviewValue={previousResultPreviewValue}
-                onBaseSourceChange={(source, nextSteps) => updatePart(
-                  selectedPart.id,
-                  {
-                    ...selectedPart,
-                    source,
-                    ...(nextSteps ? { steps: nextSteps } : {}),
-                  },
-                )}
-                onChange={(steps) => onChange(updateConcatPartSteps(parts, selectedPart.id, steps))}
-              />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function ComposePartEditor({
   part,
   inputColumns,
@@ -2089,7 +1806,6 @@ function getConcatPartStepContext(stepIndex: number, sourceActionOverride?: Step
     ...(sourceActionOverride ? { sourceActionOverride } : {}),
   };
 }
-
 function getConcatPrimarySourceActionOverride(step: TransformStep, source: StepSource, hasStoredPrimaryStep: boolean): StepSourceAction | undefined {
   if (!hasStoredPrimaryStep || step.type !== 'noop') {
     return undefined;
@@ -2139,8 +1855,6 @@ function getConcatPartStepTitle(step: TransformStep, context: StepEditorContext,
   return getRecipeStepTitle(step, inputColumns, step.source) || 'Sin configurar';
 }
 
-type StepFieldLabels = 'default' | 'workflow';
-
 export function getFormatDateSourceSelection(value: string, inputFormat: DateInputFormat, preserveOriginalValue = false) {
   const normalizedValue = getDatePickerValue(value, inputFormat);
   if (value.trim() && !normalizedValue) {
@@ -2152,273 +1866,4 @@ export function getFormatDateSourceSelection(value: string, inputFormat: DateInp
     sourceValue: preserveOriginalValue ? value : normalizedValue,
     dateInputFormat: preserveOriginalValue ? inputFormat : 'YYYY-MM-DD' as const,
   };
-}
-
-function StepFields({
-  step,
-  stepIndex = 0,
-  stepSource,
-  inputColumns,
-  manualRangeRows = [],
-  labels = 'default',
-  showSourceFields = true,
-  allowPreviousResultSource,
-  previousResultPreviewValue,
-  hideFixedTextInput = false,
-  textSourceAction,
-  onSourceChange,
-  onChange,
-}: {
-  step: TransformStep;
-  stepIndex?: number;
-  stepSource: StepSource;
-  inputColumns: InputColumn[];
-  manualRangeRows?: InputRow[];
-  labels?: StepFieldLabels;
-  showSourceFields?: boolean;
-  allowPreviousResultSource?: boolean;
-  previousResultPreviewValue?: string | null;
-  hideFixedTextInput?: boolean;
-  textSourceAction?: StepTextSourceAction;
-  onSourceChange: (source: StepSource) => void;
-  onChange: (patch: Partial<TransformStep>) => void;
-}) {
-  const [dateSourceWarning, setDateSourceWarning] = useState<string | null>(null);
-  const canUsePreviousResultSource = allowPreviousResultSource ?? stepIndex > 0;
-  const stepMode = getStepMode(step);
-  const sourceValueKind = step.type === 'formatDate'
-    ? 'date'
-    : step.type === 'noop' && (stepMode === 'number' || stepMode === 'date') ? stepMode : 'text';
-  const hasVisibleAction = isVisibleStepActionConfigured(step, stepMode, textSourceAction);
-  const usesPreviousResultSetup = stepMode === 'text' && step.type === 'noop' && stepIndex > 0 && stepSource.type === 'previousResult';
-  const usesTextTransformSource = stepMode === 'text' && (step.type !== 'noop' || usesPreviousResultSetup);
-  const usesFixedDateSource = step.type === 'formatDate' && stepSource.type === 'fixedText';
-  const isFormatDateSourceValueAllowed = (value: string) => Boolean(getDatePickerValue(value, step.dateInputFormat ?? defaultDateInputFormat));
-  useEffect(() => setDateSourceWarning(null), [step.id, step.type, step.dateInputFormat]);
-  const suffixField = step.type === 'addSuffix' ? (
-    <label className="field compact recipeField">
-      <span>{labels === 'workflow' ? 'Sufijo' : 'Texto al final'}</span>
-      <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-    </label>
-  ) : null;
-  const updateSource = (source: StepSource, context?: StepSourceChangeContext) => {
-    if (step.type === 'formatDate' && source.type === 'fixedText') {
-      const selection = getFormatDateSourceSelection(
-        source.value,
-        step.dateInputFormat ?? defaultDateInputFormat,
-        context?.origin === 'cellValuePicker',
-      );
-      if (!selection.accepted) {
-        setDateSourceWarning(selection.warning);
-        return;
-      }
-
-      setDateSourceWarning(null);
-      onChange({
-        source: { type: 'fixedText', value: selection.sourceValue },
-        dateInputFormat: selection.dateInputFormat,
-      });
-      return;
-    }
-
-    setDateSourceWarning(null);
-    onSourceChange(source);
-  };
-  const sourceFields = showSourceFields && shouldShowTextSourceFields(step.type) ? (
-    <StepSourceFields
-      label={sourceValueKind === 'number' ? 'Qué valor usar' : sourceValueKind === 'date' ? 'Qué fecha usar' : usesTextTransformSource ? 'Qué valor usar' : valueSourceLabel}
-      source={stepSource}
-      inputColumns={inputColumns}
-      inputRows={manualRangeRows}
-      allowPreviousResult={canUsePreviousResultSource}
-      previousResultPreviewValue={previousResultPreviewValue}
-      fixedTextInputType={sourceValueKind === 'number' ? 'number' : sourceValueKind === 'date' || step.type === 'formatDate' ? 'date' : 'text'}
-      fixedTextDateInputFormat={step.dateInputFormat ?? defaultDateInputFormat}
-      fixedTextInputLabel={usesTextTransformSource ? 'Valor fijo' : undefined}
-      valueKind={sourceValueKind}
-      dateValueValidator={step.type === 'formatDate' ? isFormatDateSourceValueAllowed : undefined}
-      explicitTextValueSource={usesTextTransformSource}
-      hideFixedTextInput={hideFixedTextInput}
-      hideSourceSelector={sourceValueKind === 'text' && step.type === 'noop' && Boolean(textSourceAction)}
-      columnTextPickerOpen={step.type === 'noop' && textSourceAction === 'pickColumnText'}
-      afterSourceSelector={suffixField}
-      onChange={updateSource}
-    />
-  ) : null;
-
-  const sourceFieldsWithWarning = dateSourceWarning ? (
-    <>
-      {sourceFields}
-      <WarningTooltip content={dateSourceWarning} />
-    </>
-  ) : sourceFields;
-
-  if (step.type === 'noop') {
-    return hasVisibleAction ? sourceFieldsWithWarning : null;
-  }
-
-  if (step.type === 'manualRange') {
-    return (
-      <div className="manualRangeStepFields">
-        <ManualRangeRecipeEditor
-          recipe={manualRangeStepToRecipe(step)}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          onChange={(recipe) => onChange(manualRangeRecipeToStepPatch(recipe))}
-        />
-      </div>
-    );
-  }
-
-  if (step.type === 'addPrefix') {
-    return (
-      <>
-        <label className="field compact recipeField">
-          <span>{labels === 'workflow' ? 'Prefijo' : 'Texto al inicio'}</span>
-          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-        </label>
-        {sourceFieldsWithWarning}
-      </>
-    );
-  }
-
-  if (step.type === 'addSuffix') {
-    return sourceFieldsWithWarning ?? suffixField;
-  }
-
-  if (step.type === 'removeText') {
-    return (
-      <>
-        {sourceFieldsWithWarning}
-        <label className="field compact recipeField">
-          <span>{labels === 'workflow' ? 'Texto a quitar' : 'Texto a quitar'}</span>
-          <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-        </label>
-      </>
-    );
-  }
-
-  if (step.type === 'replaceText') {
-    return (
-      <>
-        {sourceFieldsWithWarning}
-        <label className="field compact recipeField">
-          <span>Texto a buscar</span>
-          <input value={step.searchValue ?? ''} onChange={(event) => onChange({ searchValue: event.target.value })} />
-        </label>
-        <label className="field compact recipeField">
-          <span>Reemplazar por</span>
-          <input value={step.replaceValue ?? ''} onChange={(event) => onChange({ replaceValue: event.target.value })} />
-        </label>
-      </>
-    );
-  }
-
-  if (step.type === 'numericOperation') {
-    const leftOperand = getVisibleLeftOperand(step, stepSource);
-    const rightOperand = getVisibleRightOperand(step);
-
-    return (
-      <div className="numericOperationFields">
-        <StepOperandFields
-          label="Primer valor"
-          operand={leftOperand}
-          inputColumns={inputColumns}
-          allowPreviousResult={canUsePreviousResultSource}
-          onChange={(leftOperand) => onChange({ leftOperand })}
-        />
-        <StepOperandFields
-          label="Segundo valor"
-          operand={rightOperand}
-          inputColumns={inputColumns}
-          allowPreviousResult={canUsePreviousResultSource}
-          onChange={(rightOperand) => onChange({
-            rightOperand,
-            ...(rightOperand.type === 'fixedText' ? { amount: parseOptionalNumberInput(rightOperand.value) } : {}),
-          })}
-        />
-        <Dropdown
-          className="compact recipeField"
-          label={labels === 'workflow' ? 'Decimales / redondeo' : 'Redondeo'}
-          labelInfo={<InfoTooltip content="Definí cómo mostrar los números del resultado." />}
-          value={String(step.rounding ?? 2)}
-          options={[
-            { value: 'none', label: 'Sin redondeo' },
-            { value: '0', label: '0 decimales' },
-            { value: '2', label: '2 decimales' },
-            { value: '4', label: '4 decimales' },
-          ]}
-          scrollStrategy="close"
-          onChange={(value) => onChange({ rounding: parseRounding(value) })}
-        />
-      </div>
-    );
-  }
-
-  if (step.type === 'concat') {
-    return (
-      <ConcatStepFields
-        parts={step.parts ?? []}
-        inputColumns={inputColumns}
-        manualRangeRows={manualRangeRows}
-        allowPreviousResult={canUsePreviousResultSource}
-        previousResultPreviewValue={previousResultPreviewValue}
-        onChange={(parts) => onChange({ parts })}
-      />
-    );
-  }
-
-  if (step.type === 'formatDate') {
-    return (
-      <>
-        {sourceFieldsWithWarning}
-        {usesFixedDateSource ? null : (
-          <Dropdown<DateInputFormat>
-            className="compact recipeField"
-            label="Formato de entrada"
-            value={step.dateInputFormat ?? defaultDateInputFormat}
-            options={dateInputFormatOptions}
-            scrollStrategy="close"
-            onChange={(dateInputFormat) => onChange({ dateInputFormat })}
-          />
-        )}
-        <Dropdown<DateOutputFormat>
-          className="compact recipeField"
-          label="Formato de salida"
-          value={step.dateOutputFormat ?? defaultDateOutputFormat}
-          options={dateOutputFormatOptions}
-          scrollStrategy="close"
-          onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
-        />
-        <Dropdown<DateInvalidFallback>
-          className="compact recipeField"
-          label="Si no es una fecha válida"
-          value={step.dateInvalidFallback ?? defaultDateInvalidFallback}
-          options={dateInvalidFallbackOptions}
-          scrollStrategy="close"
-          onChange={(dateInvalidFallback) => onChange({ dateInvalidFallback })}
-        />
-        {(step.dateInvalidFallback ?? defaultDateInvalidFallback) === 'fixedText' ? (
-          <label className="field compact recipeField">
-            <span>Texto si no es fecha válida</span>
-            <input value={step.dateInvalidFallbackText ?? ''} onChange={(event) => onChange({ dateInvalidFallbackText: event.target.value })} />
-          </label>
-        ) : null}
-      </>
-    );
-  }
-
-  if (step.type === 'extractNumber') {
-    return sourceFieldsWithWarning;
-  }
-
-  if (step.type === 'toNumber') {
-    return sourceFieldsWithWarning;
-  }
-
-  if (step.type === 'toText') {
-    return sourceFieldsWithWarning;
-  }
-
-  return sourceFieldsWithWarning;
 }
