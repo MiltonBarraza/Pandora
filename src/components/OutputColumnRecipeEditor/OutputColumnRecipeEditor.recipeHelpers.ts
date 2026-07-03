@@ -743,22 +743,6 @@ function isStepAllowedForMode(type: TransformStepType, mode: TransformStepMode) 
   return getStepTypesForMode(mode).some((stepType) => stepType.value === type);
 }
 
-export function getVisibleStepSource(step: TransformStep, index: number, baseInputColumnId: string): StepSource {
-  if (step.source) {
-    if (index === 0 && step.source.type === 'previousResult') {
-      return { type: 'input', inputColumnId: baseInputColumnId };
-    }
-
-    return step.source;
-  }
-
-  if (index === 0) {
-    return { type: 'input', inputColumnId: baseInputColumnId };
-  }
-
-  return { type: 'previousResult' };
-}
-
 export function getVisibleLeftOperand(step: TransformStep, stepSource: StepSource): StepOperand {
   if (step.leftOperand) {
     return step.leftOperand;

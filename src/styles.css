@@ -3374,7 +3374,6 @@ tbody tr:hover {
   .concatPartsWorkspace,
   .constructorWorkspace,
   .recipeStudioWorkspace,
-  .rangeStudioWorkspace,
   .stepsWorkspace,
   .stepTypeFieldGroup,
   .constructorPartMainGrid,
@@ -3526,15 +3525,6 @@ tbody tr:hover {
   .simpleStudioPreviewBlock li {
     align-items: start;
     grid-template-columns: 1fr;
-  }
-
-  .rangeRuleCard {
-    align-items: start;
-    grid-template-columns: 1fr;
-  }
-
-  .rangeRuleActions {
-    justify-content: flex-start;
   }
 
 }
