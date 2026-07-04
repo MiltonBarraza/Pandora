@@ -19,6 +19,8 @@ type CombineSettingsActionsProps = {
   columnAssignmentMode: ColumnAssignmentMode;
   resultSort: ResultSort;
   sourceMetadataOptions: SourceMetadataOptions;
+  onClearDraft?: () => void;
+  onIncompatibleSettings?: () => void;
   onApplySettings: (settings: AppliedCombineSettings) => void;
 };
 
@@ -30,6 +32,8 @@ export function CombineSettingsActions({
   columnAssignmentMode,
   resultSort,
   sourceMetadataOptions,
+  onClearDraft,
+  onIncompatibleSettings,
   onApplySettings,
 }: CombineSettingsActionsProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -78,6 +82,7 @@ export function CombineSettingsActions({
     }
     const parsed = parseCombineSettingsSnapshotJson(text);
     if (!parsed.ok) {
+      onIncompatibleSettings?.();
       setImportError(parsed.error);
       setWarnings([]);
       return;
@@ -128,6 +133,11 @@ export function CombineSettingsActions({
           <ActionButton action="import" variant="secondary" onClick={() => inputRef.current?.click()}>
             Importar configuración
           </ActionButton>
+          {onClearDraft ? (
+            <ActionButton action="clear" variant="ghost" onClick={onClearDraft}>
+              Eliminar borrador temporal
+            </ActionButton>
+          ) : null}
         </div>
       </div>
       {importError ? <p className="errorText combineSettingsMessage">{importError}</p> : null}

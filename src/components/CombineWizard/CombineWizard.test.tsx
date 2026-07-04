@@ -3,9 +3,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as XLSX from 'xlsx';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exportCombinedXlsx } from '../../domain/combine/exportCombinedXlsx';
 import { exportCombinedCsv } from '../../domain/combine/exportCombinedCsv';
+import { combineDraftStorageKey, loadCombineDraft, saveCombineDraft } from '../../domain/combine/combineDraft';
+import type { CombineDraft } from '../../domain/combine/combineDraft';
+import { showInfoToast } from '../../services/toastService';
 import type { CombineSource } from '../../types/combine';
 import { CombineWizard } from './CombineWizard';
 
@@ -15,6 +18,13 @@ vi.mock('../../domain/combine/exportCombinedXlsx', () => ({
 vi.mock('../../domain/combine/exportCombinedCsv', () => ({
   exportCombinedCsv: vi.fn(),
 }));
+vi.mock('../../services/toastService', () => ({
+  showInfoToast: vi.fn(),
+}));
+
+beforeEach(() => {
+  sessionStorage.clear();
+});
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
@@ -30,9 +40,94 @@ afterEach(() => {
   cleanup();
   vi.mocked(exportCombinedXlsx).mockClear();
   vi.mocked(exportCombinedCsv).mockClear();
+  vi.mocked(showInfoToast).mockClear();
+  sessionStorage.clear();
 });
 
 describe('CombineWizard basket sources', () => {
+  it('persists configurable combine state without source rows', async () => {
+    const { container } = render(<CombineWizard basketSources={[twoColumnBasketSource]} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: /Por posición/ }));
+    dragOutputColumn(container, 0, 1);
+    await user.click(screen.getByLabelText('Incluir Archivo origen'));
+    await user.click(screen.getByRole('button', { name: 'Columna' }));
+    await user.click(screen.getByRole('option', { name: 'Nombre' }));
+    await user.click(screen.getByLabelText('Nombre personalizado'));
+    const nameInput = screen.getByRole('textbox', { name: 'Nombre base' });
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Reporte temporal');
+
+    await waitFor(() => expect(loadCombineDraft()).toMatchObject({
+      columnAssignmentMode: 'position',
+      outputColumns: [
+        { name: 'Nombre' },
+        { name: 'Código' },
+      ],
+      sourceMetadataOptions: { includeFileName: true, includeSheetName: false },
+      outputFileName: 'Reporte temporal',
+      sourceIds: ['basket:two-columns'],
+    }));
+    expect(loadCombineDraft()?.resultSort.columnId).toBeTruthy();
+    expect(JSON.stringify(loadCombineDraft())).not.toContain('Producto');
+    expect(JSON.stringify(loadCombineDraft())).not.toContain('dos-columnas.xlsx');
+  });
+
+  it('restores a compatible draft and reports it discreetly', async () => {
+    saveCombineDraft(restorableDraft());
+
+    render(<CombineWizard basketSources={[basketSource]} />);
+
+    expect((screen.getByRole('radio', { name: /Por posición/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText('Incluir Archivo origen') as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
+    expect(screen.getAllByText('A1').length).toBeGreaterThan(0);
+    await waitFor(() => expect(showInfoToast).toHaveBeenCalledWith(
+      'Se restauró la configuración temporal de Combinar archivos.',
+    ));
+  });
+
+  it('restores safe configuration and discards missing source state', async () => {
+    saveCombineDraft({
+      ...restorableDraft(),
+      mappings: [{ sourceId: 'missing', outputColumnId: 'restored-code', sourceColumnId: 'col:0' }],
+      sourceOrder: ['missing'],
+      sourceIds: ['missing'],
+    });
+
+    render(<CombineWizard basketSources={[basketSource]} />);
+
+    expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
+    await waitFor(() => expect(showInfoToast).toHaveBeenCalledWith(
+      'Algunas opciones no pudieron restaurarse porque faltan fuentes.',
+    ));
+  });
+
+  it('allows deleting the temporary draft without resetting current UI', async () => {
+    saveCombineDraft(restorableDraft());
+    render(<CombineWizard basketSources={[basketSource]} />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Eliminar borrador temporal' }));
+
+    expect(sessionStorage.getItem(combineDraftStorageKey)).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
+  });
+
+  it('clears the draft when an incompatible settings file is loaded', async () => {
+    saveCombineDraft(restorableDraft());
+    const { container } = render(<CombineWizard basketSources={[basketSource]} />);
+    const input = container.querySelector<HTMLInputElement>('.combineSettingsFileInput');
+    if (!input) {
+      throw new Error('No se encontró el input de configuración.');
+    }
+
+    await userEvent.setup().upload(input, jsonFile('incompatible.json', '{invalid'));
+
+    await waitFor(() => expect(sessionStorage.getItem(combineDraftStorageKey)).toBeNull());
+    expect(screen.getByText('El archivo no contiene un JSON válido.')).not.toBeNull();
+  });
+
   it('keeps the files section clean while no files are loaded', () => {
     render(<CombineWizard basketSources={emptySources} />);
 
@@ -575,4 +670,25 @@ function csvFile(name: string, contents: string) {
   const file = new File([contents], name, { type: 'text/csv' });
   Object.defineProperty(file, 'text', { value: async () => contents });
   return file;
+}
+
+function jsonFile(name: string, contents: string) {
+  const file = new File([contents], name, { type: 'application/json' });
+  Object.defineProperty(file, 'text', { value: async () => contents });
+  return file;
+}
+
+function restorableDraft(): CombineDraft {
+  return {
+    schemaVersion: 1,
+    columnAssignmentMode: 'position',
+    outputColumns: [{ id: 'restored-code', name: 'Código' }],
+    mappings: [{ sourceId: 'basket:1', outputColumnId: 'restored-code', sourceColumnId: 'col:0' }],
+    sourceMetadataOptions: { includeFileName: true, includeSheetName: false },
+    resultSort: { columnId: 'restored-code', direction: 'desc' },
+    outputFileName: 'Reporte restaurado',
+    sourceOrder: ['basket:1'],
+    sourceIds: ['basket:1'],
+    sourceSheets: [{ sourceId: 'basket:1', sheetName: 'Productos' }],
+  };
 }

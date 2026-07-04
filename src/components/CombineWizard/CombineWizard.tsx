@@ -8,6 +8,12 @@ import {
 } from '../../domain/combine/combineColumnMappings';
 import type { AppliedCombineSettings } from '../../domain/combine/combineSettings';
 import {
+  clearCombineDraft,
+  loadCombineDraft,
+  restoreCombineDraft,
+  saveCombineDraft,
+} from '../../domain/combine/combineDraft';
+import {
   createCombineSourceFromWorkbookSheet,
   readLoadedCombineSource,
 } from '../../domain/combine/readCombineSource';
@@ -41,6 +47,7 @@ import { CombineResultSort } from './CombineResultSort';
 import { CombineSettingsActions } from './CombineSettingsActions';
 import { CombineSourceMetadata } from './CombineSourceMetadata';
 import { MultipleFileUploader } from './MultipleFileUploader';
+import { showInfoToast } from '../../services/toastService';
 
 type CombineWizardProps = {
   appearanceToolbar?: ReactNode;
@@ -57,21 +64,19 @@ export function CombineWizard({
   onRemoveBasketSource,
   onLocalStatePresenceChange,
 }: CombineWizardProps) {
+  const [restoredDraft] = useState(() => restoreCombineDraft(loadCombineDraft(), basketSources));
   const [loadedUploadedSources, setLoadedUploadedSources] = useState<LoadedCombineSource[]>([]);
-  const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>([]);
-  const [mappings, setMappings] = useState<CombineColumnMapping[]>([]);
-  const [outputFileName, setOutputFileName] = useState('Archivo combinado');
+  const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>(restoredDraft.outputColumns);
+  const [mappings, setMappings] = useState<CombineColumnMapping[]>(restoredDraft.mappings);
+  const [outputFileName, setOutputFileName] = useState(restoredDraft.outputFileName);
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const [hasImportedSettings, setHasImportedSettings] = useState(false);
-  const [columnAssignmentMode, setColumnAssignmentMode] = useState<ColumnAssignmentMode>('name');
+  const [columnAssignmentMode, setColumnAssignmentMode] = useState<ColumnAssignmentMode>(restoredDraft.columnAssignmentMode);
   const [pendingAssignmentMode, setPendingAssignmentMode] = useState<ColumnAssignmentMode | null>(null);
-  const [sourceOrder, setSourceOrder] = useState<string[]>([]);
-  const [resultSort, setResultSort] = useState<ResultSort>({ columnId: null, direction: 'asc' });
-  const [sourceMetadataOptions, setSourceMetadataOptions] = useState<SourceMetadataOptions>({
-    includeFileName: false,
-    includeSheetName: false,
-  });
+  const [sourceOrder, setSourceOrder] = useState<string[]>(restoredDraft.sourceOrder);
+  const [resultSort, setResultSort] = useState<ResultSort>(restoredDraft.resultSort);
+  const [sourceMetadataOptions, setSourceMetadataOptions] = useState<SourceMetadataOptions>(restoredDraft.sourceMetadataOptions);
   const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
   const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
   const nextSourceIndexRef = useRef(0);
@@ -95,6 +100,15 @@ export function CombineWizard({
     () => new Map(loadedUploadedSources.map((loadedSource) => [loadedSource.source.id, loadedSource])),
     [loadedUploadedSources],
   );
+
+  useEffect(() => {
+    if (!restoredDraft.hasDraft) {
+      return;
+    }
+    showInfoToast(restoredDraft.hasDiscardedSourceState
+      ? 'Algunas opciones no pudieron restaurarse porque faltan fuentes.'
+      : 'Se restauró la configuración temporal de Combinar archivos.');
+  }, [restoredDraft]);
 
   useEffect(() => {
     setMappings((current) => reconcileCombineMappings({
@@ -142,6 +156,57 @@ export function CombineWizard({
     onLocalStatePresenceChange,
   ]);
 
+  useEffect(() => {
+    const hasSelectedNonDefaultSheet = loadedUploadedSources.some((loadedSource) => (
+      loadedSource.kind === 'excel'
+      && loadedSource.source.sheetName !== loadedSource.sheetNames[0]
+    ));
+    const hasDraftableState = outputColumns.length > 0
+      || mappings.length > 0
+      || outputFileName !== 'Archivo combinado'
+      || columnAssignmentMode !== 'name'
+      || sourceOrder.length > 0
+      || resultSort.columnId !== null
+      || sourceMetadataOptions.includeFileName
+      || sourceMetadataOptions.includeSheetName
+      || hasSelectedNonDefaultSheet;
+
+    if (!hasDraftableState) {
+      clearCombineDraft();
+      return;
+    }
+
+    const canRestoreSourceOrder = sources.length > 0
+      && sources.every((source) => basketSourceIds.has(source.id));
+    saveCombineDraft({
+      schemaVersion: 1,
+      columnAssignmentMode,
+      outputColumns,
+      mappings: mappings.filter((mapping) => basketSourceIds.has(mapping.sourceId)),
+      sourceMetadataOptions,
+      resultSort,
+      outputFileName,
+      sourceOrder: canRestoreSourceOrder ? sources.map((source) => source.id) : [],
+      sourceIds: sources.map((source) => source.id),
+      sourceSheets: loadedUploadedSources.flatMap((loadedSource) => (
+        loadedSource.kind === 'excel' && loadedSource.source.sheetName
+          ? [{ sourceId: loadedSource.source.id, sheetName: loadedSource.source.sheetName }]
+          : []
+      )),
+    });
+  }, [
+    basketSourceIds,
+    columnAssignmentMode,
+    loadedUploadedSources,
+    mappings,
+    outputColumns,
+    outputFileName,
+    resultSort,
+    sourceMetadataOptions,
+    sourceOrder.length,
+    sources,
+  ]);
+
   const applySettings = (settings: AppliedCombineSettings) => {
     setHasImportedSettings(true);
     setOutputColumns(settings.outputColumns);
@@ -150,6 +215,11 @@ export function CombineWizard({
     setColumnAssignmentMode(settings.columnAssignmentMode);
     setResultSort(settings.resultSort);
     setSourceMetadataOptions(settings.sourceMetadataOptions);
+  };
+
+  const clearTemporaryDraft = () => {
+    clearCombineDraft();
+    showInfoToast('Borrador temporal de Combinar archivos eliminado.');
   };
 
   const applyAssignmentMode = (nextMode: ColumnAssignmentMode) => {
@@ -468,6 +538,8 @@ export function CombineWizard({
           columnAssignmentMode={columnAssignmentMode}
           resultSort={resultSort}
           sourceMetadataOptions={sourceMetadataOptions}
+          onClearDraft={clearTemporaryDraft}
+          onIncompatibleSettings={clearCombineDraft}
           onApplySettings={applySettings}
         />
         <CombineOutputColumns
