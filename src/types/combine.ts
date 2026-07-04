@@ -7,6 +7,11 @@ export type ResultSort = {
   direction: 'asc' | 'desc';
 };
 
+export type SourceMetadataOptions = {
+  includeFileName: boolean;
+  includeSheetName: boolean;
+};
+
 export type CombineSourceColumn = {
   id: string;
   name: string;

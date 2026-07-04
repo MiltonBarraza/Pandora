@@ -33,6 +33,7 @@ describe('createCombineSettingsSnapshot', () => {
       outputFileName: 'Salida mensual',
       columnAssignmentMode: 'name',
       resultSort: { columnId: null, direction: 'asc' },
+      sourceMetadataOptions: { includeFileName: false, includeSheetName: false },
       outputColumns: [
         { id: 'output-code', name: 'Código', index: 0 },
         { id: 'output-description', name: 'Descripción', index: 1 },
@@ -118,6 +119,22 @@ describe('applyCombineSettingsSnapshot', () => {
       columnId: 'output-description',
       direction: 'desc',
     });
+  });
+
+  it('persists metadata options and sorting by a metadata column', () => {
+    const snapshot = createCombineSettingsSnapshot({
+      sources: originalSources,
+      outputColumns,
+      mappings,
+      outputFileName: 'Con origen',
+      sourceMetadataOptions: { includeFileName: true, includeSheetName: true },
+      resultSort: { columnId: 'metadata:fileName', direction: 'asc' },
+    });
+    const applied = applyCombineSettingsSnapshot({ snapshot, sources: originalSources });
+
+    expect(snapshot.sourceMetadataOptions).toEqual({ includeFileName: true, includeSheetName: true });
+    expect(applied.sourceMetadataOptions).toEqual({ includeFileName: true, includeSheetName: true });
+    expect(applied.resultSort).toEqual({ columnId: 'metadata:fileName', direction: 'asc' });
   });
 
   it('safely disables saved sorting when its output column no longer exists', () => {
@@ -253,6 +270,16 @@ describe('parseCombineSettingsSnapshotJson', () => {
     const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(legacySnapshot));
 
     expect(parsed.ok && parsed.snapshot.resultSort).toEqual({ columnId: null, direction: 'asc' });
+  });
+
+  it('loads legacy settings without source metadata as disabled', () => {
+    const { sourceMetadataOptions: _removed, ...legacySnapshot } = createSnapshot();
+    const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(legacySnapshot));
+
+    expect(parsed.ok && parsed.snapshot.sourceMetadataOptions).toEqual({
+      includeFileName: false,
+      includeSheetName: false,
+    });
   });
 });
 

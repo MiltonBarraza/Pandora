@@ -6,6 +6,7 @@ import type {
   CombinedRow,
 } from '../../types/combine';
 import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
+import { isSourceMetadataColumn } from '../../domain/combine/sourceMetadata';
 
 const previewRowLimit = 30;
 
@@ -32,7 +33,7 @@ export function CombinedRowsPreview({
 
   return (
     <section className="panel combineFlowPanel combinePreviewPanel">
-      <h2>6. Vista previa</h2>
+      <h2>7. Vista previa</h2>
       <p className="combinePreviewOverview">
         <strong>{sources.length}</strong> {sources.length === 1 ? 'archivo' : 'archivos'} ·{' '}
         <strong>{rows.length}</strong> {rows.length === 1 ? 'fila' : 'filas'} ·{' '}
@@ -115,7 +116,7 @@ function getUnmappedSummary(
   let affectedCellCount = 0;
 
   sources.forEach((source) => {
-    outputColumns.forEach((outputColumn) => {
+    outputColumns.filter((column) => !isSourceMetadataColumn(column.id)).forEach((outputColumn) => {
       const mapping = mappingsByPair.get(`${source.id}\u0000${outputColumn.id}`);
       if (!mapping?.sourceColumnId) {
         unmappedMappingCount += 1;

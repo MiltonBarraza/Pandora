@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CombineOutputColumn, CombinedRow } from '../../../types/combine';
 import { buildCombinedExportAoA, normalizeCombinedFileName } from '../exportCombinedXlsx';
+import { addSourceMetadataToRows, buildSourceMetadataColumns } from '../sourceMetadata';
 
 const outputColumns: CombineOutputColumn[] = [
   { id: 'product', name: 'Producto' },
@@ -62,6 +63,20 @@ describe('buildCombinedExportAoA', () => {
     expect(buildCombinedExportAoA({ outputColumns: columns, combinedRows: [] })[0]).toEqual([
       'Precio',
       'Precio',
+    ]);
+  });
+
+  it('exports optional metadata columns exactly like preview data', () => {
+    const options = { includeFileName: true, includeSheetName: true };
+    const aoa = buildCombinedExportAoA({
+      outputColumns: [...outputColumns, ...buildSourceMetadataColumns(options)],
+      combinedRows: addSourceMetadataToRows(rows, options),
+    });
+
+    expect(aoa).toEqual([
+      ['Producto', 'Precio', 'Archivo origen', 'Hoja origen'],
+      ['Pincel', '1200', 'enero.xlsx', 'Hoja 1'],
+      ['Rodillo', '3400', 'febrero.csv', 'Hoja 1'],
     ]);
   });
 });

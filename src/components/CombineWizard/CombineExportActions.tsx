@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { normalizeCombineColumnName } from '../../domain/combine/combineColumnMappings';
+import { isSourceMetadataColumn } from '../../domain/combine/sourceMetadata';
 import type {
   CombineColumnMapping,
   CombineOutputColumn,
@@ -42,17 +43,24 @@ export function CombineExportActions({
     }
   }, [nameMode, outputFileName]);
 
-  const download = async () => {
+  const downloadExcel = async () => {
     if (disabledReason) {
       return;
     }
     const { exportCombinedXlsx } = await import('../../domain/combine/exportCombinedXlsx');
     exportCombinedXlsx({ outputColumns, combinedRows, fileName: finalFileName });
   };
+  const downloadCsv = async () => {
+    if (disabledReason) {
+      return;
+    }
+    const { exportCombinedCsv } = await import('../../domain/combine/exportCombinedCsv');
+    exportCombinedCsv({ outputColumns, combinedRows, fileName: finalFileName });
+  };
 
   return (
     <section className="panel combineFlowPanel combineExportPanel">
-      <h2>7. Nombre de archivo y descarga</h2>
+      <h2>8. Nombre de archivo y descarga</h2>
       <p className="muted combineExportSummary">
         Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}
         {outputColumns.length} {outputColumns.length === 1 ? 'columna' : 'columnas'} desde{' '}
@@ -139,9 +147,14 @@ export function CombineExportActions({
             <strong>Nombre final</strong>
             <span>{finalFileName}</span>
           </div>
-          <ActionButton action="download" disabled={Boolean(disabledReason)} onClick={() => void download()}>
-            Descargar Excel combinado
-          </ActionButton>
+          <div className="actions combineFinalDownloadActions">
+            <ActionButton action="download" disabled={Boolean(disabledReason)} onClick={() => void downloadExcel()}>
+              Descargar Excel combinado
+            </ActionButton>
+            <ActionButton action="download" variant="secondary" disabled={Boolean(disabledReason)} onClick={() => void downloadCsv()}>
+              Exportar CSV
+            </ActionButton>
+          </div>
         </div>
       </div>
       {disabledReason ? <p className="muted combineExportDisabledReason">{disabledReason}</p> : null}
@@ -229,7 +242,9 @@ function hasUnmappedMappings(
       .filter((mapping) => Boolean(mapping.sourceColumnId))
       .map((mapping) => `${mapping.sourceId}\u0000${mapping.outputColumnId}`),
   );
-  return sources.some((source) => outputColumns.some((column) => (
+  return sources.some((source) => outputColumns
+    .filter((column) => !isSourceMetadataColumn(column.id))
+    .some((column) => (
     !mappedPairs.has(`${source.id}\u0000${column.id}`)
   )));
 }

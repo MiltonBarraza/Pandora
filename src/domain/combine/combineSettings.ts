@@ -5,8 +5,10 @@ import type {
   CombineSourceColumn,
   ColumnAssignmentMode,
   ResultSort,
+  SourceMetadataOptions,
 } from '../../types/combine';
 import { buildInitialCombineMappings, normalizeCombineColumnName } from './combineColumnMappings';
+import { buildSourceMetadataColumns } from './sourceMetadata';
 
 export type CombineSettingsSnapshot = {
   schemaVersion: 1;
@@ -15,6 +17,7 @@ export type CombineSettingsSnapshot = {
   outputFileName: string;
   columnAssignmentMode?: ColumnAssignmentMode;
   resultSort?: ResultSort;
+  sourceMetadataOptions?: SourceMetadataOptions;
   outputColumns: CombineSettingsOutputColumn[];
   sourceMappings: CombineSettingsSourceMapping[];
 };
@@ -47,6 +50,7 @@ type CreateCombineSettingsSnapshotInput = {
   outputFileName: string;
   columnAssignmentMode?: ColumnAssignmentMode;
   resultSort?: ResultSort;
+  sourceMetadataOptions?: SourceMetadataOptions;
 };
 
 type ApplyCombineSettingsSnapshotInput = {
@@ -60,6 +64,7 @@ export type AppliedCombineSettings = {
   mappings: CombineColumnMapping[];
   columnAssignmentMode: ColumnAssignmentMode;
   resultSort: ResultSort;
+  sourceMetadataOptions: SourceMetadataOptions;
   warnings: string[];
 };
 
@@ -74,6 +79,7 @@ export function createCombineSettingsSnapshot({
   outputFileName,
   columnAssignmentMode = 'name',
   resultSort = { columnId: null, direction: 'asc' },
+  sourceMetadataOptions = { includeFileName: false, includeSheetName: false },
 }: CreateCombineSettingsSnapshotInput): CombineSettingsSnapshot {
   const mappingsByPair = new Map(
     mappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
@@ -86,6 +92,7 @@ export function createCombineSettingsSnapshot({
     outputFileName,
     columnAssignmentMode,
     resultSort,
+    sourceMetadataOptions,
     outputColumns: outputColumns.map((column, index) => ({
       id: column.id,
       name: column.name,
@@ -122,8 +129,16 @@ export function applyCombineSettingsSnapshot({
   const outputColumns = [...snapshot.outputColumns]
     .sort((left, right) => left.index - right.index)
     .map(({ id, name }) => ({ id, name }));
+  const sourceMetadataOptions = snapshot.sourceMetadataOptions ?? {
+    includeFileName: false,
+    includeSheetName: false,
+  };
+  const sortableColumnIds = new Set([
+    ...outputColumns,
+    ...buildSourceMetadataColumns(sourceMetadataOptions),
+  ].map((column) => column.id));
   const resultSort = snapshot.resultSort?.columnId
-    && outputColumns.some((column) => column.id === snapshot.resultSort?.columnId)
+    && sortableColumnIds.has(snapshot.resultSort.columnId)
     ? snapshot.resultSort
     : { columnId: null, direction: snapshot.resultSort?.direction ?? 'asc' } satisfies ResultSort;
   const savedSources = matchSavedSources(snapshot.sourceMappings, sources);
@@ -185,6 +200,7 @@ export function applyCombineSettingsSnapshot({
     mappings,
     columnAssignmentMode,
     resultSort,
+    sourceMetadataOptions,
     warnings: [...new Set(warnings)],
   };
 }
@@ -221,6 +237,9 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
   if (value.resultSort !== undefined && !isResultSort(value.resultSort)) {
     return { ok: false, error: 'El orden del resultado no es válido.' };
   }
+  if (value.sourceMetadataOptions !== undefined && !isSourceMetadataOptions(value.sourceMetadataOptions)) {
+    return { ok: false, error: 'La configuración de datos de origen no es válida.' };
+  }
 
   return {
     ok: true,
@@ -235,6 +254,9 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
       resultSort: isResultSort(value.resultSort)
         ? value.resultSort
         : { columnId: null, direction: 'asc' },
+      sourceMetadataOptions: isSourceMetadataOptions(value.sourceMetadataOptions)
+        ? value.sourceMetadataOptions
+        : { includeFileName: false, includeSheetName: false },
       outputColumns: value.outputColumns,
       sourceMappings: value.sourceMappings,
     },
@@ -312,6 +334,12 @@ function isResultSort(value: unknown): value is ResultSort {
   return isRecord(value)
     && (value.columnId === null || typeof value.columnId === 'string')
     && (value.direction === 'asc' || value.direction === 'desc');
+}
+
+function isSourceMetadataOptions(value: unknown): value is SourceMetadataOptions {
+  return isRecord(value)
+    && typeof value.includeFileName === 'boolean'
+    && typeof value.includeSheetName === 'boolean';
 }
 
 function isSettingsOutputColumn(value: unknown): value is CombineSettingsOutputColumn {

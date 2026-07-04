@@ -5,11 +5,15 @@ import userEvent from '@testing-library/user-event';
 import * as XLSX from 'xlsx';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { exportCombinedXlsx } from '../../domain/combine/exportCombinedXlsx';
+import { exportCombinedCsv } from '../../domain/combine/exportCombinedCsv';
 import type { CombineSource } from '../../types/combine';
 import { CombineWizard } from './CombineWizard';
 
 vi.mock('../../domain/combine/exportCombinedXlsx', () => ({
   exportCombinedXlsx: vi.fn(),
+}));
+vi.mock('../../domain/combine/exportCombinedCsv', () => ({
+  exportCombinedCsv: vi.fn(),
 }));
 
 beforeAll(() => {
@@ -25,6 +29,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   vi.mocked(exportCombinedXlsx).mockClear();
+  vi.mocked(exportCombinedCsv).mockClear();
 });
 
 describe('CombineWizard basket sources', () => {
@@ -69,7 +74,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={[basketSource]} />);
 
     expect(container.querySelector('.combineSettingsPanel > h2')).not.toBeNull();
-    expect(screen.getByText('Guardá o restaurá columnas, asignaciones y nombre de salida para reutilizar esta combinación.')).not.toBeNull();
+    expect(screen.getByText('Guardá o restaurá columnas, asignaciones, datos de origen y nombre de salida para reutilizar esta combinación.')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Exportar configuración' }).classList).toContain('actionButton-md');
     expect(screen.getByRole('button', { name: 'Importar configuración' }).classList).toContain('actionButton-md');
   });
@@ -80,9 +85,10 @@ describe('CombineWizard basket sources', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
 
     expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '5. Orden del resultado' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '6. Vista previa' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '7. Nombre de archivo y descarga' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '5. Datos de origen' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Orden del resultado' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '7. Vista previa' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '8. Nombre de archivo y descarga' })).not.toBeNull();
   });
 
   it('delegates basket source removal to its owner', async () => {
@@ -209,6 +215,55 @@ describe('CombineWizard basket sources', () => {
     expect(getPreviewSourceOrder(container)).toEqual(['primero.xlsx', 'segundo.xlsx']);
   });
 
+  it('adds source metadata at the end and uses it in preview, sorting and export', async () => {
+    const sources = [
+      basketSourceForOrder('basket:zeta', 'zeta.xlsx', 'Z1'),
+      basketSourceForOrder('basket:alfa', 'alfa.xlsx', 'A1'),
+    ];
+    const { container } = render(<CombineWizard basketSources={sources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    expect((screen.getByLabelText('Incluir Archivo origen') as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText('Incluir Hoja origen') as HTMLInputElement).checked).toBe(false);
+
+    await user.click(screen.getByLabelText('Incluir Archivo origen'));
+    await user.click(screen.getByLabelText('Incluir Hoja origen'));
+
+    expect(Array.from(container.querySelectorAll('.combinePreviewTable thead th')).slice(-2).map((cell) => cell.textContent)).toEqual([
+      'Archivo origen',
+      'Hoja origen',
+    ]);
+    expect(getPreviewDataRows(container).map((cells) => cells.slice(-2))).toEqual([
+      ['zeta.xlsx', 'Datos'],
+      ['alfa.xlsx', 'Datos'],
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Columna' }));
+    await user.click(screen.getByRole('option', { name: 'Archivo origen' }));
+    expect(getPreviewSourceOrder(container)).toEqual(['alfa.xlsx', 'zeta.xlsx']);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
+    expect(payload.outputColumns.slice(-2).map((column) => column.name)).toEqual(['Archivo origen', 'Hoja origen']);
+    expect(payload.combinedRows.map((row) => [
+      row.values['metadata:fileName'],
+      row.values['metadata:sheetName'],
+    ])).toEqual([
+      ['alfa.xlsx', 'Datos'],
+      ['zeta.xlsx', 'Datos'],
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Exportar CSV' }));
+    await waitFor(() => expect(exportCombinedCsv).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(exportCombinedCsv).mock.calls[0][0]).toEqual({
+      outputColumns: payload.outputColumns,
+      combinedRows: payload.combinedRows,
+      fileName: payload.fileName,
+    });
+  });
+
   it('uses section 3 drag order in preview and export columns', async () => {
     const { container } = render(<CombineWizard basketSources={[twoColumnBasketSource]} />);
     const user = userEvent.setup();
@@ -259,13 +314,15 @@ describe('CombineWizard basket sources', () => {
       ['estructura-larga.xlsx', 'Datos', 'C2', 'Descripción 2', '100'],
     ]);
 
+    await user.click(screen.getByLabelText('Incluir Archivo origen'));
+
     await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
     await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
     const payload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
-    expect(payload.outputColumns.map((column) => column.name)).toEqual(['Cod', 'Producto', 'Precio']);
+    expect(payload.outputColumns.map((column) => column.name)).toEqual(['Cod', 'Producto', 'Precio', 'Archivo origen']);
     expect(payload.combinedRows.map((row) => payload.outputColumns.map((column) => row.values[column.id] ?? ''))).toEqual([
-      ['C1', 'Producto 1', ''],
-      ['C2', 'Descripción 2', '100'],
+      ['C1', 'Producto 1', '', 'estructura-corta.xlsx'],
+      ['C2', 'Descripción 2', '100', 'estructura-larga.xlsx'],
     ]);
   });
 
@@ -316,6 +373,9 @@ describe('CombineWizard uploaded source sheets', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
     expect(screen.getAllByText('A1').length).toBeGreaterThan(0);
+    await user.click(screen.getByLabelText('Incluir Hoja origen'));
+    const firstSheetPreview = getPreviewDataRows(container)[0];
+    expect(firstSheetPreview[firstSheetPreview.length - 1]).toBe('Primera');
 
     await user.click(screen.getByRole('button', { name: 'Hoja usada' }));
     await user.click(screen.getByRole('option', { name: 'Segunda' }));
@@ -324,8 +384,9 @@ describe('CombineWizard uploaded source sheets', () => {
     expect(screen.getByText('3 columnas · 2 filas de datos')).not.toBeNull();
     expect(screen.getAllByText('A2').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Actual').length).toBeGreaterThan(0);
+    expect(getPreviewDataRows(container).map((cells) => cells[cells.length - 1])).toEqual(['Segunda', 'Segunda']);
     expect(screen.queryByText('Anterior')).toBeNull();
-    expect(screen.getByText(/Se exportarán 2 filas y 2 columnas desde 1 archivo/)).not.toBeNull();
+    expect(screen.getByText(/Se exportarán 2 filas y 3 columnas desde 1 archivo/)).not.toBeNull();
   });
 
   it('shows static sheet text for a single-sheet Excel', async () => {

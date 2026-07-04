@@ -1202,6 +1202,14 @@ h3 {
   margin: -8px 0 12px;
 }
 
+.combineSourceMetadataPanel > .muted {
+  margin: -8px 0 12px;
+}
+
+.combineSourceMetadataOptions {
+  gap: 8px 12px;
+}
+
 .combineResultSortControls {
   align-items: end;
   display: grid;
@@ -1304,6 +1312,10 @@ h3 {
 
 .combineFinalName .actionButton {
   justify-self: end;
+}
+
+.combineFinalDownloadActions {
+  justify-content: flex-end;
 }
 
 .combineExportDisabledReason {

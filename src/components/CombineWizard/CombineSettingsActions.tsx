@@ -6,7 +6,7 @@ import {
   type AppliedCombineSettings,
   type CombineSettingsSnapshot,
 } from '../../domain/combine/combineSettings';
-import type { ColumnAssignmentMode, CombineColumnMapping, CombineOutputColumn, CombineSource, ResultSort } from '../../types/combine';
+import type { ColumnAssignmentMode, CombineColumnMapping, CombineOutputColumn, CombineSource, ResultSort, SourceMetadataOptions } from '../../types/combine';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -18,6 +18,7 @@ type CombineSettingsActionsProps = {
   outputFileName: string;
   columnAssignmentMode: ColumnAssignmentMode;
   resultSort: ResultSort;
+  sourceMetadataOptions: SourceMetadataOptions;
   onApplySettings: (settings: AppliedCombineSettings) => void;
 };
 
@@ -28,6 +29,7 @@ export function CombineSettingsActions({
   outputFileName,
   columnAssignmentMode,
   resultSort,
+  sourceMetadataOptions,
   onApplySettings,
 }: CombineSettingsActionsProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -43,6 +45,7 @@ export function CombineSettingsActions({
       outputFileName,
       columnAssignmentMode,
       resultSort,
+      sourceMetadataOptions,
     });
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -104,7 +107,7 @@ export function CombineSettingsActions({
         <InfoTooltip
           ariaLabel="Información sobre la configuración de combinación"
           placement="right"
-          content="Guardá o restaurá columnas, asignaciones y nombre de salida para reutilizar esta combinación."
+          content="Guardá o restaurá columnas, asignaciones, datos de origen y nombre de salida para reutilizar esta combinación."
         />
       </h2>
       <input
@@ -119,7 +122,7 @@ export function CombineSettingsActions({
         }}
       />
       <div className="combineSettingsToolbar">
-        <p className="muted">Guardá o restaurá columnas, asignaciones y nombre de salida para reutilizar esta combinación.</p>
+        <p className="muted">Guardá o restaurá columnas, asignaciones, datos de origen y nombre de salida para reutilizar esta combinación.</p>
         <div className="actions combineSettingsActions">
           <ActionButton action="export" variant="secondary" onClick={exportSettings}>Exportar configuración</ActionButton>
           <ActionButton action="import" variant="secondary" onClick={() => inputRef.current?.click()}>

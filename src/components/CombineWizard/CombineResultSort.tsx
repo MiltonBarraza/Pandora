@@ -10,7 +10,7 @@ type CombineResultSortProps = {
 export function CombineResultSort({ outputColumns, resultSort, onChange }: CombineResultSortProps) {
   return (
     <section className="panel combineFlowPanel combineResultSortPanel" aria-labelledby="combine-result-sort-title">
-      <h2 id="combine-result-sort-title">5. Orden del resultado</h2>
+      <h2 id="combine-result-sort-title">6. Orden del resultado</h2>
       <p className="muted">Ordená las filas del archivo combinado antes de exportarlo.</p>
       <div className="combineResultSortControls">
         <Dropdown
