@@ -35,6 +35,21 @@ describe('combine draft storage', () => {
         { id: 'duplicate', name: 'Dos' },
       ],
     })).toBeNull();
+    expect(normalizeCombineDraft({
+      ...createDraft(),
+      sourceOrder: ['basket:1', 'basket:1'],
+    })).toBeNull();
+    expect(normalizeCombineDraft({
+      ...createDraft(),
+      mappings: [
+        ...createDraft().mappings,
+        ...createDraft().mappings,
+      ],
+    })).toBeNull();
+    expect(normalizeCombineDraft({
+      ...createDraft(),
+      outputColumns: [{ id: 'metadata:fileName', name: 'Reserved' }],
+    })).toBeNull();
   });
 
   it('stays non-blocking when session storage is unavailable', () => {

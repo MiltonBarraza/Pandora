@@ -251,6 +251,32 @@ describe('parseCombineSettingsSnapshotJson', () => {
     expect(parseSnapshotChange({ schemaVersion: 2 })).toMatchObject({ ok: false });
   });
 
+  it('rejects duplicate or reserved output column identities', () => {
+    const duplicateIds = createSnapshot();
+    duplicateIds.outputColumns[1].id = duplicateIds.outputColumns[0].id;
+    expect(parseCombineSettingsSnapshotJson(JSON.stringify(duplicateIds))).toMatchObject({ ok: false });
+
+    const duplicateIndexes = createSnapshot();
+    duplicateIndexes.outputColumns[1].index = duplicateIndexes.outputColumns[0].index;
+    expect(parseCombineSettingsSnapshotJson(JSON.stringify(duplicateIndexes))).toMatchObject({ ok: false });
+
+    const reservedId = createSnapshot();
+    reservedId.outputColumns[0].id = 'metadata:fileName';
+    expect(parseCombineSettingsSnapshotJson(JSON.stringify(reservedId))).toMatchObject({ ok: false });
+  });
+
+  it('rejects duplicate source and mapping identities', () => {
+    const duplicateSources = createSnapshot();
+    duplicateSources.sourceMappings.push(structuredClone(duplicateSources.sourceMappings[0]));
+    expect(parseCombineSettingsSnapshotJson(JSON.stringify(duplicateSources))).toMatchObject({ ok: false });
+
+    const duplicateMappings = createSnapshot();
+    duplicateMappings.sourceMappings[0].mappings.push(
+      structuredClone(duplicateMappings.sourceMappings[0].mappings[0]),
+    );
+    expect(parseCombineSettingsSnapshotJson(JSON.stringify(duplicateMappings))).toMatchObject({ ok: false });
+  });
+
   it('uses a fallback when output filename is missing', () => {
     const snapshot = { ...createSnapshot(), outputFileName: undefined };
     const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(snapshot));

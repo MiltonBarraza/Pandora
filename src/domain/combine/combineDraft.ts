@@ -6,7 +6,7 @@ import type {
   ResultSort,
   SourceMetadataOptions,
 } from '../../types/combine';
-import { buildSourceMetadataColumns } from './sourceMetadata';
+import { buildSourceMetadataColumns, isSourceMetadataColumn } from './sourceMetadata';
 
 export const combineDraftStorageKey = 'pandora.combineDraft.v1';
 
@@ -72,15 +72,20 @@ export function normalizeCombineDraft(value: unknown): CombineDraft | null {
     || !Array.isArray(value.outputColumns)
     || !value.outputColumns.every(isOutputColumn)
     || !hasUniqueStrings(value.outputColumns.map((column) => column.id))
+    || value.outputColumns.some((column) => isSourceMetadataColumn(column.id))
     || !Array.isArray(value.mappings)
     || !value.mappings.every(isMapping)
+    || !hasUniqueStrings(value.mappings.map(mappingIdentity))
     || !isSourceMetadataOptions(value.sourceMetadataOptions)
     || !isResultSort(value.resultSort)
     || typeof value.outputFileName !== 'string'
     || !isStringArray(value.sourceOrder)
+    || !hasUniqueStrings(value.sourceOrder)
     || !isStringArray(value.sourceIds)
+    || !hasUniqueStrings(value.sourceIds)
     || !Array.isArray(value.sourceSheets)
-    || !value.sourceSheets.every(isSourceSheet)) {
+    || !value.sourceSheets.every(isSourceSheet)
+    || !hasUniqueStrings(value.sourceSheets.map((selection) => selection.sourceId))) {
     return null;
   }
 
@@ -184,6 +189,10 @@ function isStringArray(value: unknown): value is string[] {
 
 function hasUniqueStrings(values: string[]) {
   return new Set(values).size === values.length;
+}
+
+function mappingIdentity(mapping: CombineColumnMapping) {
+  return `${mapping.sourceId}\u0000${mapping.outputColumnId}`;
 }
 
 function isSourceSheet(value: unknown): value is { sourceId: string; sheetName: string } {

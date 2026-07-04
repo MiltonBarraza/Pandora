@@ -190,7 +190,7 @@ function getCombineNameMode(fileName: string): 'default' | 'custom' {
 function sanitizeCombineFileNamePart(value: string) {
   return value
     .trim()
-    .replace(/(\.xlsx)+$/i, '')
+    .replace(/(?:\.(?:xlsx|csv))+$/i, '')
     .replace(/[\/\\:*?"<>|]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

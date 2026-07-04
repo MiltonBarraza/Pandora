@@ -8,7 +8,7 @@ import type {
   SourceMetadataOptions,
 } from '../../types/combine';
 import { buildInitialCombineMappings, normalizeCombineColumnName } from './combineColumnMappings';
-import { buildSourceMetadataColumns } from './sourceMetadata';
+import { buildSourceMetadataColumns, isSourceMetadataColumn } from './sourceMetadata';
 
 export type CombineSettingsSnapshot = {
   schemaVersion: 1;
@@ -228,7 +228,18 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
   if (!Array.isArray(value.outputColumns) || !value.outputColumns.every(isSettingsOutputColumn)) {
     return { ok: false, error: 'Las columnas de salida de la configuración no son válidas.' };
   }
+  if (!hasUniqueValues(value.outputColumns.map((column) => column.id))
+    || !hasUniqueValues(value.outputColumns.map((column) => column.index))
+    || value.outputColumns.some((column) => isSourceMetadataColumn(column.id))) {
+    return { ok: false, error: 'Las columnas de salida de la configuración no son válidas.' };
+  }
   if (!Array.isArray(value.sourceMappings) || !value.sourceMappings.every(isSettingsSourceMapping)) {
+    return { ok: false, error: 'Los mapeos de fuentes de la configuración no son válidos.' };
+  }
+  if (!hasUniqueValues(value.sourceMappings.map((source) => source.sourceIndex))
+    || value.sourceMappings.some((source) => (
+      !hasUniqueValues(source.mappings.map((mapping) => mapping.outputColumnId))
+    ))) {
     return { ok: false, error: 'Los mapeos de fuentes de la configuración no son válidos.' };
   }
   if (value.columnAssignmentMode !== undefined && !isColumnAssignmentMode(value.columnAssignmentMode)) {
@@ -320,6 +331,10 @@ function resolveSavedSourceColumn(
 
 function mappingKey(sourceId: string, outputColumnId: string) {
   return `${sourceId}\u0000${outputColumnId}`;
+}
+
+function hasUniqueValues<T>(values: T[]) {
+  return new Set(values).size === values.length;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

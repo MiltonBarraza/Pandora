@@ -92,6 +92,15 @@ describe('buildCombineFinalFileName', () => {
       now: new Date(2026, 6, 2, 9, 5),
     })).toBe('Reporte mensual - 2026-07-02_09-05');
   });
+
+  it('removes an existing CSV extension before either export adds its own', () => {
+    expect(buildCombineFinalFileName({
+      baseText: 'Reporte mensual.csv',
+      includeBaseText: true,
+      includeDate: false,
+      includeTime: false,
+    })).toBe('Reporte mensual');
+  });
 });
 
 function ExportHarness({ rows = combinedRows }: { rows?: CombinedRow[] }) {

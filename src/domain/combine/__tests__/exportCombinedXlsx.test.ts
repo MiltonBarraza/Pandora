@@ -91,9 +91,11 @@ describe('normalizeCombinedFileName', () => {
     expect(normalizeCombinedFileName('\\/:*?"<>|')).toBe('Archivo combinado');
   });
 
-  it('prevents duplicated xlsx extensions', () => {
+  it('prevents duplicated or conflicting spreadsheet extensions', () => {
     expect(normalizeCombinedFileName('Reporte.xlsx')).toBe('Reporte');
     expect(normalizeCombinedFileName('Reporte.xlsx.xlsx')).toBe('Reporte');
+    expect(normalizeCombinedFileName('Reporte.csv')).toBe('Reporte');
+    expect(normalizeCombinedFileName('Reporte.csv.xlsx')).toBe('Reporte');
   });
 });
 
