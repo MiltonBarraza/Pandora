@@ -2,10 +2,15 @@ import { useRef, useState } from 'react';
 
 type MultipleFileUploaderProps = {
   disabled?: boolean;
+  statusText?: string;
   onFilesSelected: (files: File[]) => void;
 };
 
-export function MultipleFileUploader({ disabled = false, onFilesSelected }: MultipleFileUploaderProps) {
+export function MultipleFileUploader({
+  disabled = false,
+  statusText = 'Procesando archivos...',
+  onFilesSelected,
+}: MultipleFileUploaderProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -18,10 +23,11 @@ export function MultipleFileUploader({ disabled = false, onFilesSelected }: Mult
   return (
     <div className="fileUploader combineFileUploader">
       <div
-        className={`dropZone${isDragging ? ' isDragging' : ''}`}
+        className={`dropZone${isDragging ? ' isDragging' : ''}${disabled ? ' isProcessing' : ''}`}
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled}
+        aria-busy={disabled}
         onClick={() => !disabled && inputRef.current?.click()}
         onDragOver={(event) => {
           event.preventDefault();
@@ -57,7 +63,13 @@ export function MultipleFileUploader({ disabled = false, onFilesSelected }: Mult
             event.target.value = '';
           }}
         />
-        <strong>{disabled ? 'Leyendo archivos…' : 'Elegir archivos'}</strong>
+        <strong>{disabled ? 'Leyendo archivos...' : 'Elegir archivos'}</strong>
+        {disabled ? (
+          <span className="processingIndicator dropZoneProcessing" role="status" aria-live="polite">
+            <span className="processingSpinner" aria-hidden="true" />
+            {statusText}
+          </span>
+        ) : null}
         <span className="dropZoneHelp">Arrastrá archivos aquí de tipo .xlsx, .xls, .xlsm o .csv</span>
         <span className="dropZoneHelp dropZoneHelpSecondary">Hacé click para subir archivos desde tu computadora</span>
       </div>

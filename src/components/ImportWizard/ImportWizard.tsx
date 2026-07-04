@@ -93,6 +93,8 @@ export function ImportWizard({
   );
   const [rowOverrides, setRowOverrides] = useState<RowOverrides>({});
   const [readError, setReadError] = useState('');
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [changingSheetName, setChangingSheetName] = useState<string | null>(null);
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [isConfigurationDirty, setIsConfigurationDirty] = useState(false);
   const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
@@ -107,6 +109,7 @@ export function ImportWizard({
 
   const sheetNames = workbook?.SheetNames ?? [];
   const hasLoadedFile = fileName !== '' && fileType !== '';
+  const isSourceProcessing = isReadingFile || changingSheetName !== null;
   const hasWizardStateToProtect = shouldProtectWizardState({
     isConfigurationDirty,
     hasLoadedFile,
@@ -398,6 +401,9 @@ export function ImportWizard({
   };
 
   const removeFile = () => {
+    if (isSourceProcessing) {
+      return;
+    }
     if (!fileName && fileType === '' && !workbook) {
       return;
     }
@@ -411,6 +417,9 @@ export function ImportWizard({
   };
 
   const loadFile = async (file: File | undefined) => {
+    if (isSourceProcessing) {
+      return;
+    }
     if (!file) {
       return;
     }
@@ -421,7 +430,9 @@ export function ImportWizard({
   };
 
   const readSelectedFile = async (file: File) => {
+    setIsReadingFile(true);
     setReadError('');
+    await waitForProcessingPaint();
 
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv');
@@ -454,6 +465,8 @@ export function ImportWizard({
       setFileType('spreadsheet');
     } catch {
       setReadError('No se pudo leer el archivo. Revisá que sea .xlsx, .xls, .xlsm o .csv.');
+    } finally {
+      setIsReadingFile(false);
     }
   };
 
@@ -539,25 +552,33 @@ export function ImportWizard({
   };
 
   const changeSelectedSheet = (sheetName: string) => {
-    if (sheetName === selectedSheet) {
+    if (sheetName === selectedSheet || isSourceProcessing) {
       return;
     }
 
-    const applySheetChange = () => {
-      notifyConfigurationDiscarded();
-      resetWizardConfiguration();
-      setSelectedSheet(sheetName);
-      const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
-      setRows(sheetRows.rows);
-      setRowMetadata(sheetRows.rowMetadata);
+    const applySheetChange = async () => {
+      setChangingSheetName(sheetName);
+      await waitForProcessingPaint();
+      try {
+        notifyConfigurationDiscarded();
+        resetWizardConfiguration();
+        setSelectedSheet(sheetName);
+        const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
+        setRows(sheetRows.rows);
+        setRowMetadata(sheetRows.rowMetadata);
+      } finally {
+        setChangingSheetName(null);
+      }
     };
 
     if (isConfigurationDirty) {
-      requestConfigurationDiscard(applySheetChange);
+      requestConfigurationDiscard(() => {
+        void applySheetChange();
+      });
       return;
     }
 
-    applySheetChange();
+    void applySheetChange();
   };
 
   const applyStartRowNumber = (nextRowNumber: number) => {
@@ -631,6 +652,9 @@ export function ImportWizard({
         <Step title="1. Archivo">
           <FileUploader
             fileName={fileName}
+            disabled={isSourceProcessing}
+            isProcessing={isReadingFile}
+            processingLabel="Procesando archivo..."
             onFileSelected={loadFile}
             onFileRemoved={removeFile}
           />
@@ -646,6 +670,8 @@ export function ImportWizard({
             <SheetSelector
               sheetNames={sheetNames}
               selectedSheet={selectedSheet}
+              disabled={isSourceProcessing}
+              isProcessing={changingSheetName !== null}
               onSelectSheet={changeSelectedSheet}
             />
           )}
@@ -666,7 +692,7 @@ export function ImportWizard({
           </div>
           {onSaveProcessedResult ? (
             <CurrentSheetQuickActions
-              disabled={!saveForCombineAvailability.exportable}
+              disabled={isSourceProcessing || !saveForCombineAvailability.exportable}
               onSave={saveCurrentSheetForCombine}
             />
           ) : null}
@@ -1124,4 +1150,13 @@ export function applyActiveColumnVisualOrder(inputColumns: InputColumn[], active
 function createSequentialRowNumbers(startRowNumber: number, lastRowNumber: number, limit: number) {
   const length = Math.min(Math.max(0, lastRowNumber - startRowNumber + 1), limit);
   return Array.from({ length }, (_, index) => startRowNumber + index);
+}
+
+function waitForProcessingPaint() {
+  return new Promise<void>((resolve) => {
+    const schedule = typeof window.requestAnimationFrame === 'function'
+      ? window.requestAnimationFrame
+      : (callback: FrameRequestCallback) => window.setTimeout(callback, 16);
+    schedule(() => resolve());
+  });
 }

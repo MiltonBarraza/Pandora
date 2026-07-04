@@ -1,4 +1,5 @@
 import type { SourceMetadataOptions } from '../../types/combine';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type CombineSourceMetadataProps = {
   options: SourceMetadataOptions;
@@ -7,11 +8,15 @@ type CombineSourceMetadataProps = {
 
 export function CombineSourceMetadata({ options, onChange }: CombineSourceMetadataProps) {
   return (
-    <section className="panel combineFlowPanel combineSourceMetadataPanel">
-      <h2>5. Datos de origen</h2>
-      <p className="muted">
-        Agregá columnas para identificar de qué archivo u hoja proviene cada fila combinada.
-      </p>
+    <div className="combineSourceMetadataPanel">
+      <h3 className="headingWithInfo combineSourceMetadataHeader">
+        <span>Datos de origen</span>
+        <InfoTooltip
+          content="Agregá columnas para identificar de qué archivo u hoja proviene cada fila combinada."
+          placement="top"
+          ariaLabel="Información sobre datos de origen"
+        />
+      </h3>
       <div className="presetBar combineSourceMetadataOptions">
         <label className="checkboxField">
           <input
@@ -30,6 +35,6 @@ export function CombineSourceMetadata({ options, onChange }: CombineSourceMetada
           Incluir Hoja origen
         </label>
       </div>
-    </section>
+    </div>
   );
 }

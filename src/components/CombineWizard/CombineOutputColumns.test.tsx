@@ -51,6 +51,7 @@ describe('CombineOutputColumns', () => {
 
   it('requests position mode and explains both assignment strategies', async () => {
     const onAssignmentModeChange = vi.fn();
+    const user = userEvent.setup();
     render(
       <CombineOutputColumns
         sources={[source]}
@@ -61,9 +62,11 @@ describe('CombineOutputColumns', () => {
       />,
     );
 
-    expect(screen.getByText('Une columnas que tengan el mismo nombre normalizado.')).not.toBeNull();
-    expect(screen.getByText(/Une la primera columna de cada fuente/)).not.toBeNull();
-    await userEvent.setup().click(screen.getByRole('radio', { name: /Por posición/ }));
+    expect(screen.queryByText('Une columnas que tengan el mismo nombre normalizado.')).toBeNull();
+    expect(screen.getByText('Modo de asignación')).not.toBeNull();
+    await user.hover(screen.getByRole('button', { name: 'Información sobre el modo de asignación' }));
+    expect(await screen.findByText(/Por nombre compara encabezados normalizados/)).not.toBeNull();
+    await user.click(screen.getByRole('radio', { name: /Por posición/ }));
 
     expect(onAssignmentModeChange).toHaveBeenCalledWith('position');
   });

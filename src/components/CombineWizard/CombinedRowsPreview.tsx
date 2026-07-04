@@ -4,9 +4,12 @@ import type {
   CombineOutputColumn,
   CombineSource,
   CombinedRow,
+  ResultSort,
 } from '../../types/combine';
 import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { isSourceMetadataColumn } from '../../domain/combine/sourceMetadata';
+import { CombineResultSort } from './CombineResultSort';
 
 const previewRowLimit = 30;
 
@@ -15,6 +18,8 @@ type CombinedRowsPreviewProps = {
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   rows: CombinedRow[];
+  resultSort: ResultSort;
+  onResultSortChange: (resultSort: ResultSort) => void;
 };
 
 type CombinedPreviewTableStyle = CSSProperties & {
@@ -26,32 +31,39 @@ export const CombinedRowsPreview = memo(function CombinedRowsPreview({
   outputColumns,
   mappings,
   rows,
+  resultSort,
+  onResultSortChange,
 }: CombinedRowsPreviewProps) {
   const previewRows = useMemo(() => rows.slice(0, previewRowLimit), [rows]);
   const showSheetColumn = useMemo(
     () => sources.some((source) => Boolean(source.sheetName)),
     [sources],
   );
-  const { unmappedMappingCount, affectedCellCount } = useMemo(
+  const { unmappedColumnCount, unmappedMappingCount, affectedCellCount } = useMemo(
     () => getUnmappedSummary(sources, outputColumns, mappings),
     [sources, outputColumns, mappings],
   );
 
   return (
     <section className="panel combineFlowPanel combinePreviewPanel">
-      <h2>7. Vista previa</h2>
-      <p className="combinePreviewOverview">
-        <strong>{sources.length}</strong> {sources.length === 1 ? 'archivo' : 'archivos'} ·{' '}
-        <strong>{rows.length}</strong> {rows.length === 1 ? 'fila' : 'filas'} ·{' '}
-        <strong>{outputColumns.length}</strong> {outputColumns.length === 1 ? 'columna' : 'columnas'}
-      </p>
-
-      {unmappedMappingCount > 0 ? (
-        <p className="combineMappingNotice">
-          Las columnas sin asignar generarán celdas vacías.
-          {affectedCellCount > 0 ? ` Esto afecta ${affectedCellCount} ${affectedCellCount === 1 ? 'celda' : 'celdas'} en el resultado actual.` : ''}
+      <h2>5. Vista previa</h2>
+      <div className="combinePreviewSummary">
+        <p className="combinePreviewOverview">
+          <strong>{sources.length}</strong> {sources.length === 1 ? 'archivo' : 'archivos'} ·{' '}
+          <strong>{rows.length}</strong> {rows.length === 1 ? 'fila' : 'filas'} ·{' '}
+          <strong>{outputColumns.length}</strong> {outputColumns.length === 1 ? 'columna' : 'columnas'}
         </p>
-      ) : null}
+        {unmappedMappingCount > 0 ? (
+          <InfoTooltip content={buildUnmappedTooltip(unmappedColumnCount, affectedCellCount)} placement="top">
+            <span className="combineUnmappedChip">Sin asignar</span>
+          </InfoTooltip>
+        ) : null}
+      </div>
+      <CombineResultSort
+        outputColumns={outputColumns}
+        resultSort={resultSort}
+        onChange={onResultSortChange}
+      />
 
       {sources.length === 0 ? (
         <div className="emptyState combinePreviewEmpty">Cargá archivos para generar la vista previa.</div>
@@ -110,6 +122,15 @@ export const CombinedRowsPreview = memo(function CombinedRowsPreview({
   );
 });
 
+function buildUnmappedTooltip(unmappedColumnCount: number, affectedCellCount: number) {
+  const columnSummary = `${unmappedColumnCount} ${unmappedColumnCount === 1 ? 'columna sin asignar' : 'columnas sin asignar'}.`;
+  const base = `${columnSummary} Las columnas sin asignar generarán celdas vacías.`;
+  if (affectedCellCount <= 0) {
+    return base;
+  }
+  return `${base} Afecta ${affectedCellCount} ${affectedCellCount === 1 ? 'celda' : 'celdas'}.`;
+}
+
 function getUnmappedSummary(
   sources: CombineSource[],
   outputColumns: CombineOutputColumn[],
@@ -120,6 +141,7 @@ function getUnmappedSummary(
   );
   let unmappedMappingCount = 0;
   let affectedCellCount = 0;
+  const unmappedOutputColumnIds = new Set<string>();
   const mappedOutputColumns = outputColumns.filter((column) => !isSourceMetadataColumn(column.id));
 
   sources.forEach((source) => {
@@ -127,10 +149,11 @@ function getUnmappedSummary(
       const mapping = mappingsByPair.get(`${source.id}\u0000${outputColumn.id}`);
       if (!mapping?.sourceColumnId) {
         unmappedMappingCount += 1;
+        unmappedOutputColumnIds.add(outputColumn.id);
         affectedCellCount += source.rows.length;
       }
     });
   });
 
-  return { unmappedMappingCount, affectedCellCount };
+  return { unmappedColumnCount: unmappedOutputColumnIds.size, unmappedMappingCount, affectedCellCount };
 }

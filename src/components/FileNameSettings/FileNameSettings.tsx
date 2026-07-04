@@ -97,15 +97,11 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
               />
               Incluir fecha actual
             </label>
-            <label className="checkboxField">
-              <input
-                type="checkbox"
-                checked={settings.includeDate && Boolean(settings.includeTime)}
-                disabled={!settings.includeDate}
-                onChange={(event) => update({ includeTime: event.target.checked })}
-              />
-              Incluir hora actual
-            </label>
+            <TimeCheckbox
+              checked={settings.includeDate && Boolean(settings.includeTime)}
+              disabled={!settings.includeDate}
+              onChange={(checked) => update({ includeTime: checked })}
+            />
           </div>
         </>
       )}
@@ -118,4 +114,32 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
       </div>
     </div>
   );
+}
+
+function TimeCheckbox({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const control = (
+    <label className={`checkboxField${disabled ? ' isDisabled' : ''}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      Incluir hora actual
+    </label>
+  );
+
+  return disabled ? (
+    <InfoTooltip content="Primero activá ‘Incluir fecha actual’." placement="top">
+      {control}
+    </InfoTooltip>
+  ) : control;
 }

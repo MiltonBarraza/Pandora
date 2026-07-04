@@ -24,10 +24,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('CombineExportActions', () => {
-  it('renders compact naming options without sanitizer-only copy', () => {
+  it('renders compact naming options without sanitizer-only copy', async () => {
+    const user = userEvent.setup();
     render(<ExportHarness />);
 
-    expect(screen.getByRole('heading', { name: '8. Nombre de archivo y descarga' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Nombre del archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '7. Descargar archivo' })).not.toBeNull();
     expect((screen.getByLabelText('Nombre predeterminado') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText('Nombre personalizado') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Incluir texto base') as HTMLInputElement).checked).toBe(true);
@@ -39,6 +41,8 @@ describe('CombineExportActions', () => {
     expect(screen.queryByText(/Formatos disponibles/)).toBeNull();
     expect(screen.queryByText(/Auditoría/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Exportar CSV' }).getAttribute('title')).toBeNull();
+    await user.hover(screen.getByText('Incluir hora actual'));
+    expect(await screen.findByText('Primero activá ‘Incluir fecha actual’.')).not.toBeNull();
   });
 
   it('edits a custom base name and exports the calculated final name', async () => {
@@ -80,6 +84,18 @@ describe('CombineExportActions', () => {
     expect((screen.getByRole('button', { name: 'Exportar CSV' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('No hay filas combinadas para exportar.')).not.toBeNull();
   });
+
+  it('shows unmapped columns as an export summary chip', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ExportHarness mappingsOverride={[]} />);
+
+    expect(container.querySelector('.combineMappingNotice')).toBeNull();
+    expect(container.querySelector('.combineExportSummaryRow')?.firstElementChild?.classList).toContain('combineExportSummary');
+    expect(screen.queryByText('Las columnas sin asignar generarán celdas vacías.')).toBeNull();
+    await user.hover(screen.getByText('Sin asignar'));
+
+    expect(await screen.findByText('1 columna sin asignar. Las columnas sin asignar generarán celdas vacías.')).not.toBeNull();
+  });
 });
 
 describe('buildCombineFinalFileName', () => {
@@ -103,16 +119,24 @@ describe('buildCombineFinalFileName', () => {
   });
 });
 
-function ExportHarness({ rows = combinedRows }: { rows?: CombinedRow[] }) {
+function ExportHarness({
+  rows = combinedRows,
+  mappingsOverride = mappings,
+}: {
+  rows?: CombinedRow[];
+  mappingsOverride?: CombineColumnMapping[];
+}) {
   const [fileName, setFileName] = useState('Archivo combinado');
   return (
     <CombineExportActions
       sources={sources}
       outputColumns={outputColumns}
-      mappings={mappings}
+      mappings={mappingsOverride}
       combinedRows={rows}
       outputFileName={fileName}
       onOutputFileNameChange={setFileName}
+      sourceMetadataOptions={{ includeFileName: false, includeSheetName: false }}
+      onSourceMetadataOptionsChange={() => undefined}
     />
   );
 }

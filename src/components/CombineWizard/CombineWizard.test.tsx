@@ -74,7 +74,7 @@ describe('CombineWizard basket sources', () => {
     expect(JSON.stringify(loadCombineDraft())).not.toContain('dos-columnas.xlsx');
   });
 
-  it('restores a compatible draft and reports it discreetly', async () => {
+  it('restores a compatible draft silently', async () => {
     saveCombineDraft(restorableDraft());
 
     render(<CombineWizard basketSources={[basketSource]} />);
@@ -83,9 +83,7 @@ describe('CombineWizard basket sources', () => {
     expect((screen.getByLabelText('Incluir Archivo origen') as HTMLInputElement).checked).toBe(true);
     expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
     expect(screen.getAllByText('A1').length).toBeGreaterThan(0);
-    await waitFor(() => expect(showInfoToast).toHaveBeenCalledWith(
-      'Se restauró la configuración temporal de Combinar archivos.',
-    ));
+    expect(showInfoToast).not.toHaveBeenCalled();
   });
 
   it('restores safe configuration and discards missing source state', async () => {
@@ -99,9 +97,7 @@ describe('CombineWizard basket sources', () => {
     render(<CombineWizard basketSources={[basketSource]} />);
 
     expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
-    await waitFor(() => expect(showInfoToast).toHaveBeenCalledWith(
-      'Algunas opciones no pudieron restaurarse porque faltan fuentes.',
-    ));
+    expect(showInfoToast).not.toHaveBeenCalled();
   });
 
   it('allows deleting the temporary draft without resetting current UI', async () => {
@@ -115,7 +111,7 @@ describe('CombineWizard basket sources', () => {
   });
 
   it('does not let a pending debounced save recreate a cleared draft', async () => {
-    render(<CombineWizard />);
+    render(<CombineWizard basketSources={[basketSource]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Agregar columna' }));
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar borrador temporal' }));
 
@@ -124,7 +120,7 @@ describe('CombineWizard basket sources', () => {
   });
 
   it('flushes a pending draft before the page is hidden', () => {
-    render(<CombineWizard />);
+    render(<CombineWizard basketSources={[basketSource]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Agregar columna' }));
 
     window.dispatchEvent(new Event('pagehide'));
@@ -149,6 +145,10 @@ describe('CombineWizard basket sources', () => {
   it('keeps the files section clean while no files are loaded', () => {
     render(<CombineWizard basketSources={emptySources} />);
 
+    expect(screen.getByRole('heading', { name: '1. Archivos' })).not.toBeNull();
+    expect(screen.queryByRole('heading', { name: '2. Configuración' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Columnas de salida' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '4. Asignar columnas' })).toBeNull();
     expect(screen.queryByText('Archivos cargados')).toBeNull();
     expect(screen.queryByLabelText('0 archivos cargados')).toBeNull();
     expect(screen.queryByText('Todavía no hay archivos cargados.')).toBeNull();
@@ -198,10 +198,13 @@ describe('CombineWizard basket sources', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
 
     expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '5. Datos de origen' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '6. Orden del resultado' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '7. Vista previa' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '8. Nombre de archivo y descarga' })).not.toBeNull();
+    expect(screen.queryByRole('heading', { name: '5. Datos de origen' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '6. Orden del resultado' })).toBeNull();
+    expect(screen.getByRole('heading', { name: '5. Vista previa' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Nombre del archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '7. Descargar archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Datos de origen' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Orden del resultado' })).not.toBeNull();
   });
 
   it('delegates basket source removal to its owner', async () => {
@@ -242,16 +245,15 @@ describe('CombineWizard basket sources', () => {
     expect(screen.getAllByText('Desde sanitizador')).toHaveLength(3);
   });
 
-  it('truncates long source names with an app tooltip and wraps remove in an app tooltip', async () => {
+  it('keeps long source names constrained and wraps remove in an app tooltip', async () => {
     const longName = 'reporte-mensual-con-un-nombre-muy-largo-para-combinar.xlsx';
     render(<CombineWizard basketSources={[basketSourceForOrder('basket:long', longName, 'L1')]} />);
     const user = userEvent.setup();
     const fileName = screen.getByText(longName);
 
     expect(fileName.classList).toContain('truncatedText');
-    expect(fileName.parentElement?.classList).toContain('infoTooltipCustomTrigger');
     await user.hover(fileName);
-    expect((await screen.findByRole('tooltip')).textContent).toBe(longName);
+    expect(screen.queryByRole('tooltip')).toBeNull();
     await user.unhover(fileName);
 
     const removeButton = screen.getByRole('button', { name: `Remover ${longName}` });
@@ -328,7 +330,7 @@ describe('CombineWizard basket sources', () => {
     expect(getPreviewSourceOrder(container)).toEqual(['primero.xlsx', 'segundo.xlsx']);
   });
 
-  it('adds source metadata at the end and uses it in preview, sorting and export', async () => {
+  it('adds source metadata only to export, not to preview', async () => {
     const sources = [
       basketSourceForOrder('basket:zeta', 'zeta.xlsx', 'Z1'),
       basketSourceForOrder('basket:alfa', 'alfa.xlsx', 'A1'),
@@ -343,18 +345,18 @@ describe('CombineWizard basket sources', () => {
     await user.click(screen.getByLabelText('Incluir Archivo origen'));
     await user.click(screen.getByLabelText('Incluir Hoja origen'));
 
-    expect(Array.from(container.querySelectorAll('.combinePreviewTable thead th')).slice(-2).map((cell) => cell.textContent)).toEqual([
-      'Archivo origen',
-      'Hoja origen',
-    ]);
-    expect(getPreviewDataRows(container).map((cells) => cells.slice(-2))).toEqual([
-      ['zeta.xlsx', 'Datos'],
-      ['alfa.xlsx', 'Datos'],
+    const previewHeaders = Array.from(container.querySelectorAll('.combinePreviewTable thead th'))
+      .map((cell) => cell.textContent);
+    expect(previewHeaders).not.toContain('Archivo origen');
+    expect(previewHeaders).not.toContain('Hoja origen');
+    expect(getPreviewDataRows(container)).toEqual([
+      ['zeta.xlsx', 'Datos', 'Z1'],
+      ['alfa.xlsx', 'Datos', 'A1'],
     ]);
 
     await user.click(screen.getByRole('button', { name: 'Columna' }));
-    await user.click(screen.getByRole('option', { name: 'Archivo origen' }));
-    expect(getPreviewSourceOrder(container)).toEqual(['alfa.xlsx', 'zeta.xlsx']);
+    expect(screen.queryByRole('option', { name: 'Archivo origen' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Hoja origen' })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
     await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
@@ -364,8 +366,8 @@ describe('CombineWizard basket sources', () => {
       row.values['metadata:fileName'],
       row.values['metadata:sheetName'],
     ])).toEqual([
-      ['alfa.xlsx', 'Datos'],
       ['zeta.xlsx', 'Datos'],
+      ['alfa.xlsx', 'Datos'],
     ]);
 
     await user.click(screen.getByRole('button', { name: 'Exportar CSV' }));
@@ -457,7 +459,7 @@ describe('CombineWizard uploaded source sheets', () => {
     const user = userEvent.setup();
 
     await user.upload(getUploadInput(container), csvFile('manual.csv', 'Código\nU1'));
-    await screen.findByText('manual.csv');
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('manual.csv'));
     dragSource(container, 1, 0);
 
     expect(getVisibleSourceOrder(container)).toEqual(['manual.csv', 'enero.xlsx']);
@@ -480,24 +482,32 @@ describe('CombineWizard uploaded source sheets', () => {
     const user = userEvent.setup();
 
     await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
-    await screen.findByText('multi.xlsx');
-    expect(screen.getByText('multi.xlsx').closest('.combineSourceMain')).toBe(
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+    const multiSourceName = getSourceNameElement(container, 'multi.xlsx');
+    expect(multiSourceName?.closest('.combineSourceMain')).toBe(
       screen.getByRole('button', { name: 'Hoja usada' }).closest('.combineSourceMain'),
     );
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
-    expect(screen.getAllByText('A1').length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText('A1').length).toBeGreaterThan(0));
     await user.click(screen.getByLabelText('Incluir Hoja origen'));
     const firstSheetPreview = getPreviewDataRows(container)[0];
-    expect(firstSheetPreview[firstSheetPreview.length - 1]).toBe('Primera');
+    expect(firstSheetPreview).toEqual([
+      'multi.xlsx',
+      'Primera',
+      'A1',
+      'Anterior',
+    ]);
 
     await user.click(screen.getByRole('button', { name: 'Hoja usada' }));
     await user.click(screen.getByRole('option', { name: 'Segunda' }));
 
-    expect(screen.getByRole('button', { name: 'Hoja usada' }).textContent).toContain('Segunda');
-    expect(screen.getByText('3 columnas · 2 filas de datos')).not.toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja usada' }).textContent).toContain('Segunda'));
+    await waitFor(() => expect(screen.getByText('3 columnas · 2 filas de datos')).not.toBeNull());
     expect(screen.getAllByText('A2').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Actual').length).toBeGreaterThan(0);
-    expect(getPreviewDataRows(container).map((cells) => cells[cells.length - 1])).toEqual(['Segunda', 'Segunda']);
+    expect(getPreviewDataRows(container)).toEqual([
+      ['multi.xlsx', 'Segunda', 'A2', 'Actual'],
+      ['multi.xlsx', 'Segunda', 'A3', 'Otra'],
+    ]);
     expect(screen.queryByText('Anterior')).toBeNull();
     expect(screen.getByText(/Se exportarán 2 filas y 3 columnas desde 1 archivo/)).not.toBeNull();
   });
@@ -520,7 +530,7 @@ describe('CombineWizard uploaded source sheets', () => {
     const { container } = render(<CombineWizard />);
 
     await userEvent.setup().upload(getUploadInput(container), csvFile('datos.csv', 'Código\nA1'));
-    await screen.findByText('datos.csv');
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('datos.csv'));
 
     expect(screen.queryByText(/Hoja usada:/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Hoja usada' })).toBeNull();
@@ -537,12 +547,12 @@ describe('CombineWizard uploaded source sheets', () => {
     const user = userEvent.setup();
 
     await user.upload(getUploadInput(container), excelFile('fallo.xlsx', workbook));
-    await screen.findByText('fallo.xlsx');
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('fallo.xlsx'));
     await user.click(screen.getByRole('button', { name: 'Hoja usada' }));
     await user.click(screen.getByRole('option', { name: 'Vacía' }));
 
-    expect(screen.getByRole('button', { name: 'Hoja usada' }).textContent).toContain('Con datos');
-    expect(screen.getByText(/No se pudo usar la hoja "Vacía"/)).not.toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja usada' }).textContent).toContain('Con datos'));
+    expect(await screen.findByText(/No se pudo usar la hoja "Vacía"/)).not.toBeNull();
     expect(screen.getByText('1 columna · 1 fila de datos')).not.toBeNull();
   });
 
@@ -624,6 +634,11 @@ function basketSourceForOrder(id: string, fileName: string, value: string): Comb
 function getVisibleSourceOrder(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.combineSourceFileName .truncatedText'))
     .map((element) => element.textContent);
+}
+
+function getSourceNameElement(container: HTMLElement, fileName: string) {
+  return Array.from(container.querySelectorAll<HTMLElement>('.combineSourceFileName .truncatedText'))
+    .find((element) => element.textContent === fileName) ?? null;
 }
 
 function getPreviewSourceOrder(container: HTMLElement) {

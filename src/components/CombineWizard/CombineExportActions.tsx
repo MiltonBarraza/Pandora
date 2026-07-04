@@ -6,8 +6,11 @@ import type {
   CombineOutputColumn,
   CombineSource,
   CombinedRow,
+  SourceMetadataOptions,
 } from '../../types/combine';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { CombineSourceMetadata } from './CombineSourceMetadata';
 
 type CombineExportActionsProps = {
   sources: CombineSource[];
@@ -16,6 +19,8 @@ type CombineExportActionsProps = {
   combinedRows: CombinedRow[];
   outputFileName: string;
   onOutputFileNameChange: (fileName: string) => void;
+  sourceMetadataOptions: SourceMetadataOptions;
+  onSourceMetadataOptionsChange: (options: SourceMetadataOptions) => void;
 };
 
 export function CombineExportActions({
@@ -25,6 +30,8 @@ export function CombineExportActions({
   combinedRows,
   outputFileName,
   onOutputFileNameChange,
+  sourceMetadataOptions,
+  onSourceMetadataOptionsChange,
 }: CombineExportActionsProps) {
   const [nameMode, setNameMode] = useState<'default' | 'custom'>(() => getCombineNameMode(outputFileName));
   const [includeBaseText, setIncludeBaseText] = useState(true);
@@ -33,7 +40,8 @@ export function CombineExportActions({
   const disabledReason = getExportDisabledReason(sources, outputColumns, combinedRows);
   const hasEmptyNames = outputColumns.some((column) => column.name.trim() === '');
   const hasDuplicateNames = hasDuplicateColumnNames(outputColumns);
-  const hasUnmappedColumns = hasUnmappedMappings(sources, outputColumns, mappings);
+  const unmappedColumnCount = countUnmappedOutputColumns(sources, outputColumns, mappings);
+  const hasUnmappedColumns = unmappedColumnCount > 0;
   const baseText = nameMode === 'default' ? 'Archivo combinado' : outputFileName;
   const finalFileName = buildCombineFinalFileName({ baseText, includeBaseText, includeDate, includeTime });
 
@@ -59,94 +67,107 @@ export function CombineExportActions({
   };
 
   return (
-    <section className="panel combineFlowPanel combineExportPanel">
-      <h2>8. Nombre de archivo y descarga</h2>
-      <p className="muted combineExportSummary">
-        Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}
-        {outputColumns.length} {outputColumns.length === 1 ? 'columna' : 'columnas'} desde{' '}
-        {sources.length} {sources.length === 1 ? 'archivo' : 'archivos'}.
-      </p>
+    <>
+      <section className="panel combineFlowPanel combineFileNamePanel">
+        <h2>6. Nombre del archivo</h2>
+        <div className="manager combineExportNameManager">
+          <div className="segmentedControl">
+            <label>
+              <input
+                type="radio"
+                name="combine-file-name-mode"
+                checked={nameMode === 'default'}
+                onChange={() => {
+                  setNameMode('default');
+                  onOutputFileNameChange('Archivo combinado');
+                }}
+              />
+              Nombre predeterminado
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="combine-file-name-mode"
+                checked={nameMode === 'custom'}
+                onChange={() => setNameMode('custom')}
+              />
+              Nombre personalizado
+            </label>
+          </div>
 
-      {hasEmptyNames ? <p className="combineColumnWarning">Columnas sin nombre usarán “Columna sin nombre”.</p> : null}
-      {hasDuplicateNames ? <p className="combineColumnWarning">Nombres duplicados se conservarán en el Excel.</p> : null}
-      {hasUnmappedColumns ? (
-        <p className="combineMappingNotice">Las columnas sin asignar generarán celdas vacías.</p>
-      ) : null}
+          {nameMode === 'custom' ? (
+            <label className="field combineExportBaseName">
+              <span>Nombre base</span>
+              <input
+                value={outputFileName}
+                placeholder="Archivo combinado"
+                onChange={(event) => onOutputFileNameChange(event.target.value)}
+              />
+            </label>
+          ) : null}
 
-      <div className="manager combineExportNameManager">
-        <div className="segmentedControl">
-          <label>
-            <input
-              type="radio"
-              name="combine-file-name-mode"
-              checked={nameMode === 'default'}
-              onChange={() => {
-                setNameMode('default');
-                onOutputFileNameChange('Archivo combinado');
-              }}
-            />
-            Nombre predeterminado
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="combine-file-name-mode"
-              checked={nameMode === 'custom'}
-              onChange={() => setNameMode('custom')}
-            />
-            Nombre personalizado
-          </label>
-        </div>
-
-        {nameMode === 'custom' ? (
-          <label className="field combineExportBaseName">
-            <span>Nombre base</span>
-            <input
-              value={outputFileName}
-              placeholder="Archivo combinado"
-              onChange={(event) => onOutputFileNameChange(event.target.value)}
-            />
-          </label>
-        ) : null}
-
-        <div className="presetBar combineExportNameOptions">
-          <label className="checkboxField">
-            <input
-              type="checkbox"
-              checked={includeBaseText}
-              onChange={(event) => setIncludeBaseText(event.target.checked)}
-            />
-            Incluir texto base
-          </label>
-          <label className="checkboxField">
-            <input
-              type="checkbox"
-              checked={includeDate}
-              onChange={(event) => {
-                setIncludeDate(event.target.checked);
-                if (!event.target.checked) {
-                  setIncludeTime(false);
-                }
-              }}
-            />
-            Incluir fecha actual
-          </label>
-          <label className="checkboxField">
-            <input
-              type="checkbox"
+          <div className="presetBar combineExportNameOptions">
+            <label className="checkboxField">
+              <input
+                type="checkbox"
+                checked={includeBaseText}
+                onChange={(event) => setIncludeBaseText(event.target.checked)}
+              />
+              Incluir texto base
+            </label>
+            <label className="checkboxField">
+              <input
+                type="checkbox"
+                checked={includeDate}
+                onChange={(event) => {
+                  setIncludeDate(event.target.checked);
+                  if (!event.target.checked) {
+                    setIncludeTime(false);
+                  }
+                }}
+              />
+              Incluir fecha actual
+            </label>
+            <TimeCheckbox
               checked={includeDate && includeTime}
               disabled={!includeDate}
-              onChange={(event) => setIncludeTime(event.target.checked)}
+              onChange={(checked) => setIncludeTime(checked)}
             />
-            Incluir hora actual
-          </label>
+          </div>
+
+          <div className="filenamePreview combineFinalName">
+            <div className="combineFinalNameCopy">
+              <strong>Nombre final</strong>
+              <span>{finalFileName}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel combineFlowPanel combineExportPanel">
+        <h2>7. Descargar archivo</h2>
+        <div className="combineExportSummaryRow">
+          <p className="muted combineExportSummary">
+            Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}
+            {outputColumns.length} {outputColumns.length === 1 ? 'columna' : 'columnas'} desde{' '}
+            {sources.length} {sources.length === 1 ? 'archivo' : 'archivos'}.
+          </p>
+          {hasUnmappedColumns ? (
+            <InfoTooltip content={buildUnmappedExportTooltip(unmappedColumnCount)} placement="top">
+              <span className="combineUnmappedChip">Sin asignar</span>
+            </InfoTooltip>
+          ) : null}
         </div>
 
-        <div className="filenamePreview combineFinalName">
-          <div className="combineFinalNameCopy">
-            <strong>Nombre final</strong>
-            <span>{finalFileName}</span>
-          </div>
+        {hasEmptyNames ? <p className="combineColumnWarning">Columnas sin nombre usarán “Columna sin nombre”.</p> : null}
+        {hasDuplicateNames ? <p className="combineColumnWarning">Nombres duplicados se conservarán en el Excel.</p> : null}
+
+        <div className="combineExportOperationRow">
+          <CombineSourceMetadata
+            options={sourceMetadataOptions}
+            onChange={onSourceMetadataOptionsChange}
+          />
+
           <div className="actions combineFinalDownloadActions">
             <ActionButton action="download" disabled={Boolean(disabledReason)} onClick={() => void downloadExcel()}>
               Descargar Excel combinado
@@ -156,10 +177,38 @@ export function CombineExportActions({
             </ActionButton>
           </div>
         </div>
-      </div>
-      {disabledReason ? <p className="muted combineExportDisabledReason">{disabledReason}</p> : null}
-    </section>
+        {disabledReason ? <p className="muted combineExportDisabledReason">{disabledReason}</p> : null}
+      </section>
+    </>
   );
+}
+
+function TimeCheckbox({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const control = (
+    <label className={`checkboxField${disabled ? ' isDisabled' : ''}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      Incluir hora actual
+    </label>
+  );
+
+  return disabled ? (
+    <InfoTooltip content="Primero activá ‘Incluir fecha actual’." placement="top">
+      {control}
+    </InfoTooltip>
+  ) : control;
 }
 
 export function buildCombineFinalFileName({
@@ -232,7 +281,7 @@ function hasDuplicateColumnNames(outputColumns: CombineOutputColumn[]) {
   return new Set(names).size !== names.length;
 }
 
-function hasUnmappedMappings(
+function countUnmappedOutputColumns(
   sources: CombineSource[],
   outputColumns: CombineOutputColumn[],
   mappings: CombineColumnMapping[],
@@ -242,9 +291,14 @@ function hasUnmappedMappings(
       .filter((mapping) => Boolean(mapping.sourceColumnId))
       .map((mapping) => `${mapping.sourceId}\u0000${mapping.outputColumnId}`),
   );
-  return sources.some((source) => outputColumns
+  return outputColumns
     .filter((column) => !isSourceMetadataColumn(column.id))
-    .some((column) => (
-    !mappedPairs.has(`${source.id}\u0000${column.id}`)
-  )));
+    .filter((column) => sources.some((source) => (
+      !mappedPairs.has(`${source.id}\u0000${column.id}`)
+    )))
+    .length;
+}
+
+function buildUnmappedExportTooltip(unmappedColumnCount: number) {
+  return `${unmappedColumnCount} ${unmappedColumnCount === 1 ? 'columna sin asignar' : 'columnas sin asignar'}. Las columnas sin asignar generarán celdas vacías.`;
 }

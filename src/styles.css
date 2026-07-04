@@ -593,6 +593,44 @@ h3 {
   display: grid;
 }
 
+.processingIndicator {
+  align-items: center;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.processingSpinner {
+  animation: processingSpinnerRotate 800ms linear infinite;
+  border: 2px solid var(--color-border-muted);
+  border-top-color: var(--color-primary-bg);
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
+@keyframes processingSpinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sheetSelectorWithStatus {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+
+.sheetSelectorWithStatus .dropdownField {
+  flex: 0 1 320px;
+  min-width: 220px;
+}
+
 .visuallyHidden {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
@@ -765,11 +803,6 @@ h3 {
   margin-top: 6px;
 }
 
-.combineSourcesOrderHint {
-  font-size: 0.8rem;
-  margin: 4px 0 0;
-}
-
 .combineSourceItem {
   align-items: center;
   background: var(--color-bg-surface-muted);
@@ -814,10 +847,9 @@ h3 {
 .combineSourceIdentity {
   align-items: center;
   display: flex;
-  flex: 1 1 240px;
+  flex: 1 1 520px;
   gap: 7px;
-  max-width: 420px;
-  min-width: 120px;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -829,14 +861,19 @@ h3 {
 }
 
 .combineSourceFileName > .infoTooltipCustomTrigger {
-  display: block;
+  display: inline-flex;
   max-width: 100%;
   min-width: 0;
+  vertical-align: bottom;
 }
 
 .combineSourceIdentity .combineSourceBadge {
   flex: 0 0 auto;
   margin-left: 0;
+}
+
+.combineSourceIdentity > .infoTooltipCustomTrigger {
+  flex: 0 0 auto;
 }
 
 .combineSourceActions {
@@ -921,11 +958,17 @@ h3 {
 }
 
 .combineOutputColumnsToolbar {
-  align-items: center;
+  align-items: end;
   display: flex;
   gap: 12px 16px;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 12px;
+}
+
+.combineSourceProcessing {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .combineOutputColumnsToolbar p {
@@ -966,36 +1009,34 @@ h3 {
 
 .combineAssignmentMode {
   border: 0;
-  margin: 14px 0 0;
+  flex: 1 1 auto;
+  margin: 0;
   padding: 0;
 }
 
 .combineAssignmentMode legend {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 800;
+  margin-bottom: 7px;
   padding: 0;
 }
 
-.combineAssignmentMode > p {
-  font-size: 0.82rem;
-  margin: 4px 0 8px;
-}
-
 .combineAssignmentModeOptions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .combineAssignmentModeOptions label {
-  align-items: flex-start;
+  align-items: center;
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
-  gap: 9px;
-  padding: 10px 11px;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 10px;
 }
 
 .combineAssignmentModeOptions label.isSelected {
@@ -1004,18 +1045,15 @@ h3 {
 }
 
 .combineAssignmentModeOptions input {
-  margin-top: 3px;
+  margin: 0;
+  min-height: auto;
+  width: auto;
 }
 
 .combineAssignmentModeOptions label > span {
-  display: grid;
-  gap: 2px;
-}
-
-.combineAssignmentModeOptions small {
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .combineOutputColumnItem label {
@@ -1103,7 +1141,7 @@ h3 {
 }
 
 .combineMappingSource {
-  background: var(--color-bg-surface-muted);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   min-width: 0;
@@ -1116,7 +1154,7 @@ h3 {
 
 .combineMappingSourceToggle {
   align-items: center;
-  background: transparent;
+  background: var(--color-bg-surface-muted);
   border: 0;
   border-radius: 0;
   color: var(--color-text-primary);
@@ -1125,12 +1163,14 @@ h3 {
   justify-content: space-between;
   padding: 9px 11px;
   text-align: left;
+  transition: background-color 140ms ease, color 140ms ease;
   width: 100%;
 }
 
-.combineMappingSourceToggle:hover,
+.combineMappingSourceToggle:hover:not(:disabled),
 .combineMappingSourceToggle:focus-visible {
   background: var(--color-bg-surface-subtle);
+  color: var(--color-text-primary);
 }
 
 .combineMappingSourceIdentity {
@@ -1163,16 +1203,35 @@ h3 {
 
 .combineMappingSourceContent {
   border-top: 1px solid var(--color-border-muted);
-  padding: 0 9px 9px;
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  overflow: hidden;
+  transition: grid-template-rows 180ms ease, opacity 150ms ease, border-color 150ms ease;
+}
+
+.combineMappingSourceContent.isCollapsed {
+  border-top-color: transparent;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.combineMappingSourceContentInner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .combineMappingTableWrap {
+  border: 0;
+  border-radius: 0;
   max-height: none;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .combineMappingTable {
-  min-width: 560px;
+  min-width: 620px;
   table-layout: fixed;
   width: 100%;
 }
@@ -1180,30 +1239,110 @@ h3 {
 .combineMappingTable th,
 .combineMappingTable td {
   padding-block: 8px;
-  width: 50%;
+}
+
+.combineMappingTable th:nth-child(1),
+.combineMappingTable td:nth-child(1) {
+  width: 44%;
+}
+
+.combineMappingTable th:nth-child(2),
+.combineMappingTable td:nth-child(2) {
+  width: 12%;
+}
+
+.combineMappingTable th:nth-child(3),
+.combineMappingTable td:nth-child(3) {
+  width: 44%;
 }
 
 .combineMappingTable .dropdownField {
   max-width: 100%;
 }
 
-.combineUnmappedText {
-  display: block;
-  font-size: 0.8rem;
-  margin-top: 5px;
+.combineMappingControlCell {
+  min-width: 0;
+  padding-left: 6px;
 }
 
-.combinePreviewOverview {
+.combineMappingControlCell .dropdownField {
+  max-width: 100%;
+}
+
+.combineMappingStatusCell {
+  padding-left: 6px;
+  padding-right: 4px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.combineMappingStatusCell .combineUnmappedChip {
+  font-size: 0.7rem;
+  padding: 4px 6px;
+}
+
+.combineUnmappedChip {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 999px;
+  color: var(--color-warning-text);
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.combinePreviewPanel > h2 {
+  margin: 0;
+}
+
+.combinePreviewSummary,
+.combineExportSummaryRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.combineExportSummaryRow {
+  margin: 6px 0 8px;
+}
+
+.combinePreviewSummary {
+  margin-bottom: 14px;
+}
+
+.combinePreviewOverview,
+.combineExportSummary {
   color: var(--color-text-secondary);
-  margin: -8px 0 12px;
+  margin: 0;
 }
 
-.combineResultSortPanel > .muted {
-  margin: -8px 0 12px;
+.combineResultSortPanel {
+  min-width: 0;
 }
 
-.combineSourceMetadataPanel > .muted {
-  margin: -8px 0 12px;
+.combineResultSortPanel h3,
+.combineSourceMetadataPanel h3 {
+  font-size: 0.86rem;
+  margin: 0 0 8px;
+}
+
+.combineSourceMetadataPanel h3 {
+  margin-bottom: 4px;
+}
+
+.combineSourceMetadataPanel {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.combineSourceMetadataHeader {
+  margin: 0;
 }
 
 .combineSourceMetadataOptions {
@@ -1213,8 +1352,9 @@ h3 {
 .combineResultSortControls {
   align-items: end;
   display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(220px, 360px) max-content max-content;
+  gap: 8px;
+  grid-template-columns: minmax(160px, min(360px, 50%)) max-content max-content;
+  margin-bottom: 12px;
 }
 
 .combineResultSortDirection {
@@ -1270,10 +1410,6 @@ h3 {
   z-index: 1;
 }
 
-.combineExportSummary {
-  margin: -8px 0 12px;
-}
-
 .combineExportNameManager {
   gap: 10px;
   margin-top: 10px;
@@ -1297,7 +1433,7 @@ h3 {
   align-items: center;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .combineFinalNameCopy {
@@ -1310,12 +1446,10 @@ h3 {
   overflow-wrap: anywhere;
 }
 
-.combineFinalName .actionButton {
-  justify-self: end;
-}
-
 .combineFinalDownloadActions {
+  align-self: end;
   justify-content: flex-end;
+  margin-top: 0;
 }
 
 .combineExportDisabledReason {
@@ -1323,8 +1457,24 @@ h3 {
 }
 
 .combineExportPanel {
-  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-accent-bg-soft) 140%);
-  border-color: var(--color-accent-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+}
+
+.combineExportPanel > h2 {
+  margin: 0;
+}
+
+.combineExportOperationRow {
+  align-items: end;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  margin-top: 8px;
+}
+
+.combineExportPanel .combineSourceMetadataOptions .checkboxField {
+  min-height: 36px;
 }
 
 .combineSettingsFileInput {
@@ -1410,8 +1560,15 @@ h3 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .combineFinalName .actionButton {
-    justify-self: stretch;
+  .combineExportOperationRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .combineFinalDownloadActions {
+    justify-content: stretch;
+  }
+
+  .combineFinalDownloadActions .actionButton {
     width: 100%;
   }
 
@@ -1441,6 +1598,21 @@ h3 {
   border-color: var(--color-primary-bg);
   border-style: solid;
   box-shadow: inset 0 0 0 1px var(--color-focus-ring);
+}
+
+.dropZone.isProcessing {
+  cursor: progress;
+  opacity: 0.86;
+}
+
+.dropZone.isProcessing::after {
+  background: var(--color-bg-surface);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.5;
+  pointer-events: none;
+  position: absolute;
 }
 
 .dropZone.isDragging {
@@ -1479,6 +1651,7 @@ h3 {
   top: 14px;
   transform: translateY(-2px);
   transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 2;
 }
 
 .dropZoneRemoveButton:hover:not(:disabled),
@@ -1499,6 +1672,11 @@ h3 {
 .field span,
 .stats span {
   color: var(--color-text-muted);
+}
+
+.dropZone > :not(.dropZoneRemoveButton) {
+  position: relative;
+  z-index: 1;
 }
 
 .dropZone strong {
@@ -1522,6 +1700,10 @@ h3 {
   font-size: 0.86rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.dropZone .dropZoneProcessing {
+  color: var(--color-text-secondary);
 }
 
 .dropZone .dropZoneHelp {
@@ -3692,6 +3874,13 @@ tbody tr:hover {
   gap: 8px;
 }
 
+.presetBar > .infoTooltipCustomTrigger {
+  background: transparent;
+  border: 0;
+  min-height: 0;
+  padding: 0;
+}
+
 .filenamePreview {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
@@ -3723,6 +3912,16 @@ tbody tr:hover {
   cursor: pointer;
   min-height: 18px;
   width: 18px;
+}
+
+.checkboxField.isDisabled {
+  color: var(--color-text-muted);
+  cursor: help;
+  opacity: 0.68;
+}
+
+.checkboxField.isDisabled input {
+  cursor: not-allowed;
 }
 
 .startRowControls {

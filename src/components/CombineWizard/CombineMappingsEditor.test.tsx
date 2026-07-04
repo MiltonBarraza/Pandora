@@ -31,10 +31,14 @@ describe('CombineMappingsEditor accordion', () => {
     await waitFor(() => expect(firstToggle.getAttribute('aria-expanded')).toBe('true'));
     expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
     expect(screen.queryByRole('heading', { name: '4. Mapeo' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Recalcular asignación automática' }).parentElement?.classList).toContain('infoTooltip');
+    expect(screen.getByRole('button', { name: 'Reasignar columnas' }).parentElement?.classList).toContain('infoTooltip');
     expect(screen.getByText('1/2 columnas asignadas')).not.toBeNull();
-    expect(screen.getByText('Las columnas sin asignar generarán celdas vacías.')).not.toBeNull();
-    expect(screen.getAllByText('Sin asignar').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Las columnas sin asignar generarán celdas vacías.')).toBeNull();
+    const unmappedChip = screen.getAllByText('Sin asignar')[0];
+    expect(unmappedChip.classList).toContain('combineUnmappedChip');
+    await user.hover(unmappedChip);
+    expect(await screen.findByText('Las columnas sin asignar generarán celdas vacías.')).not.toBeNull();
+    await user.unhover(unmappedChip);
     expect(screen.getByText('Origen A (columna 1)')).not.toBeNull();
 
     await user.click(secondToggle);
@@ -57,7 +61,7 @@ describe('CombineMappingsEditor accordion', () => {
       />,
     );
 
-    await userEvent.setup().hover(screen.getByRole('button', { name: 'Recalcular asignación automática' }));
+    await userEvent.setup().hover(screen.getByRole('button', { name: 'Reasignar columnas' }));
 
     expect(await screen.findByText('Vuelve a asignar columnas automáticamente por posición dentro de cada fuente.')).not.toBeNull();
   });

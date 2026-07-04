@@ -66,7 +66,6 @@ export function SettingsActions({
     startRowIndex,
     columnAnalysis,
   });
-  const canCompareSettings = Boolean(currentSnapshot);
   const visibleSuccessMessage = normalizeSettingsActionsSuccessMessage(successMessage);
 
   const exportSettings = () => {
@@ -228,9 +227,6 @@ export function SettingsActions({
         onChange={(event) => void importSettingsFile(event.target.files?.[0])}
       />
 
-      {!canCompareSettings ? (
-        <p className="muted">Primero cargá un Excel y seleccioná una hoja para validar configuraciones importadas.</p>
-      ) : null}
       {error ? <p className="errorText">{error}</p> : null}
       {visibleSuccessMessage ? <p className="successText">{visibleSuccessMessage}</p> : null}
       {importResult ? (

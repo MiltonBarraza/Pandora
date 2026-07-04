@@ -73,51 +73,43 @@ export function CombineOutputColumns({
           content="Definí las columnas que tendrá el archivo combinado. Cada archivo cargado se asignará a esta estructura de salida."
         />
       </h2>
-      <fieldset className="combineAssignmentMode">
-        <legend className="headingWithInfo">
-          <span>Modo de asignación de columnas</span>
-          <InfoTooltip
-            ariaLabel="Información sobre el modo de asignación"
-            placement="right"
-            content="Define si los encabezados se emparejan por su nombre normalizado o por el orden que ocupan dentro de cada fuente."
-          />
-        </legend>
-        <p className="muted">Elegí cómo se emparejan las columnas de cada fuente en el archivo combinado.</p>
-        <div className="combineAssignmentModeOptions">
-          <label className={assignmentMode === 'name' ? 'isSelected' : undefined}>
-            <input
-              type="radio"
-              name="combine-column-assignment-mode"
-              value="name"
-              checked={assignmentMode === 'name'}
-              onChange={() => onAssignmentModeChange('name')}
-            />
-            <span>
-              <strong>Por nombre</strong>
-              <small>Une columnas que tengan el mismo nombre normalizado.</small>
-            </span>
-          </label>
-          <label className={assignmentMode === 'position' ? 'isSelected' : undefined}>
-            <input
-              type="radio"
-              name="combine-column-assignment-mode"
-              value="position"
-              checked={assignmentMode === 'position'}
-              onChange={() => onAssignmentModeChange('position')}
-            />
-            <span>
-              <strong>Por posición</strong>
-              <small>Une la primera columna de cada fuente, luego la segunda y así sucesivamente, aunque tengan nombres distintos.</small>
-            </span>
-          </label>
-        </div>
-      </fieldset>
       <div className="combineOutputColumnsToolbar">
-        <p className="muted">Definí las columnas que tendrá el archivo combinado.</p>
+        <fieldset className="combineAssignmentMode">
+          <legend className="headingWithInfo">
+            <span>Modo de asignación</span>
+            <InfoTooltip
+              ariaLabel="Información sobre el modo de asignación"
+              placement="right"
+              content="Por nombre compara encabezados normalizados. Por posición empareja cada fuente según el orden de sus columnas."
+            />
+          </legend>
+          <div className="combineAssignmentModeOptions">
+            <label className={assignmentMode === 'name' ? 'isSelected' : undefined}>
+              <input
+                type="radio"
+                name="combine-column-assignment-mode"
+                value="name"
+                checked={assignmentMode === 'name'}
+                onChange={() => onAssignmentModeChange('name')}
+              />
+              <span>Por nombre</span>
+            </label>
+            <label className={assignmentMode === 'position' ? 'isSelected' : undefined}>
+              <input
+                type="radio"
+                name="combine-column-assignment-mode"
+                value="position"
+                checked={assignmentMode === 'position'}
+                onChange={() => onAssignmentModeChange('position')}
+              />
+              <span>Por posición</span>
+            </label>
+          </div>
+        </fieldset>
         <div className="actions combineOutputColumnsActions">
           {sources.length > 0 && outputColumns.length === 0 ? (
             <InfoTooltip content="Crea las columnas de salida copiando los encabezados del primer archivo cargado." placement="bottom">
-              <ActionButton action="duplicate" onClick={initializeFromFirstSource}>
+              <ActionButton action="duplicate" variant="secondary" onClick={initializeFromFirstSource}>
                 {assignmentMode === 'position' ? 'Generar columnas por posición' : 'Usar columnas del primer archivo'}
               </ActionButton>
             </InfoTooltip>
@@ -125,7 +117,6 @@ export function CombineOutputColumns({
           <InfoTooltip content="Agrega una columna manual al archivo combinado." placement="bottom">
             <ActionButton
               action="add"
-              variant={sources.length > 0 && outputColumns.length === 0 ? 'secondary' : 'primary'}
               onClick={addColumn}
             >
               Agregar columna

@@ -32,11 +32,6 @@ export function CombineMappingsEditor({
   const mappingsByPair = new Map(
     mappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
   );
-  const unmappedCount = sources.reduce((count, source) => (
-    count + outputColumns.filter((outputColumn) => (
-      !mappingsByPair.get(mappingKey(source.id, outputColumn.id))?.sourceColumnId
-    )).length
-  ), 0);
   const reapplyHelp = assignmentMode === 'position'
     ? 'Se reemplazarán las asignaciones actuales usando la posición de las columnas en cada fuente.'
     : 'Se reemplazarán las asignaciones actuales comparando nombres sin distinguir mayúsculas, tildes ni espacios extra.';
@@ -56,10 +51,10 @@ export function CombineMappingsEditor({
     <section className="panel combineFlowPanel combineMappingsPanel">
       <ConfirmDialog
         open={isReapplyConfirmationOpen}
-        title="Recalcular asignación automática"
+        title="Reasignar columnas"
         message={reapplyHelp}
         cancelLabel="Cancelar"
-        confirmLabel="Recalcular asignación"
+        confirmLabel="Reasignar columnas"
         onCancel={() => setIsReapplyConfirmationOpen(false)}
         onConfirm={() => {
           setIsReapplyConfirmationOpen(false);
@@ -86,7 +81,7 @@ export function CombineMappingsEditor({
               variant="secondary"
               onClick={() => setIsReapplyConfirmationOpen(true)}
             >
-              Recalcular asignación automática
+              Reasignar columnas
             </ActionButton>
           </InfoTooltip>
         ) : null}
@@ -96,13 +91,7 @@ export function CombineMappingsEditor({
       ) : outputColumns.length === 0 ? (
         <div className="emptyState combineMappingsEmpty">Definí columnas de salida para configurar la asignación.</div>
       ) : (
-        <>
-          {unmappedCount > 0 ? (
-            <p className="combineMappingNotice">
-              Las columnas sin asignar generarán celdas vacías.
-            </p>
-          ) : null}
-          <div className="combineMappingSources">
+        <div className="combineMappingSources">
             {sources.map((source) => {
               const isExpanded = expandedSourceId === source.id;
               const mappedCount = outputColumns.filter((outputColumn) => (
@@ -130,13 +119,18 @@ export function CombineMappingsEditor({
                       <span className="combineMappingChevron" aria-hidden="true">{isExpanded ? '▲' : '▼'}</span>
                     </span>
                   </button>
-                  {isExpanded ? (
-                    <div id={contentId} className="combineMappingSourceContent">
+                  <div
+                    id={contentId}
+                    className={`combineMappingSourceContent${isExpanded ? '' : ' isCollapsed'}`}
+                    aria-hidden={!isExpanded}
+                  >
+                    <div className="combineMappingSourceContentInner">
                       <div className="tableWrap combineMappingTableWrap">
                         <table className="combineMappingTable">
                           <thead>
                             <tr>
                               <th>Columna de salida</th>
+                              <th aria-label="Estado de asignación" />
                               <th>Columna del archivo</th>
                             </tr>
                           </thead>
@@ -147,7 +141,17 @@ export function CombineMappingsEditor({
                               return (
                                 <tr key={outputColumn.id}>
                                   <td>{outputColumn.name || 'Sin nombre'}</td>
-                                  <td>
+                                  <td className="combineMappingStatusCell">
+                                    {!sourceColumnId ? (
+                                      <InfoTooltip
+                                        content="Las columnas sin asignar generarán celdas vacías."
+                                        placement="top"
+                                      >
+                                        <span className="combineUnmappedChip">Sin asignar</span>
+                                      </InfoTooltip>
+                                    ) : null}
+                                  </td>
+                                  <td className="combineMappingControlCell">
                                     <Dropdown
                                       value={sourceColumnId ?? ''}
                                       options={[
@@ -164,7 +168,6 @@ export function CombineMappingsEditor({
                                         sourceColumnId: value || null,
                                       })}
                                     />
-                                    {!sourceColumnId ? <span className="muted combineUnmappedText">Sin asignar</span> : null}
                                   </td>
                                 </tr>
                               );
@@ -173,12 +176,11 @@ export function CombineMappingsEditor({
                         </table>
                       </div>
                     </div>
-                  ) : null}
+                  </div>
                 </section>
               );
             })}
           </div>
-        </>
       )}
     </section>
   );
