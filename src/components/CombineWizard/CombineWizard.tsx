@@ -12,6 +12,7 @@ import {
   loadCombineDraft,
   restoreCombineDraft,
   saveCombineDraft,
+  type CombineDraft,
 } from '../../domain/combine/combineDraft';
 import {
   createCombineSourceFromWorkbookSheet,
@@ -57,6 +58,7 @@ type CombineWizardProps = {
 };
 
 const emptyBasketSources: CombineSource[] = [];
+const combineDraftSaveDelayMs = 200;
 
 export function CombineWizard({
   appearanceToolbar,
@@ -64,7 +66,8 @@ export function CombineWizard({
   onRemoveBasketSource,
   onLocalStatePresenceChange,
 }: CombineWizardProps) {
-  const [restoredDraft] = useState(() => restoreCombineDraft(loadCombineDraft(), basketSources));
+  const [initialDraft] = useState(loadCombineDraft);
+  const [restoredDraft] = useState(() => restoreCombineDraft(initialDraft, basketSources));
   const [loadedUploadedSources, setLoadedUploadedSources] = useState<LoadedCombineSource[]>([]);
   const [outputColumns, setOutputColumns] = useState<CombineOutputColumn[]>(restoredDraft.outputColumns);
   const [mappings, setMappings] = useState<CombineColumnMapping[]>(restoredDraft.mappings);
@@ -80,6 +83,9 @@ export function CombineWizard({
   const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
   const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
   const nextSourceIndexRef = useRef(0);
+  const draftSaveTimeoutRef = useRef<number | null>(null);
+  const pendingDraftRef = useRef<CombineDraft | null>(null);
+  const savedDraftSignatureRef = useRef(initialDraft ? JSON.stringify(initialDraft) : null);
   const uploadedSources = useMemo(
     () => loadedUploadedSources.map((loadedSource) => loadedSource.source),
     [loadedUploadedSources],
@@ -111,12 +117,15 @@ export function CombineWizard({
   }, [restoredDraft]);
 
   useEffect(() => {
-    setMappings((current) => reconcileCombineMappings({
-      sources,
-      outputColumns,
-      previousMappings: current,
-      assignmentMode: columnAssignmentMode,
-    }));
+    setMappings((current) => {
+      const next = reconcileCombineMappings({
+        sources,
+        outputColumns,
+        previousMappings: current,
+        assignmentMode: columnAssignmentMode,
+      });
+      return combineMappingsEqual(current, next) ? current : next;
+    });
   }, [sources, outputColumns, columnAssignmentMode]);
 
   useEffect(() => {
@@ -156,7 +165,7 @@ export function CombineWizard({
     onLocalStatePresenceChange,
   ]);
 
-  useEffect(() => {
+  const draftSnapshot = useMemo<CombineDraft | null>(() => {
     const hasSelectedNonDefaultSheet = loadedUploadedSources.some((loadedSource) => (
       loadedSource.kind === 'excel'
       && loadedSource.source.sheetName !== loadedSource.sheetNames[0]
@@ -172,13 +181,12 @@ export function CombineWizard({
       || hasSelectedNonDefaultSheet;
 
     if (!hasDraftableState) {
-      clearCombineDraft();
-      return;
+      return null;
     }
 
     const canRestoreSourceOrder = sources.length > 0
       && sources.every((source) => basketSourceIds.has(source.id));
-    saveCombineDraft({
+    return {
       schemaVersion: 1,
       columnAssignmentMode,
       outputColumns,
@@ -193,7 +201,7 @@ export function CombineWizard({
           ? [{ sourceId: loadedSource.source.id, sheetName: loadedSource.source.sheetName }]
           : []
       )),
-    });
+    };
   }, [
     basketSourceIds,
     columnAssignmentMode,
@@ -207,6 +215,60 @@ export function CombineWizard({
     sources,
   ]);
 
+  useEffect(() => {
+    if (!draftSnapshot) {
+      cancelPendingDraftSave();
+      savedDraftSignatureRef.current = null;
+      clearCombineDraft();
+      return;
+    }
+
+    const signature = JSON.stringify(draftSnapshot);
+    if (signature === savedDraftSignatureRef.current) {
+      return;
+    }
+
+    pendingDraftRef.current = draftSnapshot;
+    if (draftSaveTimeoutRef.current !== null) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+    }
+    draftSaveTimeoutRef.current = window.setTimeout(() => {
+      const pendingDraft = pendingDraftRef.current;
+      if (pendingDraft) {
+        saveCombineDraft(pendingDraft);
+        savedDraftSignatureRef.current = JSON.stringify(pendingDraft);
+      }
+      pendingDraftRef.current = null;
+      draftSaveTimeoutRef.current = null;
+    }, combineDraftSaveDelayMs);
+  }, [draftSnapshot]);
+
+  useEffect(() => {
+    const flushPendingDraft = () => {
+      if (draftSaveTimeoutRef.current !== null) {
+        window.clearTimeout(draftSaveTimeoutRef.current);
+        draftSaveTimeoutRef.current = null;
+      }
+      if (pendingDraftRef.current) {
+        saveCombineDraft(pendingDraftRef.current);
+        pendingDraftRef.current = null;
+      }
+    };
+    window.addEventListener('pagehide', flushPendingDraft);
+    return () => {
+      window.removeEventListener('pagehide', flushPendingDraft);
+      flushPendingDraft();
+    };
+  }, []);
+
+  const cancelPendingDraftSave = () => {
+    if (draftSaveTimeoutRef.current !== null) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+      draftSaveTimeoutRef.current = null;
+    }
+    pendingDraftRef.current = null;
+  };
+
   const applySettings = (settings: AppliedCombineSettings) => {
     setHasImportedSettings(true);
     setOutputColumns(settings.outputColumns);
@@ -218,6 +280,8 @@ export function CombineWizard({
   };
 
   const clearTemporaryDraft = () => {
+    cancelPendingDraftSave();
+    savedDraftSignatureRef.current = null;
     clearCombineDraft();
     showInfoToast('Borrador temporal de Combinar archivos eliminado.');
   };
@@ -539,7 +603,11 @@ export function CombineWizard({
           resultSort={resultSort}
           sourceMetadataOptions={sourceMetadataOptions}
           onClearDraft={clearTemporaryDraft}
-          onIncompatibleSettings={clearCombineDraft}
+          onIncompatibleSettings={() => {
+            cancelPendingDraftSave();
+            savedDraftSignatureRef.current = null;
+            clearCombineDraft();
+          }}
           onApplySettings={applySettings}
         />
         <CombineOutputColumns
@@ -641,5 +709,13 @@ export function reorderCombineSources(sources: CombineSource[], fromIndex: numbe
 function combineOutputColumnsEqual(left: CombineOutputColumn[], right: CombineOutputColumn[]) {
   return left.length === right.length && left.every((column, index) => (
     column.id === right[index]?.id && column.name === right[index]?.name
+  ));
+}
+
+function combineMappingsEqual(left: CombineColumnMapping[], right: CombineColumnMapping[]) {
+  return left.length === right.length && left.every((mapping, index) => (
+    mapping.sourceId === right[index]?.sourceId
+    && mapping.outputColumnId === right[index]?.outputColumnId
+    && mapping.sourceColumnId === right[index]?.sourceColumnId
   ));
 }

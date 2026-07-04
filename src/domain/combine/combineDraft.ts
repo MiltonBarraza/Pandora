@@ -71,6 +71,7 @@ export function normalizeCombineDraft(value: unknown): CombineDraft | null {
     || !isColumnAssignmentMode(value.columnAssignmentMode)
     || !Array.isArray(value.outputColumns)
     || !value.outputColumns.every(isOutputColumn)
+    || !hasUniqueStrings(value.outputColumns.map((column) => column.id))
     || !Array.isArray(value.mappings)
     || !value.mappings.every(isMapping)
     || !isSourceMetadataOptions(value.sourceMetadataOptions)
@@ -106,12 +107,16 @@ export function restoreCombineDraft(
   }
 
   const sourcesById = new Map(currentSources.map((source) => [source.id, source]));
+  const sourceColumnIdsBySource = new Map(currentSources.map((source) => [
+    source.id,
+    new Set(source.columns.map((column) => column.id)),
+  ]));
   const outputColumnIds = new Set(draft.outputColumns.map((column) => column.id));
   const mappings = draft.mappings.filter((mapping) => {
     const source = sourcesById.get(mapping.sourceId);
     return Boolean(source
       && outputColumnIds.has(mapping.outputColumnId)
-      && (!mapping.sourceColumnId || source.columns.some((column) => column.id === mapping.sourceColumnId)));
+      && (!mapping.sourceColumnId || sourceColumnIdsBySource.get(source.id)?.has(mapping.sourceColumnId)));
   });
   const sourceOrder = draft.sourceOrder.filter((sourceId) => sourcesById.has(sourceId));
   const sortableColumnIds = new Set([
@@ -175,6 +180,10 @@ function isResultSort(value: unknown): value is ResultSort {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function hasUniqueStrings(values: string[]) {
+  return new Set(values).size === values.length;
 }
 
 function isSourceSheet(value: unknown): value is { sourceId: string; sheetName: string } {

@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import type {
   CombineColumnMapping,
   CombineOutputColumn,
@@ -21,15 +21,21 @@ type CombinedPreviewTableStyle = CSSProperties & {
   '--combine-preview-column-count': string;
 };
 
-export function CombinedRowsPreview({
+export const CombinedRowsPreview = memo(function CombinedRowsPreview({
   sources,
   outputColumns,
   mappings,
   rows,
 }: CombinedRowsPreviewProps) {
-  const previewRows = rows.slice(0, previewRowLimit);
-  const showSheetColumn = sources.some((source) => Boolean(source.sheetName));
-  const { unmappedMappingCount, affectedCellCount } = getUnmappedSummary(sources, outputColumns, mappings);
+  const previewRows = useMemo(() => rows.slice(0, previewRowLimit), [rows]);
+  const showSheetColumn = useMemo(
+    () => sources.some((source) => Boolean(source.sheetName)),
+    [sources],
+  );
+  const { unmappedMappingCount, affectedCellCount } = useMemo(
+    () => getUnmappedSummary(sources, outputColumns, mappings),
+    [sources, outputColumns, mappings],
+  );
 
   return (
     <section className="panel combineFlowPanel combinePreviewPanel">
@@ -102,7 +108,7 @@ export function CombinedRowsPreview({
       )}
     </section>
   );
-}
+});
 
 function getUnmappedSummary(
   sources: CombineSource[],
@@ -114,9 +120,10 @@ function getUnmappedSummary(
   );
   let unmappedMappingCount = 0;
   let affectedCellCount = 0;
+  const mappedOutputColumns = outputColumns.filter((column) => !isSourceMetadataColumn(column.id));
 
   sources.forEach((source) => {
-    outputColumns.filter((column) => !isSourceMetadataColumn(column.id)).forEach((outputColumn) => {
+    mappedOutputColumns.forEach((outputColumn) => {
       const mapping = mappingsByPair.get(`${source.id}\u0000${outputColumn.id}`);
       if (!mapping?.sourceColumnId) {
         unmappedMappingCount += 1;

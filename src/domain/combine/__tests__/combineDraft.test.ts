@@ -28,6 +28,13 @@ describe('combine draft storage', () => {
 
     expect(normalizeCombineDraft({ ...createDraft(), schemaVersion: 2 })).toBeNull();
     expect(normalizeCombineDraft({ ...createDraft(), resultSort: { columnId: null, direction: 'sideways' } })).toBeNull();
+    expect(normalizeCombineDraft({
+      ...createDraft(),
+      outputColumns: [
+        { id: 'duplicate', name: 'Uno' },
+        { id: 'duplicate', name: 'Dos' },
+      ],
+    })).toBeNull();
   });
 
   it('stays non-blocking when session storage is unavailable', () => {

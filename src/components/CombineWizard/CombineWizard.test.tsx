@@ -114,6 +114,24 @@ describe('CombineWizard basket sources', () => {
     expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
   });
 
+  it('does not let a pending debounced save recreate a cleared draft', async () => {
+    render(<CombineWizard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar columna' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar borrador temporal' }));
+
+    await new Promise((resolve) => window.setTimeout(resolve, 250));
+    expect(sessionStorage.getItem(combineDraftStorageKey)).toBeNull();
+  });
+
+  it('flushes a pending draft before the page is hidden', () => {
+    render(<CombineWizard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar columna' }));
+
+    window.dispatchEvent(new Event('pagehide'));
+
+    expect(loadCombineDraft()?.outputColumns).toHaveLength(1);
+  });
+
   it('clears the draft when an incompatible settings file is loaded', async () => {
     saveCombineDraft(restorableDraft());
     const { container } = render(<CombineWizard basketSources={[basketSource]} />);

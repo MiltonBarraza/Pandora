@@ -10,14 +10,13 @@ export function sortCombinedRows(rows: CombinedRow[], sort: ResultSort): Combine
     return rows;
   }
 
-  const entries = rows.map((row, index) => ({
-    row,
-    index,
-    value: row.values[sort.columnId!] ?? '',
-    numericValue: parseSafeNumber(row.values[sort.columnId!] ?? ''),
-  }));
-  const nonEmptyEntries = entries.filter(({ value }) => value.trim() !== '');
-  const useNumericComparison = nonEmptyEntries.every(({ numericValue }) => numericValue !== null);
+  const entries = rows.map((row, index) => {
+    const value = row.values[sort.columnId!] ?? '';
+    return { row, index, value, numericValue: parseSafeNumber(value) };
+  });
+  const useNumericComparison = entries.every(({ value, numericValue }) => (
+    value.trim() === '' || numericValue !== null
+  ));
 
   return entries
     .sort((left, right) => {
