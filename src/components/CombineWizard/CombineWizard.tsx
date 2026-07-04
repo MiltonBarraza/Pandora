@@ -13,12 +13,14 @@ import {
 } from '../../domain/combine/readCombineSource';
 import { reconcileMappingsAfterCombineSheetChange } from '../../domain/combine/reconcileMappingsAfterCombineSheetChange';
 import { reconcileCombineMappings } from '../../domain/combine/reconcileCombineMappings';
+import { sortCombinedRows } from '../../domain/combine/sortCombinedRows';
 import type {
   CombineColumnMapping,
   CombineOutputColumn,
   CombineSource,
   ColumnAssignmentMode,
   LoadedCombineSource,
+  ResultSort,
 } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
@@ -30,6 +32,7 @@ import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
 import { CombineOutputColumns } from './CombineOutputColumns';
+import { CombineResultSort } from './CombineResultSort';
 import { CombineSettingsActions } from './CombineSettingsActions';
 import { MultipleFileUploader } from './MultipleFileUploader';
 
@@ -58,6 +61,7 @@ export function CombineWizard({
   const [columnAssignmentMode, setColumnAssignmentMode] = useState<ColumnAssignmentMode>('name');
   const [pendingAssignmentMode, setPendingAssignmentMode] = useState<ColumnAssignmentMode | null>(null);
   const [sourceOrder, setSourceOrder] = useState<string[]>([]);
+  const [resultSort, setResultSort] = useState<ResultSort>({ columnId: null, direction: 'asc' });
   const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
   const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
   const nextSourceIndexRef = useRef(0);
@@ -109,7 +113,8 @@ export function CombineWizard({
         || outputFileName !== 'Archivo combinado'
         || hasImportedSettings
         || columnAssignmentMode !== 'name'
-        || sourceOrder.length > 0,
+        || sourceOrder.length > 0
+        || resultSort.columnId !== null,
     );
   }, [
     loadedUploadedSources.length,
@@ -119,6 +124,7 @@ export function CombineWizard({
     hasImportedSettings,
     columnAssignmentMode,
     sourceOrder.length,
+    resultSort.columnId,
     onLocalStatePresenceChange,
   ]);
 
@@ -128,6 +134,7 @@ export function CombineWizard({
     setMappings(settings.mappings);
     setOutputFileName(settings.outputFileName);
     setColumnAssignmentMode(settings.columnAssignmentMode);
+    setResultSort(settings.resultSort);
   };
 
   const applyAssignmentMode = (nextMode: ColumnAssignmentMode) => {
@@ -158,6 +165,16 @@ export function CombineWizard({
     outputColumns,
     mappings,
   }), [sources, outputColumns, mappings]);
+  const sortedCombinedRows = useMemo(
+    () => sortCombinedRows(combinedRows, resultSort),
+    [combinedRows, resultSort],
+  );
+
+  useEffect(() => {
+    if (resultSort.columnId && !outputColumns.some((column) => column.id === resultSort.columnId)) {
+      setResultSort((current) => ({ ...current, columnId: null }));
+    }
+  }, [outputColumns, resultSort.columnId]);
 
   const loadFiles = async (files: File[]) => {
     const pendingFiles = files.map((file) => ({
@@ -426,6 +443,7 @@ export function CombineWizard({
           mappings={mappings}
           outputFileName={outputFileName}
           columnAssignmentMode={columnAssignmentMode}
+          resultSort={resultSort}
           onApplySettings={applySettings}
         />
         <CombineOutputColumns
@@ -458,17 +476,22 @@ export function CombineWizard({
                 columnAssignmentMode,
               ))}
             />
+            <CombineResultSort
+              outputColumns={outputColumns}
+              resultSort={resultSort}
+              onChange={setResultSort}
+            />
             <CombinedRowsPreview
               sources={sources}
               outputColumns={outputColumns}
               mappings={mappings}
-              rows={combinedRows}
+              rows={sortedCombinedRows}
             />
             <CombineExportActions
               sources={sources}
               outputColumns={outputColumns}
               mappings={mappings}
-              combinedRows={combinedRows}
+              combinedRows={sortedCombinedRows}
               outputFileName={outputFileName}
               onOutputFileNameChange={setOutputFileName}
             />

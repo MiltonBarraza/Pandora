@@ -1198,6 +1198,25 @@ h3 {
   margin: -8px 0 12px;
 }
 
+.combineResultSortPanel > .muted {
+  margin: -8px 0 12px;
+}
+
+.combineResultSortControls {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 360px) max-content max-content;
+}
+
+.combineResultSortDirection {
+  margin: 0;
+}
+
+.combineResultSortClear {
+  min-height: 40px;
+}
+
 .combinePreviewEmpty {
   padding: 16px;
 }
@@ -1305,6 +1324,11 @@ h3 {
 }
 
 @media (max-width: 720px) {
+  .combineResultSortControls {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .combineAssignmentModeOptions {
     grid-template-columns: minmax(0, 1fr);
   }

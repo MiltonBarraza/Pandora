@@ -6,7 +6,7 @@ import {
   type AppliedCombineSettings,
   type CombineSettingsSnapshot,
 } from '../../domain/combine/combineSettings';
-import type { ColumnAssignmentMode, CombineColumnMapping, CombineOutputColumn, CombineSource } from '../../types/combine';
+import type { ColumnAssignmentMode, CombineColumnMapping, CombineOutputColumn, CombineSource, ResultSort } from '../../types/combine';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -17,6 +17,7 @@ type CombineSettingsActionsProps = {
   mappings: CombineColumnMapping[];
   outputFileName: string;
   columnAssignmentMode: ColumnAssignmentMode;
+  resultSort: ResultSort;
   onApplySettings: (settings: AppliedCombineSettings) => void;
 };
 
@@ -26,6 +27,7 @@ export function CombineSettingsActions({
   mappings,
   outputFileName,
   columnAssignmentMode,
+  resultSort,
   onApplySettings,
 }: CombineSettingsActionsProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -40,6 +42,7 @@ export function CombineSettingsActions({
       mappings,
       outputFileName,
       columnAssignmentMode,
+      resultSort,
     });
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

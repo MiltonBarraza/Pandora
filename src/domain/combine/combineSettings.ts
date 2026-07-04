@@ -4,6 +4,7 @@ import type {
   CombineSource,
   CombineSourceColumn,
   ColumnAssignmentMode,
+  ResultSort,
 } from '../../types/combine';
 import { buildInitialCombineMappings, normalizeCombineColumnName } from './combineColumnMappings';
 
@@ -13,6 +14,7 @@ export type CombineSettingsSnapshot = {
   feature: 'combine-files';
   outputFileName: string;
   columnAssignmentMode?: ColumnAssignmentMode;
+  resultSort?: ResultSort;
   outputColumns: CombineSettingsOutputColumn[];
   sourceMappings: CombineSettingsSourceMapping[];
 };
@@ -44,6 +46,7 @@ type CreateCombineSettingsSnapshotInput = {
   mappings: CombineColumnMapping[];
   outputFileName: string;
   columnAssignmentMode?: ColumnAssignmentMode;
+  resultSort?: ResultSort;
 };
 
 type ApplyCombineSettingsSnapshotInput = {
@@ -56,6 +59,7 @@ export type AppliedCombineSettings = {
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   columnAssignmentMode: ColumnAssignmentMode;
+  resultSort: ResultSort;
   warnings: string[];
 };
 
@@ -69,6 +73,7 @@ export function createCombineSettingsSnapshot({
   mappings,
   outputFileName,
   columnAssignmentMode = 'name',
+  resultSort = { columnId: null, direction: 'asc' },
 }: CreateCombineSettingsSnapshotInput): CombineSettingsSnapshot {
   const mappingsByPair = new Map(
     mappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
@@ -80,6 +85,7 @@ export function createCombineSettingsSnapshot({
     feature: 'combine-files',
     outputFileName,
     columnAssignmentMode,
+    resultSort,
     outputColumns: outputColumns.map((column, index) => ({
       id: column.id,
       name: column.name,
@@ -116,6 +122,10 @@ export function applyCombineSettingsSnapshot({
   const outputColumns = [...snapshot.outputColumns]
     .sort((left, right) => left.index - right.index)
     .map(({ id, name }) => ({ id, name }));
+  const resultSort = snapshot.resultSort?.columnId
+    && outputColumns.some((column) => column.id === snapshot.resultSort?.columnId)
+    ? snapshot.resultSort
+    : { columnId: null, direction: snapshot.resultSort?.direction ?? 'asc' } satisfies ResultSort;
   const savedSources = matchSavedSources(snapshot.sourceMappings, sources);
   if (sources.length === 0 && snapshot.sourceMappings.length > 0) {
     warnings.push('Para restaurar mapeos, cargá los archivos correspondientes y volvé a importar la configuración.');
@@ -174,6 +184,7 @@ export function applyCombineSettingsSnapshot({
     outputColumns,
     mappings,
     columnAssignmentMode,
+    resultSort,
     warnings: [...new Set(warnings)],
   };
 }
@@ -207,6 +218,9 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
   if (value.columnAssignmentMode !== undefined && !isColumnAssignmentMode(value.columnAssignmentMode)) {
     return { ok: false, error: 'El modo de asignación de columnas no es válido.' };
   }
+  if (value.resultSort !== undefined && !isResultSort(value.resultSort)) {
+    return { ok: false, error: 'El orden del resultado no es válido.' };
+  }
 
   return {
     ok: true,
@@ -218,6 +232,9 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
       columnAssignmentMode: isColumnAssignmentMode(value.columnAssignmentMode)
         ? value.columnAssignmentMode
         : 'name',
+      resultSort: isResultSort(value.resultSort)
+        ? value.resultSort
+        : { columnId: null, direction: 'asc' },
       outputColumns: value.outputColumns,
       sourceMappings: value.sourceMappings,
     },
@@ -289,6 +306,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isColumnAssignmentMode(value: unknown): value is ColumnAssignmentMode {
   return value === 'name' || value === 'position';
+}
+
+function isResultSort(value: unknown): value is ResultSort {
+  return isRecord(value)
+    && (value.columnId === null || typeof value.columnId === 'string')
+    && (value.direction === 'asc' || value.direction === 'desc');
 }
 
 function isSettingsOutputColumn(value: unknown): value is CombineSettingsOutputColumn {

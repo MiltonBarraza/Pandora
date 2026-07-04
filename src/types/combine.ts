@@ -2,6 +2,11 @@ import type { WorkBook } from 'xlsx';
 
 export type ColumnAssignmentMode = 'name' | 'position';
 
+export type ResultSort = {
+  columnId: string | null;
+  direction: 'asc' | 'desc';
+};
+
 export type CombineSourceColumn = {
   id: string;
   name: string;

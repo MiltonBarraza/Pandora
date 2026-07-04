@@ -22,7 +22,7 @@ describe('CombineExportActions', () => {
   it('renders compact naming options without sanitizer-only copy', () => {
     render(<ExportHarness />);
 
-    expect(screen.getByRole('heading', { name: '6. Nombre de archivo y descarga' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '7. Nombre de archivo y descarga' })).not.toBeNull();
     expect((screen.getByLabelText('Nombre predeterminado') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText('Nombre personalizado') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Incluir texto base') as HTMLInputElement).checked).toBe(true);

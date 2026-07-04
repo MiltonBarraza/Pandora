@@ -80,8 +80,9 @@ describe('CombineWizard basket sources', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
 
     expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '5. Vista previa' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '6. Nombre de archivo y descarga' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '5. Orden del resultado' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Vista previa' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '7. Nombre de archivo y descarga' })).not.toBeNull();
   });
 
   it('delegates basket source removal to its owner', async () => {
@@ -177,6 +178,35 @@ describe('CombineWizard basket sources', () => {
       'febrero.xlsx',
       'enero.xlsx',
     ]);
+  });
+
+  it('sorts preview and export with same rows, then restores base source order', async () => {
+    const sources = [
+      basketSourceForOrder('basket:z', 'primero.xlsx', 'Z10'),
+      basketSourceForOrder('basket:a', 'segundo.xlsx', 'A2'),
+    ];
+    const { container } = render(<CombineWizard basketSources={sources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    expect(getPreviewSourceOrder(container)).toEqual(['primero.xlsx', 'segundo.xlsx']);
+
+    await user.click(screen.getByRole('button', { name: 'Columna' }));
+    await user.click(screen.getByRole('option', { name: 'Código' }));
+    expect(getPreviewSourceOrder(container)).toEqual(['segundo.xlsx', 'primero.xlsx']);
+
+    await user.click(screen.getByRole('radio', { name: 'Descendente' }));
+    expect(getPreviewSourceOrder(container)).toEqual(['primero.xlsx', 'segundo.xlsx']);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(exportCombinedXlsx).mock.calls[0][0].combinedRows.map((row) => row.sourceFileName)).toEqual([
+      'primero.xlsx',
+      'segundo.xlsx',
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Sin ordenar' }));
+    expect(getPreviewSourceOrder(container)).toEqual(['primero.xlsx', 'segundo.xlsx']);
   });
 
   it('uses section 3 drag order in preview and export columns', async () => {

@@ -32,6 +32,7 @@ describe('createCombineSettingsSnapshot', () => {
       feature: 'combine-files',
       outputFileName: 'Salida mensual',
       columnAssignmentMode: 'name',
+      resultSort: { columnId: null, direction: 'asc' },
       outputColumns: [
         { id: 'output-code', name: 'Código', index: 0 },
         { id: 'output-description', name: 'Descripción', index: 1 },
@@ -101,6 +102,32 @@ describe('applyCombineSettingsSnapshot', () => {
 
     expect(snapshot.columnAssignmentMode).toBe('position');
     expect(applyCombineSettingsSnapshot({ snapshot, sources: originalSources }).columnAssignmentMode).toBe('position');
+  });
+
+  it('persists and restores result sorting', () => {
+    const snapshot = createCombineSettingsSnapshot({
+      sources: originalSources,
+      outputColumns,
+      mappings,
+      outputFileName: 'Ordenado',
+      resultSort: { columnId: 'output-description', direction: 'desc' },
+    });
+
+    expect(snapshot.resultSort).toEqual({ columnId: 'output-description', direction: 'desc' });
+    expect(applyCombineSettingsSnapshot({ snapshot, sources: originalSources }).resultSort).toEqual({
+      columnId: 'output-description',
+      direction: 'desc',
+    });
+  });
+
+  it('safely disables saved sorting when its output column no longer exists', () => {
+    const snapshot = createSnapshot();
+    snapshot.resultSort = { columnId: 'missing', direction: 'desc' };
+
+    expect(applyCombineSettingsSnapshot({ snapshot, sources: originalSources }).resultSort).toEqual({
+      columnId: null,
+      direction: 'desc',
+    });
   });
 
   it('applies mappings to current source ids without depending on saved source ids', () => {
@@ -219,6 +246,13 @@ describe('parseCombineSettingsSnapshotJson', () => {
     const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(legacySnapshot));
 
     expect(parsed.ok && parsed.snapshot.columnAssignmentMode).toBe('name');
+  });
+
+  it('loads legacy settings without result sorting as unsorted', () => {
+    const { resultSort: _removed, ...legacySnapshot } = createSnapshot();
+    const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(legacySnapshot));
+
+    expect(parsed.ok && parsed.snapshot.resultSort).toEqual({ columnId: null, direction: 'asc' });
   });
 });
 

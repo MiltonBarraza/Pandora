@@ -32,7 +32,7 @@ export function CombinedRowsPreview({
 
   return (
     <section className="panel combineFlowPanel combinePreviewPanel">
-      <h2>5. Vista previa</h2>
+      <h2>6. Vista previa</h2>
       <p className="combinePreviewOverview">
         <strong>{sources.length}</strong> {sources.length === 1 ? 'archivo' : 'archivos'} ·{' '}
         <strong>{rows.length}</strong> {rows.length === 1 ? 'fila' : 'filas'} ·{' '}
