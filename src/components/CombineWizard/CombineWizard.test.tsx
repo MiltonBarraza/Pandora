@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as XLSX from 'xlsx';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { exportCombinedXlsx } from '../../domain/combine/exportCombinedXlsx';
 import type { CombineSource } from '../../types/combine';
 import { CombineWizard } from './CombineWizard';
@@ -11,6 +11,16 @@ import { CombineWizard } from './CombineWizard';
 vi.mock('../../domain/combine/exportCombinedXlsx', () => ({
   exportCombinedXlsx: vi.fn(),
 }));
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open');
+  };
+  window.scrollTo = vi.fn();
+});
 
 afterEach(() => {
   cleanup();
@@ -188,6 +198,57 @@ describe('CombineWizard basket sources', () => {
       'Código',
     ]);
   });
+
+  it('defaults to name mode and confirms before replacing existing assignments', async () => {
+    render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    expect((screen.getByRole('radio', { name: /Por nombre/ }) as HTMLInputElement).checked).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('radio', { name: /Por posición/ }));
+
+    expect(screen.getByRole('heading', { name: 'Cambiar modo de asignación' })).not.toBeNull();
+    expect((screen.getByRole('radio', { name: /Por nombre/ }) as HTMLInputElement).checked).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Cambiar modo' }));
+
+    expect((screen.getByRole('radio', { name: /Por posición/ }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getAllByRole('textbox', { name: /Nombre de columna de salida/ }).map((input) => (
+      (input as HTMLInputElement).value
+    ))).toEqual(['Cod', 'Producto', 'Precio']);
+  });
+
+  it('uses position mode for missing and extra columns in preview and export', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: /Por posición/ }));
+    await waitFor(() => expect(container.querySelectorAll('.combinePreviewTable tbody tr')).toHaveLength(2));
+
+    expect(getPreviewDataRows(container)).toEqual([
+      ['estructura-corta.xlsx', 'Datos', 'C1', 'Producto 1', ''],
+      ['estructura-larga.xlsx', 'Datos', 'C2', 'Descripción 2', '100'],
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
+    expect(payload.outputColumns.map((column) => column.name)).toEqual(['Cod', 'Producto', 'Precio']);
+    expect(payload.combinedRows.map((row) => payload.outputColumns.map((column) => row.values[column.id] ?? ''))).toEqual([
+      ['C1', 'Producto 1', ''],
+      ['C2', 'Descripción 2', '100'],
+    ]);
+  });
+
+  it('uses reordered first source as position-mode name reference', async () => {
+    const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+
+    await userEvent.setup().click(screen.getByRole('radio', { name: /Por posición/ }));
+    dragSource(container, 0, 1);
+
+    await waitFor(() => expect(screen.getAllByRole('textbox', { name: /Nombre de columna de salida/ }).map((input) => (
+      (input as HTMLInputElement).value
+    ))).toEqual(['Código', 'Descripción', 'Precio']));
+  });
 });
 
 describe('CombineWizard uploaded source sheets', () => {
@@ -319,6 +380,33 @@ const twoColumnBasketSource: CombineSource = {
   rows: [{ id: 'two:row', values: { 'two:code': 'A1', 'two:name': 'Producto' } }],
 };
 
+const assignmentModeSources: CombineSource[] = [
+  {
+    id: 'assignment:short',
+    fileName: 'estructura-corta.xlsx',
+    sheetName: 'Datos',
+    columns: [
+      { id: 'short:code', name: 'Cod', index: 0 },
+      { id: 'short:product', name: 'Producto', index: 1 },
+    ],
+    rows: [{ id: 'short:row', values: { 'short:code': 'C1', 'short:product': 'Producto 1' } }],
+  },
+  {
+    id: 'assignment:long',
+    fileName: 'estructura-larga.xlsx',
+    sheetName: 'Datos',
+    columns: [
+      { id: 'long:code', name: 'Código', index: 0 },
+      { id: 'long:description', name: 'Descripción', index: 1 },
+      { id: 'long:price', name: 'Precio', index: 2 },
+    ],
+    rows: [{
+      id: 'long:row',
+      values: { 'long:code': 'C2', 'long:description': 'Descripción 2', 'long:price': '100' },
+    }],
+  },
+];
+
 function basketSourceForOrder(id: string, fileName: string, value: string): CombineSource {
   return {
     id,
@@ -337,6 +425,12 @@ function getVisibleSourceOrder(container: HTMLElement) {
 function getPreviewSourceOrder(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.combinePreviewTable tbody tr'))
     .map((row) => row.querySelector('td')?.textContent);
+}
+
+function getPreviewDataRows(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('.combinePreviewTable tbody tr')).map((row) => (
+    Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent ?? '')
+  ));
 }
 
 function createDataTransfer() {

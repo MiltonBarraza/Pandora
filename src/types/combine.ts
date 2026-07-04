@@ -1,5 +1,7 @@
 import type { WorkBook } from 'xlsx';
 
+export type ColumnAssignmentMode = 'name' | 'position';
+
 export type CombineSourceColumn = {
   id: string;
   name: string;

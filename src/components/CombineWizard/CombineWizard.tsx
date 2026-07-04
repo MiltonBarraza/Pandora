@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { buildCombinedRows } from '../../domain/combine/buildCombinedRows';
 import { mergeCombineSources, removeCombineSourceFromCollections } from '../../domain/combine/combineBasket';
-import { reapplyCombineMappings } from '../../domain/combine/combineColumnMappings';
+import {
+  buildInitialCombineMappings,
+  buildSuggestedCombineOutputColumns,
+  reapplyCombineMappings,
+} from '../../domain/combine/combineColumnMappings';
 import type { AppliedCombineSettings } from '../../domain/combine/combineSettings';
 import {
   createCombineSourceFromWorkbookSheet,
@@ -13,6 +17,7 @@ import type {
   CombineColumnMapping,
   CombineOutputColumn,
   CombineSource,
+  ColumnAssignmentMode,
   LoadedCombineSource,
 } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
@@ -20,6 +25,7 @@ import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
@@ -49,6 +55,8 @@ export function CombineWizard({
   const [readErrors, setReadErrors] = useState<CombineReadError[]>([]);
   const [isReading, setIsReading] = useState(false);
   const [hasImportedSettings, setHasImportedSettings] = useState(false);
+  const [columnAssignmentMode, setColumnAssignmentMode] = useState<ColumnAssignmentMode>('name');
+  const [pendingAssignmentMode, setPendingAssignmentMode] = useState<ColumnAssignmentMode | null>(null);
   const [sourceOrder, setSourceOrder] = useState<string[]>([]);
   const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
   const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
@@ -79,8 +87,19 @@ export function CombineWizard({
       sources,
       outputColumns,
       previousMappings: current,
+      assignmentMode: columnAssignmentMode,
     }));
-  }, [sources, outputColumns]);
+  }, [sources, outputColumns, columnAssignmentMode]);
+
+  useEffect(() => {
+    if (columnAssignmentMode !== 'position' || sources.length === 0) {
+      return;
+    }
+    setOutputColumns((current) => {
+      const suggested = buildSuggestedCombineOutputColumns(sources, 'position', current);
+      return combineOutputColumnsEqual(current, suggested) ? current : suggested;
+    });
+  }, [sources, columnAssignmentMode]);
 
   useEffect(() => {
     onLocalStatePresenceChange?.(
@@ -89,6 +108,7 @@ export function CombineWizard({
         || mappings.length > 0
         || outputFileName !== 'Archivo combinado'
         || hasImportedSettings
+        || columnAssignmentMode !== 'name'
         || sourceOrder.length > 0,
     );
   }, [
@@ -97,6 +117,7 @@ export function CombineWizard({
     mappings.length,
     outputFileName,
     hasImportedSettings,
+    columnAssignmentMode,
     sourceOrder.length,
     onLocalStatePresenceChange,
   ]);
@@ -106,6 +127,30 @@ export function CombineWizard({
     setOutputColumns(settings.outputColumns);
     setMappings(settings.mappings);
     setOutputFileName(settings.outputFileName);
+    setColumnAssignmentMode(settings.columnAssignmentMode);
+  };
+
+  const applyAssignmentMode = (nextMode: ColumnAssignmentMode) => {
+    const nextOutputColumns = buildSuggestedCombineOutputColumns(
+      sources,
+      nextMode,
+      outputColumns,
+    );
+    setColumnAssignmentMode(nextMode);
+    setOutputColumns(nextOutputColumns);
+    setMappings(buildInitialCombineMappings(sources, nextOutputColumns, nextMode));
+    setPendingAssignmentMode(null);
+  };
+
+  const requestAssignmentMode = (nextMode: ColumnAssignmentMode) => {
+    if (nextMode === columnAssignmentMode) {
+      return;
+    }
+    if (outputColumns.length > 0) {
+      setPendingAssignmentMode(nextMode);
+      return;
+    }
+    applyAssignmentMode(nextMode);
   };
 
   const combinedRows = useMemo(() => buildCombinedRows({
@@ -174,6 +219,7 @@ export function CombineWizard({
         previousMappings: current,
         previousSourceColumns: previousSource.columns,
         nextSourceColumns: nextSource.columns,
+        assignmentMode: columnAssignmentMode,
       }));
       setReadErrors((current) => current.filter((error) => error.id !== `sheet:${sourceId}`));
     } catch (error) {
@@ -236,6 +282,15 @@ export function CombineWizard({
 
   return (
     <main className="appShell combineWizard">
+      <ConfirmDialog
+        open={pendingAssignmentMode !== null}
+        title="Cambiar modo de asignación"
+        message="Se recalcularán las columnas de salida y sus asignaciones sugeridas. Los cambios manuales actuales pueden reemplazarse."
+        cancelLabel="Cancelar"
+        confirmLabel="Cambiar modo"
+        onCancel={() => setPendingAssignmentMode(null)}
+        onConfirm={() => pendingAssignmentMode && applyAssignmentMode(pendingAssignmentMode)}
+      />
       {appearanceToolbar}
       <header className="hero combineHero">
         <div>
@@ -370,12 +425,15 @@ export function CombineWizard({
           outputColumns={outputColumns}
           mappings={mappings}
           outputFileName={outputFileName}
+          columnAssignmentMode={columnAssignmentMode}
           onApplySettings={applySettings}
         />
         <CombineOutputColumns
           sources={sources}
           outputColumns={outputColumns}
           onChange={setOutputColumns}
+          assignmentMode={columnAssignmentMode}
+          onAssignmentModeChange={requestAssignmentMode}
         />
         {sources.length > 0 && outputColumns.length > 0 ? (
           <>
@@ -394,7 +452,11 @@ export function CombineWizard({
                   nextMapping,
                 ],
               }))}
-              onReapplyMappings={() => setMappings(reapplyCombineMappings(sources, outputColumns))}
+              onReapplyMappings={() => setMappings(reapplyCombineMappings(
+                sources,
+                outputColumns,
+                columnAssignmentMode,
+              ))}
             />
             <CombinedRowsPreview
               sources={sources}
@@ -450,4 +512,10 @@ export function reorderCombineSources(sources: CombineSource[], fromIndex: numbe
   const [movedSource] = reordered.splice(fromIndex, 1);
   reordered.splice(toIndex, 0, movedSource);
   return reordered;
+}
+
+function combineOutputColumnsEqual(left: CombineOutputColumn[], right: CombineOutputColumn[]) {
+  return left.length === right.length && left.every((column, index) => (
+    column.id === right[index]?.id && column.name === right[index]?.name
+  ));
 }

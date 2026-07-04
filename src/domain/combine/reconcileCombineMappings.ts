@@ -2,6 +2,7 @@ import type {
   CombineColumnMapping,
   CombineOutputColumn,
   CombineSource,
+  ColumnAssignmentMode,
 } from '../../types/combine';
 import { buildInitialCombineMappings } from './combineColumnMappings';
 
@@ -9,12 +10,14 @@ type ReconcileCombineMappingsInput = {
   sources: CombineSource[];
   outputColumns: CombineOutputColumn[];
   previousMappings: CombineColumnMapping[];
+  assignmentMode?: ColumnAssignmentMode;
 };
 
 export function reconcileCombineMappings({
   sources,
   outputColumns,
   previousMappings,
+  assignmentMode = 'name',
 }: ReconcileCombineMappingsInput): CombineColumnMapping[] {
   const previousByPair = new Map<string, CombineColumnMapping>();
   previousMappings.forEach((mapping) => {
@@ -25,7 +28,7 @@ export function reconcileCombineMappings({
   });
 
   const initialByPair = new Map(
-    buildInitialCombineMappings(sources, outputColumns).map((mapping) => [
+    buildInitialCombineMappings(sources, outputColumns, assignmentMode).map((mapping) => [
       mappingKey(mapping.sourceId, mapping.outputColumnId),
       mapping,
     ]),

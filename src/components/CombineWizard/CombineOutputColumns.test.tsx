@@ -15,6 +15,8 @@ describe('CombineOutputColumns', () => {
     render(<CombineOutputColumns sources={[source]} outputColumns={[]} onChange={onChange} />);
 
     expect(screen.getByRole('button', { name: 'Información sobre las columnas de salida' })).not.toBeNull();
+    expect((screen.getByRole('radio', { name: /Por nombre/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: /Por posición/ }) as HTMLInputElement).checked).toBe(false);
     expect(screen.queryByText('Todavía no definiste columnas de salida.')).toBeNull();
     expect(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }).parentElement?.classList).toContain('infoTooltip');
     expect(screen.getByRole('button', { name: 'Agregar columna' }).parentElement?.classList).toContain('infoTooltip');
@@ -45,6 +47,25 @@ describe('CombineOutputColumns', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar columna' }));
     expect(container.querySelectorAll('.combineOutputColumnItem')).toHaveLength(2);
     expect((screen.getByRole('textbox', { name: 'Nombre de columna de salida 2' }) as HTMLInputElement).value).toBe('Nueva columna');
+  });
+
+  it('requests position mode and explains both assignment strategies', async () => {
+    const onAssignmentModeChange = vi.fn();
+    render(
+      <CombineOutputColumns
+        sources={[source]}
+        outputColumns={outputColumns}
+        onChange={vi.fn()}
+        assignmentMode="name"
+        onAssignmentModeChange={onAssignmentModeChange}
+      />,
+    );
+
+    expect(screen.getByText('Une columnas que tengan el mismo nombre normalizado.')).not.toBeNull();
+    expect(screen.getByText(/Une la primera columna de cada fuente/)).not.toBeNull();
+    await userEvent.setup().click(screen.getByRole('radio', { name: /Por posición/ }));
+
+    expect(onAssignmentModeChange).toHaveBeenCalledWith('position');
   });
 
   it('reorders output columns by dragging the right-side handle', () => {

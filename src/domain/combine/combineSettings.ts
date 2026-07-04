@@ -3,6 +3,7 @@ import type {
   CombineOutputColumn,
   CombineSource,
   CombineSourceColumn,
+  ColumnAssignmentMode,
 } from '../../types/combine';
 import { buildInitialCombineMappings, normalizeCombineColumnName } from './combineColumnMappings';
 
@@ -11,6 +12,7 @@ export type CombineSettingsSnapshot = {
   app: 'excel-sanitizer';
   feature: 'combine-files';
   outputFileName: string;
+  columnAssignmentMode?: ColumnAssignmentMode;
   outputColumns: CombineSettingsOutputColumn[];
   sourceMappings: CombineSettingsSourceMapping[];
 };
@@ -41,6 +43,7 @@ type CreateCombineSettingsSnapshotInput = {
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
   outputFileName: string;
+  columnAssignmentMode?: ColumnAssignmentMode;
 };
 
 type ApplyCombineSettingsSnapshotInput = {
@@ -52,6 +55,7 @@ export type AppliedCombineSettings = {
   outputFileName: string;
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
+  columnAssignmentMode: ColumnAssignmentMode;
   warnings: string[];
 };
 
@@ -64,6 +68,7 @@ export function createCombineSettingsSnapshot({
   outputColumns,
   mappings,
   outputFileName,
+  columnAssignmentMode = 'name',
 }: CreateCombineSettingsSnapshotInput): CombineSettingsSnapshot {
   const mappingsByPair = new Map(
     mappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
@@ -74,6 +79,7 @@ export function createCombineSettingsSnapshot({
     app: 'excel-sanitizer',
     feature: 'combine-files',
     outputFileName,
+    columnAssignmentMode,
     outputColumns: outputColumns.map((column, index) => ({
       id: column.id,
       name: column.name,
@@ -106,6 +112,7 @@ export function applyCombineSettingsSnapshot({
   sources,
 }: ApplyCombineSettingsSnapshotInput): AppliedCombineSettings {
   const warnings: string[] = [];
+  const columnAssignmentMode = snapshot.columnAssignmentMode ?? 'name';
   const outputColumns = [...snapshot.outputColumns]
     .sort((left, right) => left.index - right.index)
     .map(({ id, name }) => ({ id, name }));
@@ -125,7 +132,7 @@ export function applyCombineSettingsSnapshot({
       }
     });
   }
-  const initialMappings = buildInitialCombineMappings(sources, outputColumns);
+  const initialMappings = buildInitialCombineMappings(sources, outputColumns, columnAssignmentMode);
   const initialByPair = new Map(
     initialMappings.map((mapping) => [mappingKey(mapping.sourceId, mapping.outputColumnId), mapping]),
   );
@@ -166,6 +173,7 @@ export function applyCombineSettingsSnapshot({
     outputFileName: snapshot.outputFileName,
     outputColumns,
     mappings,
+    columnAssignmentMode,
     warnings: [...new Set(warnings)],
   };
 }
@@ -196,6 +204,9 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
   if (!Array.isArray(value.sourceMappings) || !value.sourceMappings.every(isSettingsSourceMapping)) {
     return { ok: false, error: 'Los mapeos de fuentes de la configuración no son válidos.' };
   }
+  if (value.columnAssignmentMode !== undefined && !isColumnAssignmentMode(value.columnAssignmentMode)) {
+    return { ok: false, error: 'El modo de asignación de columnas no es válido.' };
+  }
 
   return {
     ok: true,
@@ -204,6 +215,9 @@ export function parseCombineSettingsSnapshotJson(text: string): ParseCombineSett
       app: 'excel-sanitizer',
       feature: 'combine-files',
       outputFileName: typeof value.outputFileName === 'string' ? value.outputFileName : 'Archivo combinado',
+      columnAssignmentMode: isColumnAssignmentMode(value.columnAssignmentMode)
+        ? value.columnAssignmentMode
+        : 'name',
       outputColumns: value.outputColumns,
       sourceMappings: value.sourceMappings,
     },
@@ -271,6 +285,10 @@ function mappingKey(sourceId: string, outputColumnId: string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isColumnAssignmentMode(value: unknown): value is ColumnAssignmentMode {
+  return value === 'name' || value === 'position';
 }
 
 function isSettingsOutputColumn(value: unknown): value is CombineSettingsOutputColumn {

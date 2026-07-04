@@ -964,6 +964,60 @@ h3 {
   transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
 
+.combineAssignmentMode {
+  border: 0;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.combineAssignmentMode legend {
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 0;
+}
+
+.combineAssignmentMode > p {
+  font-size: 0.82rem;
+  margin: 4px 0 8px;
+}
+
+.combineAssignmentModeOptions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.combineAssignmentModeOptions label {
+  align-items: flex-start;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 9px;
+  padding: 10px 11px;
+}
+
+.combineAssignmentModeOptions label.isSelected {
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
+}
+
+.combineAssignmentModeOptions input {
+  margin-top: 3px;
+}
+
+.combineAssignmentModeOptions label > span {
+  display: grid;
+  gap: 2px;
+}
+
+.combineAssignmentModeOptions small {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .combineOutputColumnItem label {
   align-items: center;
   display: grid;
@@ -1251,6 +1305,10 @@ h3 {
 }
 
 @media (max-width: 720px) {
+  .combineAssignmentModeOptions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .currentSheetQuickActions {
     align-items: stretch;
     flex-direction: column;

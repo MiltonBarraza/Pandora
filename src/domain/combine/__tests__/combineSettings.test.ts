@@ -31,6 +31,7 @@ describe('createCombineSettingsSnapshot', () => {
       app: 'excel-sanitizer',
       feature: 'combine-files',
       outputFileName: 'Salida mensual',
+      columnAssignmentMode: 'name',
       outputColumns: [
         { id: 'output-code', name: 'Código', index: 0 },
         { id: 'output-description', name: 'Descripción', index: 1 },
@@ -87,6 +88,19 @@ describe('applyCombineSettingsSnapshot', () => {
     expect(result.warnings).toContain(
       'Para restaurar mapeos, cargá los archivos correspondientes y volvé a importar la configuración.',
     );
+  });
+
+  it('persists and restores position assignment mode', () => {
+    const snapshot = createCombineSettingsSnapshot({
+      sources: originalSources,
+      outputColumns,
+      mappings,
+      outputFileName: 'Posicional',
+      columnAssignmentMode: 'position',
+    });
+
+    expect(snapshot.columnAssignmentMode).toBe('position');
+    expect(applyCombineSettingsSnapshot({ snapshot, sources: originalSources }).columnAssignmentMode).toBe('position');
   });
 
   it('applies mappings to current source ids without depending on saved source ids', () => {
@@ -198,6 +212,13 @@ describe('parseCombineSettingsSnapshotJson', () => {
     const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(snapshot));
 
     expect(parsed.ok && parsed.snapshot.outputFileName).toBe('Archivo combinado');
+  });
+
+  it('loads legacy settings without assignment mode as name mode', () => {
+    const { columnAssignmentMode: _removed, ...legacySnapshot } = createSnapshot();
+    const parsed = parseCombineSettingsSnapshotJson(JSON.stringify(legacySnapshot));
+
+    expect(parsed.ok && parsed.snapshot.columnAssignmentMode).toBe('name');
   });
 });
 
