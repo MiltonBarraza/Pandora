@@ -495,6 +495,79 @@ h1 {
   width: 100%;
 }
 
+.toolSelectorPanel {
+  padding: 20px;
+}
+
+.toolChoiceGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.toolChoiceCard {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 132px;
+  padding: 20px;
+  text-align: left;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  width: 100%;
+}
+
+.toolChoiceCard:hover:not(:disabled) {
+  background: var(--color-bg-surface-subtle);
+  border-color: var(--color-accent-border);
+  box-shadow: var(--shadow-panel);
+  transform: translateY(-1px);
+}
+
+.toolChoiceCard:focus-visible {
+  border-color: var(--color-focus-border);
+  box-shadow: 0 0 0 4px var(--color-focus-ring), 0 10px 24px var(--color-focus-ring);
+  outline: none;
+}
+
+.toolChoiceCard:active {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  transform: translateY(0);
+}
+
+.toolChoiceIcon {
+  align-items: center;
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.toolChoiceCopy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.toolChoiceCopy strong {
+  font-size: 1.08rem;
+}
+
+.toolChoiceCopy > span {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
 .panel {
   background: var(--color-bg-surface);
   border: var(--app-panel-border-width) solid var(--color-border-default);
@@ -520,6 +593,990 @@ h3 {
   display: grid;
 }
 
+.processingIndicator {
+  align-items: center;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.processingSpinner {
+  animation: processingSpinnerRotate 800ms linear infinite;
+  border: 2px solid var(--color-border-muted);
+  border-top-color: var(--color-primary-bg);
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
+@keyframes processingSpinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sheetSelectorWithStatus {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+
+.sheetSelectorWithStatus .dropdownField {
+  flex: 0 1 320px;
+  min-width: 220px;
+}
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.sheetConfigurationWorkspace {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  min-width: 0;
+}
+
+.currentSheetQuickActions {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 10px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 11px 12px;
+}
+
+.currentSheetQuickActions > div {
+  display: grid;
+  gap: 2px;
+}
+
+.currentSheetQuickActions p {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.currentSheetQuickActions .actionButton {
+  flex: 0 0 auto;
+  min-height: 36px;
+}
+
+.currentSheetQuickActions > .infoTooltipCustomTrigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.sheetConfigurationWorkspace .settingsActions {
+  margin-top: 0;
+  min-width: 0;
+}
+
+.sheetConfigurationWorkspace .settingsActions {
+  gap: 9px;
+  padding: 12px;
+}
+
+.sheetConfigurationWorkspace .settingsActions .sectionHeader {
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.sheetConfigurationWorkspace .settingsActionsIntro p {
+  font-size: 0.82rem;
+}
+
+.sheetConfigurationWorkspace .settingsActions .compactActions {
+  gap: 7px;
+}
+
+.sheetConfigurationWorkspace .settingsActions .actionButton {
+  min-height: 36px;
+  padding-inline: 11px;
+}
+
+.combineHero {
+  padding: 32px 0 56px;
+}
+
+.combineHero h1 {
+  font-size: clamp(2.25rem, 3.5vw, 3.35rem);
+  max-width: 880px;
+}
+
+.combineHero p:last-child {
+  margin-top: 12px;
+}
+
+.combineWizard .wizard {
+  gap: 12px;
+}
+
+.combineFlowPanel {
+  padding: 14px 16px;
+}
+
+.combineFlowPanel h2 {
+  font-size: 1.3rem;
+}
+
+.combineReadErrors {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.combineBasketNotice {
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  margin: 10px 0 0;
+  padding: 7px 9px;
+}
+
+.combineSourceBadge {
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 8px;
+  padding: 2px 7px;
+}
+
+.combineSourceBadge.isManual {
+  background: transparent;
+  border-color: var(--color-border-muted);
+  color: var(--color-text-muted);
+}
+
+.combineReadErrors .errorText {
+  margin: 0;
+}
+
+.combineSourcesHeader {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-top: 14px;
+}
+
+.combineSourcesHeader h3 {
+  margin: 0;
+}
+
+.combineSourcesCount {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  justify-content: center;
+  min-width: 24px;
+  padding: 2px 7px;
+}
+
+.combineSourceList {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.combineSourceItem {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 58px;
+  min-width: 0;
+  padding: 8px 9px 8px 11px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.combineSourceItem.isDragging,
+.combineOutputColumnItem.isDragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+.combineSourceItem.isDragTarget,
+.combineOutputColumnItem.isDragTarget {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 2px var(--color-accent-bg-soft);
+}
+
+.combineSourceDragHandle {
+  border-radius: 6px;
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
+}
+
+.combineSourceMain {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 12px;
+  min-width: 0;
+}
+
+.combineSourceIdentity {
+  align-items: center;
+  display: flex;
+  flex: 1 1 520px;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.combineSourceFileName {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.combineSourceFileName > .infoTooltipCustomTrigger {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: bottom;
+}
+
+.combineSourceIdentity .combineSourceBadge {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+.combineSourceIdentity > .infoTooltipCustomTrigger {
+  flex: 0 0 auto;
+}
+
+.combineSourceActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.combineSourceActions > .infoTooltipCustomTrigger,
+.combineOutputColumnActions > .infoTooltipCustomTrigger {
+  display: inline-flex;
+}
+
+.combineSourceItem .actionButton-iconOnly,
+.combineOutputColumnItem .actionButton-iconOnly {
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
+}
+
+.combineSourceItem strong {
+  overflow-wrap: anywhere;
+}
+
+.combineSourceMeta {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.combineSourceSheetSelector {
+  flex: 0 1 230px;
+  margin-top: 0;
+  max-width: 230px;
+  min-width: 150px;
+}
+
+.combineSourceSheetSelector .dropdownLabel {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.combineSettingsPanel {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+}
+
+.combineSettingsPanel > h2 {
+  margin: 0;
+}
+
+.combineSettingsToolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px 16px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.combineSettingsToolbar > p {
+  margin: 0;
+}
+
+.combineSettingsActions {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.combineOutputColumnsPanel {
+  padding-block: 12px;
+}
+
+.combineOutputColumnsPanel > h2 {
+  margin: 0;
+}
+
+.combineOutputColumnsToolbar {
+  align-items: end;
+  display: flex;
+  gap: 12px 16px;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.combineSourceProcessing {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.combineOutputColumnsToolbar p {
+  margin: 0;
+}
+
+.combineOutputColumnsActions {
+  flex: 0 0 auto;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.combineColumnWarning {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  color: var(--color-warning-text);
+  margin: 8px 0;
+  padding: 10px 12px;
+}
+
+.combineOutputColumnList {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.combineOutputColumnItem {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  padding: 6px 8px 6px 10px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.combineAssignmentMode {
+  border: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+}
+
+.combineAssignmentMode legend {
+  font-size: 0.86rem;
+  font-weight: 800;
+  margin-bottom: 7px;
+  padding: 0;
+}
+
+.combineAssignmentModeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.combineAssignmentModeOptions label {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 10px;
+}
+
+.combineAssignmentModeOptions label.isSelected {
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
+}
+
+.combineAssignmentModeOptions input {
+  margin: 0;
+  min-height: auto;
+  width: auto;
+}
+
+.combineAssignmentModeOptions label > span {
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.combineOutputColumnItem label {
+  align-items: center;
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.combineOutputColumnItem label span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.combineOutputColumnActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.combineOutputColumnDragHandle {
+  border-radius: 6px;
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
+}
+
+.combineOutputColumnItem input {
+  min-height: 36px;
+}
+
+.combineMappingsEmpty {
+  padding: 16px;
+}
+
+.combineMappingsPanel > h2 {
+  margin: 0;
+}
+
+.combineMappingsToolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  margin-top: 8px;
+}
+
+.combineMappingsToolbar p {
+  margin: 0;
+}
+
+.appToolSwitchOption {
+  background: transparent !important;
+  border-color: var(--color-toolbar-border) !important;
+  color: var(--color-text-secondary) !important;
+  margin-left: 3px;
+}
+
+.appToolSwitchOption:hover:not(:disabled) {
+  background: var(--color-accent-bg-soft) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.combineMappingNotice {
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  padding: 8px 10px;
+}
+
+.combineMappingsPanel .combineMappingNotice {
+  margin: 0 0 12px;
+}
+
+.combineMappingSources {
+  display: grid;
+  gap: 8px;
+}
+
+.combineMappingSource {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.combineMappingSource.isExpanded {
+  border-color: var(--color-accent-border);
+}
+
+.combineMappingSourceToggle {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text-primary);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 9px 11px;
+  text-align: left;
+  transition: background-color 140ms ease, color 140ms ease;
+  width: 100%;
+}
+
+.combineMappingSourceToggle:hover:not(:disabled),
+.combineMappingSourceToggle:focus-visible {
+  background: var(--color-bg-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+.combineMappingSourceIdentity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.combineMappingSourceIdentity strong {
+  overflow-wrap: anywhere;
+}
+
+.combineMappingSourceProgress {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  gap: 10px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 999px;
+  padding: 3px 7px 3px 9px;
+}
+
+.combineMappingChevron {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+}
+
+.combineMappingSourceContent {
+  border-top: 1px solid var(--color-border-muted);
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  overflow: hidden;
+  transition: grid-template-rows 180ms ease, opacity 150ms ease, border-color 150ms ease;
+}
+
+.combineMappingSourceContent.isCollapsed {
+  border-top-color: transparent;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.combineMappingSourceContentInner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.combineMappingTableWrap {
+  border: 0;
+  border-radius: 0;
+  max-height: none;
+  margin-top: 0;
+}
+
+.combineMappingTable {
+  min-width: 620px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.combineMappingTable th,
+.combineMappingTable td {
+  padding-block: 8px;
+}
+
+.combineMappingTable th:nth-child(1),
+.combineMappingTable td:nth-child(1) {
+  width: 44%;
+}
+
+.combineMappingTable th:nth-child(2),
+.combineMappingTable td:nth-child(2) {
+  width: 12%;
+}
+
+.combineMappingTable th:nth-child(3),
+.combineMappingTable td:nth-child(3) {
+  width: 44%;
+}
+
+.combineMappingTable .dropdownField {
+  max-width: 100%;
+}
+
+.combineMappingControlCell {
+  min-width: 0;
+  padding-left: 6px;
+}
+
+.combineMappingControlCell .dropdownField {
+  max-width: 100%;
+}
+
+.combineMappingStatusCell {
+  padding-left: 6px;
+  padding-right: 4px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.combineMappingStatusCell .combineUnmappedChip {
+  font-size: 0.7rem;
+  padding: 4px 6px;
+}
+
+.combineUnmappedChip {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: 999px;
+  color: var(--color-warning-text);
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.combinePreviewPanel > h2 {
+  margin: 0;
+}
+
+.combinePreviewSummary,
+.combineExportSummaryRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.combineExportSummaryRow {
+  margin: 6px 0 8px;
+}
+
+.combinePreviewSummary {
+  margin-bottom: 14px;
+}
+
+.combinePreviewOverview,
+.combineExportSummary {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.combineResultSortPanel {
+  min-width: 0;
+}
+
+.combineResultSortPanel h3,
+.combineSourceMetadataPanel h3 {
+  font-size: 0.86rem;
+  margin: 0 0 8px;
+}
+
+.combineSourceMetadataPanel h3 {
+  margin-bottom: 4px;
+}
+
+.combineSourceMetadataPanel {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.combineSourceMetadataHeader {
+  margin: 0;
+}
+
+.combineSourceMetadataOptions {
+  gap: 8px 12px;
+}
+
+.combineResultSortControls {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(160px, min(360px, 50%)) max-content max-content;
+  margin-bottom: 12px;
+}
+
+.combineResultSortDirection {
+  margin: 0;
+}
+
+.combineResultSortClear {
+  min-height: 40px;
+}
+
+.combinePreviewEmpty {
+  padding: 16px;
+}
+
+.combinePreviewLimit {
+  margin: 12px 0 0;
+}
+
+.combinePreviewTableWrap {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.combinePreviewTable {
+  min-width: max(100%, calc(220px + var(--combine-preview-column-count, 1) * 180px));
+  table-layout: fixed;
+  width: 100%;
+}
+
+.combinePreviewTraceColumn {
+  width: 180px;
+}
+
+.combinePreviewDataColumn {
+  width: 180px;
+}
+
+.combinePreviewTable th,
+.combinePreviewTable td {
+  max-width: 180px;
+  min-width: 180px;
+  width: 180px;
+}
+
+.combinePreviewTable .truncatedText,
+.combinePreviewTable .truncatedTextTooltip {
+  max-width: 100%;
+}
+
+.combinePreviewTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.combineExportNameManager {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.combineExportNameManager .segmentedControl label,
+.combineExportNameManager .checkboxField {
+  min-height: 36px;
+  padding-block: 6px;
+}
+
+.combineExportBaseName {
+  max-width: 520px;
+}
+
+.combineExportNameOptions {
+  gap: 6px 12px;
+}
+
+.combineFinalName {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.combineFinalNameCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.combineFinalNameCopy span {
+  overflow-wrap: anywhere;
+}
+
+.combineFinalDownloadActions {
+  align-self: end;
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.combineExportDisabledReason {
+  margin: 10px 0 0;
+}
+
+.combineExportPanel {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+}
+
+.combineExportPanel > h2 {
+  margin: 0;
+}
+
+.combineExportOperationRow {
+  align-items: end;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  margin-top: 8px;
+}
+
+.combineExportPanel .combineSourceMetadataOptions .checkboxField {
+  min-height: 36px;
+}
+
+.combineSettingsFileInput {
+  display: none;
+}
+
+.combineSettingsMessage {
+  margin: 12px 0 0;
+}
+
+@media (max-width: 720px) {
+  .combineResultSortControls {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .combineAssignmentModeOptions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .currentSheetQuickActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .currentSheetQuickActions > .infoTooltipCustomTrigger,
+  .currentSheetQuickActions .actionButton {
+    width: 100%;
+  }
+
+  .combineSettingsToolbar,
+  .combineOutputColumnsToolbar,
+  .combineMappingsToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .combineSourceItem {
+    align-items: flex-start;
+  }
+
+  .combineSourceMain {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .combineSourceIdentity {
+    flex-basis: auto;
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .combineSourceSheetSelector {
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .combineSourceMeta {
+    white-space: normal;
+  }
+
+  .combineSettingsActions,
+  .combineSettingsActions .actionButton,
+  .combineOutputColumnsActions,
+  .combineOutputColumnsActions .infoTooltip,
+  .combineOutputColumnsActions .actionButton {
+    width: 100%;
+  }
+
+  .combineMappingSourceToggle {
+    align-items: flex-start;
+  }
+
+  .combineMappingSourceProgress {
+    align-self: center;
+  }
+
+  .combineFinalName {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .combineExportOperationRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .combineFinalDownloadActions {
+    justify-content: stretch;
+  }
+
+  .combineFinalDownloadActions .actionButton {
+    width: 100%;
+  }
+
+  .toolChoiceGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .dropZone {
   align-items: center;
   border: 2px dashed var(--color-accent-border);
@@ -541,6 +1598,21 @@ h3 {
   border-color: var(--color-primary-bg);
   border-style: solid;
   box-shadow: inset 0 0 0 1px var(--color-focus-ring);
+}
+
+.dropZone.isProcessing {
+  cursor: progress;
+  opacity: 0.86;
+}
+
+.dropZone.isProcessing::after {
+  background: var(--color-bg-surface);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.5;
+  pointer-events: none;
+  position: absolute;
 }
 
 .dropZone.isDragging {
@@ -579,6 +1651,7 @@ h3 {
   top: 14px;
   transform: translateY(-2px);
   transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 2;
 }
 
 .dropZoneRemoveButton:hover:not(:disabled),
@@ -599,6 +1672,11 @@ h3 {
 .field span,
 .stats span {
   color: var(--color-text-muted);
+}
+
+.dropZone > :not(.dropZoneRemoveButton) {
+  position: relative;
+  z-index: 1;
 }
 
 .dropZone strong {
@@ -622,6 +1700,10 @@ h3 {
   font-size: 0.86rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.dropZone .dropZoneProcessing {
+  color: var(--color-text-secondary);
 }
 
 .dropZone .dropZoneHelp {
@@ -1006,12 +2088,33 @@ tbody tr:hover {
   border-radius: 8px;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, auto);
   padding: 14px;
 }
 
 .exportBlock p {
   margin: 6px 0 0;
+}
+
+.exportActionHint {
+  font-size: 0.82rem;
+}
+
+.exportActionGroups {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.exportDownloadActions,
+.exportSaveActions {
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.exportSaveActions {
+  border-top: 1px solid var(--color-border-muted);
+  padding-top: 8px;
 }
 
 .secondaryExportBlock {
@@ -1020,6 +2123,22 @@ tbody tr:hover {
 
 .exportFileName {
   font-size: 0.86rem;
+}
+
+@media (max-width: 1080px) {
+  .exportBlock {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .exportActionGroups {
+    justify-items: stretch;
+  }
+
+  .exportDownloadActions,
+  .exportSaveActions {
+    justify-content: flex-start;
+  }
 }
 
 .massRuleGrid {
@@ -2743,6 +3862,13 @@ tbody tr:hover {
   gap: 8px;
 }
 
+.presetBar > .infoTooltipCustomTrigger {
+  background: transparent;
+  border: 0;
+  min-height: 0;
+  padding: 0;
+}
+
 .filenamePreview {
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
@@ -2774,6 +3900,16 @@ tbody tr:hover {
   cursor: pointer;
   min-height: 18px;
   width: 18px;
+}
+
+.checkboxField.isDisabled {
+  color: var(--color-text-muted);
+  cursor: help;
+  opacity: 0.68;
+}
+
+.checkboxField.isDisabled input {
+  cursor: not-allowed;
 }
 
 .startRowControls {
@@ -2915,28 +4051,29 @@ tbody tr:hover {
 }
 
 .settingsCompatibilitySummary {
-  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
   border-radius: 8px;
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding: 12px;
+  padding: 11px;
 }
 
 .settingsCompatibilitySummary.compatible {
-  background: var(--color-selected-bg);
-  border-color: var(--color-selected-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
 }
 
 .settingsCompatibilitySummary.warning,
 .settingsCompatibilitySummary.needsRemap {
-  background: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
 }
 
 .settingsCompatibilitySummary.blocked {
-  background: var(--color-error-bg);
-  border-color: var(--color-error-border);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
 }
 
 .settingsCompatibilityHeader {
@@ -2951,7 +4088,7 @@ tbody tr:hover {
 }
 
 .settingsCompatibilitySummary.compatible .settingsCompatibilityHeader strong {
-  color: var(--color-selected-text);
+  color: var(--color-success-text);
 }
 
 .settingsCompatibilitySummary.warning .settingsCompatibilityHeader strong,
@@ -2963,29 +4100,38 @@ tbody tr:hover {
   color: var(--color-error-text);
 }
 
-.settingsCompatibilityGrid {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+.settingsCompatibilityChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.settingsCompatibilityGrid div {
+.settingsCompatibilityChip {
+  align-items: center;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-table-border);
-  border-radius: 8px;
-  display: grid;
-  gap: 4px;
-  padding: 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px 9px;
 }
 
-.settingsCompatibilityGrid span {
+.settingsCompatibilityChip > span {
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+}
+
+.settingsCompatibilityChip strong {
+  font-size: 0.82rem;
 }
 
 .settingsCompatibilityMessages {
   margin: 0;
   padding-left: 20px;
+}
+
+.settingsApplyActions {
+  justify-content: flex-end;
 }
 
 .columnDetection {

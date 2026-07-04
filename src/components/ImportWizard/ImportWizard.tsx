@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
+import { buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import { getSheetRowsWithMetadata } from '../../domain/import/getSheetRows';
 import { normalizeNumberInputOnBlur, parseStartRowInputWhileEditing } from '../../domain/import/numberInput';
 import { buildProcessedRowsPipeline, getInputColumnId } from '../../domain/import/outputModel';
+import { createProcessedExportResult, getProcessedExportAvailability } from '../../domain/import/processedExportResult';
 import { readCsv } from '../../domain/import/readCsv';
 import { readWorkbook } from '../../domain/import/readWorkbook';
 import { createSettingsComparisonKey, hasRelevantSettingsChanges } from '../../domain/import/settingsBaseline';
@@ -19,6 +21,7 @@ import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from
 import { downloadImportSettingsFile } from '../../services/settingsFileService';
 import { showInfoToast } from '../../services/toastService';
 import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputColumn, InputRow, OutputColumn, ProcessedRow, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
+import type { ProcessedExportResult } from '../../types/processedExport';
 import { ColumnVisibilityManager, syncActiveColumnOrder } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
 import { FileNameSettings } from '../FileNameSettings/FileNameSettings';
@@ -29,6 +32,7 @@ import { ProcessedRowsPreview } from '../ProcessedRowsDebugPreview/ProcessedRows
 import { RawPreview } from '../RawPreview/RawPreview';
 import { SettingsActions } from '../SettingsActions/SettingsActions';
 import { SheetSelector } from '../SheetSelector/SheetSelector';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -42,7 +46,21 @@ export function getManualRangeRowsForVisibleOutput(inputRows: InputRow[], proces
   return inputRows;
 }
 
-export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactNode }) {
+type ImportWizardProps = {
+  appearanceToolbar?: ReactNode;
+  onSaveProcessedResult?: (result: ProcessedExportResult) => void;
+  onStatePresenceChange?: (hasState: boolean) => void;
+  externalReloadGuardActive?: boolean;
+  suppressBeforeUnloadWarning?: boolean;
+};
+
+export function ImportWizard({
+  appearanceToolbar,
+  onSaveProcessedResult,
+  onStatePresenceChange,
+  externalReloadGuardActive = false,
+  suppressBeforeUnloadWarning = false,
+}: ImportWizardProps) {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileType, setFileType] = useState<'spreadsheet' | 'csv' | ''>('');
@@ -69,6 +87,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   );
   const [rowOverrides, setRowOverrides] = useState<RowOverrides>({});
   const [readError, setReadError] = useState('');
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [changingSheetName, setChangingSheetName] = useState<string | null>(null);
   const [showRawPreviewFromDataStart, setShowRawPreviewFromDataStart] = useState(true);
   const [isConfigurationDirty, setIsConfigurationDirty] = useState(false);
   const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
@@ -83,6 +103,7 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
 
   const sheetNames = workbook?.SheetNames ?? [];
   const hasLoadedFile = fileName !== '' && fileType !== '';
+  const isSourceProcessing = isReadingFile || changingSheetName !== null;
   const hasWizardStateToProtect = shouldProtectWizardState({
     isConfigurationDirty,
     hasLoadedFile,
@@ -90,6 +111,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     rowCount: rows.length,
     columnAnalysisCount: columnAnalysis.length,
   });
+  useEffect(() => {
+    onStatePresenceChange?.(hasWizardStateToProtect);
+  }, [hasWizardStateToProtect, onStatePresenceChange]);
   const selectedSheetObject = workbook && selectedSheet ? workbook.Sheets[selectedSheet] : undefined;
   const maxColumns = useMemo(() => Math.max(1, ...rows.slice(0, 25).map((row) => row.length)), [rows]);
   const rawPreviewRows = useMemo(
@@ -210,9 +234,34 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
     ].sort((left, right) => left.rowNumber - right.rowNumber),
     [processedPipeline.ignoredInputRows, processedRowsWithStatus],
   );
+  const saveForCombineAvailability = getProcessedExportAvailability(
+    processedRowsWithStatus,
+    processedPipeline.outputColumns,
+  );
+  const saveCurrentSheetForCombine = () => {
+    if (!onSaveProcessedResult || !saveForCombineAvailability.exportable) {
+      return;
+    }
 
-  useBeforeUnloadWarning(hasWizardStateToProtect && !isBeforeUnloadSuppressed);
-  useInternalReloadGuard(hasWizardStateToProtect, () => {
+    onSaveProcessedResult(createProcessedExportResult({
+      rows: processedRowsWithStatus,
+      outputColumns: processedPipeline.outputColumns,
+      fileBaseName: buildOutputFileBaseName({
+        settings: fileNameSettings,
+        sourceFileName: fileName,
+        sheetName: selectedSheet,
+      }),
+      sourceFileName: fileName,
+      sheetName: selectedSheet,
+    }));
+  };
+
+  useBeforeUnloadWarning(
+    hasWizardStateToProtect
+      && !isBeforeUnloadSuppressed
+      && !suppressBeforeUnloadWarning,
+  );
+  useInternalReloadGuard(hasWizardStateToProtect && !externalReloadGuardActive, () => {
     requestConfigurationDiscard(() => {
       setIsBeforeUnloadSuppressed(true);
       window.setTimeout(() => window.location.reload(), 0);
@@ -346,6 +395,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const removeFile = () => {
+    if (isSourceProcessing) {
+      return;
+    }
     if (!fileName && fileType === '' && !workbook) {
       return;
     }
@@ -359,6 +411,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const loadFile = async (file: File | undefined) => {
+    if (isSourceProcessing) {
+      return;
+    }
     if (!file) {
       return;
     }
@@ -369,7 +424,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const readSelectedFile = async (file: File) => {
+    setIsReadingFile(true);
     setReadError('');
+    await waitForProcessingPaint();
 
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv');
@@ -402,6 +459,8 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
       setFileType('spreadsheet');
     } catch {
       setReadError('No se pudo leer el archivo. Revisá que sea .xlsx, .xls, .xlsm o .csv.');
+    } finally {
+      setIsReadingFile(false);
     }
   };
 
@@ -487,25 +546,33 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
   };
 
   const changeSelectedSheet = (sheetName: string) => {
-    if (sheetName === selectedSheet) {
+    if (sheetName === selectedSheet || isSourceProcessing) {
       return;
     }
 
-    const applySheetChange = () => {
-      notifyConfigurationDiscarded();
-      resetWizardConfiguration();
-      setSelectedSheet(sheetName);
-      const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
-      setRows(sheetRows.rows);
-      setRowMetadata(sheetRows.rowMetadata);
+    const applySheetChange = async () => {
+      setChangingSheetName(sheetName);
+      await waitForProcessingPaint();
+      try {
+        notifyConfigurationDiscarded();
+        resetWizardConfiguration();
+        setSelectedSheet(sheetName);
+        const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
+        setRows(sheetRows.rows);
+        setRowMetadata(sheetRows.rowMetadata);
+      } finally {
+        setChangingSheetName(null);
+      }
     };
 
     if (isConfigurationDirty) {
-      requestConfigurationDiscard(applySheetChange);
+      requestConfigurationDiscard(() => {
+        void applySheetChange();
+      });
       return;
     }
 
-    applySheetChange();
+    void applySheetChange();
   };
 
   const applyStartRowNumber = (nextRowNumber: number) => {
@@ -579,6 +646,9 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
         <Step title="1. Archivo">
           <FileUploader
             fileName={fileName}
+            disabled={isSourceProcessing}
+            isProcessing={isReadingFile}
+            processingLabel="Procesando archivo..."
             onFileSelected={loadFile}
             onFileRemoved={removeFile}
           />
@@ -594,22 +664,32 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             <SheetSelector
               sheetNames={sheetNames}
               selectedSheet={selectedSheet}
+              disabled={isSourceProcessing}
+              isProcessing={changingSheetName !== null}
               onSelectSheet={changeSelectedSheet}
             />
           )}
-          <SettingsActions
-            key={configurationRevision}
-            fileType={fileType}
-            selectedSheet={selectedSheet}
-            sheetNames={sheetNames}
-            rows={rows}
-            headerRowIndex={headerRowIndex}
-            startRowIndex={startRowIndex}
-            columnAnalysis={columnAnalysis}
-            onSaveSettings={saveCurrentSettings}
-            onApplySettings={applyImportedSettings}
-            onSettingsImported={() => setIsConfigurationDirty(true)}
-          />
+          <div className="sheetConfigurationWorkspace">
+            <SettingsActions
+              key={configurationRevision}
+              fileType={fileType}
+              selectedSheet={selectedSheet}
+              sheetNames={sheetNames}
+              rows={rows}
+              headerRowIndex={headerRowIndex}
+              startRowIndex={startRowIndex}
+              columnAnalysis={columnAnalysis}
+              onSaveSettings={saveCurrentSettings}
+              onApplySettings={applyImportedSettings}
+              onSettingsImported={() => setIsConfigurationDirty(true)}
+            />
+          </div>
+          {onSaveProcessedResult ? (
+            <CurrentSheetQuickActions
+              disabled={isSourceProcessing || !saveForCombineAvailability.exportable}
+              onSave={saveCurrentSheetForCombine}
+            />
+          ) : null}
         </Step>
 
         <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta.">
@@ -770,12 +850,46 @@ export function ImportWizard({ appearanceToolbar }: { appearanceToolbar?: ReactN
             sheetName={selectedSheet}
             shouldPromptSaveBeforeExcelDownload={shouldPromptSaveBeforeExcelDownload}
             onSaveSettingsBeforeExcelDownload={async () => saveCurrentSettings().ok}
+            onSaveForCombine={onSaveProcessedResult ? saveCurrentSheetForCombine : undefined}
+            saveForCombineDisabled={!saveForCombineAvailability.exportable}
           />
         </Step>
           </>
         ) : null}
       </div>
     </main>
+  );
+}
+
+export function CurrentSheetQuickActions({
+  disabled,
+  onSave,
+}: {
+  disabled: boolean;
+  onSave: () => void;
+}) {
+  return (
+    <aside className="currentSheetQuickActions" aria-label="Acciones rápidas de la hoja actual">
+      <div>
+        <strong className="headingWithInfo">
+          <span>Guardar esta hoja para combinar</span>
+          <InfoTooltip
+            content="Usá esta acción cuando estés preparando varias hojas. Guarda el resultado procesado de la hoja actual para usarlo luego en Combinar archivos."
+            ariaLabel="Ayuda: Guardar esta hoja para combinar"
+            placement="right"
+          />
+        </strong>
+        <p className="muted">Guardá el resultado procesado de esta hoja para usarlo luego en Combinar archivos.</p>
+      </div>
+      <InfoTooltip
+        content={`Guarda el resultado procesado de esta hoja como fuente “Desde sanitizador” en Combinar archivos. La combinación, el orden, la vista previa y la exportación se hacen desde esa pantalla.${disabled ? ' Disponible cuando haya un resultado válido para guardar.' : ''}`}
+        placement="left"
+      >
+        <ActionButton action="save" variant="secondary" disabled={disabled} onClick={onSave}>
+          Guardar para combinar
+        </ActionButton>
+      </InfoTooltip>
+    </aside>
   );
 }
 
@@ -1030,4 +1144,13 @@ export function applyActiveColumnVisualOrder(inputColumns: InputColumn[], active
 function createSequentialRowNumbers(startRowNumber: number, lastRowNumber: number, limit: number) {
   const length = Math.min(Math.max(0, lastRowNumber - startRowNumber + 1), limit);
   return Array.from({ length }, (_, index) => startRowNumber + index);
+}
+
+function waitForProcessingPaint() {
+  return new Promise<void>((resolve) => {
+    const schedule = typeof window.requestAnimationFrame === 'function'
+      ? window.requestAnimationFrame
+      : (callback: FrameRequestCallback) => window.setTimeout(callback, 16);
+    schedule(() => resolve());
+  });
 }

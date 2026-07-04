@@ -5,24 +5,41 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 type FileUploaderProps = {
   fileName: string;
   emptyHint?: string;
+  disabled?: boolean;
+  isProcessing?: boolean;
+  processingLabel?: string;
   onFileSelected: (file: File | undefined) => void;
   onFileRemoved: () => void;
 };
 
 const acceptedExtensions = ['.xlsx', '.xls', '.xlsm', '.csv'];
 
-export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemoved }: FileUploaderProps) {
+export function FileUploader({
+  fileName,
+  emptyHint,
+  disabled = false,
+  isProcessing = false,
+  processingLabel = 'Procesando archivo...',
+  onFileSelected,
+  onFileRemoved,
+}: FileUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dropError, setDropError] = useState('');
   const hasFile = fileName !== '';
 
   const openFilePicker = () => {
+    if (disabled || isProcessing) {
+      return;
+    }
     fileInputRef.current?.click();
   };
 
   const processFiles = (files: FileList | null) => {
     const file = files?.[0];
+    if (disabled || isProcessing) {
+      return;
+    }
     if (!file) {
       return;
     }
@@ -44,6 +61,9 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
   };
 
   const removeFile = () => {
+    if (disabled || isProcessing) {
+      return;
+    }
     setDropError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -55,22 +75,28 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
     <>
       <div className={`fileUploader ${hasFile ? 'hasFile' : ''}`}>
         <div
-          className={`dropZone ${isDragging ? 'isDragging' : ''} ${hasFile ? 'hasFile' : ''}`}
+          className={`dropZone ${isDragging ? 'isDragging' : ''} ${hasFile ? 'hasFile' : ''}${isProcessing ? ' isProcessing' : ''}`}
           role="button"
-          tabIndex={0}
+          tabIndex={disabled || isProcessing ? -1 : 0}
+          aria-disabled={disabled || isProcessing}
+          aria-busy={isProcessing}
           onClick={openFilePicker}
           onDragOver={(event) => {
             event.preventDefault();
-            setIsDragging(true);
+            if (!disabled && !isProcessing) {
+              setIsDragging(true);
+            }
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(event) => {
             event.preventDefault();
             setIsDragging(false);
-            processFiles(event.dataTransfer.files);
+            if (!disabled && !isProcessing) {
+              processFiles(event.dataTransfer.files);
+            }
           }}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
+            if (!disabled && !isProcessing && (event.key === 'Enter' || event.key === ' ')) {
               event.preventDefault();
               openFilePicker();
             }
@@ -81,6 +107,7 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
             type="file"
             accept=".xlsx,.xls,.xlsm,.csv"
             tabIndex={-1}
+            disabled={disabled || isProcessing}
             onClick={(event) => event.stopPropagation()}
             onChange={(event) => {
               processFiles(event.target.files);
@@ -94,6 +121,7 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
               size="sm"
               type="button"
               className="dropZoneRemoveButton"
+              disabled={disabled || isProcessing}
               onClick={(event) => {
                 event.stopPropagation();
                 removeFile();
@@ -105,6 +133,12 @@ export function FileUploader({ fileName, emptyHint, onFileSelected, onFileRemove
           ) : null}
           {hasFile ? <AppIcon name="done" className="dropZoneReadyIcon" aria-hidden="true" focusable="false" /> : null}
           <strong>{hasFile ? fileName : 'Elegir archivo'}</strong>
+          {isProcessing ? (
+            <span className="processingIndicator dropZoneProcessing" role="status" aria-live="polite">
+              <span className="processingSpinner" aria-hidden="true" />
+              {processingLabel}
+            </span>
+          ) : null}
           <span className="dropZoneHelp">Arrastrá un archivo aquí de tipo .xlsx, .xls o .xlsm</span>
           <span className="dropZoneHelp dropZoneHelpSecondary">Hacé click para subir uno de tu computadora</span>
           {!hasFile && emptyHint ? <span className="dropZoneHint">{emptyHint}</span> : null}

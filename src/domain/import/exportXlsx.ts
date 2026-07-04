@@ -10,7 +10,7 @@ export function exportXlsxFromProcessedRows(
 ) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rowsToAoAFromProcessedRows(rows, outputColumns));
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Salida');
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Hoja sanitizada');
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 

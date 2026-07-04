@@ -17,6 +17,8 @@ type ExportActionsProps = {
   sheetName: string;
   shouldPromptSaveBeforeExcelDownload?: boolean;
   onSaveSettingsBeforeExcelDownload?: () => boolean | Promise<boolean>;
+  onSaveForCombine?: () => void;
+  saveForCombineDisabled?: boolean;
 };
 
 export function ExportActions({
@@ -29,6 +31,8 @@ export function ExportActions({
   sheetName,
   shouldPromptSaveBeforeExcelDownload = false,
   onSaveSettingsBeforeExcelDownload,
+  onSaveForCombine,
+  saveForCombineDisabled = false,
 }: ExportActionsProps) {
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
   const includedRows = rows.filter((row) => row.status === 'included');
@@ -62,7 +66,6 @@ export function ExportActions({
     const { exportAuditXlsxFromProcessedRows } = await import('../../domain/import/exportXlsx');
     exportAuditXlsxFromProcessedRows(auditRows, outputColumns, auditFilename, inputColumns);
   };
-
   return (
     <div className="exportSections">
       <Modal
@@ -92,15 +95,32 @@ export function ExportActions({
             <span>Archivo final</span>
             <InfoTooltip content="Contiene solo las filas incluidas y columnas configuradas." />
           </strong>
-          <p className="muted">Descarga el resultado procesado con el mismo nombre base.</p>
+          <p className="muted">Descargá el resultado procesado o guardalo para reutilizarlo.</p>
+          {onSaveForCombine ? (
+            <p className="muted exportActionHint">“Guardar para combinar” lo deja disponible en Combinar archivos.</p>
+          ) : null}
         </div>
-        <div className="actions">
-          <ActionButton action="download" disabled={includedRows.length === 0} onClick={requestExcelDownload}>
-            Descargar Excel
-          </ActionButton>
-          <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
-            Descargar CSV
-          </ActionButton>
+        <div className="exportActionGroups">
+          <div className="actions exportDownloadActions">
+            <ActionButton action="download" disabled={includedRows.length === 0} onClick={requestExcelDownload}>
+              Descargar Excel
+            </ActionButton>
+            <ActionButton action="download" variant="secondary" disabled={includedRows.length === 0} onClick={() => exportCsvFromProcessedRows(includedRows, outputColumns, filename)}>
+              Descargar CSV
+            </ActionButton>
+          </div>
+          {onSaveForCombine ? (
+            <div className="actions exportSaveActions">
+              <ActionButton
+                action="save"
+                variant="secondary"
+                disabled={saveForCombineDisabled}
+                onClick={onSaveForCombine}
+              >
+                Guardar para combinar
+              </ActionButton>
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="exportBlock secondaryExportBlock">
