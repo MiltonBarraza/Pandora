@@ -20,6 +20,7 @@ describe('CombineMappingsEditor accordion', () => {
           outputColumnId: 'output-a',
           sourceColumnId: 'col:0',
         }]}
+        assignmentMode="name"
         onMappingChange={vi.fn()}
         onReapplyMappings={vi.fn()}
       />,
@@ -42,6 +43,23 @@ describe('CombineMappingsEditor accordion', () => {
 
     await user.click(firstToggle);
     expect(screen.getByText('Origen A (columna 1)')).not.toBeNull();
+  });
+
+  it('explains position-based recalculation in position mode', async () => {
+    render(
+      <CombineMappingsEditor
+        sources={sources}
+        outputColumns={outputColumns}
+        mappings={[]}
+        assignmentMode="position"
+        onMappingChange={vi.fn()}
+        onReapplyMappings={vi.fn()}
+      />,
+    );
+
+    await userEvent.setup().hover(screen.getByRole('button', { name: 'Recalcular asignación automática' }));
+
+    expect(await screen.findByText('Vuelve a asignar columnas automáticamente por posición dentro de cada fuente.')).not.toBeNull();
   });
 });
 

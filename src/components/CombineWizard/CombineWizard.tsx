@@ -483,6 +483,7 @@ export function CombineWizard({
               sources={sources}
               outputColumns={outputColumns}
               mappings={mappings}
+              assignmentMode={columnAssignmentMode}
               onMappingChange={(nextMapping) => setMappings((current) => reconcileCombineMappings({
                 sources,
                 outputColumns,

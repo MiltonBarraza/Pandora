@@ -1,4 +1,5 @@
 import type {
+  ColumnAssignmentMode,
   CombineColumnMapping,
   CombineOutputColumn,
   CombineSource,
@@ -13,6 +14,7 @@ type CombineMappingsEditorProps = {
   sources: CombineSource[];
   outputColumns: CombineOutputColumn[];
   mappings: CombineColumnMapping[];
+  assignmentMode: ColumnAssignmentMode;
   onMappingChange: (mapping: CombineColumnMapping) => void;
   onReapplyMappings: () => void;
 };
@@ -21,6 +23,7 @@ export function CombineMappingsEditor({
   sources,
   outputColumns,
   mappings,
+  assignmentMode,
   onMappingChange,
   onReapplyMappings,
 }: CombineMappingsEditorProps) {
@@ -34,6 +37,12 @@ export function CombineMappingsEditor({
       !mappingsByPair.get(mappingKey(source.id, outputColumn.id))?.sourceColumnId
     )).length
   ), 0);
+  const reapplyHelp = assignmentMode === 'position'
+    ? 'Se reemplazarán las asignaciones actuales usando la posición de las columnas en cada fuente.'
+    : 'Se reemplazarán las asignaciones actuales comparando nombres sin distinguir mayúsculas, tildes ni espacios extra.';
+  const tooltipHelp = assignmentMode === 'position'
+    ? 'Vuelve a asignar columnas automáticamente por posición dentro de cada fuente.'
+    : 'Vuelve a asignar columnas automáticamente cuando sus nombres coinciden ignorando mayúsculas, tildes y espacios extra.';
 
   useEffect(() => {
     setExpandedSourceId((current) => (
@@ -48,7 +57,7 @@ export function CombineMappingsEditor({
       <ConfirmDialog
         open={isReapplyConfirmationOpen}
         title="Recalcular asignación automática"
-        message="Se reemplazarán las asignaciones actuales comparando nombres sin distinguir mayúsculas, tildes ni espacios extra."
+        message={reapplyHelp}
         cancelLabel="Cancelar"
         confirmLabel="Recalcular asignación"
         onCancel={() => setIsReapplyConfirmationOpen(false)}
@@ -70,7 +79,7 @@ export function CombineMappingsEditor({
         {sources.length > 0 && outputColumns.length > 0 ? (
           <InfoTooltip
             placement="bottom"
-            content="Vuelve a asignar columnas automáticamente cuando sus nombres coinciden ignorando mayúsculas, tildes y espacios extra."
+            content={tooltipHelp}
           >
             <ActionButton
               action="configure"
