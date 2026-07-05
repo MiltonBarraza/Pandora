@@ -283,14 +283,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
+            title="Valor personalizado"
             titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa del primer dato:</strong>
-                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
+              <div className="constructorModalHeaderDetails">
+                <div className="constructorModalColumnName">
+                  <strong>Nombre de columna:</strong>
+                  <span>{column.label || 'Sin nombre'}</span>
+                </div>
+                <div className="constructorModalHeaderPreview">
+                  <strong>Vista previa del primer dato:</strong>
+                  <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
+                </div>
               </div>
             )}
             footer={(
@@ -350,14 +356,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
+            title="Valor personalizado"
             titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa del primer dato:</strong>
-                <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
+              <div className="constructorModalHeaderDetails">
+                <div className="constructorModalColumnName">
+                  <strong>Nombre de columna:</strong>
+                  <span>{column.label || 'Sin nombre'}</span>
+                </div>
+                <div className="constructorModalHeaderPreview">
+                  <strong>Vista previa del primer dato:</strong>
+                  <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
+                </div>
               </div>
             )}
             footer={(
@@ -438,9 +450,9 @@ function ManualRangeSummary({
           </div>
         </dl>
       </div>
-      <button type="button" onClick={onEdit}>
-        Editar valor personalizado
-      </button>
+      <ActionButton action="edit" variant="secondary" onClick={onEdit}>
+        Editar
+      </ActionButton>
     </div>
   );
 }

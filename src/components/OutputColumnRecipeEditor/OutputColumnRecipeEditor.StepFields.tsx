@@ -150,8 +150,8 @@ export function StepTypeSelect({
     return (
       <Dropdown<NonNullable<TransformStep['operation']> | 'noop' | ''>
         className="compact recipeField"
-        label="Qué quiero hacer"
-        labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+        label="Acción"
+        labelInfo={<InfoTooltip content="Elegí cómo se va a transformar esta información." />}
         value={visibleAction as NonNullable<TransformStep['operation']> | 'noop' | ''}
         options={[
           { value: 'noop', label: useValueAsIsLabel },
@@ -177,8 +177,8 @@ export function StepTypeSelect({
     <div className="stepTypeFieldGroup">
       <Dropdown<StepTextAction>
         className="compact recipeField"
-        label="Qué quiero hacer"
-        labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+        label="Acción"
+        labelInfo={<InfoTooltip content="Elegí cómo se va a transformar esta información." />}
         value={visibleAction as StepTextAction}
         options={visibleOptions}
         placeholder="Seleccionar acción"
@@ -214,7 +214,6 @@ export function StepModeSelect({
     <Dropdown<TransformStepMode>
       className="compact recipeField"
       label={operationTypeLabel}
-      labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
       value={mode}
       options={getStepModeOptions({ allowManualRange })}
       scrollStrategy="close"
@@ -267,7 +266,7 @@ export function StepSourceFields({
     : source;
   const effectiveColumnTextPickerOpen = columnTextPickerOpen || isColumnTextPickerOpen;
   const showPreviousResultField = !effectiveColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
-  const previousResultValue = previousResultPreviewValue ?? '';
+  const previousResultValue = 'Resultado del paso anterior';
   const usesTypedValuePicker = valueKind === 'number' || valueKind === 'date';
   const canPickColumnText = valueKind === 'text';
   const isAllowedDateValue = dateValueValidator ?? isDatePickerValue;

@@ -2068,6 +2068,10 @@ tbody tr:hover {
   grid-template-columns: minmax(180px, 1fr) auto;
 }
 
+.outputColumnsAddForm {
+  grid-template-columns: minmax(140px, 220px) auto;
+}
+
 .outputColumnsHeaderActions {
   align-items: end;
   display: flex;
@@ -2469,19 +2473,30 @@ tbody tr:hover {
   min-width: 0;
 }
 
-.constructorModalHeaderPreview {
+.constructorModalHeaderDetails {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
 }
 
+.constructorModalColumnName,
+.constructorModalHeaderPreview {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.constructorModalColumnName strong,
 .constructorModalHeaderPreview strong {
   color: var(--color-text-muted);
   flex: 0 0 auto;
   font-size: 0.86rem;
 }
 
+.constructorModalColumnName span,
 .constructorModalHeaderPreview span {
   color: var(--color-text-secondary);
   font-size: 0.86rem;

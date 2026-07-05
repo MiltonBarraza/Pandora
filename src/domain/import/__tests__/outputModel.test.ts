@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ColumnAnalysis, InputRow, NumericOperation, OutputColumn } from '../../../types/import';
+import { applyOutputIgnoreRulesToProcessedRows } from '../applyIgnoreRules';
 import { buildProcessedRows, buildProcessedRowsPipeline } from '../outputModel';
 
 const inputRows: InputRow[] = [
@@ -567,8 +568,254 @@ describe('outputModel manual range recipes', () => {
       rowNumber: row.rowNumber,
       comment: row.outputValues.comment,
     }))).toEqual([
+      { rowNumber: 7, comment: '' },
       { rowNumber: 8, comment: 'Dentro' },
       { rowNumber: 13, comment: 'Dentro' },
+    ]);
+  });
+
+  it('preserves rows outside manual ranges when a manual range is the only output', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Dentro' }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A9'],
+        ['A10'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 9 },
+        { internalRowIndex: 3, excelRowNumber: 10 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+    const rowsBeforeOutputValueFilter = buildProcessedRows(pipeline.includedInputRows, outputColumns);
+
+    expect(pipeline.ignoredInputRows).toEqual([]);
+    expect(pipeline.includedInputRows.map((row) => row.rowNumber)).toEqual([7, 8, 9, 10]);
+    expect(rowsBeforeOutputValueFilter.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, rangeLabel: '' },
+      { rowNumber: 8, rangeLabel: 'Dentro' },
+      { rowNumber: 9, rangeLabel: 'Dentro' },
+      { rowNumber: 10, rangeLabel: '' },
+    ]);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, rangeLabel: '' },
+      { rowNumber: 8, rangeLabel: 'Dentro' },
+      { rowNumber: 9, rangeLabel: 'Dentro' },
+      { rowNumber: 10, rangeLabel: '' },
+    ]);
+  });
+
+  it('keeps preserving manual range rows when another output column has a value', () => {
+    const outputColumns = [
+      outputColumn({ id: 'code', order: 0, recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      outputColumn({
+        id: 'range-label',
+        order: 1,
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Dentro' }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A9'],
+        ['A10'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 9 },
+        { internalRowIndex: 3, excelRowNumber: 10 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      code: row.outputValues.code,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, code: 'A7', rangeLabel: '' },
+      { rowNumber: 8, code: 'A8', rangeLabel: 'Dentro' },
+      { rowNumber: 9, code: 'A9', rangeLabel: 'Dentro' },
+      { rowNumber: 10, code: 'A10', rangeLabel: '' },
+    ]);
+  });
+
+  it('preserves rows when a manual range condition misses and no other output has a value', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Con codigo' }],
+          condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A8', ''],
+        ['A9', 'OK'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 8 },
+        { internalRowIndex: 1, excelRowNumber: 9 },
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Codigo'),
+        columnAnalysis(1, 'B', 'Estado'),
+      ],
+      startRowIndex: 0,
+      outputColumns,
+    });
+    const rowsBeforeOutputValueFilter = buildProcessedRows(pipeline.includedInputRows, outputColumns);
+
+    expect(rowsBeforeOutputValueFilter.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 8, rangeLabel: '' },
+      { rowNumber: 9, rangeLabel: 'Con codigo' },
+    ]);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 8, rangeLabel: '' },
+      { rowNumber: 9, rangeLabel: 'Con codigo' },
+    ]);
+  });
+
+  it('preserves rows around suggested range metadata like manual ranges', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'suggested-range-8',
+            startRowNumber: 8,
+            endRowNumber: 8,
+            suggestedFromText: 'PINCELES SERIE 304',
+            value: 'Sugerido',
+          }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A9'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 9 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+    const rowsBeforeOutputValueFilter = buildProcessedRows(pipeline.includedInputRows, outputColumns);
+
+    expect(rowsBeforeOutputValueFilter.map((row) => row.outputValues['range-label'])).toEqual(['', 'Sugerido', '']);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, rangeLabel: '' },
+      { rowNumber: 8, rangeLabel: 'Sugerido' },
+      { rowNumber: 9, rangeLabel: '' },
+    ]);
+  });
+
+  it('keeps dropping fully empty output rows when no manual range recipe is present', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns: [
+        outputColumn({ id: 'blank', recipe: { type: 'fixedText', value: '' } }),
+      ],
+    });
+
+    expect(pipeline.includedInputRows.map((row) => row.rowNumber)).toEqual([7, 8]);
+    expect(pipeline.processedRows).toEqual([]);
+  });
+
+  it('allows explicit output ignore rules to remove preserved manual range rows', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        label: 'Rango',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8', startRowNumber: 8, endRowNumber: 8, value: 'Dentro' }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+
+    const rowsWithOutputFilter = applyOutputIgnoreRulesToProcessedRows({
+      rows: pipeline.processedRows,
+      outputIgnoreRules: [{ id: 'ignore-empty-range', target: 'output', columnId: 'range-label', operator: 'isEmpty' }],
+      outputColumns,
+    });
+
+    expect(pipeline.processedRows.map((row) => row.rowNumber)).toEqual([7, 8]);
+    expect(rowsWithOutputFilter.map((row) => ({
+      rowNumber: row.rowNumber,
+      status: row.status,
+      ignoredReason: row.ignoredReason,
+    }))).toEqual([
+      { rowNumber: 7, status: 'ignored', ignoredReason: 'Ignorada por regla: Rango está vacía' },
+      { rowNumber: 8, status: 'included', ignoredReason: undefined },
     ]);
   });
 

@@ -1,4 +1,5 @@
 import { buildProcessedRows } from '../../domain/import/outputModel';
+import { findOverlappingManualRange } from '../../domain/import/manualRangeModel';
 import type { InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe } from '../../types/import';
 
 export type ManualRangeRecipe = Extract<OutputRecipe, { type: 'manualRange' }>;
@@ -137,11 +138,7 @@ export function sortManualRangeRecipeByStart(recipe: ManualRangeRecipe): ManualR
 }
 
 export function doesManualRangeOverlap(range: ManualRangeValue, ranges: ManualRangeValue[]): boolean {
-  return ranges.some((candidate) => (
-    candidate.id !== range.id
-    && range.startRowNumber <= candidate.endRowNumber
-    && candidate.startRowNumber <= range.endRowNumber
-  ));
+  return findOverlappingManualRange(range, ranges, range.id) !== null;
 }
 
 export function getOverlappingManualRangeIds(ranges: ManualRangeValue[]): Set<string> {

@@ -815,7 +815,7 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     ];
     const markup = renderSuggestedPanel({
       suggestedRanges,
-      selectedSuggestedRangeIds: new Set(['suggested-8-13']),
+      selectedSuggestedRangeIds: new Set(['suggested-20-20']),
       hasSearchedSuggestions: true,
     });
 
@@ -831,7 +831,8 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     expect(markup).toContain('manualRangeSuggestedItemOverlap');
     expect(markup).toContain('manualRangeSuggestedItemDeleteButton');
     expect(markup).toContain('Eliminar sugerencia 8 - 13');
-    expect(markup).toContain('Se superpone con un rango configurado');
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('Este rango se superpone con el rango 8 - 10.');
   });
 
   it('renders the app confirmation dialog before clearing all suggestions', () => {

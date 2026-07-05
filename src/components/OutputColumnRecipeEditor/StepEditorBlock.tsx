@@ -216,7 +216,6 @@ export function StepEditorBlock({
         <Dropdown<TransformStepMode>
           className="compact recipeField"
           label={operationTypeLabel}
-          labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
           value={mode}
           options={getStepModeOptionsForContext(effectiveContext)}
           scrollStrategy="close"
@@ -228,8 +227,8 @@ export function StepEditorBlock({
         {showActionDropdown ? (
           <Dropdown<BlockAction>
             className="compact recipeField"
-            label="Qué quiero hacer"
-            labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+            label="Acción"
+            labelInfo={<InfoTooltip content="Elegí cómo se va a transformar esta información." />}
             value={actionValue}
             options={getStepActionOptionsForContext(mode, effectiveContext)}
             placeholder="Seleccionar acción"
@@ -273,7 +272,11 @@ export function StepEditorBlock({
     <div className={className}>
       <div className="stepCardHeader">
         <strong>{title ?? `Paso ${(context.stepIndex ?? 0) + 1}`}</strong>
-        {canDelete && onDelete ? <button type="button" className="secondary" onClick={onDelete}>Eliminar paso</button> : <span aria-hidden="true" />}
+        {canDelete && onDelete ? (
+          <ActionButton action="delete" variant="danger" size="sm" onClick={onDelete}>
+            Eliminar paso
+          </ActionButton>
+        ) : <span aria-hidden="true" />}
       </div>
       <div className={gridClassName}>
         {body}

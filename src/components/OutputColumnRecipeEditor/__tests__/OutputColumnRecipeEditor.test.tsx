@@ -217,7 +217,7 @@ describe('constructor helpers', () => {
     expect(outputRecipeTypeOptions.map((option) => option.label)).not.toContain('Trabajar con rangos');
     expect(getOutputRecipeTypeOptions({ type: 'empty' })[0]).toEqual({
       value: 'empty',
-      label: 'Columna vacía (configuración existente)',
+      label: 'Mantener configuración actual',
     });
   });
 
@@ -268,7 +268,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Configuración general');
     expect(markup).toContain('Paso 1 · Concatenar');
     expect(markup).toContain('Tipo de operación');
-    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Acción');
     expect(markup).toContain('Concatenar');
     expect(markup).toContain('Agregar parte');
     const composeHeaderMarkup = markup.slice(
@@ -318,7 +318,7 @@ describe('constructor helpers', () => {
     expect(takeValueMarkup).not.toContain('recipeStudioActionSection');
     expect(takeValueMarkup).not.toContain('Configuración del paso');
     expect(takeValueMarkup).toContain('Tipo de operación');
-    expect(takeValueMarkup).toContain('Qué quiero hacer');
+    expect(takeValueMarkup).toContain('Acción');
     expect(takeValueMarkup).not.toContain('composePartsBuilder');
     expect(takeValueMarkup.indexOf('Configuración general')).toBeLessThan(takeValueMarkup.indexOf('Condición'));
     expect(takeValueMarkup.indexOf('Condición')).toBeLessThan(takeValueMarkup.indexOf('Agregar paso'));
@@ -370,7 +370,7 @@ describe('constructor helpers', () => {
     const extraRow = markup.slice(extraRowStart, extraRowEnd);
 
     expect(primaryRow).toContain('Tipo de operación');
-    expect(primaryRow).toContain('Qué quiero hacer');
+    expect(primaryRow).toContain('Acción');
     expect(primaryRow).not.toContain('Prefijo');
     expect(extraRow.indexOf('Prefijo')).toBeLessThan(extraRow.indexOf('Valor fijo'));
     expect(extraRow).toContain('Qué valor usar');
@@ -522,7 +522,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Armá el resultado uniendo columnas y textos.');
     expect(markup).toContain('Paso 1 · Concatenar');
     expect(markup).toContain('Tipo de operación');
-    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Acción');
     expect(markup).toContain('Arrastrá las partes para cambiar el orden.');
     expect(markup).not.toContain('Construcci');
     expect(markup).not.toContain('Separador');
@@ -559,11 +559,12 @@ describe('constructor helpers', () => {
     expect(markup.indexOf('Agregar parte')).toBeLessThan(markup.indexOf('aria-label="Partes de combinación"'));
     expect(markup.indexOf('aria-label="Vista previa"')).toBeLessThan(markup.indexOf('aria-label="Partes de combinación"'));
     expect(markup).toContain('Vista previa del resultado');
-    expect(markup).toContain('Mostrando 3 filas de 3 disponibles');
+    expect(markup).toContain('Mostrando 3 filas desde la fila 8 de 3 disponibles.');
+    expect(markup).toContain('Ver desde fila');
     expect(markup).toContain('composePreviewColumnRow');
     expect(markup).toContain('composePreviewColumnResult');
-    expect(markup).toContain('style="width:15%"');
-    expect(markup).toContain('style="width:85%"');
+    expect(markup).not.toContain('style="width:15%"');
+    expect(markup).not.toContain('style="width:85%"');
     expect(markup).toContain('<th>Fila</th>');
     expect(markup).toContain('<th>Resultado</th>');
     expect(markup).toContain('<td>8</td>');
@@ -624,10 +625,12 @@ describe('constructor helpers', () => {
     const tableStart = markup.indexOf('<table class="composePreviewTable">');
     const tableMarkup = markup.slice(tableStart, markup.indexOf('</table>', tableStart));
 
-    expect(markup.indexOf('Vista previa del resultado')).toBeLessThan(markup.indexOf('Mostrando 10 filas de 20 disponibles'));
+    expect(markup.indexOf('Vista previa del resultado')).toBeLessThan(markup.indexOf('Mostrando 10 filas desde la fila 1 de 20 disponibles.'));
     expect(tableMarkup.match(/<td>/g)).toHaveLength(20);
-    expect(tableMarkup).toContain('style="width:15%"');
-    expect(tableMarkup).toContain('style="width:85%"');
+    expect(tableMarkup).toContain('composePreviewColumnRow');
+    expect(tableMarkup).toContain('composePreviewColumnResult');
+    expect(tableMarkup).not.toContain('style="width:15%"');
+    expect(tableMarkup).not.toContain('style="width:85%"');
   });
 
   it('uses a neutral title while the initial source is only an empty technical default', () => {
@@ -647,7 +650,7 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Paso 1 · Sin configurar');
     expect(markup).not.toContain('Paso 1 · Usar valor tal cual');
-    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Acción');
     expect(markup).not.toContain('Qué valor usar');
   });
 
@@ -680,7 +683,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('<td>Paso 1 · Usar columna de entrada</td>');
     expect(markup).toContain('<td>Aplicar siempre</td>');
     expect(markup).toContain('<td>Paso 2 · Mayúsculas</td>');
-    expect(markup).toContain('<td>A no esta vacio</td>');
+    expect(markup).toContain('<td>A No esta vacio</td>');
   });
 
   it('shows clear compose preview empty state when there are no parts', () => {
@@ -1074,14 +1077,13 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Sin configurar');
     expect(markup).toContain('title="Falta seleccionar origen"');
     expect(markup).toContain('compositionTokenCard compositionToken-warning');
+    expect(markup).toContain('Dato de Excel');
     expect(markup).toContain('Columna A');
-    expect(markup).toContain('Dato del Excel');
     expect(markup).toContain('Texto fijo');
     expect(markup).toContain('&quot; - &quot;');
-    expect(markup).toContain('Parte avanzada');
-    expect(markup).toContain('1 paso configurado');
-    expect(markup).toContain('title="Esta parte usa pasos avanzados"');
-    expect(markup).toContain('compositionTokenCard compositionToken-advanced');
+    expect(markup).toContain('title="Fuente: Columna D. Esta parte usa pasos avanzados"');
+    expect(markup).toContain('1 paso: Mayúsculas');
+    expect(markup).toContain('compositionTokenCard compositionToken-input');
   });
 
   it('labels text selected from a column without changing recipe data', () => {
@@ -1269,7 +1271,7 @@ describe('constructor helpers', () => {
     });
 
     expect(markup).toContain('Columna AN');
-    expect(markup).toContain('Dato del Excel');
+    expect(markup).toContain('Dato de Excel');
     expect(markup).not.toContain('Fragmento avanzado');
   });
 
@@ -1962,7 +1964,7 @@ describe('constructor helpers', () => {
     expect(conditionalMarkup).toContain('Aplicar el valor');
     expect(conditionalMarkup).toContain('Aplicar sólo a filas que cumplan condición');
     expect(conditionalMarkup).toContain('A');
-    expect(conditionalMarkup).toContain('no esta vacio');
+    expect(conditionalMarkup).toContain('No esta vacio');
   });
 
   it('summarizes one manual range step with created range count only', () => {
@@ -2623,7 +2625,7 @@ describe('constructor helpers', () => {
     expect(recipeEditorAdditionalStepLabel).toBe('Agregar paso');
     expect(recipeEditorAdditionalStepLabel).not.toBe('Agregar ajuste');
     expect(recipeEditorAdditionalStepLabel).not.toBe('Agregar otra transformación');
-    expect(recipeEditorPreviousResultHelpText).toBe('Toma el valor que salió del paso anterior, no de la parte anterior.');
+    expect(recipeEditorPreviousResultHelpText).toBe('Este valor se calcula para cada fila según los pasos anteriores.');
   });
 
   it('makes the first add-step click visible inside a concat part', () => {
@@ -2928,7 +2930,7 @@ describe('constructor helpers', () => {
     expect(markup).toContain('rangeValuePrimaryControls');
     expect(markup).toContain('rangeValueSourceControls');
     expect(markup).toContain('Tipo de operación');
-    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Acción');
     expect(markup).toContain('Usar columna de entrada');
     expect(markup).toContain('D - Nombre');
     expect(markup).toContain('Columna de entrada');
@@ -3036,7 +3038,7 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Acción');
     expect(markup).toContain('Concatenar');
     expect(markup).toContain('composePartsBuilder');
     expect(markup).toContain('Editor de partes');
@@ -3102,7 +3104,7 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('Qué quiero hacer');
+    expect(markup).toContain('Acción');
     expect(markup).toContain('Usar texto fijo');
     expect(getStepSourceDropdownOptions(inputColumns, false).map((option) => option.label)).not.toContain('Texto fijo');
   });

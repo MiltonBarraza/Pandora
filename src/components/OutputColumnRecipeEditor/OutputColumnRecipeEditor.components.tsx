@@ -1,6 +1,7 @@
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import type { InputColumn, OutputColumn, OutputRecipe } from '../../types/import';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { noActiveColumnsLabel, operationTypeLabel } from './OutputColumnRecipeEditor.constants';
 import { getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue } from './OutputColumnRecipeEditor.recipeHelpers';
@@ -104,9 +105,9 @@ export function CustomValueSummary({
           </div>
         </dl>
       </div>
-      <button type="button" onClick={onEdit}>
-        Editar valor personalizado
-      </button>
+      <ActionButton action="edit" variant="secondary" onClick={onEdit}>
+        Editar
+      </ActionButton>
     </div>
   );
 }

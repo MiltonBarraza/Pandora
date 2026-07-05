@@ -189,20 +189,20 @@ export function getStepTypesForMode(mode: TransformStepMode, { allowConcat = tru
 }
 
 export const conditionOperators: Array<{ value: ConditionOperator; label: string }> = [
-  { value: 'isEmpty', label: 'esta vacio' },
-  { value: 'isNotEmpty', label: 'no esta vacio' },
-  { value: 'contains', label: 'contiene' },
-  { value: 'notContains', label: 'no contiene' },
-  { value: 'equals', label: 'es igual a' },
-  { value: 'notEquals', label: 'no es igual a' },
-  { value: 'startsWith', label: 'empieza con' },
-  { value: 'endsWith', label: 'termina con' },
-  { value: 'greaterThan', label: 'mayor que' },
-  { value: 'greaterThanOrEqual', label: 'mayor o igual que' },
-  { value: 'lessThan', label: 'menor que' },
-  { value: 'lessThanOrEqual', label: 'menor o igual que' },
-  { value: 'numericEquals', label: 'igual numérico' },
-  { value: 'numericNotEquals', label: 'distinto numérico' },
+  { value: 'isEmpty', label: 'Esta vacio' },
+  { value: 'isNotEmpty', label: 'No esta vacio' },
+  { value: 'contains', label: 'Contiene' },
+  { value: 'notContains', label: 'No contiene' },
+  { value: 'equals', label: 'Es igual a' },
+  { value: 'notEquals', label: 'No es igual a' },
+  { value: 'startsWith', label: 'Empieza con' },
+  { value: 'endsWith', label: 'Termina con' },
+  { value: 'greaterThan', label: 'Mayor que' },
+  { value: 'greaterThanOrEqual', label: 'Mayor o igual que' },
+  { value: 'lessThan', label: 'Menor que' },
+  { value: 'lessThanOrEqual', label: 'Menor o igual que' },
+  { value: 'numericEquals', label: 'Igual numérico' },
+  { value: 'numericNotEquals', label: 'Distinto numérico' },
 ];
 
 const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {

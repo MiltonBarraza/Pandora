@@ -341,7 +341,8 @@
   min-width: 0;
 }
 
-.concatPartStepDivider .stepCardHeader > .secondary {
+.concatPartStepDivider .stepCardHeader > .secondary,
+.concatPartStepDivider .stepCardHeader > .actionButton-danger {
   justify-self: end;
   white-space: nowrap;
 }
@@ -571,6 +572,10 @@
   max-width: min(560px, calc(100vw - 32px));
 }
 
+.composePreviewStartField {
+  max-width: 180px;
+}
+
 .composePreviewCount {
   color: var(--color-text-muted);
   margin: 0 0 10px;
@@ -583,11 +588,11 @@
 }
 
 .composePreviewColumnRow {
-  width: 15%;
+  width: 72px;
 }
 
 .composePreviewColumnResult {
-  width: 85%;
+  width: auto;
 }
 
 .composePreviewTable th,

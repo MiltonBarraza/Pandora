@@ -114,17 +114,35 @@ export function hasInvalidManualRange(range: Pick<ManualRangeValue, 'startRowNum
   return getManualRangeRowCount(range) === '';
 }
 
+export function manualRangesOverlap(
+  left: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+  right: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+) {
+  if (hasInvalidManualRange(left) || hasInvalidManualRange(right)) {
+    return false;
+  }
+
+  const normalizedLeft = normalizeManualRangeBounds(left);
+  const normalizedRight = normalizeManualRangeBounds(right);
+  return normalizedLeft.startRowNumber <= normalizedRight.endRowNumber
+    && normalizedRight.startRowNumber <= normalizedLeft.endRowNumber;
+}
+
+export function findOverlappingManualRange(
+  candidate: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>,
+  ranges: ManualRangeValue[],
+  ignoreRangeId?: string,
+) {
+  if (hasInvalidManualRange(candidate)) {
+    return null;
+  }
+
+  return ranges.find((range) => range.id !== ignoreRangeId && manualRangesOverlap(candidate, range)) ?? null;
+}
+
 export function hasOverlappingManualRanges(ranges: ManualRangeValue[]) {
   return ranges.some((range, index) => {
-    if (hasInvalidManualRange(range)) {
-      return false;
-    }
-
-    return ranges.slice(0, index).some((previousRange) => (
-      !hasInvalidManualRange(previousRange) &&
-      range.startRowNumber <= previousRange.endRowNumber &&
-      previousRange.startRowNumber <= range.endRowNumber
-    ));
+    return findOverlappingManualRange(range, ranges.slice(0, index)) !== null;
   });
 }
 
@@ -966,6 +984,13 @@ function describeManualRangeRanges(ranges: ManualRangeValue[]) {
 
   const visibleRanges = ranges.slice(0, 3).map((range) => `${range.startRowNumber}-${range.endRowNumber}`);
   return `${visibleRanges.join(', ')}${ranges.length > visibleRanges.length ? '…' : ''}`;
+}
+
+function normalizeManualRangeBounds(range: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'>) {
+  return {
+    startRowNumber: Math.min(range.startRowNumber, range.endRowNumber),
+    endRowNumber: Math.max(range.startRowNumber, range.endRowNumber),
+  };
 }
 
 function sanitizeManualRangePatch(patch: Partial<ManualRangeValue>): Partial<ManualRangeValue> {
