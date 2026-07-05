@@ -18,6 +18,7 @@ describe('localFileNameService', () => {
     const { defaultFileNameSettings } = await import('../localFileNameService');
 
     expect(defaultFileNameSettings()).toMatchObject({
+      baseText: 'Archivo preparado',
       includeDate: false,
       includeTime: false,
     });

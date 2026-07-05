@@ -63,12 +63,12 @@
   --color-focus-ring: rgba(127, 174, 220, 0.28);
 
   --color-overlay-modal: rgba(24, 32, 42, 0.42);
-  --shadow-panel: 0 12px 30px rgba(24, 32, 42, 0.08);
-  --shadow-dropdown: 0 16px 38px rgba(24, 32, 42, 0.2);
-  --shadow-modal: 0 24px 70px rgba(24, 32, 42, 0.26);
+  --shadow-panel: 0 6px 16px rgba(24, 32, 42, 0.06);
+  --shadow-dropdown: 0 10px 24px rgba(24, 32, 42, 0.14);
+  --shadow-modal: 0 16px 42px rgba(24, 32, 42, 0.2);
   --color-toolbar-bg: rgba(255, 255, 255, 0.9);
   --color-toolbar-border: var(--color-border-default);
-  --shadow-toolbar: 0 12px 28px rgba(24, 32, 42, 0.12);
+  --shadow-toolbar: 0 6px 18px rgba(24, 32, 42, 0.08);
 
   --color-hero-gradient-start: var(--color-text-primary);
   --color-hero-gradient-mid: var(--color-primary-bg);
@@ -165,12 +165,12 @@
   --color-focus-ring: rgba(143, 195, 240, 0.34);
 
   --color-overlay-modal: rgba(2, 6, 15, 0.68);
-  --shadow-panel: 0 14px 34px rgba(0, 0, 0, 0.28);
-  --shadow-dropdown: 0 18px 42px rgba(0, 0, 0, 0.42);
-  --shadow-modal: 0 28px 76px rgba(0, 0, 0, 0.56);
+  --shadow-panel: 0 7px 18px rgba(0, 0, 0, 0.2);
+  --shadow-dropdown: 0 11px 26px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 18px 46px rgba(0, 0, 0, 0.42);
   --color-toolbar-bg: rgba(18, 27, 42, 0.9);
   --color-toolbar-border: #33445c;
-  --shadow-toolbar: 0 18px 38px rgba(0, 0, 0, 0.42);
+  --shadow-toolbar: 0 8px 20px rgba(0, 0, 0, 0.28);
 
   --color-hero-gradient-start: #0b1320;
   --color-hero-gradient-mid: #224766;
@@ -192,7 +192,7 @@
   --color-toast-bg: #162033;
   --color-toast-text: #f4f7fb;
   --color-toast-border: #3a4b63;
-  --shadow-toast: 0 18px 42px rgba(0, 0, 0, 0.42);
+  --shadow-toast: 0 10px 24px rgba(0, 0, 0, 0.3);
 
   --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: #3a4b63;
@@ -642,8 +642,11 @@ h3 {
 }
 
 .sheetConfigurationWorkspace {
+  align-items: stretch;
   display: grid;
   gap: 12px;
+  grid-auto-rows: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 16px;
   min-width: 0;
 }
@@ -652,17 +655,17 @@ h3 {
   align-items: center;
   background: var(--color-bg-surface-muted);
   border: 1px solid var(--color-border-muted);
-  border-radius: 10px;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding: 11px 12px;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 12px;
 }
 
 .currentSheetQuickActions > div {
   display: grid;
-  gap: 2px;
+  gap: 5px;
 }
 
 .currentSheetQuickActions p {
@@ -671,16 +674,12 @@ h3 {
 }
 
 .currentSheetQuickActions .actionButton {
-  flex: 0 0 auto;
+  justify-self: end;
   min-height: 36px;
 }
 
-.currentSheetQuickActions > .infoTooltipCustomTrigger {
-  display: inline-flex;
-  flex: 0 0 auto;
-}
-
 .sheetConfigurationWorkspace .settingsActions {
+  height: 100%;
   margin-top: 0;
   min-width: 0;
 }
@@ -1495,16 +1494,6 @@ h3 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .currentSheetQuickActions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .currentSheetQuickActions > .infoTooltipCustomTrigger,
-  .currentSheetQuickActions .actionButton {
-    width: 100%;
-  }
-
   .combineSettingsToolbar,
   .combineOutputColumnsToolbar,
   .combineMappingsToolbar {
@@ -2096,33 +2085,19 @@ tbody tr:hover {
   margin: 6px 0 0;
 }
 
-.exportActionHint {
-  font-size: 0.82rem;
-}
-
 .exportActionGroups {
   display: grid;
   gap: 8px;
   justify-items: end;
 }
 
-.exportDownloadActions,
-.exportSaveActions {
+.exportDownloadActions {
   gap: 8px;
   justify-content: flex-end;
 }
 
-.exportSaveActions {
-  border-top: 1px solid var(--color-border-muted);
-  padding-top: 8px;
-}
-
 .secondaryExportBlock {
   background: var(--color-bg-surface);
-}
-
-.exportFileName {
-  font-size: 0.86rem;
 }
 
 @media (max-width: 1080px) {
@@ -2135,10 +2110,10 @@ tbody tr:hover {
     justify-items: stretch;
   }
 
-  .exportDownloadActions,
-  .exportSaveActions {
+  .exportDownloadActions {
     justify-content: flex-start;
   }
+
 }
 
 .massRuleGrid {
@@ -3553,9 +3528,14 @@ tbody tr:hover {
   margin: 0;
 }
 
-.normalizedPreviewRowCount {
-  color: var(--color-text-muted);
-  flex: 0 0 auto;
+.normalizedPreviewSummary,
+.normalizedPreviewLimit {
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.normalizedPreviewLimit {
+  margin-top: 2px;
 }
 
 .normalizedPreviewTable {
@@ -4496,6 +4476,20 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
+  .sheetConfigurationWorkspace {
+    grid-auto-rows: auto;
+  }
+
+  .currentSheetQuickActions {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .currentSheetQuickActions .actionButton {
+    justify-self: stretch;
+    width: 100%;
+  }
+
   .appShell {
     --app-layout-gutter: 8px;
     --app-panel-padding: 12px;

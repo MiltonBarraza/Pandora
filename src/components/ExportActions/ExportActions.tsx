@@ -92,13 +92,10 @@ export function ExportActions({
       <div className="exportBlock">
         <div>
           <strong className="headingWithInfo">
-            <span>Archivo final</span>
+            <span>Descargar archivo final</span>
             <InfoTooltip content="Contiene solo las filas incluidas y columnas configuradas." />
           </strong>
-          <p className="muted">Descargá el resultado procesado o guardalo para reutilizarlo.</p>
-          {onSaveForCombine ? (
-            <p className="muted exportActionHint">“Guardar para combinar” lo deja disponible en Combinar archivos.</p>
-          ) : null}
+          <p className="muted">Descargá el resultado procesado en el formato que necesites.</p>
         </div>
         <div className="exportActionGroups">
           <div className="actions exportDownloadActions">
@@ -109,28 +106,33 @@ export function ExportActions({
               Descargar CSV
             </ActionButton>
           </div>
-          {onSaveForCombine ? (
-            <div className="actions exportSaveActions">
-              <ActionButton
-                action="save"
-                variant="secondary"
-                disabled={saveForCombineDisabled}
-                onClick={onSaveForCombine}
-              >
-                Guardar para combinar
-              </ActionButton>
-            </div>
-          ) : null}
         </div>
       </div>
+      {onSaveForCombine ? (
+        <div className="exportBlock combineExportBlock">
+          <div>
+            <strong>Guardar para combinar</strong>
+            <p className="muted">Guardá este resultado para usarlo luego en Combinar archivos junto con otros archivos preparados.</p>
+          </div>
+          <div className="actions">
+            <ActionButton
+              action="save"
+              variant="secondary"
+              disabled={saveForCombineDisabled}
+              onClick={onSaveForCombine}
+            >
+              Guardar para combinar
+            </ActionButton>
+          </div>
+        </div>
+      ) : null}
       <div className="exportBlock secondaryExportBlock">
         <div>
           <strong className="headingWithInfo">
             <span>Control y revisión</span>
             <InfoTooltip content="Sirve para revisar filas excluidas, errores y advertencias." />
           </strong>
-          <p className="muted">Descarga un archivo de auditoría con filas procesadas, excluidas, advertencias y errores.</p>
-          <p className="muted exportFileName">Archivo: {auditFilename}.xlsx</p>
+          <p className="muted">Descargá un archivo de auditoría con filas procesadas, excluidas, advertencias y errores.</p>
         </div>
         <div className="actions">
           <ActionButton action="download" variant="secondary" disabled={auditRows.length === 0} onClick={() => void downloadAudit()}>

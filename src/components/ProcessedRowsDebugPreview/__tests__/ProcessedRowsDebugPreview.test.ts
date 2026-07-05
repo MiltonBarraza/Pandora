@@ -23,8 +23,8 @@ describe('ProcessedRowsPreview helpers', () => {
   });
 
   it('describes limited and short previews', () => {
-    expect(getNormalizedPreviewLimitText(45, 30)).toBe('Vista previa normalizada: 30 de 45 filas.');
-    expect(getNormalizedPreviewLimitText(12, 12)).toBe('Vista previa normalizada: se muestran hasta 30 filas.');
+    expect(getNormalizedPreviewLimitText(45, 30)).toBe('Vista previa: 30 de 45 filas mostradas.');
+    expect(getNormalizedPreviewLimitText(12, 12)).toBe('Vista previa: 12 filas mostradas.');
   });
 
   it('summarizes processed row statuses', () => {
@@ -33,7 +33,7 @@ describe('ProcessedRowsPreview helpers', () => {
       row(2, 'ignored'),
       row(3, 'error'),
       row(4, 'included'),
-    ])).toBe('4 filas procesadas. 2 incluidas, 1 excluidas por filtros, 1 con errores.');
+    ])).toBe('4 procesadas · 2 incluidas · 1 excluidas por filtros · 1 con errores');
   });
 
   it('removes output-filtered rows from normalized preview and counts visible rows', () => {

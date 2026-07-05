@@ -683,13 +683,13 @@ export function ImportWizard({
               onApplySettings={applyImportedSettings}
               onSettingsImported={() => setIsConfigurationDirty(true)}
             />
+            {onSaveProcessedResult ? (
+              <CurrentSheetQuickActions
+                disabled={isSourceProcessing || !saveForCombineAvailability.exportable}
+                onSave={saveCurrentSheetForCombine}
+              />
+            ) : null}
           </div>
-          {onSaveProcessedResult ? (
-            <CurrentSheetQuickActions
-              disabled={isSourceProcessing || !saveForCombineAvailability.exportable}
-              onSave={saveCurrentSheetForCombine}
-            />
-          ) : null}
         </Step>
 
         <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta.">
@@ -812,7 +812,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="8. Vista normalizada" info="Muestra una vista previa del resultado ya procesado.">
+        <Step title="8. Vista final" info="Muestra una vista previa del resultado ya procesado.">
           <ProcessedRowsPreview
             rows={processedRowsWithStatus}
             outputColumns={processedPipeline.outputColumns}
@@ -839,7 +839,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="10. Descargar archivo" info="Generá el archivo final y, si hace falta, el archivo de auditoría.">
+        <Step title="10. Qué hacer con este resultado" info="Descargá el archivo final, guardalo para combinar o generá un archivo de auditoría.">
           <ExportActions
             rows={processedRowsWithStatus}
             auditRows={auditRows}
@@ -851,7 +851,7 @@ export function ImportWizard({
             shouldPromptSaveBeforeExcelDownload={shouldPromptSaveBeforeExcelDownload}
             onSaveSettingsBeforeExcelDownload={async () => saveCurrentSettings().ok}
             onSaveForCombine={onSaveProcessedResult ? saveCurrentSheetForCombine : undefined}
-            saveForCombineDisabled={!saveForCombineAvailability.exportable}
+            saveForCombineDisabled={isSourceProcessing || !saveForCombineAvailability.exportable}
           />
         </Step>
           </>
@@ -871,24 +871,12 @@ export function CurrentSheetQuickActions({
   return (
     <aside className="currentSheetQuickActions" aria-label="Acciones rápidas de la hoja actual">
       <div>
-        <strong className="headingWithInfo">
-          <span>Guardar esta hoja para combinar</span>
-          <InfoTooltip
-            content="Usá esta acción cuando estés preparando varias hojas. Guarda el resultado procesado de la hoja actual para usarlo luego en Combinar archivos."
-            ariaLabel="Ayuda: Guardar esta hoja para combinar"
-            placement="right"
-          />
-        </strong>
+        <strong>Guardar esta hoja para combinar</strong>
         <p className="muted">Guardá el resultado procesado de esta hoja para usarlo luego en Combinar archivos.</p>
       </div>
-      <InfoTooltip
-        content={`Guarda el resultado procesado de esta hoja como fuente “Desde sanitizador” en Combinar archivos. La combinación, el orden, la vista previa y la exportación se hacen desde esa pantalla.${disabled ? ' Disponible cuando haya un resultado válido para guardar.' : ''}`}
-        placement="left"
-      >
-        <ActionButton action="save" variant="secondary" disabled={disabled} onClick={onSave}>
-          Guardar para combinar
-        </ActionButton>
-      </InfoTooltip>
+      <ActionButton action="save" variant="secondary" disabled={disabled} onClick={onSave}>
+        Guardar para combinar
+      </ActionButton>
     </aside>
   );
 }

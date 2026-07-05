@@ -63,8 +63,8 @@ export default function App() {
       open={pendingToolChange !== null}
       title="Confirmar cambio de herramienta"
       message={selectedTool === 'sanitize'
-        ? 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?'
-        : 'Vas a salir de Combinar archivos. Los archivos subidos manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?'}
+        ? 'Vas a salir de Preparar archivo. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?'
+        : 'Vas a salir de Combinar archivos. Los archivos subidos manualmente y la configuración local se perderán. Los resultados guardados desde Preparar archivo se conservarán hasta que recargues la página. ¿Querés continuar?'}
       confirmLabel="Continuar"
       onCancel={() => setPendingToolChange(null)}
       onConfirm={() => pendingToolChange && changeTool(pendingToolChange)}
@@ -93,7 +93,7 @@ export default function App() {
       extraActions={selectedTool ? (
         <button type="button" className="appearanceToggleOption appToolSwitchOption" onClick={requestToolChange}>
           {selectedTool === 'combine'
-            ? 'Ir a Sanitizar'
+            ? 'Ir a Preparar archivo'
             : `Ir a Combinar${combineBasketSources.length > 0 ? ` (${getSavedSourceCountLabel(combineBasketSources.length)})` : ''}`}
         </button>
       ) : null}
@@ -167,18 +167,18 @@ function ToolSelector({
 
       <div className="wizard">
         <section className="panel toolSelectorPanel">
-          <h2>Elegir herramienta</h2>
+          <h2>¿Qué querés hacer?</h2>
           <div className="toolChoiceGrid">
             <button
               type="button"
               className="toolChoiceCard"
-              aria-label="Sanitizar archivo"
+              aria-label="Preparar archivo"
               onClick={() => onSelectTool('sanitize')}
             >
               <span className="toolChoiceIcon" aria-hidden="true"><AppIcon name="edit" size={26} /></span>
               <span className="toolChoiceCopy">
-                <strong>Sanitizar archivo</strong>
-                <span>Limpiá una planilla, configurá columnas, aplicá transformaciones y exportá un archivo final.</span>
+                <strong>Preparar archivo</strong>
+                <span>Limpiá una planilla, configurá columnas, aplicá transformaciones y descargá un archivo final.</span>
               </span>
             </button>
             <button
@@ -190,7 +190,7 @@ function ToolSelector({
               <span className="toolChoiceIcon" aria-hidden="true"><AppIcon name="duplicate" size={26} /></span>
               <span className="toolChoiceCopy">
                 <strong>Combinar archivos{basketSourceCount > 0 ? ` (${getSavedSourceCountLabel(basketSourceCount)})` : ''}</strong>
-                <span>Uní archivos o resultados sanitizados en una única hoja de salida.</span>
+                <span>Uní archivos o resultados preparados en una única hoja de salida.</span>
               </span>
             </button>
           </div>

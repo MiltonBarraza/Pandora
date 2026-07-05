@@ -59,17 +59,38 @@ export function RecipeMainFields({
 
 export function CustomValueSummary({
   preview,
-  partsLabel,
   partsSummary,
   adjustments,
   onEdit,
 }: {
   preview: string;
-  partsLabel: string;
   partsSummary: string;
   adjustments: string[];
   onEdit: () => void;
 }) {
+  const manualRangeAdjustment = adjustments.find((adjustment) => /^\d+ rangos?/i.test(adjustment));
+  const rangeCount = manualRangeAdjustment?.match(/^\d+/)?.[0];
+  const joinsValues = adjustments.some((adjustment) => adjustment.toLocaleLowerCase().includes('concatenar'));
+  const operation = manualRangeAdjustment
+    ? 'Valores por rangos'
+    : joinsValues
+      ? 'Unir valores'
+      : adjustments.length > 0
+        ? 'Transformar valor'
+        : 'Crear valor personalizado';
+  const description = manualRangeAdjustment
+    ? 'Asigna valores según rangos de filas configurados.'
+    : joinsValues
+      ? 'Une partes configuradas para crear el valor final.'
+      : adjustments.length > 0
+        ? 'Aplica operaciones al valor configurado.'
+        : 'Crea un valor a partir de los datos elegidos.';
+  const reference = rangeCount
+    ? `${rangeCount} ${rangeCount === '1' ? 'rango creado' : 'rangos creados'}`
+    : preview
+      ? `Vista previa: ${preview}`
+      : partsSummary;
+
   return (
     <div className="recipeSubBlock constructorSummary">
       <div>
@@ -79,28 +100,16 @@ export function CustomValueSummary({
         </strong>
         <dl className="customValueSummaryList">
           <div>
-            <dt>Vista previa</dt>
-            <dd>{preview}</dd>
+            <dt>Tipo de operación</dt>
+            <dd>{operation}</dd>
           </div>
-          {partsLabel ? (
-            <div>
-              <dt>{partsLabel}</dt>
-              <dd>{partsSummary}</dd>
-            </div>
-          ) : null}
           <div>
-            <dt>Transformaciones</dt>
-            <dd>
-              {adjustments.length > 0 ? (
-                <span className="summaryPillList">
-                  {adjustments.map((adjustment, index) => (
-                    <span key={`${adjustment}-${index}`} className="summaryPill">{adjustment}</span>
-                  ))}
-                </span>
-              ) : (
-                'Sin transformaciones'
-              )}
-            </dd>
+            <dt>Qué hace</dt>
+            <dd>{description}</dd>
+          </div>
+          <div>
+            <dt>Referencia</dt>
+            <dd>{reference}</dd>
           </div>
         </dl>
       </div>
