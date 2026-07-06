@@ -77,6 +77,27 @@ function createFixedTextStepColumn(id = 'output-fixed-step'): OutputColumn {
   };
 }
 
+function createConversionStepColumn(type: 'toNumber' | 'extractNumber', id: string): OutputColumn {
+  return {
+    id,
+    label: 'Conversión',
+    order: 0,
+    enabled: true,
+    recipe: {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [{
+        id: 'conversion-step',
+        mode: 'conversion',
+        type,
+        source: { type: 'input', inputColumnId: 'input-code' },
+      }],
+    },
+  };
+}
+
 function createMainConcatColumn(id = 'output-main-concat'): OutputColumn {
   return {
     id,
@@ -689,6 +710,45 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     });
   });
 
+  it('clears a stale fixed date preview when opening the date picker for a column', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={{
+        id: 'output-stale-fixed-date',
+        label: 'Fecha',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [{
+            id: 'format-date',
+            mode: 'date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2026-07-01' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }}
+      rows={[{ rowNumber: 1, values: { 'input-code': 'sin fecha' } }]}
+      sampleInputValues={{ 'input-code': 'sin fecha' }}
+    />);
+
+    await openRecipeEditor(user);
+    const headerPreview = document.querySelector('.constructorModalHeaderPreview span') as HTMLElement;
+    expect(headerPreview.textContent).toBe('2026-07-01');
+
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde columna');
+    expect(headerPreview.textContent).not.toContain('2026-07-01');
+
+    await selectLastDropdownOption(user, /Formato de salida/, 'DD/MM/AAAA');
+    expect(headerPreview.textContent).not.toContain('01/07/2026');
+    expect(headerPreview.textContent).not.toContain('2026-07-01');
+  });
+
   it('applies the first normal text action selection immediately', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-normal-first-text')} />);
@@ -740,6 +800,102 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect((getInputByLabelText('Primer valor: valor fijo') as HTMLInputElement).value).toBe('');
     expect((getInputByLabelText('Segundo valor: valor fijo') as HTMLInputElement).value).toBe('');
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
+  });
+
+  it('filters cell texts for number conversion and resets search when reopened', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createConversionStepColumn('toNumber', 'output-convert-number-picker')}
+      rows={[
+        { rowNumber: 1, values: { 'input-code': 'ACCESORIOS' } },
+        { rowNumber: 2, values: { 'input-code': '123' } },
+        { rowNumber: 3, values: { 'input-code': '123,45' } },
+        { rowNumber: 4, values: { 'input-code': '$ 1.234,56' } },
+        { rowNumber: 5, values: { 'input-code': 'ABC123' } },
+      ]}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
+    const foundText = screen.getByRole('combobox', { name: /Texto encontrado/ });
+    await user.click(foundText);
+
+    expect(screen.getByRole('option', { name: /^123$/ })).not.toBeNull();
+    expect(screen.getByRole('option', { name: '123,45' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: /^\$ 1\.234,56$/ })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'ACCESORIOS' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'ABC123' })).toBeNull();
+
+    await user.click(screen.getByRole('option', { name: /^123$/ }));
+    await user.click(foundText);
+
+    expect(screen.getByRole('option', { name: /^123$/ })).not.toBeNull();
+    expect(screen.getByRole('option', { name: '123,45' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: /^\$ 1\.234,56$/ })).not.toBeNull();
+  });
+
+  it('shows a clear empty state when no picked texts can convert to numbers', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createConversionStepColumn('toNumber', 'output-convert-number-empty')}
+      rows={[
+        { rowNumber: 1, values: { 'input-code': 'ACCESORIOS' } },
+        { rowNumber: 2, values: { 'input-code': 'PINCEL' } },
+      ]}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
+
+    const foundText = screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement;
+    expect(foundText.disabled).toBe(true);
+    expect(foundText.value).toBe('Sin valores numéricos encontrados');
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0]).toMatchObject({
+      type: 'toNumber',
+      source: { type: 'input', inputColumnId: 'input-code' },
+    });
+  });
+
+  it('labels and filters number extraction while preserving extractNumber internally', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createConversionStepColumn('extractNumber', 'output-extract-number-picker')}
+      rows={[
+        { rowNumber: 1, values: { 'input-code': 'ACCESORIOS' } },
+        { rowNumber: 2, values: { 'input-code': 'ABC123' } },
+        { rowNumber: 3, values: { 'input-code': '12 kg x 3' } },
+        { rowNumber: 4, values: { 'input-code': 'PINCEL SERIE 304' } },
+        { rowNumber: 5, values: { 'input-code': 'PINCEL' } },
+      ]}
+    />);
+
+    await openRecipeEditor(user);
+    const actionButtons = screen.getAllByRole('button', { name: /Acción/ });
+    const actionButton = actionButtons[actionButtons.length - 1] as HTMLElement;
+    expect(actionButton.textContent).toContain('Usar número del texto');
+    const actionLabels = screen.getAllByText('Acción');
+    const actionField = actionLabels[actionLabels.length - 1]?.closest('.dropdownField') as HTMLElement;
+    await user.hover(within(actionField).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe('Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.'));
+
+    await selectLastDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
+    await user.click(screen.getByRole('combobox', { name: /Texto encontrado/ }));
+    expect(screen.getByRole('option', { name: 'ABC123' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: '12 kg x 3' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'PINCEL SERIE 304' })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'ACCESORIOS' })).toBeNull();
+    expect(screen.queryByRole('option', { name: /^PINCEL$/ })).toBeNull();
+    await user.click(screen.getByRole('option', { name: 'ABC123' }));
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0]).toMatchObject({
+      type: 'extractNumber',
+      source: { type: 'fixedText', value: 'ABC123' },
+    });
   });
 
   it('does not offer fixed text or cell text picker as a new normal text-transformer source', async () => {
@@ -922,12 +1078,19 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getByText(/Paso 2/).textContent).toContain('Mayúsculas');
     expect(screen.getByText('Valor base')).not.toBeNull();
     expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
-    expect(screen.getByDisplayValue('Resultado del paso anterior')).not.toBeNull();
+    expect(screen.getByDisplayValue('Valor dinámico')).not.toBeNull();
+    expect(screen.queryByDisplayValue('ACCESORIOS')).toBeNull();
     expect(screen.queryByText('Este valor se calcula para cada fila según los pasos anteriores.')).toBeNull();
 
     const previousResultField = screen.getByText('Resultado anterior').closest('.previousResultValueField') as HTMLElement;
     await user.hover(within(previousResultField).getByRole('button', { name: 'Ver ayuda' }));
-    await waitFor(() => expect(screen.getByText('Este valor se calcula para cada fila según los pasos anteriores.')).not.toBeNull());
+    await waitFor(() => {
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip.textContent).toContain('Este valor cambia según la fila. Ejemplos:');
+      expect(tooltip.textContent).toContain('- P-1');
+      expect(tooltip.textContent).toContain('- P-2');
+      expect(tooltip.querySelectorAll('br')).toHaveLength(3);
+    });
   });
 
   it('keeps previous result selected and allows choosing a useful transformation', async () => {
@@ -976,9 +1139,13 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Acción/, 'Agregar sufijo');
 
     expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
-    expect(document.querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('Resultado del paso anterior');
+    expect(document.querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('abc');
     expect(screen.getByLabelText('Sufijo')).not.toBeNull();
     expect(screen.queryByLabelText('Valor fijo')).toBeNull();
+
+    const previousResultField = screen.getByText('Resultado anterior').closest('.previousResultValueField') as HTMLElement;
+    await user.hover(within(previousResultField).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe('Este valor viene del paso anterior.'));
 
     await user.type(screen.getByLabelText('Sufijo'), '-x');
     expect(screen.getByText('abc-x')).not.toBeNull();

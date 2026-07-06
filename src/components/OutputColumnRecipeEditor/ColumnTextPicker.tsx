@@ -16,6 +16,7 @@ type ColumnTextPickerProps = {
   isValueAllowed?: (value: string) => boolean;
   filteredValuesHelp?: string;
   invalidCurrentValueHelp?: string;
+  invalidOptionsLabel?: string;
   fieldClassName?: string;
   onSelect: (value: string) => void;
 };
@@ -33,6 +34,7 @@ export function ColumnTextPicker({
   isValueAllowed,
   filteredValuesHelp,
   invalidCurrentValueHelp,
+  invalidOptionsLabel = invalidPickerValuesLabel,
   fieldClassName = 'manualRangeValueDetailField',
   onSelect,
 }: ColumnTextPickerProps) {
@@ -68,9 +70,10 @@ export function ColumnTextPicker({
         value={selectedValue}
         options={textOptions.length > 0
           ? textOptions
-          : [{ value: '', label: invalidPickerValuesLabel, disabled: true }]}
+          : [{ value: '', label: invalidOptionsLabel, disabled: true }]}
         disabled={textOptions.length === 0}
         searchable
+        resetSearchOnOpen
         searchPlaceholder={searchPlaceholder}
         scrollStrategy="close"
         onChange={onSelect}

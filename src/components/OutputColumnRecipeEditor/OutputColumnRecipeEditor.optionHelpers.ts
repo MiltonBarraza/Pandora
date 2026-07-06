@@ -94,7 +94,7 @@ const stepTypes: Array<{ value: TransformStepType; label: string }> = [
   { value: 'replaceText', label: 'Reemplazar texto' },
   { value: 'manualRange', label: 'Trabajar con rangos' },
   { value: 'concat', label: 'Concatenar' },
-  { value: 'extractNumber', label: 'Extraer número del texto' },
+  { value: 'extractNumber', label: 'Usar número del texto' },
   { value: 'toNumber', label: 'Convertir a número' },
   { value: 'toText', label: 'Convertir a texto' },
   { value: 'formatDate', label: 'Formatear fecha' },

@@ -4,6 +4,7 @@ import {
   defaultDateInvalidFallback,
   defaultDateOutputFormat,
 } from '../../domain/import/dateOperations';
+import { extractNumericValue, parseNumericValue } from '../../domain/import/numericOperations';
 import type {
   DateInputFormat,
   DateInvalidFallback,
@@ -27,7 +28,7 @@ import {
   parseRounding,
 } from './OutputColumnRecipeEditor.optionHelpers';
 import { getVisibleLeftOperand, getVisibleRightOperand, shouldShowTextSourceFields } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepOperandFields, StepSourceFields, type PreviousResultDisplay, type StepSourceChangeContext, type StepValueSourceOptionsConfig } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepOperandFields, StepSourceFields, getStepActionHelpText, type PreviousResultDisplay, type StepSourceChangeContext, type StepValueSourceOptionsConfig } from './OutputColumnRecipeEditor.StepFields';
 import {
   createCanonicalStepForAction,
   createCanonicalStepForMode,
@@ -110,7 +111,7 @@ const stepActionLabels: Record<Exclude<VisibleStepAction, 'unconfigured'>, strin
   replaceText: 'Reemplazar texto',
   concat: 'Concatenar',
   numericOperation: 'Operación numérica',
-  extractNumber: 'Extraer número del texto',
+  extractNumber: 'Usar número del texto',
   toNumber: 'Convertir a número',
   toText: 'Convertir a texto',
   formatDate: 'Formatear fecha',
@@ -233,7 +234,7 @@ export function StepEditorBlock({
           <Dropdown<BlockAction>
             className="compact recipeField"
             label="Acción"
-            labelInfo={<InfoTooltip content="Elegí cómo se va a transformar esta información." />}
+            labelInfo={<InfoTooltip content={getStepActionHelpText(visibleAction === 'unconfigured' ? '' : visibleAction, mode)} />}
             value={actionValue}
             options={getStepActionOptionsForContext(mode, effectiveContext)}
             placeholder="Seleccionar acción"
@@ -323,6 +324,19 @@ function renderDefaultFields({
 }) {
   const mode = getStepModeForBlock(step);
   const allowPreviousResult = getAllowedSourceActions(step, context).includes('usePreviousResult');
+  const conversionPickerProps = step.type === 'toNumber'
+    ? {
+        columnTextPickerValueValidator: (value: string) => parseNumericValue(value) !== null,
+        columnTextPickerEmptyLabel: 'Sin valores numéricos encontrados',
+        columnTextPickerFilteredValuesHelp: 'Se omitieron textos que no se pueden convertir a número.',
+      }
+    : step.type === 'extractNumber'
+      ? {
+          columnTextPickerValueValidator: (value: string) => extractNumericValue(value) !== null,
+          columnTextPickerEmptyLabel: 'Sin textos con números encontrados',
+          columnTextPickerFilteredValuesHelp: 'Se omitieron textos sin números.',
+        }
+      : {};
 
   if (step.type === 'noop') {
     if (mode === 'text' && isStepSourceAction(visibleAction)) {
@@ -384,6 +398,7 @@ function renderDefaultFields({
       explicitTextValueSource={step.type !== 'formatDate'}
       sourceOptionsConfig={getSourceOptionsConfigForStep(step, context)}
       labelInfoText={getStepSourceHelpText(step.type)}
+      {...conversionPickerProps}
       afterSourceSelector={afterSourceSelector}
       onChange={onSourceChange}
     />

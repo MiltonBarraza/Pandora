@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, parseDateValue, supportedDateInputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
@@ -151,9 +151,9 @@ export function getConversionStepActionOptions() {
   return getStepTypesForMode('conversion').filter((option) => option.value !== 'noop');
 }
 
-export function getStepActionHelpText(action: VisibleStepAction, _mode?: TransformStepMode) {
+export function getStepActionHelpText(action: string, _mode?: TransformStepMode) {
   if (action === 'extractNumber') {
-    return 'Toma el primer número encontrado en el texto.';
+    return 'Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.';
   }
 
   if (action === 'toNumber') {
@@ -278,6 +278,9 @@ export function StepSourceFields({
   fixedTextInputLabel,
   valueKind = 'text',
   dateValueValidator,
+  columnTextPickerValueValidator,
+  columnTextPickerEmptyLabel,
+  columnTextPickerFilteredValuesHelp,
   explicitTextValueSource = false,
   hideFixedTextInput = false,
   hideSourceSelector = false,
@@ -299,6 +302,9 @@ export function StepSourceFields({
   fixedTextInputLabel?: string;
   valueKind?: StepValueKind;
   dateValueValidator?: (value: string) => boolean;
+  columnTextPickerValueValidator?: (value: string) => boolean;
+  columnTextPickerEmptyLabel?: string;
+  columnTextPickerFilteredValuesHelp?: string;
   explicitTextValueSource?: boolean;
   hideFixedTextInput?: boolean;
   hideSourceSelector?: boolean;
@@ -320,6 +326,8 @@ export function StepSourceFields({
   const usesTypedValuePicker = valueKind === 'number' || valueKind === 'date';
   const canPickColumnText = valueKind === 'text';
   const isAllowedDateValue = dateValueValidator ?? isDatePickerValue;
+  const pickerValueValidator = columnTextPickerValueValidator
+    ?? (valueKind === 'number' ? isNumericPickerValue : valueKind === 'date' ? isAllowedDateValue : undefined);
   const hasInvalidDateSource = valueKind === 'date'
     && safeSource.type === 'fixedText'
     && Boolean(safeSource.value.trim())
@@ -354,6 +362,10 @@ export function StepSourceFields({
           scrollStrategy="close"
           onChange={(value) => {
             if (value === 'columnTextPicker') {
+              if (valueKind === 'date') {
+                setPickedColumnTextSourceIdentity('fixedText:');
+                onChange({ type: 'fixedText', value: '' });
+              }
               setIsColumnTextPickerOpen(true);
               return;
             }
@@ -369,7 +381,12 @@ export function StepSourceFields({
         <label className="field compact recipeField previousResultValueField">
           <span className="labelWithInfo">
             <span>Resultado anterior</span>
-            <InfoTooltip content={previousResultHelpText} />
+            <InfoTooltip content={previousResultHelpText.split('\n').map((line, index) => (
+              <Fragment key={`${index}-${line}`}>
+                {index > 0 ? <br /> : null}
+                {line}
+              </Fragment>
+            ))} />
           </span>
           <input readOnly value={previousResultValue} placeholder="Sin valor disponible" />
         </label>
@@ -382,12 +399,11 @@ export function StepSourceFields({
           value={safeSource.type === 'fixedText' ? safeSource.value : ''}
           columnLabel={valueKind === 'number' ? 'Buscar valores en' : valueKind === 'date' ? 'Buscar fechas en' : undefined}
           valueLabel={valueKind === 'number' ? 'Valor encontrado' : valueKind === 'date' ? 'Fecha encontrada' : undefined}
-          emptyLabel={valueKind === 'number' ? 'No hay valores numéricos disponibles' : valueKind === 'date' ? 'No hay fechas válidas disponibles' : 'No hay textos disponibles'}
+          emptyLabel={columnTextPickerEmptyLabel ?? (valueKind === 'number' ? 'No hay valores numéricos disponibles' : valueKind === 'date' ? 'No hay fechas válidas disponibles' : 'No hay textos disponibles')}
+          invalidOptionsLabel={columnTextPickerEmptyLabel}
           searchPlaceholder={valueKind === 'number' ? 'Buscar valor' : valueKind === 'date' ? 'Buscar fecha' : undefined}
-          isValueAllowed={valueKind === 'number'
-            ? isNumericPickerValue
-            : valueKind === 'date' ? isAllowedDateValue : undefined}
-          filteredValuesHelp={valueKind === 'date' ? 'Se omitieron valores que no parecen fechas válidas.' : undefined}
+          isValueAllowed={pickerValueValidator}
+          filteredValuesHelp={columnTextPickerFilteredValuesHelp ?? (valueKind === 'date' ? 'Se omitieron valores que no parecen fechas válidas.' : undefined)}
           fieldClassName="recipeField"
           onSelect={(value) => {
             setPickedColumnTextSourceIdentity(`fixedText:${value}`);

@@ -452,12 +452,13 @@ describe('constructor helpers', () => {
 
   it('hides neutral noop from conversion actions while preserving internal compatibility', () => {
     expect(getConversionStepActionOptions().map((option) => option.value)).toEqual(['extractNumber', 'toNumber', 'toText']);
+    expect(getConversionStepActionOptions()[0]).toEqual({ value: 'extractNumber', label: 'Usar número del texto' });
     expect(getConversionStepActionOptions().map((option) => option.label)).not.toContain('Usar valor tal cual');
     expect(getStepTypesForMode('conversion').map((option) => option.value)).toContain('noop');
   });
 
   it('describes conversion actions with specific help text', () => {
-    expect(getStepActionHelpText('extractNumber', 'conversion')).toBe('Toma el primer número encontrado en el texto.');
+    expect(getStepActionHelpText('extractNumber', 'conversion')).toBe('Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.');
     expect(getStepActionHelpText('toNumber', 'conversion')).toBe('Convierte valores numéricos escritos como texto. Si no puede convertirlos, conserva el valor original.');
     expect(getStepActionHelpText('toText', 'conversion')).toBe('Trata el valor como texto para los siguientes pasos.');
   });
@@ -5222,7 +5223,7 @@ describe('constructor helpers', () => {
     const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
       type: 'combine',
       customMode: 'text',
-      parts: [{ id: 'base', type: 'text', value: '' }],
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
       separator: '',
       steps: [
         { id: 'fixed', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'asd' } },
@@ -5267,7 +5268,7 @@ describe('constructor helpers', () => {
 
     expect(display?.value).toBe('Valor dinámico');
     expect(display?.value).not.toBe('ACCESORIOS');
-    expect(display?.helpText).toBe('Este valor cambia según la fila. Ejemplos: ACCESORIOS');
+    expect(display?.helpText).toBe('Este valor cambia según la fila. Ejemplos:\n- ACCESORIOS');
   });
 
   it('shows dynamic examples from transformed previous results when available', () => {
@@ -5291,7 +5292,7 @@ describe('constructor helpers', () => {
     const display = getPreviousResultDisplay(recipe, undefined, rows, 2);
 
     expect(display?.value).toBe('Valor dinámico');
-    expect(display?.helpText).toBe('Este valor cambia según la fila. Ejemplos: ACCESORIOS, PINCELES, LISTA DE PRECIOS 57');
+    expect(display?.helpText).toBe('Este valor cambia según la fila. Ejemplos:\n- ACCESORIOS\n- PINCELES\n- LISTA DE PRECIOS 57');
   });
 
   it('treats previous steps with conditions as dynamic even when their source is fixed', () => {
@@ -6041,6 +6042,85 @@ describe('constructor helpers', () => {
       ...recipe,
       steps: [{ ...recipe.steps![0], dateOutputFormat: 'DD/MM/YYYY' }],
     }, { 'input-date': '6/1/24' })).toBe('01/06/2024');
+  });
+
+  it('previews the first non-empty current column value for a date used as-is', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+      separator: '',
+      steps: [{
+        id: 'date-as-is',
+        mode: 'date',
+        type: 'noop',
+        source: { type: 'input', inputColumnId: 'input-date' },
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { 'input-date': '' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-date': '' } },
+      { rowNumber: 2, values: { 'input-date': '31/12/2025' } },
+    ])).toBe('31/12/2025');
+  });
+
+  it('previews the first parseable current column date using current formats', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+      separator: '',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        source: { type: 'input', inputColumnId: 'input-date' },
+        dateInputFormat: 'DD/MM/YYYY',
+        dateOutputFormat: 'YYYY-MM-DD',
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { 'input-date': '' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-date': 'sin fecha' } },
+      { rowNumber: 2, values: { 'input-date': '31/12/2025' } },
+    ])).toBe('2025-12-31');
+  });
+
+  it('does not invent an old fixed date when the current column has no parseable dates', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'date', type: 'input', inputColumnId: 'input-date' }],
+      separator: '',
+      steps: [{
+        id: 'format-date',
+        mode: 'date',
+        type: 'formatDate',
+        source: { type: 'input', inputColumnId: 'input-date' },
+        dateInputFormat: 'DD/MM/YYYY',
+        dateOutputFormat: 'YYYY-MM-DD',
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { 'input-date': '' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-date': 'sin fecha' } },
+    ])).toBe('sin fecha');
+    expect(buildCustomValuePreview(recipe, { 'input-date': '' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-date': 'sin fecha' } },
+    ])).not.toContain('2026-07-01');
+    const emptyFallbackRecipe = {
+      ...recipe,
+      steps: [{ ...recipe.steps![0], dateInvalidFallback: 'empty' as const }],
+    };
+    expect(buildCustomValuePreview(emptyFallbackRecipe, { 'input-date': '' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-date': 'sin fecha' } },
+    ])).toBe('');
+    expect(buildCustomValuePreview({
+      ...emptyFallbackRecipe,
+      steps: [{ ...emptyFallbackRecipe.steps[0], dateOutputFormat: 'DD/MM/YYYY' }],
+    }, { 'input-date': '' }, true, 'text', [
+      { rowNumber: 1, values: { 'input-date': 'sin fecha' } },
+    ])).toBe('');
   });
 
   it('applies fixed date fallback only when preview value is invalid', () => {

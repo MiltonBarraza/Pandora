@@ -1264,7 +1264,7 @@ export function getPreviousResultDisplay(
   return {
     value: 'Valor dinámico',
     helpText: examples.length > 0
-      ? `Este valor cambia según la fila. Ejemplos: ${examples.join(', ')}`
+      ? `Este valor cambia según la fila. Ejemplos:\n${examples.map((example) => `- ${example}`).join('\n')}`
       : 'Este valor cambia según la fila.',
   };
 }
@@ -1310,19 +1310,25 @@ function getPreviousResultExamples(
 }
 
 export function isDeterministicPreviousResultRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  let state = getDeterministicRecipePartsState(recipe.parts, recipe.separator ?? '');
-  if (!state.isDeterministic) {
+  const visibleSteps = getVisibleRecipeSteps(recipe);
+  if (hasRowDependentControlFlow(visibleSteps)) {
     return false;
   }
 
-  for (const step of getVisibleRecipeSteps(recipe)) {
+  let state = getDeterministicRecipePartsState(recipe.parts, recipe.separator ?? '');
+  for (const step of visibleSteps) {
     state = getDeterministicStepState(step, state);
-    if (!state.isDeterministic) {
-      return false;
-    }
   }
 
-  return true;
+  return state.isDeterministic;
+}
+
+function hasRowDependentControlFlow(steps: TransformStep[]): boolean {
+  return steps.some((step) => (
+    Boolean(step.condition)
+    || step.type === 'manualRange'
+    || (step.type === 'concat' && (step.parts ?? []).some((part) => hasRowDependentControlFlow(part.steps ?? [])))
+  ));
 }
 
 type DeterministicValueState = {
@@ -1354,9 +1360,6 @@ function getDeterministicStepsState(steps: TransformStep[], initialState: Determ
   let state = initialState;
   for (const step of steps) {
     state = getDeterministicStepState(step, state);
-    if (!state.isDeterministic) {
-      return dynamicValueState;
-    }
   }
 
   return state;

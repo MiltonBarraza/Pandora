@@ -1,3 +1,4 @@
+import { defaultDateInputFormat, parseDateValue } from '../../domain/import/dateOperations';
 import { describeManualRangeStepSummary } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
@@ -101,7 +102,7 @@ function formatAdjustmentForDisplay(adjustment: string) {
     mayúsculas: 'Mayúsculas',
     minúsculas: 'Minúsculas',
     concatenar: 'Concatenar',
-    'extraer número': 'Extraer número',
+    'usar número del texto': 'Usar número del texto',
     'convertir a número': 'Convertir a número',
     'convertir a texto': 'Convertir a texto',
     'sin redondeo': 'Sin redondeo',
@@ -168,7 +169,7 @@ function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = [
   }
 
   if (step.type === 'extractNumber') {
-    return ['extraer número'];
+    return ['usar número del texto'];
   }
 
   if (step.type === 'toNumber') {
@@ -304,7 +305,38 @@ export function buildCustomValuePreview(
     return buildManualRangeAwarePreview(recipe, manualRangeRows) ?? 'Sin vista previa para los rangos configurados';
   }
 
-  return buildCombinePreview(recipe, sampleInputValues) ?? 'Sin datos de ejemplo disponibles';
+  const previewSampleInputValues = getDatePreviewSampleInputValues(recipe, sampleInputValues, manualRangeRows);
+  return buildCombinePreview(recipe, previewSampleInputValues) ?? 'Sin datos de ejemplo disponibles';
+}
+
+function getDatePreviewSampleInputValues(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  rows: InputRow[],
+) {
+  const dateInputStep = [...getVisibleRecipeSteps(recipe)].reverse().find((step) => (
+    (step.mode === 'date' || step.type === 'formatDate')
+    && step.source?.type === 'input'
+    && Boolean(step.source.inputColumnId)
+  ));
+  if (!dateInputStep || dateInputStep.source?.type !== 'input') {
+    return sampleInputValues;
+  }
+
+  const inputColumnId = dateInputStep.source.inputColumnId;
+  const candidates = [
+    ...rows.map((row) => row.values),
+    ...(sampleInputValues ? [sampleInputValues] : []),
+  ].filter((values) => String(values[inputColumnId] ?? '').trim() !== '');
+
+  if (dateInputStep.type === 'formatDate') {
+    const parseableValues = candidates.find((values) => (
+      parseDateValue(values[inputColumnId], dateInputStep.dateInputFormat ?? defaultDateInputFormat) !== null
+    ));
+    return parseableValues ?? candidates[0] ?? sampleInputValues;
+  }
+
+  return candidates[0] ?? sampleInputValues;
 }
 
 export function buildCombinePreview(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
