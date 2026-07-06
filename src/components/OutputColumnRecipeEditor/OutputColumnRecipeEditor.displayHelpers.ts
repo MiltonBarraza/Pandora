@@ -28,12 +28,7 @@ export function getConstructorPartsSummary(recipe: Extract<OutputRecipe, { type:
 }
 
 export function getCustomValuePartsDisplayLabel(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  const concatStep = getConfiguredConcatStep(recipe);
-
-  if (!concatStep && recipe.parts.length === 1) {
-    return 'Origen/base';
-  }
-
+  void recipe;
   return '';
 }
 

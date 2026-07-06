@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
+import { describeManualRangeCondition, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { DateInputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
@@ -191,9 +191,6 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
   const customValuePreview = column.recipe.type === 'combine'
     ? buildCustomValuePreview(column.recipe, sampleInputValues, false, effectiveCustomValueMode, manualRangeRows)
     : '';
-  const customValuePartsLabel = column.recipe.type === 'combine'
-    ? getCustomValuePartsDisplayLabel(column.recipe)
-    : '';
   const customValuePartsSummary = column.recipe.type === 'combine'
     ? getCustomValuePartsDisplaySummary(column.recipe, activeInputColumns)
     : '';
@@ -274,7 +271,6 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
         <>
           <CustomValueSummary
             preview={customValuePreview}
-            partsLabel={customValuePartsLabel}
             partsSummary={customValuePartsSummary}
             adjustments={customValueAdjustments}
             onEdit={() => {
@@ -430,16 +426,16 @@ function ManualRangeSummary({
         </strong>
         <dl className="customValueSummaryList">
           <div>
-            <dt>Tipo</dt>
-            <dd>Trabajar con rangos</dd>
+            <dt>Tipo de operación</dt>
+            <dd>Valores por rangos</dd>
           </div>
           <div>
-            <dt>Rangos</dt>
-            <dd>{getManualRangeCountLabel(recipe)}</dd>
+            <dt>Qué hace</dt>
+            <dd>Asigna valores según rangos de filas configurados.</dd>
           </div>
           <div>
-            <dt>Condición</dt>
-            <dd>{describeManualRangeCondition(recipe, inputColumns)}</dd>
+            <dt>Referencia</dt>
+            <dd>{recipe.ranges.length} {recipe.ranges.length === 1 ? 'rango creado' : 'rangos creados'}</dd>
           </div>
         </dl>
       </div>

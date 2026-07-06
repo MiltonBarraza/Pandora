@@ -508,7 +508,7 @@ export function CombineWizard({
             <InfoTooltip
               ariaLabel="Información sobre los archivos para combinar"
               placement="right"
-              content="Cargá archivos o usá resultados guardados desde el sanitizador. En Excel se usa una hoja por archivo. Si el archivo tiene varias hojas, podés elegir cuál usar. Encabezado: se toma la primera fila no vacía. CSV: se interpreta como tabla única."
+              content="Cargá archivos o usá resultados guardados desde Preparar archivo. En Excel se usa una hoja por archivo. Si el archivo tiene varias hojas, podés elegir cuál usar. Encabezado: se toma la primera fila no vacía. CSV: se interpreta como tabla única."
             />
           </h2>
           <MultipleFileUploader
@@ -519,7 +519,7 @@ export function CombineWizard({
 
           {basketSources.length > 0 ? (
             <p className="combineBasketNotice">
-              Los resultados guardados para combinar son temporales y se pierden al recargar la página.
+              Los resultados guardados desde Preparar archivo son temporales y se pierden al recargar la página.
             </p>
           ) : null}
 
@@ -547,9 +547,9 @@ export function CombineWizard({
               <div className="combineSourceList">
                 {sources.map((source) => {
                   const isBasketSource = basketSourceIds.has(source.id);
-                  const originLabel = isBasketSource ? 'Desde sanitizador' : 'Manual';
+                  const originLabel = isBasketSource ? 'Archivo preparado' : 'Manual';
                   const originTooltip = isBasketSource
-                    ? 'Resultado enviado desde Sanitizar.'
+                    ? 'Resultado guardado desde Preparar archivo.'
                     : 'Archivo cargado directamente en Combinar.';
                   const loadedSource = basketSourceIds.has(source.id)
                     ? undefined

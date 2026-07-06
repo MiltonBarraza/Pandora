@@ -6,7 +6,7 @@ export function defaultFileNameSettings(): FileNameSettings {
   return {
     mode: 'default',
     customName: '',
-    baseText: 'Archivo sanitizado',
+    baseText: 'Archivo preparado',
     includeBaseText: true,
     includeOriginalName: true,
     includeSheetName: true,

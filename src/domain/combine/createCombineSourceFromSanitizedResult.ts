@@ -31,5 +31,5 @@ export function createCombineSourceFromSanitizedResult(
 
 function buildXlsxFileName(fileBaseName: string) {
   const baseName = fileBaseName.trim().replace(/(\.xlsx)+$/i, '').trim();
-  return `${baseName || 'Archivo sanitizado'}.xlsx`;
+  return `${baseName || 'Archivo preparado'}.xlsx`;
 }

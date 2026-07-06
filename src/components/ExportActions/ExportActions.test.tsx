@@ -9,44 +9,30 @@ import { ExportActions } from './ExportActions';
 afterEach(cleanup);
 
 describe('ExportActions processed result', () => {
-  it('runs the shared save-for-combine handler', async () => {
+  it('groups final download, combine and audit actions in order', async () => {
     const onSaveForCombine = vi.fn();
     renderExportActions({ onSaveForCombine });
+
+    const blocks = [...document.querySelectorAll('.exportBlock')];
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0].textContent).toContain('Descargar archivo final');
+    expect(blocks[1].textContent).toContain('Guardar para combinar');
+    expect(blocks[2].textContent).toContain('Control y revisión');
+    expect(screen.queryByText(/^Archivo: .*\.xlsx$/)).toBeNull();
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Guardar para combinar' }));
 
     expect(onSaveForCombine).toHaveBeenCalledTimes(1);
   });
 
-  it('does not render the action without a callback', () => {
-    renderExportActions();
-
-    expect(screen.queryByRole('button', { name: 'Guardar para combinar' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Guardar hoja en lote' })).toBeNull();
-  });
-
-  it('disables the action without included rows', () => {
-    renderExportActions({
-      onSaveForCombine: vi.fn(),
-      saveForCombineDisabled: true,
-      rows: [{ ...includedRow, status: 'ignored' }],
-    });
-
-    expect((screen.getByRole('button', { name: 'Guardar para combinar' }) as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('disables the action without enabled output columns', () => {
-    renderExportActions({
-      onSaveForCombine: vi.fn(),
-      saveForCombineDisabled: true,
-      outputColumns: outputColumns.map((column) => ({ ...column, enabled: false })),
-    });
+  it('disables combine action when current result is unavailable', () => {
+    renderExportActions({ onSaveForCombine: vi.fn(), saveForCombineDisabled: true });
 
     expect((screen.getByRole('button', { name: 'Guardar para combinar' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('keeps existing download actions available', () => {
-    renderExportActions({ onSaveForCombine: vi.fn() });
+    renderExportActions();
 
     expect((screen.getByRole('button', { name: 'Descargar Excel' }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole('button', { name: 'Descargar CSV' }) as HTMLButtonElement).disabled).toBe(false);

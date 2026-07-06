@@ -8,6 +8,16 @@ export type SheetRowMetadata = {
 export type SheetRowsWithMetadata = {
   rows: RawRow[];
   rowMetadata: SheetRowMetadata[];
+  rangeMetadata?: SheetRangeMetadata;
+};
+
+export type SheetRangeMetadata = {
+  originalRef: string;
+  effectiveRef: string;
+  wasTrimmed: boolean;
+  shouldShowTrimWarning: boolean;
+  ignoredTrailingColumns: number;
+  ignoredTrailingRows: number;
 };
 
 export type InputColumn = {

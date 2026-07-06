@@ -32,7 +32,6 @@ vi.mock('./components/ImportWizard/ImportWizard', () => ({
     <div>
       {appearanceToolbar}
       <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Emitir resultado</button>
-      <button type="button" onClick={() => onSaveProcessedResult?.(processedResult)}>Guardar rápido para combinar</button>
       <button type="button" onClick={() => onStatePresenceChange?.(true)}>Marcar sanitizador con estado</button>
     </div>
   ),
@@ -76,10 +75,11 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(screen.getByRole('button', { name: 'Sanitizar archivo' }).classList).toContain('toolChoiceCard');
+    expect(screen.getByRole('button', { name: 'Preparar archivo' }).classList).toContain('toolChoiceCard');
     expect(screen.getByRole('button', { name: 'Combinar archivos' }).classList).toContain('toolChoiceCard');
-    expect(screen.getByText('Limpiá una planilla, configurá columnas, aplicá transformaciones y exportá un archivo final.')).not.toBeNull();
-    expect(screen.getByText('Uní archivos o resultados sanitizados en una única hoja de salida.')).not.toBeNull();
+    expect(screen.getByText('Limpiá una planilla, configurá columnas, aplicá transformaciones y descargá un archivo final.')).not.toBeNull();
+    expect(screen.getByText('Uní archivos o resultados preparados en una única hoja de salida.')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '¿Qué querés hacer?' })).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
     expect(screen.getByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
@@ -90,7 +90,7 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Ir a Combinar' }));
 
     expect(confirm).not.toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Marcar sanitizador con estado' }));
     await user.click(screen.getByRole('button', { name: 'Ir a Combinar' }));
 
@@ -117,7 +117,7 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
     await user.click(screen.getByRole('button', { name: 'Marcar sanitizador con estado' }));
     await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
@@ -131,7 +131,7 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
     expect(showSuccessToast).toHaveBeenCalledWith('Resultado guardado para combinar.');
 
@@ -140,23 +140,11 @@ describe('App combine basket wiring', () => {
     expect(screen.getByText('resultado.xlsx')).not.toBeNull();
   });
 
-  it('adds a basket source through the sanitizer quick save access', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar rápido para combinar' }));
-    await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
-
-    expect(screen.getByText('resultado.xlsx')).not.toBeNull();
-    expect(showSuccessToast).toHaveBeenCalledWith('Resultado guardado para combinar.');
-  });
-
   it('does not wire the removed multi-sheet batch UI into sanitizer', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
 
     expect(screen.queryByText('Lote multi-hoja')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Guardar hoja en lote' })).toBeNull();
@@ -167,10 +155,10 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
     await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
-    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Preparar archivo' }));
 
     expect(confirm).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Ir a Combinar (1 guardado)' }));
@@ -184,7 +172,7 @@ describe('App combine basket wiring', () => {
 
     await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
     await user.click(screen.getByRole('button', { name: 'Marcar estado local' }));
-    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Preparar archivo' }));
 
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByText(combineExitConfirmationText)).not.toBeNull();
@@ -199,7 +187,7 @@ describe('App combine basket wiring', () => {
 
     await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
     await user.click(screen.getByRole('button', { name: 'Marcar estado local' }));
-    await user.click(screen.getByRole('button', { name: 'Ir a Sanitizar' }));
+    await user.click(screen.getByRole('button', { name: 'Ir a Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(confirm).not.toHaveBeenCalled();
@@ -210,7 +198,7 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
 
     expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
@@ -236,7 +224,7 @@ describe('App combine basket wiring', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sanitizar archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
     await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
 
@@ -255,8 +243,8 @@ const processedResult: ProcessedExportResult = {
   rows: [{ status: 'included', outputValues: { code: 'A1' } }],
 };
 
-const sanitizerExitConfirmationText = 'Vas a salir del sanitizador. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?';
-const combineExitConfirmationText = 'Vas a salir de Combinar archivos. Los archivos subidos manualmente y la configuración local se perderán. Los resultados guardados desde el sanitizador se conservarán hasta que recargues la página. ¿Querés continuar?';
+const sanitizerExitConfirmationText = 'Vas a salir de Preparar archivo. El archivo cargado y la configuración actual se perderán. Los resultados ya guardados para combinar se conservarán hasta que recargues la página. ¿Querés continuar?';
+const combineExitConfirmationText = 'Vas a salir de Combinar archivos. Los archivos subidos manualmente y la configuración local se perderán. Los resultados guardados desde Preparar archivo se conservarán hasta que recargues la página. ¿Querés continuar?';
 
 function dispatchBeforeUnload() {
   const event = new Event('beforeunload', { cancelable: true });
