@@ -46,7 +46,7 @@ import {
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepModeSelect, StepTypeSelect } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepModeSelect, StepTypeSelect, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
@@ -283,18 +283,14 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title="Valor personalizado"
+            title={`Columna: "${column.label || 'Sin nombre'}"`}
             titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderDetails">
-                <div className="constructorModalColumnName">
-                  <strong>Nombre de columna:</strong>
-                  <span>{column.label || 'Sin nombre'}</span>
-                </div>
                 <div className="constructorModalHeaderPreview">
-                  <strong>Vista previa del primer dato:</strong>
+                  <strong>Vista previa</strong>
                   <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
                 </div>
               </div>
@@ -356,25 +352,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title="Valor personalizado"
+            title={`Columna: "${column.label || 'Sin nombre'}"`}
             titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
               <div className="constructorModalHeaderDetails">
-                <div className="constructorModalColumnName">
-                  <strong>Nombre de columna:</strong>
-                  <span>{column.label || 'Sin nombre'}</span>
-                </div>
                 <div className="constructorModalHeaderPreview">
-                  <strong>Vista previa del primer dato:</strong>
+                  <strong>Vista previa</strong>
                   <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
                 </div>
               </div>
             )}
             footer={(
               <div className="constructorModalFooterContent">
-                <p>{recipeEditorModalPendingApplyText}</p>
                 <div className="constructorModalFooterActions">
                   <ActionButton action="close" variant="secondary" onClick={requestCancelConstructor}>
                     {recipeEditorModalCancelLabel}
@@ -881,7 +872,7 @@ export function buildManualRangeGeneratorSummary({
   const intervalSummary = getManualRangeGeneratorIntervalSummary(startRowInput, endRowInput);
   const parts = detectionMode === 'dataBlocks'
     ? [`Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, ${intervalSummary}.`]
-    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalSummary}.`];
+    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalSummary}. Cada rango termina antes del siguiente dato encontrado.`];
 
   if (detectionMode === 'textStarts' && startFilterColumn) {
     parts.push(`Aceptará sólo grupos donde ${getManualRangeSummaryColumnLabel(startFilterColumn)} ${startFilterOperator === 'isEmpty' ? 'está vacía' : 'no está vacía'}.`);
@@ -1118,6 +1109,7 @@ export function ManualRangeTableRow({
                 onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
               >
                 <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
+                <span className="manualRangeIconActionLabel">{rowsPreviewActionLabel}</span>
               </button>
             </InfoTooltip>
             <InfoTooltip content="Duplicar rango">
@@ -1249,6 +1241,198 @@ export function getPreviousStepPreviewValue(
   return buildCombinePreview({ ...recipe, steps: previousSteps }, sampleInputValues);
 }
 
+export function getPreviousResultDisplay(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  rows: InputRow[],
+  stepIndex: number,
+): PreviousResultDisplay | null {
+  if (stepIndex <= 0) {
+    return null;
+  }
+
+  const previousSteps = getVisibleRecipeSteps(recipe).slice(0, stepIndex);
+  const previousRecipe = { ...recipe, steps: previousSteps };
+  if (isDeterministicPreviousResultRecipe(previousRecipe)) {
+    return {
+      value: buildCombinePreview(previousRecipe, sampleInputValues ?? {}) ?? '',
+      helpText: 'Este valor viene del paso anterior.',
+    };
+  }
+
+  const examples = getPreviousResultExamples(previousRecipe, sampleInputValues, rows);
+  return {
+    value: 'Valor dinámico',
+    helpText: examples.length > 0
+      ? `Este valor cambia según la fila. Ejemplos: ${examples.join(', ')}`
+      : 'Este valor cambia según la fila.',
+  };
+}
+
+function getPreviousResultExamples(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  rows: InputRow[],
+) {
+  const values: string[] = [];
+  const seen = new Set<string>();
+  const addValue = (value: string | null | undefined) => {
+    const normalizedValue = String(value ?? '').trim();
+    if (!normalizedValue || seen.has(normalizedValue)) {
+      return;
+    }
+
+    seen.add(normalizedValue);
+    values.push(normalizedValue);
+  };
+
+  if (rows.length > 0) {
+    const previewColumn: OutputColumn = {
+      id: 'previous-result-examples',
+      label: 'Resultado anterior',
+      order: 0,
+      enabled: true,
+      recipe,
+    };
+    for (const row of buildProcessedRows(rows, [previewColumn])) {
+      addValue(row.outputValues[previewColumn.id]);
+      if (values.length >= 3) {
+        return values;
+      }
+    }
+  }
+
+  if (sampleInputValues) {
+    addValue(buildCombinePreview(recipe, sampleInputValues));
+  }
+
+  return values.slice(0, 3);
+}
+
+export function isDeterministicPreviousResultRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
+  let state = getDeterministicRecipePartsState(recipe.parts, recipe.separator ?? '');
+  if (!state.isDeterministic) {
+    return false;
+  }
+
+  for (const step of getVisibleRecipeSteps(recipe)) {
+    state = getDeterministicStepState(step, state);
+    if (!state.isDeterministic) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+type DeterministicValueState = {
+  isDeterministic: boolean;
+};
+
+const deterministicValueState: DeterministicValueState = { isDeterministic: true };
+const dynamicValueState: DeterministicValueState = { isDeterministic: false };
+
+function getDeterministicRecipePartsState(parts: RecipePart[], separator: string): DeterministicValueState {
+  if (parts.length === 0) {
+    return deterministicValueState;
+  }
+
+  for (const part of parts) {
+    const sourceState = part.type === 'text'
+      ? deterministicValueState
+      : dynamicValueState;
+    const partState = getDeterministicStepsState(part.steps ?? [], sourceState);
+    if (!partState.isDeterministic) {
+      return dynamicValueState;
+    }
+  }
+
+  return typeof separator === 'string' ? deterministicValueState : dynamicValueState;
+}
+
+function getDeterministicStepsState(steps: TransformStep[], initialState: DeterministicValueState) {
+  let state = initialState;
+  for (const step of steps) {
+    state = getDeterministicStepState(step, state);
+    if (!state.isDeterministic) {
+      return dynamicValueState;
+    }
+  }
+
+  return state;
+}
+
+function getDeterministicStepState(step: TransformStep, currentState: DeterministicValueState): DeterministicValueState {
+  if (step.condition) {
+    return dynamicValueState;
+  }
+
+  if (step.type === 'manualRange') {
+    return dynamicValueState;
+  }
+
+  if (step.type === 'concat') {
+    return getDeterministicConcatState(step.parts ?? [], currentState);
+  }
+
+  if (step.type === 'numericOperation') {
+    return getDeterministicNumericOperationState(step, currentState);
+  }
+
+  if (!isDeterministicStepType(step.type)) {
+    return dynamicValueState;
+  }
+
+  return getDeterministicSourceState(step.source, currentState);
+}
+
+function getDeterministicConcatState(parts: NonNullable<TransformStep['parts']>, previousState: DeterministicValueState) {
+  for (const part of parts) {
+    const sourceState = getDeterministicSourceState(part.source, previousState);
+    const partState = getDeterministicStepsState(part.steps ?? [], sourceState);
+    if (!partState.isDeterministic) {
+      return dynamicValueState;
+    }
+  }
+
+  return deterministicValueState;
+}
+
+function getDeterministicNumericOperationState(step: TransformStep, currentState: DeterministicValueState) {
+  const leftState = getDeterministicSourceState(step.leftOperand ?? { type: 'previousResult' }, currentState);
+  const rightState = getDeterministicSourceState(step.rightOperand ?? { type: 'fixedText', value: String(step.amount ?? '') }, currentState);
+  return leftState.isDeterministic && rightState.isDeterministic ? deterministicValueState : dynamicValueState;
+}
+
+function getDeterministicSourceState(source: StepSource | undefined, previousState: DeterministicValueState): DeterministicValueState {
+  if (!source || source.type === 'previousResult') {
+    return previousState;
+  }
+
+  if (source.type === 'fixedText' || source.type === 'rangeText') {
+    return deterministicValueState;
+  }
+
+  return dynamicValueState;
+}
+
+function isDeterministicStepType(type: TransformStep['type']) {
+  return [
+    'noop',
+    'trim',
+    'uppercase',
+    'lowercase',
+    'addPrefix',
+    'addSuffix',
+    'removeText',
+    'replaceText',
+    'formatDate',
+    'extractNumber',
+    'toNumber',
+    'toText',
+  ].includes(type);
+}
+
 export function CustomValueEditor({
   recipe,
   inputColumns,
@@ -1291,6 +1475,7 @@ export function CustomValueEditor({
         requireAtLeastOne
         studioLayout
         getPreviousStepPreviewValue={(stepIndex) => getPreviousStepPreviewValue(recipe, sampleInputValues, stepIndex)}
+        getPreviousResultDisplay={(stepIndex) => getPreviousResultDisplay(recipe, sampleInputValues, manualRangeRows, stepIndex)}
         onBaseInputColumnChange={updateBaseInputColumn}
         onStepsChange={updateSteps}
       />
@@ -1307,6 +1492,7 @@ function StepBlocksEditor({
   requireAtLeastOne = false,
   studioLayout = false,
   getPreviousStepPreviewValue,
+  getPreviousResultDisplay,
   onBaseInputColumnChange,
   onStepsChange,
 }: {
@@ -1318,6 +1504,7 @@ function StepBlocksEditor({
   requireAtLeastOne?: boolean;
   studioLayout?: boolean;
   getPreviousStepPreviewValue?: (stepIndex: number) => string | null;
+  getPreviousResultDisplay?: (stepIndex: number) => PreviousResultDisplay | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onStepsChange: (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => void;
 }) {
@@ -1347,6 +1534,7 @@ function StepBlocksEditor({
           baseInputColumnId={baseInputColumnId}
           canDelete={false}
           previousResultPreviewValue={getPreviousStepPreviewValue?.(0) ?? null}
+          previousResultDisplay={getPreviousResultDisplay?.(0) ?? null}
           studioLayout
           studioActionContent={(
             <>
@@ -1365,6 +1553,7 @@ function StepBlocksEditor({
                           baseInputColumnId={baseInputColumnId}
                           canDelete
                           previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+                          previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
                           onBaseInputColumnChange={onBaseInputColumnChange}
                           onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
                           onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
@@ -1408,6 +1597,7 @@ function StepBlocksEditor({
               baseInputColumnId={baseInputColumnId}
               canDelete={!requireAtLeastOne || steps.length > 1}
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+              previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
               onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
               onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
@@ -1450,6 +1640,7 @@ function SimpleStepBlock({
   baseInputColumnId,
   canDelete,
   previousResultPreviewValue,
+  previousResultDisplay,
   studioLayout = false,
   studioActionContent,
   onBaseInputColumnChange,
@@ -1465,6 +1656,7 @@ function SimpleStepBlock({
   baseInputColumnId: string;
   canDelete: boolean;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   studioLayout?: boolean;
   studioActionContent?: ReactNode;
   onBaseInputColumnChange: (inputColumnId: string) => void;
@@ -1527,6 +1719,7 @@ function SimpleStepBlock({
             showHeader={false}
             showCondition={false}
             previousResultPreviewValue={previousResultPreviewValue}
+            previousResultDisplay={previousResultDisplay}
             renderFields={renderManualRangeFields}
             onChange={handleChange}
             onReplace={handleReplace}
@@ -1548,6 +1741,7 @@ function SimpleStepBlock({
       canDelete={canDelete}
       gridClassName={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}
       previousResultPreviewValue={previousResultPreviewValue}
+      previousResultDisplay={previousResultDisplay}
       renderFields={renderManualRangeFields}
       renderCondition={renderStepCondition}
       onChange={handleChange}

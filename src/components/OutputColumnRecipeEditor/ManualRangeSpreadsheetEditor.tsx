@@ -12,6 +12,7 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ManualRangeAdvancedRangeModal } from './ManualRangeAdvancedRangeModal';
 import { ManualRangeColumnsModal } from './ManualRangeColumnsModal';
 import './ManualRangeSpreadsheetEditor.css';
@@ -246,6 +247,9 @@ export function ManualRangeSpreadsheetEditor({
           ariaLabel="Ayuda: vista de filas para rangos"
           content="Muestra las filas visibles disponibles para configurar rangos. Los datos originales no se modifican."
         />
+        {selectionOverlapMessage ? (
+          <WarningTooltip ariaLabel="Advertencia: seleccion superpuesta" content={selectionOverlapMessage} />
+        ) : null}
       </div>
       <div className="manualRangeSpreadsheetToolbar">
         <div className="manualRangeSpreadsheetSelectionActions manualRangeSpreadsheetToolbarPrimaryActions manualRangeSpreadsheetToolbarActions">
@@ -273,9 +277,6 @@ export function ManualRangeSpreadsheetEditor({
           </button>
         </div>
       </div>
-      {selectionOverlapMessage ? (
-        <p className="manualRangeSpreadsheetValidation" role="alert">{selectionOverlapMessage}</p>
-      ) : null}
       <div className="manualRangeSpreadsheetToolbarDivider" aria-hidden="true" />
 
       <div className="manualRangeSpreadsheetLayout">
@@ -929,17 +930,17 @@ export function ManualRangeSuggestedRangesPanel({
             onChange={setInitialValueColumnId}
           />
         ) : null}
-        <InfoTooltip content="Buscar sugerencias">
-          <ActionButton
-            icon={(props) => <Search {...props} />}
-            variant="icon"
-            size="sm"
-            className="manualRangeSuggestedSearchButton"
-            aria-label="Buscar sugerencias"
-            disabled={!canSearch}
-            onClick={searchSuggestions}
-          />
-        </InfoTooltip>
+        <ActionButton
+          icon={(props) => <Search {...props} />}
+          variant="ghost"
+          size="sm"
+          className="manualRangeSuggestedSearchButton"
+          aria-label="Buscar"
+          disabled={!canSearch}
+          onClick={searchSuggestions}
+        >
+          Buscar
+        </ActionButton>
       </div>
       <p className="manualRangeSuggestedSummary">{suggestedSummary}</p>
       {suggestedWarnings.length > 0 ? (
@@ -995,7 +996,14 @@ export function ManualRangeSuggestedRangesPanel({
                     <span className="manualRangeSuggestedItemTitle">{range.startRowNumber} - {range.endRowNumber}</span>
                     <span className="manualRangeSuggestedItemSummary">{getManualRangeValueSummary(range, inputColumns)}</span>
                   </label>
-                  {overlapsConfiguredRange ? <span className="manualRangeSuggestedItemWarning">{getManualRangeOverlapMessage(overlappingRange)}</span> : null}
+                  {overlapsConfiguredRange ? (
+                    <span className="manualRangeSuggestedItemWarning">
+                      <WarningTooltip
+                        ariaLabel="Advertencia: sugerencia superpuesta"
+                        content={getManualRangeOverlapMessage(overlappingRange)}
+                      />
+                    </span>
+                  ) : null}
                   <InfoTooltip content="Eliminar sugerencia">
                     <ActionButton
                       action="delete"
@@ -1168,7 +1176,7 @@ export function getManualRangeSuggestedRanges({
     inputColumnId,
     startRowNumber,
     endRowNumber,
-    mode: 'singleRow',
+    mode: 'untilNextText',
     initialValueMode,
     initialValueColumnId,
   });
@@ -1221,7 +1229,7 @@ export function getManualRangeSuggestedSummary({
   const intervalLabel = `desde la fila ${startRowInput || 'inicio'} hasta la fila ${endRowInput || 'fin'}`;
   const detectionText = detectionMode === 'dataBlocks'
     ? `Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, ${intervalLabel}.`
-    : `Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalLabel}.`;
+    : `Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalLabel}. Cada rango termina antes del siguiente dato encontrado.`;
 
   return `${detectionText} ${getManualRangeSuggestedValueSummary(initialValueMode, initialValueColumn)}`;
 }

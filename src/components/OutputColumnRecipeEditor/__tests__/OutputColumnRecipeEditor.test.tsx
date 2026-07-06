@@ -6,12 +6,12 @@ import { buildInputRows, buildProcessedRows } from '../../../domain/import/outpu
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
-import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
-import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
+import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
-import { RecipeStudioShell, addComposeRecipePart } from '../RecipeStudio';
+import { RecipeStudioShell, addComposeRecipePart, getComposePreviewCountText, getPreviewRowsFromStart, getPreviewStartRowNumber } from '../RecipeStudio';
 
 const inputColumns: InputColumn[] = [
   {
@@ -373,8 +373,9 @@ describe('constructor helpers', () => {
     expect(primaryRow).toContain('Acción');
     expect(primaryRow).not.toContain('Prefijo');
     expect(extraRow.indexOf('Prefijo')).toBeLessThan(extraRow.indexOf('Valor fijo'));
-    expect(extraRow).toContain('Qué valor usar');
+    expect(extraRow).toContain('Valor base');
     expect(extraRow).toContain('Valor fijo');
+    expect(extraRow).toContain('Texto fijo actual');
     expect(extraRow).toContain('Prefijo');
     expect(extraRow).not.toContain('<span>Texto fijo</span>');
     expect(markup).not.toContain('recipeStudioActionSection');
@@ -402,7 +403,9 @@ describe('constructor helpers', () => {
     });
 
     expect(markup).toContain(label);
-    expect(markup).toContain('Qué valor usar');
+    expect(markup).toContain('Valor base');
+    expect(markup).not.toContain('Texto fijo');
+    expect(markup).not.toContain('Elegir texto desde celda');
     expect(markup).not.toContain('<span>Texto fijo</span>');
     expect(markup).not.toContain('<span>Prefijo</span>');
     expect(markup).not.toContain('<span>Sufijo</span>');
@@ -436,13 +439,14 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Qué valor usar');
+    expect(markup).toContain('Valor base');
     expect(markup).toContain(fieldLabel);
     expect(markup).toContain(`class="field compact recipeField"><span>${fieldLabel}</span>`);
     if (type === 'replaceText') {
       expect(markup).toContain('class="field compact recipeField"><span>Reemplazar por</span>');
     }
     expect(markup).toContain('<span>Valor fijo</span>');
+    expect(markup).toContain('Texto fijo actual');
     expect(markup).not.toContain('<span>Texto fijo</span>');
   });
 
@@ -450,6 +454,12 @@ describe('constructor helpers', () => {
     expect(getConversionStepActionOptions().map((option) => option.value)).toEqual(['extractNumber', 'toNumber', 'toText']);
     expect(getConversionStepActionOptions().map((option) => option.label)).not.toContain('Usar valor tal cual');
     expect(getStepTypesForMode('conversion').map((option) => option.value)).toContain('noop');
+  });
+
+  it('describes conversion actions with specific help text', () => {
+    expect(getStepActionHelpText('extractNumber', 'conversion')).toBe('Toma el primer número encontrado en el texto.');
+    expect(getStepActionHelpText('toNumber', 'conversion')).toBe('Convierte valores numéricos escritos como texto. Si no puede convertirlos, conserva el valor original.');
+    expect(getStepActionHelpText('toText', 'conversion')).toBe('Trata el valor como texto para los siguientes pasos.');
   });
 
   it('keeps typed noop hidden until it has a direct value source', () => {
@@ -559,7 +569,7 @@ describe('constructor helpers', () => {
     expect(markup.indexOf('Agregar parte')).toBeLessThan(markup.indexOf('aria-label="Partes de combinación"'));
     expect(markup.indexOf('aria-label="Vista previa"')).toBeLessThan(markup.indexOf('aria-label="Partes de combinación"'));
     expect(markup).toContain('Vista previa del resultado');
-    expect(markup).toContain('Mostrando 3 filas desde la fila 8 de 3 disponibles.');
+    expect(markup).toContain('Mostrando 3 filas desde la fila 8 de 10 filas del archivo.');
     expect(markup).toContain('Ver desde fila');
     expect(markup).toContain('composePreviewColumnRow');
     expect(markup).toContain('composePreviewColumnResult');
@@ -625,12 +635,30 @@ describe('constructor helpers', () => {
     const tableStart = markup.indexOf('<table class="composePreviewTable">');
     const tableMarkup = markup.slice(tableStart, markup.indexOf('</table>', tableStart));
 
-    expect(markup.indexOf('Vista previa del resultado')).toBeLessThan(markup.indexOf('Mostrando 10 filas desde la fila 1 de 20 disponibles.'));
+    expect(markup.indexOf('Vista previa del resultado')).toBeLessThan(markup.indexOf('Mostrando 10 filas desde la fila 1 de 20 filas del archivo.'));
     expect(tableMarkup.match(/<td>/g)).toHaveLength(20);
     expect(tableMarkup).toContain('composePreviewColumnRow');
     expect(tableMarkup).toContain('composePreviewColumnResult');
     expect(tableMarkup).not.toContain('style="width:15%"');
     expect(tableMarkup).not.toContain('style="width:85%"');
+  });
+
+  it('selects compose preview rows by real Excel row number without clamping to the last row', () => {
+    const rows = [
+      { rowNumber: '1', value: 'Uno' },
+      { rowNumber: '50', value: 'Cincuenta' },
+      { rowNumber: '52', value: 'Cincuenta y dos' },
+      { rowNumber: '137', value: 'Ultima' },
+    ];
+
+    expect(getPreviewStartRowNumber('50')).toBe(50);
+    expect(getPreviewRowsFromStart(rows, 1).map((row) => row.rowNumber)).toEqual(['1', '50', '52', '137']);
+    expect(getPreviewRowsFromStart(rows, 50).map((row) => row.rowNumber)).toEqual(['50', '52', '137']);
+    expect(getPreviewRowsFromStart(rows, 137).map((row) => row.rowNumber)).toEqual(['137']);
+    expect(getPreviewRowsFromStart(rows, 180)).toEqual([]);
+    expect(getComposePreviewCountText(0, 180, 137)).toBeNull();
+    expect(getComposePreviewCountText(10, 50, 137)).toBe('Mostrando 10 filas desde la fila 50 de 137 filas del archivo.');
+    expect(getComposePreviewCountText(10, 50, 137)).not.toContain('disponibles');
   });
 
   it('uses a neutral title while the initial source is only an empty technical default', () => {
@@ -808,6 +836,30 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Eliminar paso');
     expect(getTextStepActionOptions(true).map((option) => option.label)).not.toContain('Usar resultado anterior');
     expect(getStepValueSourceOptions(inputColumns, 'text', true, true).map((option) => option.label)).toContain('Usar resultado anterior');
+  });
+
+  it('limits new text transformer source options to input and previous result', () => {
+    expect(getStepValueSourceOptions(inputColumns, 'text', false, true, {
+      allowedSources: ['input'],
+    }).map((option) => option.label)).toEqual(['A', 'D - Nombre', 'F - Presentacion', 'AN - Precio']);
+
+    expect(getStepValueSourceOptions(inputColumns, 'text', true, true, {
+      allowedSources: ['previousResult', 'input'],
+    }).map((option) => option.label)).toEqual(['Usar resultado anterior', 'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio']);
+
+    expect(getStepValueSourceOptions(inputColumns, 'text', true, true, {
+      allowedSources: ['previousResult', 'input'],
+    }).map((option) => option.label)).not.toContain('Texto fijo');
+    expect(getStepValueSourceOptions(inputColumns, 'text', true, true, {
+      allowedSources: ['previousResult', 'input'],
+    }).map((option) => option.label)).not.toContain('Elegir texto desde celda');
+  });
+
+  it('can preserve the current fixed text source for legacy text transformers', () => {
+    expect(getStepValueSourceOptions(inputColumns, 'text', false, true, {
+      allowedSources: ['input', 'fixedText'],
+      fixedTextLabel: 'Texto fijo actual',
+    }).map((option) => option.label)).toEqual(['A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Texto fijo actual']);
   });
 
   it('uses a clear, compact date fallback field', () => {
@@ -1068,6 +1120,7 @@ describe('constructor helpers', () => {
           { id: 'column', type: 'input', inputColumnId: 'input-code' },
           { id: 'fixed', type: 'text', value: ' - ' },
           { id: 'advanced', type: 'input', inputColumnId: 'input-name', steps: [{ id: 'upper', type: 'uppercase' }] },
+          { id: 'advanced-many', type: 'input', inputColumnId: 'input-pack', steps: [{ id: 'upper-pack', type: 'uppercase' }, { id: 'trim-pack', type: 'trim' }] },
         ],
         separator: '',
       },
@@ -1082,7 +1135,10 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Texto fijo');
     expect(markup).toContain('&quot; - &quot;');
     expect(markup).toContain('title="Fuente: Columna D. Esta parte usa pasos avanzados"');
-    expect(markup).toContain('1 paso: Mayúsculas');
+    expect(markup).toContain('2 pasos configurados');
+    expect(markup).toContain('3 pasos configurados');
+    expect(markup).not.toContain('1 paso: Mayúsculas');
+    expect(markup).not.toContain('Mayúsculas · Limpiar espacios');
     expect(markup).toContain('compositionTokenCard compositionToken-input');
   });
 
@@ -1533,6 +1589,7 @@ describe('constructor helpers', () => {
     );
 
     expect(markup).toContain('usará cada dato de A como inicio de un rango, desde la fila 12 hasta la fila 33');
+    expect(markup).toContain('Cada rango termina antes del siguiente dato encontrado');
     expect(markup).toContain('primer valor con datos de D');
   });
 
@@ -1551,6 +1608,7 @@ describe('constructor helpers', () => {
     });
 
     expect(summary).toContain('usará cada dato de D como inicio de un rango, desde la fila 12 hasta la fila 33');
+    expect(summary).toContain('Cada rango termina antes del siguiente dato encontrado');
     expect(summary).toContain('grupos donde A está vacía');
     expect(summary).toContain('última fila con dato en A');
     expect(summary).toContain('primer valor con datos de D');
@@ -2157,7 +2215,8 @@ describe('constructor helpers', () => {
     expect(markup).toContain('aria-label="Ver filas"');
     expect(markup).toContain('title="Ver filas"');
     expect(markup).toContain('manualRangeIconAction');
-    expect(markup).not.toContain('>Ver filas</button>');
+    expect(markup).toContain('manualRangeIconActionLabel');
+    expect(markup).toContain('Ver filas');
     expect(markup).not.toContain('Ver filas del Excel');
   });
 
@@ -2295,6 +2354,27 @@ describe('constructor helpers', () => {
     expect(recipeEditorModalPendingApplyText).toBe('Los cambios se aplican al confirmar.');
     expect(recipeEditorModalCancelLabel).toBe('Cancelar');
     expect(recipeEditorModalApplyLabel).toBe('Aplicar');
+  });
+
+  it('renders the custom value modal header with the column name and preview label', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-custom-header',
+      label: 'Nueva columna A',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'fixed', type: 'text', value: 'ABC' }],
+        separator: '',
+      },
+    }, { sampleInputValues: { 'input-name': 'Producto' } });
+
+    expect(markup).toContain('Columna: &quot;Nueva columna A&quot;');
+    expect(markup).toContain('<strong>Vista previa</strong>');
+    expect(markup).not.toContain('Valor personalizado');
+    expect(markup).not.toContain('Nombre de columna:');
+    expect(markup).not.toContain('Vista previa del primer dato:');
   });
 
   it('uses draft recipe inside the modal without changing the persisted column until apply', () => {
@@ -5136,6 +5216,147 @@ describe('constructor helpers', () => {
     };
 
     expect(getPreviousStepPreviewValue(recipe, { 'input-code': 'as4350' }, 1)).toBe('AS4350');
+  });
+
+  it('shows fixed previous result values when the previous chain is deterministic', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'text', value: '' }],
+      separator: '',
+      steps: [
+        { id: 'fixed', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'asd' } },
+        { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+        { id: 'suffix', mode: 'text', type: 'addSuffix', source: { type: 'previousResult' }, value: '!' },
+      ],
+    };
+
+    expect(isDeterministicPreviousResultRecipe({ ...recipe, steps: recipe.steps?.slice(0, 1) })).toBe(true);
+    expect(getPreviousResultDisplay(recipe, undefined, [], 1)).toEqual({
+      value: 'asd',
+      helpText: 'Este valor viene del paso anterior.',
+    });
+    expect(getPreviousResultDisplay(recipe, undefined, [], 2)?.value).toBe('ASD');
+  });
+
+  it('treats legacy fixed text parts as deterministic previous results', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      parts: [{ id: 'legacy-fixed', type: 'text', value: 'asd' }],
+      separator: '',
+      steps: [
+        { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+
+    expect(getPreviousResultDisplay(recipe, undefined, [], 1)?.value).toBe('asd');
+  });
+
+  it('shows dynamic previous result copy instead of the first sample value for input columns', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'input', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+        { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+    const display = getPreviousResultDisplay(recipe, { 'input-code': 'ACCESORIOS' }, [], 1);
+
+    expect(display?.value).toBe('Valor dinámico');
+    expect(display?.value).not.toBe('ACCESORIOS');
+    expect(display?.helpText).toBe('Este valor cambia según la fila. Ejemplos: ACCESORIOS');
+  });
+
+  it('shows dynamic examples from transformed previous results when available', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'input', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+        { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+        { id: 'suffix', mode: 'text', type: 'addSuffix', source: { type: 'previousResult' }, value: '!' },
+      ],
+    };
+    const rows: InputRow[] = [
+      { rowNumber: 1, values: { 'input-code': 'accesorios' } },
+      { rowNumber: 2, values: { 'input-code': 'pinceles' } },
+      { rowNumber: 3, values: { 'input-code': 'lista de precios 57' } },
+      { rowNumber: 4, values: { 'input-code': 'otro' } },
+    ];
+    const display = getPreviousResultDisplay(recipe, undefined, rows, 2);
+
+    expect(display?.value).toBe('Valor dinámico');
+    expect(display?.helpText).toBe('Este valor cambia según la fila. Ejemplos: ACCESORIOS, PINCELES, LISTA DE PRECIOS 57');
+  });
+
+  it('treats previous steps with conditions as dynamic even when their source is fixed', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'text', value: '' }],
+      separator: '',
+      steps: [
+        {
+          id: 'fixed-conditional',
+          mode: 'text',
+          type: 'noop',
+          source: { type: 'fixedText', value: 'asd' },
+          condition: { target: 'input', columnId: 'input-code', operator: 'isNotEmpty' },
+        },
+        { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+      ],
+    };
+
+    expect(getPreviousResultDisplay(recipe, undefined, [], 1)).toEqual({
+      value: 'Valor dinámico',
+      helpText: 'Este valor cambia según la fila.',
+    });
+  });
+
+  it('renders fixed and dynamic previous result values in the readonly field', () => {
+    const fixedMarkup = renderRecipeEditorMarkup({
+      id: 'previous-fixed-ui',
+      label: 'Anterior fijo',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'text', value: '' }],
+        separator: '',
+        steps: [
+          { id: 'fixed', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'asd' } },
+          { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+        ],
+      },
+    });
+    const dynamicMarkup = renderRecipeEditorMarkup({
+      id: 'previous-dynamic-ui',
+      label: 'Anterior dinamico',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [
+          { id: 'input', mode: 'text', type: 'noop', source: { type: 'input', inputColumnId: 'input-code' } },
+          { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+        ],
+      },
+    }, { sampleInputValues: { 'input-code': 'ACCESORIOS' } });
+
+    expect(fixedMarkup).toContain('previousResultValueField');
+    expect(fixedMarkup).toContain('value="asd"');
+    expect(dynamicMarkup).toContain('previousResultValueField');
+    expect(dynamicMarkup).toContain('value="Valor dinámico"');
+    expect(dynamicMarkup).not.toContain('value="ACCESORIOS"');
   });
 
   it('respects previous step conditions when previewing previous result', () => {

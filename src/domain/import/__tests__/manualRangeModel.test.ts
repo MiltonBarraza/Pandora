@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ManualRangeValue } from '../../../types/import';
-import { findOverlappingManualRange, manualRangesOverlap } from '../manualRangeModel';
+import type { InputRow, ManualRangeValue } from '../../../types/import';
+import { findOverlappingManualRange, generateManualRangesFromTexts, hasOverlappingManualRanges, manualRangesOverlap } from '../manualRangeModel';
 
 function range(id: string, startRowNumber: number, endRowNumber: number): ManualRangeValue {
   return {
@@ -33,3 +33,68 @@ describe('manualRangeModel overlaps', () => {
     expect(findOverlappingManualRange(range('current', 2, 5), ranges, 'current')).toBeNull();
   });
 });
+
+describe('manualRangeModel text-start generation', () => {
+  it('extends each detected text range until the row before the next detected text', () => {
+    const ranges = generateManualRangesFromTexts(rowsWithTexts([3, 9, 12], 20), {
+      inputColumnId: 'input-code',
+      startRowNumber: 1,
+      endRowNumber: 20,
+      mode: 'untilNextText',
+      idFactory: createIdFactory(),
+    });
+
+    expect(ranges.map(({ startRowNumber, endRowNumber }) => ({ startRowNumber, endRowNumber }))).toEqual([
+      { startRowNumber: 3, endRowNumber: 8 },
+      { startRowNumber: 9, endRowNumber: 11 },
+      { startRowNumber: 12, endRowNumber: 20 },
+    ]);
+    expect(hasOverlappingManualRanges(ranges)).toBe(false);
+  });
+
+  it('creates valid ranges for consecutive detected texts', () => {
+    const ranges = generateManualRangesFromTexts(rowsWithTexts([3, 4], 10), {
+      inputColumnId: 'input-code',
+      startRowNumber: 1,
+      endRowNumber: 10,
+      mode: 'untilNextText',
+      idFactory: createIdFactory(),
+    });
+
+    expect(ranges.map(({ startRowNumber, endRowNumber }) => ({ startRowNumber, endRowNumber }))).toEqual([
+      { startRowNumber: 3, endRowNumber: 3 },
+      { startRowNumber: 4, endRowNumber: 10 },
+    ]);
+    expect(hasOverlappingManualRanges(ranges)).toBe(false);
+  });
+
+  it('extends a single detected text to the final available row', () => {
+    const ranges = generateManualRangesFromTexts(rowsWithTexts([3], 10), {
+      inputColumnId: 'input-code',
+      startRowNumber: 1,
+      endRowNumber: 10,
+      mode: 'untilNextText',
+      idFactory: createIdFactory(),
+    });
+
+    expect(ranges.map(({ startRowNumber, endRowNumber }) => ({ startRowNumber, endRowNumber }))).toEqual([
+      { startRowNumber: 3, endRowNumber: 10 },
+    ]);
+  });
+});
+
+function rowsWithTexts(textRows: number[], finalRowNumber: number): InputRow[] {
+  const textRowSet = new Set(textRows);
+  return Array.from({ length: finalRowNumber }, (_, index) => {
+    const rowNumber = index + 1;
+    return {
+      rowNumber,
+      values: { 'input-code': textRowSet.has(rowNumber) ? `Dato ${rowNumber}` : '' },
+    };
+  });
+}
+
+function createIdFactory() {
+  let nextId = 1;
+  return () => `range-${nextId++}`;
+}

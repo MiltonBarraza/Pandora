@@ -11,6 +11,7 @@ import {
 import type { InputColumn, InputRow, ManualRangeValue, StepSource, TransformStep } from '../../types/import';
 import { Modal } from '../Modal/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import {
   getManualRangeSpreadsheetCellValue,
   getManualRangeSpreadsheetColumnLabel,
@@ -286,33 +287,27 @@ export function ManualRangeAdvancedRangeModal({
                 value={startRowInput}
                 disabled={pendingDelete}
                 aria-invalid={!pendingDelete && boundsError !== null}
-                aria-describedby="manual-range-bounds-validation"
                 onChange={(event) => updateRowNumber('startRowNumber', event.target.value)}
               />
             </label>
-            <label className="field compact">
-              <span>Fin</span>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={endRowInput}
-                disabled={pendingDelete}
-                aria-invalid={!pendingDelete && boundsError !== null}
-                aria-describedby="manual-range-bounds-validation"
-                onChange={(event) => updateRowNumber('endRowNumber', event.target.value)}
-              />
-            </label>
+            <div className="manualRangeAdvancedRangeModalFieldWithWarning">
+              <label className="field compact">
+                <span>Fin</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={endRowInput}
+                  disabled={pendingDelete}
+                  aria-invalid={!pendingDelete && boundsError !== null}
+                  onChange={(event) => updateRowNumber('endRowNumber', event.target.value)}
+                />
+              </label>
+              {!pendingDelete && boundsError ? (
+                <WarningTooltip ariaLabel="Advertencia: rango invalido" content={boundsError} />
+              ) : null}
+            </div>
           </div>
-          {!pendingDelete ? (
-            <p
-              id="manual-range-bounds-validation"
-              className={`manualRangeAdvancedRangeModalValidation${boundsError ? ' manualRangeAdvancedRangeModalValidation-error' : ''}`}
-              role={boundsError ? 'alert' : undefined}
-            >
-              {boundsError ?? 'Inicio y fin usan números de fila reales del Excel.'}
-            </p>
-          ) : null}
           <ManualRangeCoveredRowsPreview
             rows={coveredRows}
             columns={coveredColumns}

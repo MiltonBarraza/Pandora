@@ -117,6 +117,7 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await user.clear(startInput);
     expect(startInput.value).toBe('');
     expect(acceptButton.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Advertencia: rango invalido' })).not.toBeNull();
     await user.click(acceptButton);
     expect(onChange).not.toHaveBeenCalled();
 
@@ -127,6 +128,7 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await user.clear(endInput);
     await user.type(endInput, '12');
     expect(acceptButton.disabled).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Advertencia: rango invalido' })).toBeNull();
     await user.click(acceptButton);
 
     expect(onChange).toHaveBeenCalledWith({
@@ -162,7 +164,10 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await user.clear(endInput);
     await user.type(endInput, '12');
 
-    expect(screen.getByText('Este rango se superpone con el rango 12 - 14.')).not.toBeNull();
+    expect(screen.queryByText('Este rango se superpone con el rango 12 - 14.')).toBeNull();
+    const warningButton = screen.getByRole('button', { name: 'Advertencia: rango invalido' });
+    await user.hover(warningButton);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Este rango se superpone con el rango 12 - 14.'));
     expect(acceptButton.disabled).toBe(true);
     await user.click(acceptButton);
     expect(onChange).not.toHaveBeenCalled();
@@ -378,13 +383,13 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     );
 
     await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
-    await selectModalDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
+    await selectModalDropdownOption(user, /Valor base/, 'Elegir texto desde celda');
     await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
 
     const actionButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Acci.n/ });
     expect(actionButton.textContent).toMatch(/Convertir a min.sculas/);
     expect(actionButton.textContent).not.toContain('Usar texto fijo');
-    const sourceButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Qu. valor usar/ });
+    const sourceButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Valor base/ });
     expect(sourceButton.textContent).toContain('Elegir texto desde celda');
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-1');
@@ -619,13 +624,13 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
 
     await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
-    await selectModalDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
+    await selectModalDropdownOption(user, /Valor base/, 'Elegir texto desde celda');
     await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-2');
 
     actionButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Acci.n/ });
     expect(actionButtons[actionButtons.length - 1].textContent).toMatch(/Convertir a min.sculas/);
     expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
-    const sourceButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Qu. valor usar/ });
+    const sourceButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Valor base/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-2'));
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-2');
@@ -782,7 +787,11 @@ describe('overlapping manual range ordering', () => {
     await user.click(screen.getByRole('button', { name: 'Seleccionar fila 7' }));
     await user.click(screen.getByRole('button', { name: 'Seleccionar fila 8' }));
 
-    expect(screen.getByText('Este rango se superpone con el rango 8 - 12.')).not.toBeNull();
+    expect(document.querySelector('.manualRangeSpreadsheetValidation')).toBeNull();
+    expect(screen.queryByText('Este rango se superpone con el rango 8 - 12.')).toBeNull();
+    const warningButton = screen.getByRole('button', { name: 'Advertencia: seleccion superpuesta' });
+    await user.hover(warningButton);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Este rango se superpone con el rango 8 - 12.'));
     expect((screen.getByRole('button', { name: 'Crear rango' }) as HTMLButtonElement).disabled).toBe(true);
     expect(onChange).not.toHaveBeenCalled();
   });

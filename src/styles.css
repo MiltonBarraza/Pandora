@@ -3275,16 +3275,21 @@ tbody tr:hover {
   align-items: center;
   display: inline-flex;
   height: 40px;
+  gap: 6px;
   justify-content: center;
   min-height: 40px;
-  padding: 0;
-  width: 40px;
+  padding: 0 10px;
+  width: auto;
 }
 
 .manualRangeIconAction svg {
   flex: 0 0 auto;
   height: 18px;
   width: 18px;
+}
+
+.manualRangeIconActionLabel {
+  white-space: nowrap;
 }
 
 .manualRangeGenerator {

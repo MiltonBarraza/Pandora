@@ -169,7 +169,7 @@ export function getManualRangeValueSummary(range: ManualRangeValue, inputColumns
   if (source?.type === 'rangeText') {
     return source.selectedText.trim()
       ? `Texto encontrado: ${source.selectedText}`
-      : 'Texto encontrado';
+      : 'Sin texto encontrado';
   }
 
   if (range.valueSource?.type === 'fixedText') {
@@ -180,7 +180,7 @@ export function getManualRangeValueSummary(range: ManualRangeValue, inputColumns
   if (range.valueSource?.type === 'rangeText') {
     return range.valueSource.selectedText.trim()
       ? `Texto encontrado: ${range.valueSource.selectedText}`
-      : 'Texto encontrado';
+      : 'Sin texto encontrado';
   }
 
   if (range.suggestedFromText?.trim()) {

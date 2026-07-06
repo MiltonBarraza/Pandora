@@ -4,6 +4,7 @@ import {
   createCanonicalSourceForAction,
   createCanonicalStepForAction,
   getAllowedSourceActions,
+  getAllowedTextTransformerSourceActions,
   getAllowedStepActions,
   getAllowedStepModes,
   getVisibleStepAction,
@@ -105,6 +106,32 @@ describe('step editor policy', () => {
     const lower = replaceStepActionWithSource(noop(), 'lowercase', context('normal', 1));
     expect(upper).toMatchObject({ mode: 'text', type: 'uppercase', source: { type: 'input', inputColumnId } });
     expect(lower).toMatchObject({ mode: 'text', type: 'lowercase', source: { type: 'previousResult' } });
+  });
+
+  it('offers only input and available previous result for new text transformers', () => {
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'input', inputColumnId },
+    }, context('normal', 0))).toEqual(['useInputColumn']);
+
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'input', inputColumnId },
+    }, context('normal', 1))).toEqual(['useInputColumn', 'usePreviousResult']);
+  });
+
+  it('preserves fixed text sources for existing text transformer recipes', () => {
+    expect(getVisibleStepAction({
+      id: 'legacy',
+      mode: 'text',
+      type: 'uppercase',
+      source: { type: 'fixedText', value: 'manual' },
+    }, context('normal'))).toBe('uppercase');
+
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'fixedText', value: 'manual' },
+    }, context('normal'))).toEqual(['useInputColumn', 'useFixedText']);
   });
 
   it('creates numeric operations without stale text props', () => {

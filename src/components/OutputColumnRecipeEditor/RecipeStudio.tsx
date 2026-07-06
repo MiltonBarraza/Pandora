@@ -230,7 +230,6 @@ function ComposeValueStudio({
             <ComposeValuePreview
               rows={previewRows}
               hasTokens={tokens.length > 0}
-              totalAvailable={manualRangeRows.length > 0 ? manualRangeRows.length : undefined}
             />
           </div>
         </div>
@@ -397,11 +396,9 @@ function ComposeTokenInspector({
 function ComposeValuePreview({
   rows,
   hasTokens,
-  totalAvailable,
 }: {
   rows: Array<{ rowNumber: string; value: string }>;
   hasTokens: boolean;
-  totalAvailable?: number;
 }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const firstAvailableRow = getFirstNumericPreviewRow(rows);
@@ -412,12 +409,12 @@ function ComposeValuePreview({
     }
   }, [firstAvailableRow, startRowInput]);
 
-  const startRowNumber = getClampedPreviewStartRow(startRowInput, rows);
+  const requestedStartRowNumber = getPreviewStartRowNumber(startRowInput);
+  const startRowNumber = requestedStartRowNumber ?? firstAvailableRow;
+  const lastFileRowNumber = getLastNumericPreviewRow(rows);
   const previewRows = hasTokens ? getPreviewRowsFromStart(rows, startRowNumber).slice(0, 10) : [];
-  const emptyMessage = hasTokens ? 'No hay datos para previsualizar.' : 'Agregá una parte para ver la vista previa.';
-  const previewCount = totalAvailable === undefined
-    ? `Mostrando ${previewRows.length} filas`
-    : `Mostrando ${previewRows.length} filas desde la fila ${startRowNumber ?? firstAvailableRow ?? 1} de ${totalAvailable} disponibles.`;
+  const emptyMessage = hasTokens ? 'No se encontraron filas.' : 'Agregá una parte para ver la vista previa.';
+  const previewCount = getComposePreviewCountText(previewRows.length, startRowNumber, lastFileRowNumber);
 
   return (
     <div className="composePreviewControl">
@@ -425,7 +422,7 @@ function ComposeValuePreview({
         <ActionButton action="preview" variant="icon" size="sm" className="composeStudioActionButton composePreviewButton" title="Vista previa" aria-label="Vista previa" onClick={() => setIsPreviewOpen(true)} />
       </InfoTooltip>
       <Modal open={isPreviewOpen} title="Vista previa del resultado" className="composePreviewModal" onClose={() => setIsPreviewOpen(false)}>
-        {totalAvailable !== undefined && rows.length > 0 ? (
+        {firstAvailableRow !== null ? (
           <label className="field compact composePreviewStartField">
             <span>Ver desde fila</span>
             <input
@@ -433,12 +430,12 @@ function ComposeValuePreview({
               min="1"
               step="1"
               value={startRowInput}
-              onBlur={() => setStartRowInput(String(startRowNumber ?? firstAvailableRow ?? 1))}
+              onBlur={() => setStartRowInput(String(isPreviewStartValid(startRowInput) ? startRowInput : firstAvailableRow))}
               onChange={(event) => setStartRowInput(event.target.value)}
             />
           </label>
         ) : null}
-        <p className="composePreviewCount">{previewCount}</p>
+        {previewCount ? <p className="composePreviewCount">{previewCount}</p> : null}
         <ComposePreviewTable rows={previewRows} emptyMessage={emptyMessage} />
       </Modal>
     </div>
@@ -455,32 +452,44 @@ function getFirstNumericPreviewRow(rows: Array<{ rowNumber: string; value: strin
   return getNumericPreviewRows(rows)[0]?.numericRowNumber ?? null;
 }
 
+function getLastNumericPreviewRow(rows: Array<{ rowNumber: string; value: string }>) {
+  const numericRows = getNumericPreviewRows(rows);
+  return numericRows[numericRows.length - 1]?.numericRowNumber ?? null;
+}
+
 function isPreviewStartValid(value: string) {
   const parsedValue = Number(value);
   return Number.isInteger(parsedValue) && parsedValue >= 1;
 }
 
-function getClampedPreviewStartRow(value: string, rows: Array<{ rowNumber: string; value: string }>) {
-  const numericRows = getNumericPreviewRows(rows);
-  if (numericRows.length === 0) {
+export function getPreviewStartRowNumber(value: string) {
+  const parsedValue = Number(value);
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
     return null;
   }
 
-  const parsedValue = Number(value);
-  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
-    return numericRows[0].numericRowNumber;
-  }
-
-  const lastRowNumber = numericRows[numericRows.length - 1].numericRowNumber;
-  return Math.min(parsedValue, lastRowNumber);
+  return parsedValue;
 }
 
-function getPreviewRowsFromStart(rows: Array<{ rowNumber: string; value: string }>, startRowNumber: number | null) {
+export function getPreviewRowsFromStart(rows: Array<{ rowNumber: string; value: string }>, startRowNumber: number | null) {
   if (startRowNumber === null) {
     return rows;
   }
 
   return rows.filter((row) => Number(row.rowNumber) >= startRowNumber);
+}
+
+export function getComposePreviewCountText(rowCount: number, startRowNumber: number | null, lastFileRowNumber: number | null) {
+  const rowLabel = rowCount === 1 ? 'fila' : 'filas';
+  if (rowCount === 0 && startRowNumber !== null) {
+    return null;
+  }
+
+  if (startRowNumber !== null && lastFileRowNumber !== null) {
+    return `Mostrando ${rowCount} ${rowLabel} desde la fila ${startRowNumber} de ${lastFileRowNumber} filas del archivo.`;
+  }
+
+  return `Mostrando ${rowCount} ${rowLabel}`;
 }
 
 function ComposeTokenConditionTable({
@@ -657,11 +666,12 @@ function getComposeTokens(recipe: Extract<OutputRecipe, { type: 'combine' }>, in
 
     if (isComplex) {
       const sourceSummary = getComposeTokenSourceSummary(part, concatPart, inputColumns);
+      const configuredStepCount = configuredSteps.length + 1;
       return {
         id: part.id,
         kind: sourceSummary.kind === 'warning' ? 'advanced' : sourceSummary.kind,
         label: sourceSummary.label,
-        detail: `${configuredSteps.length} ${configuredSteps.length === 1 ? 'paso' : 'pasos'}: ${getComposeStepSummary(configuredSteps, inputColumns)}`,
+        detail: `${configuredStepCount} pasos configurados`,
         statusHint: `Fuente: ${sourceSummary.detail}. Esta parte usa pasos avanzados`,
         index,
       };
@@ -739,20 +749,13 @@ function getComposeTokenSourceSummary(
   }
 
   if (source?.type === 'rangeText') {
-    return { kind: 'text', label: 'Texto encontrado', detail: source.selectedText ? `"${source.selectedText}"` : 'Texto encontrado en rango' };
+    return source.selectedText
+      ? { kind: 'text', label: 'Texto encontrado', detail: `"${source.selectedText}"` }
+      : { kind: 'warning', label: 'Sin texto encontrado', detail: 'Valor vacío' };
   }
 
   const fixedText = source?.type === 'fixedText' ? source.value : part.type === 'text' ? part.value : '';
   return { kind: 'text', label: 'Texto fijo', detail: fixedText ? `"${fixedText}"` : 'Sin texto' };
-}
-
-function getComposeStepSummary(steps: TransformStep[], inputColumns: InputColumn[]) {
-  const labels = steps.map((step) => getRecipeStepTitle(step, inputColumns)).filter(Boolean);
-  if (labels.length <= 2) {
-    return labels.join(' · ');
-  }
-
-  return `${labels.slice(0, 2).join(' · ')} · ${labels.length - 2} más`;
 }
 
 function getComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }>): RecipePart[] {

@@ -27,14 +27,16 @@ import {
   parseRounding,
 } from './OutputColumnRecipeEditor.optionHelpers';
 import { getVisibleLeftOperand, getVisibleRightOperand, shouldShowTextSourceFields } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepOperandFields, StepSourceFields, type StepSourceChangeContext } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepOperandFields, StepSourceFields, type PreviousResultDisplay, type StepSourceChangeContext, type StepValueSourceOptionsConfig } from './OutputColumnRecipeEditor.StepFields';
 import {
   createCanonicalStepForAction,
   createCanonicalStepForMode,
   getAllowedSourceActions,
+  getAllowedTextTransformerSourceActions,
   getAllowedStepActions,
   getAllowedStepModes,
   getVisibleStepAction,
+  isTextTransformerAction,
   isStepSourceAction,
   isVisibleStepActionConfigured,
   replaceStepActionWithSource,
@@ -69,6 +71,7 @@ type StepEditorBlockProps = {
   hideTransformSourceFields?: boolean;
   uiStateKey?: string;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   renderCondition?: (step: TransformStep, onChange: (patch: Partial<TransformStep>) => void) => ReactNode;
   onChange: (patch: Partial<TransformStep>) => void;
   onReplace: (step: TransformStep) => void;
@@ -130,6 +133,7 @@ export function StepEditorBlock({
   hideTransformSourceFields = false,
   uiStateKey,
   previousResultPreviewValue,
+  previousResultDisplay,
   renderCondition,
   onChange,
   onReplace,
@@ -203,6 +207,7 @@ export function StepEditorBlock({
       fixedTextInputLabel,
       hideTransformSourceFields,
       previousResultPreviewValue,
+      previousResultDisplay,
       sourceActionOverride,
       onSourceActionOverrideChange: setScopedSourceActionOverride,
       onSourceChange: updateSource,
@@ -295,6 +300,7 @@ function renderDefaultFields({
   fixedTextInputLabel,
   hideTransformSourceFields,
   previousResultPreviewValue,
+  previousResultDisplay,
   sourceActionOverride,
   onSourceActionOverrideChange,
   onSourceChange,
@@ -309,6 +315,7 @@ function renderDefaultFields({
   fixedTextInputLabel?: string;
   hideTransformSourceFields?: boolean;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   sourceActionOverride?: StepSourceAction;
   onSourceActionOverrideChange: (action: StepSourceAction | undefined) => void;
   onSourceChange: (source: StepSource, changeContext?: StepSourceChangeContext) => void;
@@ -326,6 +333,7 @@ function renderDefaultFields({
           inputRows={manualRangeRows}
           allowPreviousResult={allowPreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
+          previousResultDisplay={previousResultDisplay}
           fixedTextInputLabel={fixedTextInputLabel}
           hideSourceSelector
           columnTextPickerOpen={visibleAction === 'pickColumnText' || sourceActionOverride === 'pickColumnText'}
@@ -348,6 +356,7 @@ function renderDefaultFields({
           inputRows={manualRangeRows}
           allowPreviousResult={allowPreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
+          previousResultDisplay={previousResultDisplay}
           fixedTextInputType={mode === 'number' ? 'number' : 'date'}
           fixedTextInputLabel={mode === 'number' ? 'Valor fijo' : 'Fecha fija'}
           valueKind={mode}
@@ -361,17 +370,20 @@ function renderDefaultFields({
 
   const renderTextSourceFields = (afterSourceSelector?: ReactNode) => !hideTransformSourceFields && shouldShowTextSourceFields(step.type) ? (
     <StepSourceFields
-      label={step.type === 'formatDate' ? 'Qué fecha usar' : 'Qué valor usar'}
+      label={getStepSourceFieldLabel(step.type)}
       source={stepSource}
       inputColumns={inputColumns}
       inputRows={manualRangeRows}
       allowPreviousResult={allowPreviousResult}
       previousResultPreviewValue={previousResultPreviewValue}
+      previousResultDisplay={previousResultDisplay}
       fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}
       fixedTextDateInputFormat={step.dateInputFormat ?? defaultDateInputFormat}
       fixedTextInputLabel={step.type === 'formatDate' ? 'Fecha fija' : 'Valor fijo'}
       valueKind={step.type === 'formatDate' ? 'date' : 'text'}
       explicitTextValueSource={step.type !== 'formatDate'}
+      sourceOptionsConfig={getSourceOptionsConfigForStep(step, context)}
+      labelInfoText={getStepSourceHelpText(step.type)}
       afterSourceSelector={afterSourceSelector}
       onChange={onSourceChange}
     />
@@ -517,6 +529,42 @@ function renderDefaultFields({
   }
 
   return sourceFields;
+}
+
+function getStepSourceFieldLabel(type: TransformStep['type']) {
+  if (type === 'formatDate') {
+    return 'Qué fecha usar';
+  }
+
+  if (isTextTransformerAction(type)) {
+    return 'Valor base';
+  }
+
+  return 'Qué valor usar';
+}
+
+function getStepSourceHelpText(type: TransformStep['type']) {
+  if (isTextTransformerAction(type)) {
+    return 'Elegí la columna o el resultado anterior sobre el que se aplica esta acción.';
+  }
+
+  return 'Indica de donde sale el valor de este paso.';
+}
+
+function getSourceOptionsConfigForStep(step: TransformStep, context: StepEditorContext): StepValueSourceOptionsConfig | undefined {
+  if (!isTextTransformerAction(step.type) || context.kind !== 'normal') {
+    return undefined;
+  }
+
+  const allowedActions = getAllowedTextTransformerSourceActions(step, context);
+  return {
+    allowedSources: [
+      ...(allowedActions.includes('usePreviousResult') ? ['previousResult' as const] : []),
+      ...(allowedActions.includes('useInputColumn') ? ['input' as const] : []),
+      ...(allowedActions.includes('useFixedText') ? ['fixedText' as const] : []),
+    ],
+    fixedTextLabel: 'Texto fijo actual',
+  };
 }
 
 function getStepModeOptionsForContext(context: StepEditorContext) {

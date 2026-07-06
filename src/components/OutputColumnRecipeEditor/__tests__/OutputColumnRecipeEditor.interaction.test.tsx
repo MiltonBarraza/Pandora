@@ -289,7 +289,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     expect(screen.queryByText('Vista de filas para rangos')).toBeNull();
 
-    const dialog = screen.getByRole('dialog', { name: /Valor personalizado/ });
+    const dialog = screen.getByRole('dialog', { name: /Columna: "Valor"/ });
     const operationButtons = within(dialog).getAllByRole('button', { name: 'Tipo de operación' });
     const textOperationButton = operationButtons.find((button) => button.textContent?.includes('Trabajar con texto'));
     expect(textOperationButton).toBeDefined();
@@ -352,7 +352,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.click(screen.getByRole('button', { name: 'Vista previa' }));
 
     const previewDialog = screen.getByRole('dialog', { name: 'Vista previa del resultado' });
-    expect(within(previewDialog).getByText('Mostrando 10 filas desde la fila 1 de 20 disponibles.')).not.toBeNull();
+    expect(within(previewDialog).getByText('Mostrando 10 filas desde la fila 1 de 20 filas del archivo.')).not.toBeNull();
     expect(within(previewDialog).getByText('Producto 1')).not.toBeNull();
     expect(within(previewDialog).queryByText('Producto 11')).toBeNull();
 
@@ -360,7 +360,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.clear(startInput);
     await user.type(startInput, '8');
 
-    await waitFor(() => expect(within(previewDialog).getByText('Mostrando 10 filas desde la fila 8 de 20 disponibles.')).not.toBeNull());
+    await waitFor(() => expect(within(previewDialog).getByText('Mostrando 10 filas desde la fila 8 de 20 filas del archivo.')).not.toBeNull());
     expect(within(previewDialog).queryByText('Producto 1')).toBeNull();
     expect(within(previewDialog).getByText('Producto 8')).not.toBeNull();
     expect(within(previewDialog).getByText('Producto 17')).not.toBeNull();
@@ -369,8 +369,9 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.clear(startInput);
     await user.type(startInput, '999');
 
-    await waitFor(() => expect(within(previewDialog).getByText('Mostrando 1 filas desde la fila 20 de 20 disponibles.')).not.toBeNull());
-    expect(within(previewDialog).getByText('Producto 20')).not.toBeNull();
+    await waitFor(() => expect(within(previewDialog).queryByText('No hay filas disponibles desde la fila 999.')).toBeNull());
+    expect(within(previewDialog).getByText('No se encontraron filas.')).not.toBeNull();
+    expect(within(previewDialog).queryByText('Producto 20')).toBeNull();
   });
 
   it('renders the main concat part with the canonical step editor unconfigured', async () => {
@@ -379,7 +380,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
 
-    const dialog = screen.getByRole('dialog', { name: /Valor personalizado/ });
+    const dialog = screen.getByRole('dialog', { name: /Columna: "Combinado"/ });
     const partEditor = document.querySelector('.composePartTechnicalEditor');
     expect(partEditor).not.toBeNull();
     expect(partEditor?.querySelector('.rangeValuePrimaryLayout')).not.toBeNull();
@@ -440,13 +441,13 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     await selectComposePartDropdownOption(user, /Acción/, 'Convertir a mayúsculas');
-    await selectComposePartDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
+    await selectComposePartDropdownOption(user, /Valor base/, 'Elegir texto desde celda');
     await selectComposePartSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
 
     const actionButtons = screen.getAllByRole('button', { name: /Acción/ });
     expect(actionButtons[actionButtons.length - 1].textContent).toContain('Convertir a mayúsculas');
     expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
-    const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
+    const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
@@ -467,13 +468,13 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
 
     await selectComposePartDropdownOption(user, /Acci.n/, /Convertir a may.sculas/);
-    await selectComposePartDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
+    await selectComposePartDropdownOption(user, /Valor base/, 'Elegir texto desde celda');
     await selectComposePartSearchableDropdownOption(user, /Texto encontrado/, 'P-2');
 
     const updatedActionButtons = screen.getAllByRole('button', { name: /Acci.n/ });
     expect(updatedActionButtons[updatedActionButtons.length - 1].textContent).toMatch(/Convertir a may.sculas/);
     expect(updatedActionButtons[updatedActionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
-    const sourceButtons = screen.getAllByRole('button', { name: /Qu. valor usar/ });
+    const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-2'));
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
@@ -499,7 +500,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
     await selectComposePartDropdownOption(user, /Acción/, 'Convertir a mayúsculas');
 
-    const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
+    const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Usar resultado anterior');
     expect(getComposePartEditor().querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('Resultado del paso anterior');
     expect(screen.getAllByText('ASD').length).toBeGreaterThan(0);
@@ -598,7 +599,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();
     await user.click(screen.getByRole('option', { name: /Convertir a may.sculas/ }));
 
-    const sourceButtons = screen.getAllByRole('button', { name: /Qu. valor usar/ });
+    const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Usar resultado anterior');
     expect(within(getComposePartEditor()).getByText(/Paso 2/).textContent).not.toContain('Sin configurar');
     expect(screen.getAllByText('ABC').length).toBeGreaterThan(0);
@@ -693,7 +694,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-normal-first-text')} />);
 
     await openRecipeEditor(user);
-    const dialog = screen.getByRole('dialog', { name: /Valor personalizado/ });
+    const dialog = screen.getByRole('dialog', { name: /Columna: "Valor"/ });
     expect(getStepOneSummary(dialog)).toContain('Sin configurar');
     expect(within(dialog).getByRole('button', { name: /Tipo de operación/ }).textContent).toContain('Trabajar con texto');
     expect(within(dialog).getByText('Seleccionar acción')).not.toBeNull();
@@ -741,21 +742,21 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
   });
 
-  it('keeps normal text picker source while preserving the transform action', async () => {
+  it('does not offer fixed text or cell text picker as a new normal text-transformer source', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-normal-picker-transform')} />);
 
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Acción/, 'Convertir a mayúsculas');
-    await selectLastDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
-    await selectLastSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
 
     const actionButtons = screen.getAllByRole('button', { name: /Acción/ });
     expect(actionButtons[actionButtons.length - 1].textContent).toContain('Convertir a mayúsculas');
     expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
-    const sourceButtons = screen.getAllByRole('button', { name: /Qué valor usar/ });
-    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
-    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
+    const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
+    await user.click(sourceButtons[sourceButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: 'Texto fijo' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Elegir texto desde celda' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'A' })).not.toBeNull();
   });
 
   it('does not render derived fields while text, date, or number mode has no action', async () => {
@@ -919,7 +920,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     expect(screen.getByText(/Paso 2/).textContent).toContain('Mayúsculas');
-    expect(screen.getByText('Qué valor usar')).not.toBeNull();
+    expect(screen.getByText('Valor base')).not.toBeNull();
     expect(screen.getByText('Usar resultado anterior')).not.toBeNull();
     expect(screen.getByDisplayValue('Resultado del paso anterior')).not.toBeNull();
     expect(screen.queryByText('Este valor se calcula para cada fila según los pasos anteriores.')).toBeNull();
@@ -992,7 +993,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     });
   });
 
-  it('allows choosing fixed text explicitly as the base for a second-step suffix', async () => {
+  it('does not offer fixed text as a new second-step suffix base', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={createFixedTextStepColumn('output-second-suffix-fixed-base')}
@@ -1002,22 +1003,23 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
     await selectLastDropdownOption(user, /Acción/, 'Agregar sufijo');
-    await selectLastDropdownOption(user, /Qué valor usar/, 'Texto fijo');
 
-    const fixedBaseInput = getInputByLabelText('Valor fijo');
-    await user.type(fixedBaseInput, 'zz');
-    expect(fixedBaseInput.value).toBe('zz');
+    const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
+    await user.click(sourceButtons[sourceButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: 'Texto fijo' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Usar resultado anterior' })).not.toBeNull();
+    await user.keyboard('{Escape}');
     await user.type(screen.getByLabelText('Sufijo'), '-x');
-    expect(screen.getAllByText('zz-x').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('abc-x').length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
     expect(persistedRecipe.steps[1]).toMatchObject({
       type: 'addSuffix',
-      source: { type: 'fixedText', value: 'zz' },
+      source: { type: 'previousResult' },
       value: '-x',
     });
-    expect(screen.getAllByText('zz-x').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('abc-x').length).toBeGreaterThan(0);
   });
 
   it('keeps the suffix to the right of its source selector before previous-result value field', async () => {
@@ -1032,7 +1034,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Acción/, 'Agregar sufijo');
 
     const suffixField = screen.getByLabelText('Sufijo').closest('.recipeField');
-    const sourceButtons = screen.getAllByRole('button', { name: 'Qué valor usar' });
+    const sourceButtons = screen.getAllByRole('button', { name: 'Valor base' });
     const sourceField = sourceButtons[sourceButtons.length - 1]?.closest('.recipeField');
     const previousResultField = screen.getByText('Resultado anterior').closest('.previousResultValueField');
 

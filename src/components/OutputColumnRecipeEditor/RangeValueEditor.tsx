@@ -804,6 +804,11 @@ function getRangeValueConcatPartRangeTextSource(source: StepSource, inputColumns
 
 function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: InputColumn[]) {
   const { source } = part;
+  const configuredStepCount = (part.steps ?? []).length;
+
+  if (configuredStepCount > 0) {
+    return `${configuredStepCount + 1} pasos configurados`;
+  }
 
   if (source.type === 'previousResult') {
     return 'Resultado anterior';
@@ -814,7 +819,7 @@ function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: Inpu
   }
 
   if (source.type === 'rangeText') {
-    return source.selectedText ? `Texto encontrado "${source.selectedText}"` : 'Texto encontrado en el rango';
+    return source.selectedText ? `Texto encontrado "${source.selectedText}"` : 'Sin texto encontrado en el rango';
   }
 
   const inputColumn = inputColumns.find((column) => column.id === source.inputColumnId);

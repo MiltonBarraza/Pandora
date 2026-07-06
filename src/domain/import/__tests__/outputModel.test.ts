@@ -1130,6 +1130,95 @@ describe('outputModel numeric transformations', () => {
     expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
     expect(row.warnings).toContain('No se pudo aplicar operación numérica: valor inválido');
   });
+
+  it('converts numeric text with dot and comma decimals', () => {
+    const [row] = buildProcessedRows([
+      {
+        rowNumber: 1,
+        values: {
+          simple: '123',
+          dot: '123.45',
+          comma: '123,45',
+          currency: '$ 1.234,56',
+        },
+      },
+    ], [
+      outputColumn({ id: 'simple', recipe: { type: 'direct', inputColumnId: 'simple', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+      outputColumn({ id: 'dot', recipe: { type: 'direct', inputColumnId: 'dot', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+      outputColumn({ id: 'comma', recipe: { type: 'direct', inputColumnId: 'comma', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+      outputColumn({ id: 'currency', recipe: { type: 'direct', inputColumnId: 'currency', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.simple).toBe('123');
+    expect(row.outputValues.dot).toBe('123.45');
+    expect(row.outputValues.comma).toBe('123.45');
+    expect(row.outputValues.currency).toBe('1234.56');
+    expect(row.warnings).toBeUndefined();
+  });
+
+  it('keeps invalid values unchanged when converting to number', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { invalid: 'ABC' } },
+    ], [
+      outputColumn({ id: 'invalid', recipe: { type: 'direct', inputColumnId: 'invalid', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.invalid).toBe('ABC');
+    expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
+  });
+
+  it('treats values as text for later steps when converting to text', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { value: '123' } },
+    ], [
+      outputColumn({
+        id: 'text',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'value',
+          steps: [
+            { id: 'to-text', type: 'toText' },
+            { id: 'prefix', type: 'addPrefix', value: 'COD-' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.text).toBe('COD-123');
+  });
+
+  it('extracts the first number found in text', () => {
+    const [row] = buildProcessedRows([
+      {
+        rowNumber: 1,
+        values: {
+          code: 'ABC123',
+          measure: '12 kg x 3',
+          price: '$ 1.234,56',
+        },
+      },
+    ], [
+      outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'code', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+      outputColumn({ id: 'measure', recipe: { type: 'direct', inputColumnId: 'measure', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+      outputColumn({ id: 'price', recipe: { type: 'direct', inputColumnId: 'price', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.code).toBe('123');
+    expect(row.outputValues.measure).toBe('12');
+    expect(row.outputValues.price).toBe('1234.56');
+    expect(row.warnings).toBeUndefined();
+  });
+
+  it('keeps original text and emits a warning when no number can be extracted', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { text: 'Sin número' } },
+    ], [
+      outputColumn({ id: 'text', recipe: { type: 'direct', inputColumnId: 'text', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.text).toBe('Sin número');
+    expect(row.warnings).toContain('No se pudo extraer número del texto');
+  });
 });
 
 describe('outputModel step sources', () => {
@@ -1457,6 +1546,29 @@ describe('outputModel concat step', () => {
 });
 
 describe('outputModel date steps', () => {
+  it('formats a date from an input column using the selected input and output formats', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { 'input-date': '31/12/2025' } },
+    ], [
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('2025-12-31');
+  });
+
   it('formats a direct recipe value as a string', () => {
     const row = buildRow([
       outputColumn({
@@ -1622,6 +1734,68 @@ describe('outputModel date steps', () => {
     ]);
 
     expect(row.outputValues.date).toBe('01/06/2024');
+  });
+
+  it('formats an ISO fixed date picker source even when the hidden input format is stale', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-12-31' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'DD/MM/YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('31/12/2025');
+  });
+
+  it('formats an ISO fixed date picker source with another supported output format', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-06-17' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'MM/DD/YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('06/17/2025');
+  });
+
+  it('keeps invalid date values unchanged by default', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'no es fecha',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('no es fecha');
   });
 
   it('formats the previous result from an earlier step', () => {
