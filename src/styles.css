@@ -63,12 +63,12 @@
   --color-focus-ring: rgba(127, 174, 220, 0.28);
 
   --color-overlay-modal: rgba(24, 32, 42, 0.42);
-  --shadow-panel: 0 6px 16px rgba(24, 32, 42, 0.06);
-  --shadow-dropdown: 0 10px 24px rgba(24, 32, 42, 0.14);
-  --shadow-modal: 0 16px 42px rgba(24, 32, 42, 0.2);
+  --shadow-panel: 0 2px 6px rgba(24, 32, 42, 0.06);
+  --shadow-dropdown: 0 4px 10px rgba(24, 32, 42, 0.12);
+  --shadow-modal: 0 6px 16px rgba(24, 32, 42, 0.16);
   --color-toolbar-bg: rgba(255, 255, 255, 0.9);
   --color-toolbar-border: var(--color-border-default);
-  --shadow-toolbar: 0 6px 18px rgba(24, 32, 42, 0.08);
+  --shadow-toolbar: 0 2px 6px rgba(24, 32, 42, 0.07);
 
   --color-hero-gradient-start: var(--color-text-primary);
   --color-hero-gradient-mid: var(--color-primary-bg);
@@ -165,12 +165,12 @@
   --color-focus-ring: rgba(143, 195, 240, 0.34);
 
   --color-overlay-modal: rgba(2, 6, 15, 0.68);
-  --shadow-panel: 0 7px 18px rgba(0, 0, 0, 0.2);
-  --shadow-dropdown: 0 11px 26px rgba(0, 0, 0, 0.3);
-  --shadow-modal: 0 18px 46px rgba(0, 0, 0, 0.42);
+  --shadow-panel: 0 2px 6px rgba(0, 0, 0, 0.14);
+  --shadow-dropdown: 0 4px 10px rgba(0, 0, 0, 0.2);
+  --shadow-modal: 0 6px 16px rgba(0, 0, 0, 0.26);
   --color-toolbar-bg: rgba(18, 27, 42, 0.9);
   --color-toolbar-border: #33445c;
-  --shadow-toolbar: 0 8px 20px rgba(0, 0, 0, 0.28);
+  --shadow-toolbar: 0 2px 6px rgba(0, 0, 0, 0.16);
 
   --color-hero-gradient-start: #0b1320;
   --color-hero-gradient-mid: #224766;
@@ -192,7 +192,7 @@
   --color-toast-bg: #162033;
   --color-toast-text: #f4f7fb;
   --color-toast-border: #3a4b63;
-  --shadow-toast: 0 10px 24px rgba(0, 0, 0, 0.3);
+  --shadow-toast: 0 4px 10px rgba(0, 0, 0, 0.2);
 
   --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: #3a4b63;
@@ -531,7 +531,7 @@ h1 {
 
 .toolChoiceCard:focus-visible {
   border-color: var(--color-focus-border);
-  box-shadow: 0 0 0 4px var(--color-focus-ring), 0 10px 24px var(--color-focus-ring);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
   outline: none;
 }
 
@@ -1609,19 +1609,29 @@ h3 {
   border-color: var(--color-primary-bg);
 }
 
-.dropZone:hover,
+.dropZone:hover {
+  background: var(--color-bg-surface-subtle);
+  border-color: var(--color-primary-bg);
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
 .dropZone:focus-visible {
   background: var(--color-bg-surface-subtle);
   border-color: var(--color-primary-bg);
-  box-shadow: 0 8px 18px var(--color-focus-ring);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
   transform: translateY(-1px);
 }
 
 .dropZone.hasFile:hover,
-.dropZone.hasFile:focus-visible,
 .dropZone.hasFile.isDragging {
   background: var(--color-accent-bg-soft);
-  box-shadow: inset 0 0 0 1px var(--color-focus-ring), 0 8px 18px var(--color-focus-ring);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring);
+}
+
+.dropZone.hasFile:focus-visible {
+  background: var(--color-accent-bg-soft);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring), 0 0 0 3px var(--color-focus-ring);
 }
 
 .dropZone input {
@@ -1778,7 +1788,7 @@ input[type='checkbox']:checked::after {
 
 input[type='checkbox']:hover:not(:disabled) {
   border-color: var(--color-primary-bg-hover);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: 0 0 0 1px var(--color-focus-ring);
 }
 
 input[type='checkbox']:focus-visible {
