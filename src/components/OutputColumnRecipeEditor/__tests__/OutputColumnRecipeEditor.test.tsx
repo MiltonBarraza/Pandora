@@ -226,6 +226,32 @@ describe('constructor helpers', () => {
     expect(stepModeOptions).toContainEqual({ value: 'manualRange', label: 'Trabajar con rangos' });
   });
 
+  it('shows a compact operation summary for manual ranges', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'range-output',
+      label: 'Categoría',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'manualRange',
+        ranges: Array.from({ length: 18 }, (_, index) => ({
+          id: `range-${index}`,
+          startRowNumber: index + 1,
+          endRowNumber: index + 1,
+          value: `Valor ${index + 1}`,
+        })),
+      },
+    });
+
+    expect(markup).toContain('Tipo de operación');
+    expect(markup).toContain('Valores por rangos');
+    expect(markup).toContain('Asigna valores según rangos de filas configurados.');
+    expect(markup).toContain('18 rangos creados');
+    expect(markup).not.toContain('Origen/base');
+    expect(markup).not.toContain('Transformaciones');
+    expect(markup).not.toContain('8-13');
+  });
+
   it('detects the visual studio mode from the current recipe', () => {
     expect(getRecipeStudioMode({ type: 'direct', inputColumnId: 'input-code' })).toBe('takeValue');
     expect(getRecipeStudioMode({ type: 'fixedText', value: 'OK' })).toBe('fixedText');
@@ -1193,7 +1219,7 @@ describe('constructor helpers', () => {
     expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
     expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
     expect(markup).not.toContain('class="rangeStudio"');
-    expect(markup).not.toContain('Valores por rangos');
+    expect(markup).toContain('Valores por rangos');
     expect(markup).toContain('Cerda china mango amarillo');
   });
 
@@ -1227,7 +1253,7 @@ describe('constructor helpers', () => {
     expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
     expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
     expect(markup).not.toContain('class="rangeStudio"');
-    expect(markup).not.toContain('Valores por rangos');
+    expect(markup).toContain('Valores por rangos');
     expect(markup).toContain('Cancelar');
     expect(markup).toContain('Aplicar');
   });
@@ -1290,7 +1316,7 @@ describe('constructor helpers', () => {
     expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
     expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
     expect(markup).not.toContain('class="rangeStudio"');
-    expect(markup).not.toContain('Valores por rangos');
+    expect(markup).toContain('Valores por rangos');
     expect(markup).not.toContain('Generar desde textos');
     expect(markup).not.toContain('Generar rangos sugeridos');
   });
@@ -1310,7 +1336,7 @@ describe('constructor helpers', () => {
     expect((markup.match(/class="manualRangeSpreadsheet"/g) ?? [])).toHaveLength(1);
     expect(markup).not.toContain('La edición de rangos no está disponible en este paso.');
     expect(markup).not.toContain('class="rangeStudio"');
-    expect(markup).not.toContain('Valores por rangos');
+    expect(markup).toContain('Valores por rangos');
     expect(markup).not.toContain('Ayuda: valores por rangos');
     expect(markup).not.toContain('<p class="muted">Asigná un valor distinto según el rango de filas reales del Excel.</p>');
   });
@@ -6588,7 +6614,7 @@ describe('constructor helpers', () => {
         type: 'combine',
         parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
       }),
-    ).toBe('Origen/base');
+    ).toBe('');
     expect(
       getCustomValuePartsDisplaySummary({
         type: 'combine',

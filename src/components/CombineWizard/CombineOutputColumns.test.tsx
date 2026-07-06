@@ -65,7 +65,7 @@ describe('CombineOutputColumns', () => {
     expect(screen.queryByText('Une columnas que tengan el mismo nombre normalizado.')).toBeNull();
     expect(screen.getByText('Modo de asignación')).not.toBeNull();
     await user.hover(screen.getByRole('button', { name: 'Información sobre el modo de asignación' }));
-    expect(await screen.findByText(/Por nombre compara encabezados normalizados/)).not.toBeNull();
+    expect(await screen.findByText(/Por nombre compara encabezados equivalentes/)).not.toBeNull();
     await user.click(screen.getByRole('radio', { name: /Por posición/ }));
 
     expect(onAssignmentModeChange).toHaveBeenCalledWith('position');

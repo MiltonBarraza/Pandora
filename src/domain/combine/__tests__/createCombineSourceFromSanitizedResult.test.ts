@@ -90,7 +90,7 @@ describe('createCombineSourceFromSanitizedResult', () => {
   });
 });
 
-function result(fileBaseName = 'Archivo sanitizado'): ProcessedExportResult {
+function result(fileBaseName = 'Archivo preparado'): ProcessedExportResult {
   return {
     id: 'basket:1',
     fileBaseName,

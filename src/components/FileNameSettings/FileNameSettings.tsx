@@ -1,4 +1,4 @@
-import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
+import { buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import type { FileNameSettings as FileNameSettingsType } from '../../types/import';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
@@ -11,7 +11,6 @@ type FileNameSettingsProps = {
 
 export function FileNameSettings({ settings, sourceFileName, sheetName, onChange }: FileNameSettingsProps) {
   const outputName = buildOutputFileBaseName({ settings, sourceFileName, sheetName });
-  const auditName = buildAuditFileBaseName(outputName);
 
   const update = (patch: Partial<FileNameSettingsType>) => {
     onChange({ ...settings, ...patch });
@@ -109,8 +108,6 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
       <div className="filenamePreview">
         <strong>Nombre final</strong>
         <span>{outputName}</span>
-        <small>Formatos disponibles: .xlsx y .csv</small>
-        <small>Auditoría: {auditName}.xlsx</small>
       </div>
     </div>
   );

@@ -267,7 +267,7 @@ function getColumnCandidate(savedColumn: SourceColumnSnapshot, currentColumn: So
     return {
       currentColumn,
       confidence: 'exact',
-      reason: 'Mismo índice y mismo encabezado normalizado.',
+      reason: 'Mismo índice y mismo encabezado equivalente.',
       score: 500,
     };
   }
@@ -276,7 +276,7 @@ function getColumnCandidate(savedColumn: SourceColumnSnapshot, currentColumn: So
     return {
       currentColumn,
       confidence: 'strong',
-      reason: sameIndex ? 'Mismo encabezado normalizado.' : 'Mismo encabezado normalizado en otra posición.',
+      reason: sameIndex ? 'Mismo encabezado equivalente.' : 'Mismo encabezado equivalente en otra posición.',
       score: 420 - Math.abs(savedColumn.columnIndex - currentColumn.columnIndex),
     };
   }
@@ -285,7 +285,7 @@ function getColumnCandidate(savedColumn: SourceColumnSnapshot, currentColumn: So
     return {
       currentColumn,
       confidence: 'strong',
-      reason: 'Mismo alias normalizado.',
+      reason: 'Mismo alias equivalente.',
       score: 390,
     };
   }

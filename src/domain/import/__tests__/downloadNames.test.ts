@@ -5,7 +5,7 @@ import { buildAuditFileBaseName, buildOutputFileBaseName, formatLocalDatePart, s
 const baseSettings: FileNameSettings = {
   mode: 'default',
   customName: '',
-  baseText: 'Archivo sanitizado',
+  baseText: 'Archivo preparado',
   includeBaseText: true,
   includeOriginalName: false,
   includeSheetName: false,
@@ -28,7 +28,7 @@ describe('downloadNames', () => {
         sheetName: 'Hoja 1',
         now: new Date(2026, 5, 8, 15, 30),
       }),
-    ).toBe('Archivo sanitizado - 2026-06-08');
+    ).toBe('Archivo preparado - 2026-06-08');
   });
 
   it('builds an output name with local date and time without Windows-invalid separators', () => {
@@ -39,7 +39,7 @@ describe('downloadNames', () => {
       now: new Date(2026, 5, 8, 15, 30),
     });
 
-    expect(name).toBe('Archivo sanitizado - 2026-06-08_15-30');
+    expect(name).toBe('Archivo preparado - 2026-06-08_15-30');
     expect(name).not.toContain(':');
   });
 

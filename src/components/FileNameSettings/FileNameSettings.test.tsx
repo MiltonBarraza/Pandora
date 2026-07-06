@@ -22,6 +22,14 @@ describe('FileNameSettings', () => {
 
     expect((screen.getByLabelText('Incluir hora actual') as HTMLInputElement).disabled).toBe(false);
   });
+
+  it('shows only final name in visible summary', () => {
+    render(<Harness />);
+
+    expect(screen.getByText('Nombre final')).not.toBeNull();
+    expect(screen.queryByText(/Formatos disponibles/)).toBeNull();
+    expect(screen.queryByText(/Auditoría:/)).toBeNull();
+  });
 });
 
 function Harness() {

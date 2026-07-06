@@ -6,11 +6,11 @@ import { getEnabledOutputColumns, rowsToAoAFromProcessedRows } from './outputMod
 export function exportXlsxFromProcessedRows(
   rows: ProcessedRow[],
   outputColumns: OutputColumn[],
-  filename = 'Archivo sanitizado',
+  filename = 'Archivo preparado',
 ) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rowsToAoAFromProcessedRows(rows, outputColumns));
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Hoja sanitizada');
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Archivo preparado');
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 

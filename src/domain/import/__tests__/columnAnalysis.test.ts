@@ -59,4 +59,12 @@ describe('analyzeSheetColumns', () => {
       'dato',
     ]);
   });
+
+  it('uses effective row width instead of an inflated worksheet ref', () => {
+    const sheet = { '!ref': 'A1:XET109' } as XLSX.WorkSheet;
+
+    const columns = analyzeSheetColumns(sheet, [['A', '', 'C']]);
+
+    expect(columns).toHaveLength(3);
+  });
 });

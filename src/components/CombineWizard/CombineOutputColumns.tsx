@@ -80,7 +80,7 @@ export function CombineOutputColumns({
             <InfoTooltip
               ariaLabel="Información sobre el modo de asignación"
               placement="right"
-              content="Por nombre compara encabezados normalizados. Por posición empareja cada fuente según el orden de sus columnas."
+              content="Por nombre compara encabezados equivalentes. Por posición empareja cada fuente según el orden de sus columnas."
             />
           </legend>
           <div className="combineAssignmentModeOptions">

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { getEnabledOutputColumns } from '../../domain/import/outputModel';
 import type { OutputColumn, ProcessedRow, RowOverrides } from '../../types/import';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
 export const normalizedPreviewRowLimit = 30;
@@ -35,10 +36,11 @@ export function ProcessedRowsPreview({
   return (
     <section className="panel slim">
       <div className="normalizedPreviewTitleRow">
-        <strong className="normalizedPreviewRowCount">{getNormalizedPreviewRowCountLabel(visibleRows.length)}</strong>
-        <h3>{title}</h3>
+        <h3 className="headingWithInfo">
+          <span>{title}</span>
+          {note ? <InfoTooltip content={note} /> : null}
+        </h3>
       </div>
-      {note ? <p className="muted">{note}</p> : null}
       <p className="muted normalizedPreviewSummary">{previewSummary}</p>
       <p className="muted normalizedPreviewLimit">{previewLimitText}</p>
       {columns.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
@@ -100,10 +102,10 @@ export function getNormalizedPreviewRowCountLabel(rowCount: number) {
 
 export function getNormalizedPreviewLimitText(totalRows: number, shownRows: number) {
   if (totalRows > normalizedPreviewRowLimit) {
-    return `Vista previa normalizada: ${shownRows} de ${totalRows} filas.`;
+    return `Vista previa: ${shownRows} de ${totalRows} filas mostradas.`;
   }
 
-  return 'Vista previa normalizada: se muestran hasta 30 filas.';
+  return `Vista previa: ${shownRows} ${shownRows === 1 ? 'fila mostrada' : 'filas mostradas'}.`;
 }
 
 export function getNormalizedPreviewSummary(rows: ProcessedRow[]) {
@@ -111,11 +113,11 @@ export function getNormalizedPreviewSummary(rows: ProcessedRow[]) {
   const ignoredCount = rows.filter((row) => row.status === 'ignored').length;
   const errorCount = rows.filter((row) => row.status === 'error').length;
   const parts = [
-    `${rows.length} filas procesadas.`,
+    `${rows.length} procesadas`,
     `${includedCount} incluidas`,
     `${ignoredCount} excluidas por filtros`,
     `${errorCount} con errores`,
   ];
 
-  return `${parts[0]} ${parts.slice(1).join(', ')}.`;
+  return parts.join(' · ');
 }

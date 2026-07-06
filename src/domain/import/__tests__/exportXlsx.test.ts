@@ -13,11 +13,11 @@ beforeEach(() => {
 });
 
 describe('exportXlsxFromProcessedRows', () => {
-  it('exports the sanitized data in Hoja sanitizada', () => {
+  it('exports prepared data in Archivo preparado', () => {
     exportXlsxFromProcessedRows(rows, columns, 'resultado');
 
     const workbook = vi.mocked(XLSX.writeFile).mock.calls[0]?.[0];
-    expect(workbook?.SheetNames).toEqual(['Hoja sanitizada']);
+    expect(workbook?.SheetNames).toEqual(['Archivo preparado']);
     expect(XLSX.writeFile).toHaveBeenCalledWith(workbook, 'resultado.xlsx');
   });
 });

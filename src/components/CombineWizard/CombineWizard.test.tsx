@@ -159,7 +159,7 @@ describe('CombineWizard basket sources', () => {
     render(<CombineWizard basketSources={[basketSource]} />);
 
     expect(screen.getByText('guardado.xlsx')).not.toBeNull();
-    expect(screen.getByText('Desde sanitizador')).not.toBeNull();
+    expect(screen.getByText('Archivo preparado')).not.toBeNull();
     expect(screen.getByText('Hoja usada: Productos · 1 columna · 1 fila de datos')).not.toBeNull();
     expect(screen.getByText(/son temporales y se pierden al recargar/)).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Hoja usada' })).toBeNull();
@@ -242,7 +242,7 @@ describe('CombineWizard basket sources', () => {
     const firstItem = container.querySelector('.combineSourceItem');
     expect(firstItem?.lastElementChild?.classList).toContain('combineSourceActions');
     expect(firstItem?.lastElementChild?.querySelector('.combineSourceDragHandle')).not.toBeNull();
-    expect(screen.getAllByText('Desde sanitizador')).toHaveLength(3);
+    expect(screen.getAllByText('Archivo preparado')).toHaveLength(3);
   });
 
   it('keeps long source names constrained and wraps remove in an app tooltip', async () => {
@@ -464,7 +464,7 @@ describe('CombineWizard uploaded source sheets', () => {
 
     expect(getVisibleSourceOrder(container)).toEqual(['manual.csv', 'enero.xlsx']);
     expect(screen.getByText('Manual')).not.toBeNull();
-    expect(screen.getByText('Desde sanitizador')).not.toBeNull();
+    expect(screen.getByText('Archivo preparado')).not.toBeNull();
   });
 
   it('shows a selector for multiple sheets and updates source data and preview', async () => {

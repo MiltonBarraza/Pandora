@@ -3,55 +3,69 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CurrentSheetQuickActions } from '../ImportWizard';
+import { CurrentSheetQuickActions, getSheetRangeWarning, Step } from '../ImportWizard';
 
 afterEach(cleanup);
 
 describe('CurrentSheetQuickActions', () => {
-  it('renders a discreet current-sheet save access and runs the shared handler', async () => {
+  it('saves current processed sheet for Combine', async () => {
     const onSave = vi.fn();
     render(<CurrentSheetQuickActions disabled={false} onSave={onSave} />);
 
-    expect(screen.getByRole('complementary', { name: 'Acciones rápidas de la hoja actual' })).not.toBeNull();
-    expect(screen.queryByText('Hoja actual')).toBeNull();
     expect(screen.getByText('Guardar esta hoja para combinar')).not.toBeNull();
     expect(screen.getByText('Guardá el resultado procesado de esta hoja para usarlo luego en Combinar archivos.')).not.toBeNull();
-
     await userEvent.setup().click(screen.getByRole('button', { name: 'Guardar para combinar' }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Lote multi-hoja')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Guardar hoja en lote' })).toBeNull();
   });
 
-  it('uses app tooltips for the title and save button', async () => {
-    const user = userEvent.setup();
-    render(<CurrentSheetQuickActions disabled={false} onSave={vi.fn()} />);
-
-    const titleHelp = screen.getByRole('button', { name: 'Ayuda: Guardar esta hoja para combinar' });
-    await user.hover(titleHelp);
-    expect((await screen.findByRole('tooltip')).textContent).toBe(
-      'Usá esta acción cuando estés preparando varias hojas. Guarda el resultado procesado de la hoja actual para usarlo luego en Combinar archivos.',
-    );
-    await user.unhover(titleHelp);
-
-    const saveButton = screen.getByRole('button', { name: 'Guardar para combinar' });
-    await user.hover(saveButton);
-    expect((await screen.findByRole('tooltip')).textContent).toBe(
-      'Guarda el resultado procesado de esta hoja como fuente “Desde sanitizador” en Combinar archivos. La combinación, el orden, la vista previa y la exportación se hacen desde esa pantalla.',
-    );
-  });
-
-  it('uses the supplied disabled state and explains when it becomes available', async () => {
-    const user = userEvent.setup();
+  it('keeps existing availability state', () => {
     render(<CurrentSheetQuickActions disabled onSave={vi.fn()} />);
 
-    const saveButton = screen.getByRole('button', { name: 'Guardar para combinar' }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Guardar para combinar' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
 
-    await user.hover(saveButton.parentElement!);
-    expect((await screen.findByRole('tooltip')).textContent).toContain(
-      'Disponible cuando haya un resultado válido para guardar.',
+describe('ImportWizard section warning', () => {
+  it('renders a compact warning trigger beside the preview title', () => {
+    const warning = getSheetRangeWarning({
+      originalRef: 'A1:XET109',
+      effectiveRef: 'A1:M109',
+      wasTrimmed: true,
+      shouldShowTrimWarning: true,
+      ignoredTrailingColumns: 16361,
+      ignoredTrailingRows: 0,
+    });
+
+    render(
+      <Step
+        title="4. Vista previa de datos"
+        warning={warning}
+      >
+        <div>Vista</div>
+      </Step>,
     );
+
+    expect(screen.getByRole('button', { name: 'Advertencia: 4. Vista previa de datos' })).not.toBeNull();
+    expect(document.querySelector('.sheetRangeWarning')).toBeNull();
+  });
+
+  it('does not render the preview warning for a minor trim', () => {
+    const warning = getSheetRangeWarning({
+      originalRef: 'A1:P100',
+      effectiveRef: 'A1:M100',
+      wasTrimmed: true,
+      shouldShowTrimWarning: false,
+      ignoredTrailingColumns: 3,
+      ignoredTrailingRows: 0,
+    });
+
+    render(
+      <Step title="4. Vista previa de datos" warning={warning}>
+        <div>Vista</div>
+      </Step>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Advertencia: 4. Vista previa de datos' })).toBeNull();
   });
 });

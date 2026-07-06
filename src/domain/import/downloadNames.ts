@@ -12,11 +12,11 @@ export function buildOutputFileBaseName({
   now?: Date;
 }) {
   if (settings.mode === 'custom' && settings.customName.trim()) {
-    return sanitizeNamePart(removeExtension(settings.customName)) || 'Archivo sanitizado';
+    return sanitizeNamePart(removeExtension(settings.customName)) || 'Archivo preparado';
   }
 
   const parts = [
-    settings.includeBaseText ? settings.baseText || 'Archivo sanitizado' : '',
+    settings.includeBaseText ? settings.baseText || 'Archivo preparado' : '',
     settings.includeOriginalName ? removeExtension(sourceFileName) : '',
     settings.includeSheetName ? sheetName : '',
     settings.includeDate ? formatLocalDatePart(now, settings.includeTime ?? false) : '',
@@ -24,7 +24,7 @@ export function buildOutputFileBaseName({
     .map((part) => sanitizeNamePart(part))
     .filter(Boolean);
 
-  return parts.join(' - ') || 'Archivo sanitizado';
+  return parts.join(' - ') || 'Archivo preparado';
 }
 
 export function buildAuditFileBaseName(baseName: string) {

@@ -1,4 +1,3 @@
-import { describeManualRangeStepSummary } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
 import { canPreviewNumericValue, describeConcatPartSource, getCustomValueMode, getFirstStepSource, getInputColumnSummary, getSimpleInputPart, getStepMode, getVisibleRecipeSteps, hasConfiguredConcatStep, hasConfiguredManualRangeStep, hasConfiguredNumericStepOperands, isCustomValueConfigured, type CustomValueMode } from './OutputColumnRecipeEditor.recipeHelpers';
@@ -25,12 +24,7 @@ export function getConstructorPartsSummary(recipe: Extract<OutputRecipe, { type:
 }
 
 export function getCustomValuePartsDisplayLabel(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  const concatStep = getConfiguredConcatStep(recipe);
-
-  if (!concatStep && recipe.parts.length === 1) {
-    return 'Origen/base';
-  }
-
+  void recipe;
   return '';
 }
 
@@ -184,7 +178,8 @@ function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = [
   }
 
   if (step.type === 'manualRange') {
-    return [describeManualRangeStepSummary(step, inputColumns)];
+    const rangeCount = step.ranges?.length ?? 0;
+    return [`${rangeCount} ${rangeCount === 1 ? 'rango creado' : 'rangos creados'}`];
   }
 
   if (step.type === 'concat') {
