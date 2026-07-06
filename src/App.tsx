@@ -1,18 +1,23 @@
-import { useState, type ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { addProcessedResultToCombineBasket } from './domain/combine/combineBasket';
 import { showSuccessToast } from './services/toastService';
 import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
 import { AppearanceToolbar } from './components/AppearanceToolbar/AppearanceToolbar';
 import { useAppearanceTheme } from './components/AppearanceToolbar/useAppearanceTheme';
-import { CombineWizard } from './components/CombineWizard/CombineWizard';
-import { ImportWizard } from './components/ImportWizard/ImportWizard';
 import { AppIcon } from './components/ui/AppIcon/AppIcon';
 import { ConfirmDialog } from './components/ui/ConfirmDialog/ConfirmDialog';
 import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
 import { useInternalReloadGuard } from './hooks/useInternalReloadGuard';
 
 type AppTool = 'sanitize' | 'combine';
+
+const ImportWizard = lazy(() => import('./components/ImportWizard/ImportWizard').then((module) => ({
+  default: module.ImportWizard,
+})));
+const CombineWizard = lazy(() => import('./components/CombineWizard/CombineWizard').then((module) => ({
+  default: module.CombineWizard,
+})));
 
 export default function App() {
   const [selectedTool, setSelectedTool] = useState<AppTool | null>(null);
@@ -103,13 +108,15 @@ export default function App() {
   if (selectedTool === 'sanitize') {
     return (
       <>
-        <ImportWizard
-          appearanceToolbar={appearanceToolbar}
-          onSaveProcessedResult={saveProcessedResult}
-          onStatePresenceChange={setSanitizerHasState}
-          externalReloadGuardActive={hasReloadStateToProtect}
-          suppressBeforeUnloadWarning={isBeforeUnloadSuppressed}
-        />
+        <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} />}>
+          <ImportWizard
+            appearanceToolbar={appearanceToolbar}
+            onSaveProcessedResult={saveProcessedResult}
+            onStatePresenceChange={setSanitizerHasState}
+            externalReloadGuardActive={hasReloadStateToProtect}
+            suppressBeforeUnloadWarning={isBeforeUnloadSuppressed}
+          />
+        </Suspense>
         {toolChangeConfirmation}
         {reloadConfirmation}
       </>
@@ -119,14 +126,16 @@ export default function App() {
   if (selectedTool === 'combine') {
     return (
       <>
-        <CombineWizard
-          appearanceToolbar={appearanceToolbar}
-          basketSources={combineBasketSources}
-          onRemoveBasketSource={(sourceId) => setCombineBasketSources((current) => (
-            current.filter((source) => source.id !== sourceId)
-          ))}
-          onLocalStatePresenceChange={setCombineHasLocalState}
-        />
+        <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} />}>
+          <CombineWizard
+            appearanceToolbar={appearanceToolbar}
+            basketSources={combineBasketSources}
+            onRemoveBasketSource={(sourceId) => setCombineBasketSources((current) => (
+              current.filter((source) => source.id !== sourceId)
+            ))}
+            onLocalStatePresenceChange={setCombineHasLocalState}
+          />
+        </Suspense>
         {toolChangeConfirmation}
         {reloadConfirmation}
       </>
@@ -142,6 +151,19 @@ export default function App() {
       />
       {reloadConfirmation}
     </>
+  );
+}
+
+function ToolLoadingFallback({ appearanceToolbar }: { appearanceToolbar: ReactNode }) {
+  return (
+    <main className="appShell">
+      {appearanceToolbar}
+      <div className="wizard">
+        <section className="panel">
+          <p role="status">Cargando herramienta…</p>
+        </section>
+      </div>
+    </main>
   );
 }
 
