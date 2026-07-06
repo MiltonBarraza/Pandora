@@ -19,7 +19,7 @@ export function analyzeSheetColumns(
   headerRowIndex: number | null = null,
   startRowIndex = 0,
 ): ColumnAnalysis[] {
-  const maxColumns = getMaxColumnCount(sheet, rows);
+  const maxColumns = getMaxColumnCount(rows);
   const productRows = rows.slice(startRowIndex);
 
   return Array.from({ length: maxColumns }, (_, columnIndex) => {
@@ -104,26 +104,8 @@ export function columnLetter(index: number) {
   return name;
 }
 
-function getMaxColumnCount(sheet: XLSX.WorkSheet | undefined, rows: RawRow[]) {
-  const rowMax = Math.max(1, ...rows.map((row) => row.length));
-  const ref = sheet?.['!ref'];
-  if (!ref) {
-    return rowMax;
-  }
-
-  const range = decodeRange(ref);
-  return Math.max(rowMax, range.e.c + 1);
-}
-
-function decodeRange(ref: string) {
-  const refParts = ref.split(':');
-  const endRef = refParts[refParts.length - 1] ?? ref;
-  const letters = endRef.match(/[A-Z]+/i)?.[0] ?? 'A';
-  let column = 0;
-  letters.toUpperCase().split('').forEach((letter) => {
-    column = column * 26 + letter.charCodeAt(0) - 64;
-  });
-  return { e: { c: column - 1 } };
+function getMaxColumnCount(rows: RawRow[]) {
+  return Math.max(1, ...rows.map((row) => row.length));
 }
 
 function getColumnWidth(columnMetadata: XLSX.ColInfo | undefined) {

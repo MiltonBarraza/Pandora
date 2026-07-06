@@ -1,5 +1,6 @@
 import {
   Check,
+  CircleAlert,
   CircleMinus,
   CirclePlus,
   CircleX,
@@ -36,6 +37,7 @@ export const appIconMap = {
   save: Save,
   upload: FileUp,
   warning: TriangleAlert,
+  warningCircle: CircleAlert,
   reorder: GripVertical,
 } satisfies Record<string, LucideIcon>;
 

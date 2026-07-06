@@ -20,7 +20,7 @@ import { createDefaultOutputColumns, loadOutputColumns, saveOutputColumns } from
 import { defaultIgnoreRules, loadPersistedSettings, savePersistedSettings } from '../../services/localTemplatesService';
 import { downloadImportSettingsFile } from '../../services/settingsFileService';
 import { showInfoToast } from '../../services/toastService';
-import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputColumn, InputRow, OutputColumn, ProcessedRow, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRowMetadata } from '../../types/import';
+import type { ColumnAnalysis, ExportedImportSettings, FileNameSettings as FileNameSettingsType, IgnoreRule, ImportedSettingsApplyPayload, InputColumn, InputRow, OutputColumn, ProcessedRow, RawRow, RowOverrides, SettingsCompatibilityResult, SheetRangeMetadata, SheetRowMetadata } from '../../types/import';
 import type { ProcessedExportResult } from '../../types/processedExport';
 import { ColumnVisibilityManager, syncActiveColumnOrder } from '../ColumnVisibilityManager/ColumnVisibilityManager';
 import { ExportActions } from '../ExportActions/ExportActions';
@@ -36,6 +36,7 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 
 const persisted = loadPersistedSettings();
 const initialOutputColumns = loadOutputColumns();
@@ -67,6 +68,7 @@ export function ImportWizard({
   const [selectedSheet, setSelectedSheet] = useState('');
   const [rows, setRows] = useState<RawRow[]>([]);
   const [rowMetadata, setRowMetadata] = useState<SheetRowMetadata[]>([]);
+  const [sheetRangeMetadata, setSheetRangeMetadata] = useState<SheetRangeMetadata | null>(null);
   const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
   const [startRowIndex, setStartRowIndex] = useState(0);
   const [startRowNumber, setStartRowNumber] = useState(1);
@@ -313,6 +315,7 @@ export function ImportWizard({
     const sheetRows = getSheetRowsWithMetadata(workbook, selectedSheet);
     setRows(sheetRows.rows);
     setRowMetadata(sheetRows.rowMetadata);
+    setSheetRangeMetadata(sheetRows.rangeMetadata ?? null);
   }, [workbook, selectedSheet, fileType]);
 
   useEffect(() => {
@@ -391,6 +394,7 @@ export function ImportWizard({
     setSelectedSheet('');
     setRows([]);
     setRowMetadata([]);
+    setSheetRangeMetadata(null);
     setReadError('');
   };
 
@@ -440,6 +444,7 @@ export function ImportWizard({
         setSelectedSheet('');
         setRows(csvRows);
         setRowMetadata([]);
+        setSheetRangeMetadata(null);
         setFileType('csv');
         return;
       }
@@ -456,6 +461,7 @@ export function ImportWizard({
         : { rows: [], rowMetadata: [] };
       setRows(sheetRows.rows);
       setRowMetadata(sheetRows.rowMetadata);
+      setSheetRangeMetadata(sheetRows.rangeMetadata ?? null);
       setFileType('spreadsheet');
     } catch {
       setReadError('No se pudo leer el archivo. Revisá que sea .xlsx, .xls, .xlsm o .csv.');
@@ -560,6 +566,7 @@ export function ImportWizard({
         const sheetRows = workbook ? getSheetRowsWithMetadata(workbook, sheetName) : { rows: [], rowMetadata: [] };
         setRows(sheetRows.rows);
         setRowMetadata(sheetRows.rowMetadata);
+        setSheetRangeMetadata(sheetRows.rangeMetadata ?? null);
       } finally {
         setChangingSheetName(null);
       }
@@ -666,6 +673,7 @@ export function ImportWizard({
               selectedSheet={selectedSheet}
               disabled={isSourceProcessing}
               isProcessing={changingSheetName !== null}
+              rangeMetadata={sheetRangeMetadata}
               onSelectSheet={changeSelectedSheet}
             />
           )}
@@ -720,7 +728,11 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="4. Vista previa de datos" info="Elegí desde qué fila empieza la vista previa y revisá la selección actual con columnas activas, encabezados y alias.">
+        <Step
+          title="4. Vista previa de datos"
+          info="Elegí desde qué fila empieza la vista previa y revisá la selección actual con columnas activas, encabezados y alias."
+          warning={getSheetRangeWarning(sheetRangeMetadata)}
+        >
           <div className="rowColumnConfig">
             <div className="field startRowField">
               <span className="labelWithInfo">
@@ -977,16 +989,33 @@ function getApplicableSheet(
   return currentSheet;
 }
 
-function Step({ title, info, children }: { title: string; info?: string; children: ReactNode }) {
+export function Step({
+  title,
+  info,
+  warning,
+  children,
+}: {
+  title: string;
+  info?: string;
+  warning?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="panel">
-      <h2 className={info ? 'headingWithInfo' : undefined}>
+      <h2 className={info || warning ? 'headingWithInfo' : undefined}>
         <span>{title}</span>
         {info ? <InfoTooltip content={info} ariaLabel={`Ayuda: ${title}`} placement="right" /> : null}
+        {warning ? <WarningTooltip content={warning} ariaLabel={`Advertencia: ${title}`} /> : null}
       </h2>
       {children}
     </section>
   );
+}
+
+export function getSheetRangeWarning(rangeMetadata: SheetRangeMetadata | null) {
+  return rangeMetadata?.shouldShowTrimWarning
+    ? 'Detectamos columnas vacías al final de la hoja. Excel informaba un rango mucho más grande, pero Pandora omitió esas columnas para evitar lentitud.'
+    : undefined;
 }
 
 export function shouldProtectWizardState({

@@ -12,6 +12,8 @@ describe('WarningTooltip', () => {
     expect(markup).toContain('warningTooltipTrigger');
     expect(markup).toContain('aria-label="Este valor no parece una fecha válida. Valor guardado: 23"');
     expect(markup).toContain('warningTooltipIcon');
+    expect(markup).toContain('lucide-circle-alert');
+    expect(markup).not.toContain('>¡<');
     expect(markup).not.toContain('title=');
   });
 });

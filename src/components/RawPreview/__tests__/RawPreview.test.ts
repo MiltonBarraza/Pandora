@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { getRawPreviewColumnLabel, getRawPreviewColumns, getRawPreviewRowNumber } from '../RawPreview';
+// @vitest-environment jsdom
+
+import { cleanup, render } from '@testing-library/react';
+import { createElement } from 'react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { getRawPreviewColumnLabel, getRawPreviewColumns, getRawPreviewRowNumber, RawPreview } from '../RawPreview';
+
+afterEach(cleanup);
 
 describe('RawPreview row numbers', () => {
   it('shows real row numbers when provided', () => {
@@ -42,5 +48,16 @@ describe('getRawPreviewColumnLabel', () => {
 
   it('falls back to the column letter without a configured label', () => {
     expect(getRawPreviewColumnLabel(2, { 2: '   ' })).toBe('C');
+  });
+});
+
+describe('RawPreview inflated range warning', () => {
+  it('does not render the removed full-width warning banner', () => {
+    const { container } = render(createElement(RawPreview, {
+      rows: [['A']],
+      maxColumns: 1,
+    }));
+
+    expect(container.querySelector('.sheetRangeWarning')).toBeNull();
   });
 });
