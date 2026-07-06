@@ -164,6 +164,10 @@ export function getStepActionHelpText(action: string, _mode?: TransformStepMode)
     return 'Trata el valor como texto para los siguientes pasos.';
   }
 
+  if (action === 'removeIncludedPercentage') {
+    return 'Calcula el valor antes de un porcentaje ya incluido. Ejemplo: 120 con 20% incluido → 100.';
+  }
+
   return 'Elegí cómo se va a transformar esta información.';
 }
 
@@ -450,12 +454,14 @@ export function StepOperandFields({
   operand,
   inputColumns,
   allowPreviousResult,
+  emptyInputColumnsLabel = 'Sin columnas numéricas disponibles',
   onChange,
 }: {
   label: string;
   operand: StepOperand;
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
+  emptyInputColumnsLabel?: string;
   onChange: (operand: StepOperand) => void;
 }) {
   const safeOperand = !allowPreviousResult && operand.type === 'previousResult'
@@ -495,6 +501,8 @@ export function StepOperandFields({
           label={`${label}: columna`}
           value={safeOperand.inputColumnId}
           inputColumns={inputColumns}
+          emptyLabel={emptyInputColumnsLabel}
+          disableWhenEmpty
           onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })}
         />
       ) : null}
@@ -529,11 +537,15 @@ export function InputColumnSelect({
   value,
   inputColumns,
   label = 'Columna de entrada',
+  emptyLabel = 'Sin columnas disponibles',
+  disableWhenEmpty = false,
   onChange,
 }: {
   value: string;
   inputColumns: InputColumn[];
   label?: string;
+  emptyLabel?: string;
+  disableWhenEmpty?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -541,11 +553,14 @@ export function InputColumnSelect({
       className="compact recipeField"
       label={label}
       labelInfo={<InfoTooltip content="Elegí la columna del Excel que contiene este dato." />}
-      value={value}
-      options={[
-        { value: '', label: 'Seleccionar columna' },
-        ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
-      ]}
+      value={disableWhenEmpty && inputColumns.length === 0 ? '' : value}
+      options={inputColumns.length > 0 || !disableWhenEmpty
+        ? [
+            { value: '', label: 'Seleccionar columna' },
+            ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
+          ]
+        : [{ value: '', label: emptyLabel, disabled: true }]}
+      disabled={disableWhenEmpty && inputColumns.length === 0}
       scrollStrategy="close"
       onChange={onChange}
     />

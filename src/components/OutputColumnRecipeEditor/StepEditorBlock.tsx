@@ -12,6 +12,7 @@ import type {
   InputColumn,
   InputRow,
   NumericOperation,
+  StepOperand,
   StepSource,
   TransformStep,
   TransformStepMode,
@@ -19,11 +20,13 @@ import type {
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { operationTypeLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
 import {
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
   dateOutputFormatOptions,
+  getNumericOperandLabels,
   numericOperationOptions,
   parseRounding,
 } from './OutputColumnRecipeEditor.optionHelpers';
@@ -89,7 +92,7 @@ type SourceActionOverrideState = {
 
 const stepModeLabels: Record<TransformStepMode, string> = {
   text: 'Trabajar con texto',
-  number: 'Trabajar con número',
+  number: 'Trabajar con números',
   conversion: 'Conversión',
   date: 'Trabajar con fechas',
   manualRange: 'Trabajar con rangos',
@@ -234,7 +237,12 @@ export function StepEditorBlock({
           <Dropdown<BlockAction>
             className="compact recipeField"
             label="Acción"
-            labelInfo={<InfoTooltip content={getStepActionHelpText(visibleAction === 'unconfigured' ? '' : visibleAction, mode)} />}
+            labelInfo={<InfoTooltip content={getStepActionHelpText(
+              step.type === 'numericOperation'
+                ? step.operation ?? 'add'
+                : visibleAction === 'unconfigured' ? '' : visibleAction,
+              mode,
+            )} />}
             value={actionValue}
             options={getStepActionOptionsForContext(mode, effectiveContext)}
             placeholder="Seleccionar acción"
@@ -461,26 +469,30 @@ function renderDefaultFields({
   if (step.type === 'numericOperation') {
     const leftOperand = getVisibleLeftOperand(step, stepSource);
     const rightOperand = getVisibleRightOperand(step);
+    const numericInputColumns = getNumericOperandInputColumns(inputColumns, manualRangeRows);
+    const operandLabels = getNumericOperandLabels(step.operation);
+    const numericWarning = getNumericOperationUiWarning(step.operation, leftOperand, rightOperand);
 
     return (
       <div className="numericOperationFields">
         <StepOperandFields
-          label="Primer valor"
+          label={operandLabels.left}
           operand={leftOperand}
-          inputColumns={inputColumns}
+          inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
           onChange={(leftOperand) => onChange({ leftOperand })}
         />
         <StepOperandFields
-          label="Segundo valor"
+          label={operandLabels.right}
           operand={rightOperand}
-          inputColumns={inputColumns}
+          inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
           onChange={(rightOperand) => onChange({ rightOperand })}
         />
         <Dropdown
           className="compact recipeField"
           label="Decimales / redondeo"
+          labelInfo={numericWarning ? <WarningTooltip content={numericWarning} /> : undefined}
           value={String(step.rounding ?? 0)}
           options={[
             { value: 'none', label: 'Sin redondeo' },
@@ -567,7 +579,7 @@ function getStepSourceHelpText(type: TransformStep['type']) {
 }
 
 function getSourceOptionsConfigForStep(step: TransformStep, context: StepEditorContext): StepValueSourceOptionsConfig | undefined {
-  if (!isTextTransformerAction(step.type) || context.kind !== 'normal') {
+  if (!isTextTransformerAction(step.type) || context.kind === 'concat') {
     return undefined;
   }
 
@@ -615,10 +627,51 @@ function createNewNumericOperationStep(stepId: string, context: StepEditorContex
   return {
     ...step,
     operation,
-    leftOperand: { type: 'fixedText', value: '' },
+    leftOperand: (context.stepIndex ?? 0) > 0
+      ? { type: 'previousResult' }
+      : { type: 'fixedText', value: '' },
     rightOperand: { type: 'fixedText', value: '' },
     rounding: 0,
   };
+}
+
+export function getNumericOperandInputColumns(inputColumns: InputColumn[], rows: InputRow[]) {
+  return inputColumns.filter((inputColumn) => {
+    const values = [
+      ...inputColumn.sampleValues,
+      ...rows.map((row) => row.values[inputColumn.id] ?? ''),
+    ];
+    return values.some((value) => parseNumericValue(value) !== null);
+  });
+}
+
+export function getNumericOperationUiWarning(
+  operation: NumericOperation | undefined,
+  leftOperand: StepOperand,
+  rightOperand: StepOperand,
+) {
+  const fixedOperands = [leftOperand, rightOperand].filter((operand) => operand.type === 'fixedText');
+  if (fixedOperands.some((operand) => operand.type === 'fixedText' && operand.value.trim() !== '' && getFixedNumericOperandValue(operand) === null)) {
+    return 'No se pudo calcular: el valor no es numérico.';
+  }
+
+  const rightValue = rightOperand.type === 'fixedText' ? getFixedNumericOperandValue(rightOperand) : null;
+  if ((operation === 'divide' && rightValue === 0) || (operation === 'removeIncludedPercentage' && rightValue === -100)) {
+    return 'No se pudo calcular: división por cero.';
+  }
+
+  return '';
+}
+
+function getFixedNumericOperandValue(operand: Extract<StepOperand, { type: 'fixedText' }>) {
+  const parsedValue = parseNumericValue(operand.value);
+  if (parsedValue !== null) {
+    return parsedValue;
+  }
+
+  return typeof operand.numericFallback === 'number' && Number.isFinite(operand.numericFallback)
+    ? operand.numericFallback
+    : null;
 }
 
 function getStepModeForBlock(step: TransformStep): TransformStepMode {

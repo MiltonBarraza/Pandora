@@ -172,6 +172,19 @@ describe('step editor policy', () => {
     });
   });
 
+  it('allows previous result as numeric source only after the first step', () => {
+    expect(createCanonicalStepForAction('number', 'numericOperation', context('normal', 0))).toMatchObject({
+      mode: 'number',
+      type: 'numericOperation',
+      source: { type: 'input', inputColumnId },
+    });
+    expect(createCanonicalStepForAction('number', 'numericOperation', context('normal', 1))).toMatchObject({
+      mode: 'number',
+      type: 'numericOperation',
+      source: { type: 'previousResult' },
+    });
+  });
+
   it('creates format date without stale text or number props', () => {
     const staleNumberStep: TransformStep = {
       id: 'date',

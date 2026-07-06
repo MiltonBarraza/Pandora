@@ -52,6 +52,7 @@ import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
 import { getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
+import { createPreviousResultDisplay, isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
   buildCombinePreview,
@@ -85,6 +86,7 @@ export {
 } from './OutputColumnRecipeEditor.optionHelpers';
 export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelpers';
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
+export { isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
 export { StepConditionFields, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 export {
   buildCombinePreview,
@@ -1253,20 +1255,12 @@ export function getPreviousResultDisplay(
 
   const previousSteps = getVisibleRecipeSteps(recipe).slice(0, stepIndex);
   const previousRecipe = { ...recipe, steps: previousSteps };
-  if (isDeterministicPreviousResultRecipe(previousRecipe)) {
-    return {
-      value: buildCombinePreview(previousRecipe, sampleInputValues ?? {}) ?? '',
-      helpText: 'Este valor viene del paso anterior.',
-    };
-  }
-
   const examples = getPreviousResultExamples(previousRecipe, sampleInputValues, rows);
-  return {
-    value: 'Valor dinámico',
-    helpText: examples.length > 0
-      ? `Este valor cambia según la fila. Ejemplos:\n${examples.map((example) => `- ${example}`).join('\n')}`
-      : 'Este valor cambia según la fila.',
-  };
+  return createPreviousResultDisplay(
+    isDeterministicPreviousResultRecipe(previousRecipe),
+    buildCombinePreview(previousRecipe, sampleInputValues ?? {}) ?? '',
+    examples,
+  );
 }
 
 function getPreviousResultExamples(
@@ -1307,133 +1301,6 @@ function getPreviousResultExamples(
   }
 
   return values.slice(0, 3);
-}
-
-export function isDeterministicPreviousResultRecipe(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  const visibleSteps = getVisibleRecipeSteps(recipe);
-  if (hasRowDependentControlFlow(visibleSteps)) {
-    return false;
-  }
-
-  let state = getDeterministicRecipePartsState(recipe.parts, recipe.separator ?? '');
-  for (const step of visibleSteps) {
-    state = getDeterministicStepState(step, state);
-  }
-
-  return state.isDeterministic;
-}
-
-function hasRowDependentControlFlow(steps: TransformStep[]): boolean {
-  return steps.some((step) => (
-    Boolean(step.condition)
-    || step.type === 'manualRange'
-    || (step.type === 'concat' && (step.parts ?? []).some((part) => hasRowDependentControlFlow(part.steps ?? [])))
-  ));
-}
-
-type DeterministicValueState = {
-  isDeterministic: boolean;
-};
-
-const deterministicValueState: DeterministicValueState = { isDeterministic: true };
-const dynamicValueState: DeterministicValueState = { isDeterministic: false };
-
-function getDeterministicRecipePartsState(parts: RecipePart[], separator: string): DeterministicValueState {
-  if (parts.length === 0) {
-    return deterministicValueState;
-  }
-
-  for (const part of parts) {
-    const sourceState = part.type === 'text'
-      ? deterministicValueState
-      : dynamicValueState;
-    const partState = getDeterministicStepsState(part.steps ?? [], sourceState);
-    if (!partState.isDeterministic) {
-      return dynamicValueState;
-    }
-  }
-
-  return typeof separator === 'string' ? deterministicValueState : dynamicValueState;
-}
-
-function getDeterministicStepsState(steps: TransformStep[], initialState: DeterministicValueState) {
-  let state = initialState;
-  for (const step of steps) {
-    state = getDeterministicStepState(step, state);
-  }
-
-  return state;
-}
-
-function getDeterministicStepState(step: TransformStep, currentState: DeterministicValueState): DeterministicValueState {
-  if (step.condition) {
-    return dynamicValueState;
-  }
-
-  if (step.type === 'manualRange') {
-    return dynamicValueState;
-  }
-
-  if (step.type === 'concat') {
-    return getDeterministicConcatState(step.parts ?? [], currentState);
-  }
-
-  if (step.type === 'numericOperation') {
-    return getDeterministicNumericOperationState(step, currentState);
-  }
-
-  if (!isDeterministicStepType(step.type)) {
-    return dynamicValueState;
-  }
-
-  return getDeterministicSourceState(step.source, currentState);
-}
-
-function getDeterministicConcatState(parts: NonNullable<TransformStep['parts']>, previousState: DeterministicValueState) {
-  for (const part of parts) {
-    const sourceState = getDeterministicSourceState(part.source, previousState);
-    const partState = getDeterministicStepsState(part.steps ?? [], sourceState);
-    if (!partState.isDeterministic) {
-      return dynamicValueState;
-    }
-  }
-
-  return deterministicValueState;
-}
-
-function getDeterministicNumericOperationState(step: TransformStep, currentState: DeterministicValueState) {
-  const leftState = getDeterministicSourceState(step.leftOperand ?? { type: 'previousResult' }, currentState);
-  const rightState = getDeterministicSourceState(step.rightOperand ?? { type: 'fixedText', value: String(step.amount ?? '') }, currentState);
-  return leftState.isDeterministic && rightState.isDeterministic ? deterministicValueState : dynamicValueState;
-}
-
-function getDeterministicSourceState(source: StepSource | undefined, previousState: DeterministicValueState): DeterministicValueState {
-  if (!source || source.type === 'previousResult') {
-    return previousState;
-  }
-
-  if (source.type === 'fixedText' || source.type === 'rangeText') {
-    return deterministicValueState;
-  }
-
-  return dynamicValueState;
-}
-
-function isDeterministicStepType(type: TransformStep['type']) {
-  return [
-    'noop',
-    'trim',
-    'uppercase',
-    'lowercase',
-    'addPrefix',
-    'addSuffix',
-    'removeText',
-    'replaceText',
-    'formatDate',
-    'extractNumber',
-    'toNumber',
-    'toText',
-  ].includes(type);
 }
 
 export function CustomValueEditor({

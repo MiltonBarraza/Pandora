@@ -113,7 +113,7 @@ export function getAllowedSourceActions(step: Pick<TransformStep, 'mode' | 'type
 }
 
 export function getAllowedTextTransformerSourceActions(step: Pick<TransformStep, 'type' | 'source'>, context: StepEditorContext): StepSourceAction[] {
-  if (!isTextTransformerAction(step.type) || context.kind !== 'normal') {
+  if (!isTextTransformerAction(step.type) || context.kind === 'concat') {
     return getAllowedSourceActions({ mode: 'text', type: step.type, source: step.source }, context);
   }
 

@@ -1290,6 +1290,161 @@ describe('outputModel step sources', () => {
 });
 
 describe('outputModel numeric operands', () => {
+  it('multiplies two explicit operands', () => {
+    const row = buildRow([outputColumn({
+      id: 'operand-multiply',
+      recipe: {
+        type: 'fixedText',
+        value: '',
+        steps: [{
+          id: 'multiply',
+          type: 'numericOperation',
+          operation: 'multiply',
+          leftOperand: { type: 'input', inputColumnId: 'input-price' },
+          rightOperand: { type: 'fixedText', value: '3' },
+          rounding: 0,
+        }],
+      },
+    })]);
+
+    expect(row.outputValues['operand-multiply']).toBe('600');
+  });
+
+  it('distinguishes subtracting a percentage from removing an included percentage with operands', () => {
+    const createPercentageColumn = (id: string, operation: NumericOperation) => outputColumn({
+      id,
+      recipe: {
+        type: 'fixedText',
+        value: '120',
+        steps: [{
+          id: operation,
+          type: 'numericOperation',
+          operation,
+          leftOperand: { type: 'previousResult' },
+          rightOperand: { type: 'fixedText', value: '20' },
+          rounding: 0,
+        }],
+      },
+    });
+    const row = buildRow([
+      createPercentageColumn('add-percentage-operand', 'addPercentage'),
+      createPercentageColumn('subtract-percentage-operand', 'subtractPercentage'),
+      createPercentageColumn('remove-included-percentage-operand', 'removeIncludedPercentage'),
+    ]);
+
+    expect(row.outputValues['add-percentage-operand']).toBe('144');
+    expect(row.outputValues['subtract-percentage-operand']).toBe('96');
+    expect(row.outputValues['remove-included-percentage-operand']).toBe('100');
+  });
+
+  it('treats minus one hundred included percentage as division by zero in legacy and operand recipes', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'legacy-minus-one-hundred',
+        recipe: {
+          type: 'fixedText',
+          value: '120',
+          steps: [{ id: 'remove', type: 'numericOperation', operation: 'removeIncludedPercentage', amount: -100 }],
+        },
+      }),
+      outputColumn({
+        id: 'operand-minus-one-hundred',
+        recipe: {
+          type: 'fixedText',
+          value: '120',
+          steps: [{
+            id: 'remove',
+            type: 'numericOperation',
+            operation: 'removeIncludedPercentage',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '-100' },
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['legacy-minus-one-hundred']).toBe('120');
+    expect(row.outputValues['operand-minus-one-hundred']).toBe('120');
+    expect(row.warnings).toContain('No se puede dividir por cero');
+  });
+
+  it('calculates A minus B times C plus D through sequential steps', () => {
+    const [row] = buildProcessedRows([{
+      rowNumber: 1,
+      values: { A: '100', B: '5', C: '4', D: '3' },
+    }], [outputColumn({
+      id: 'sequential-expression',
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'A' }],
+        steps: [
+          {
+            id: 'multiply',
+            type: 'numericOperation',
+            operation: 'multiply',
+            leftOperand: { type: 'input', inputColumnId: 'B' },
+            rightOperand: { type: 'input', inputColumnId: 'C' },
+            rounding: 'none',
+          },
+          {
+            id: 'subtract',
+            type: 'numericOperation',
+            operation: 'subtract',
+            leftOperand: { type: 'input', inputColumnId: 'A' },
+            rightOperand: { type: 'previousResult' },
+            rounding: 'none',
+          },
+          {
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'input', inputColumnId: 'D' },
+            rounding: 'none',
+          },
+        ],
+      },
+    })]);
+
+    expect(row.outputValues['sequential-expression']).toBe('83');
+  });
+
+  it('applies configured rounding after each numeric step', () => {
+    const chainedColumn = (id: string, firstRounding: 0 | 'none') => outputColumn({
+      id,
+      recipe: {
+        type: 'fixedText',
+        value: '10',
+        steps: [
+          {
+            id: 'fraction',
+            type: 'numericOperation',
+            operation: 'multiply',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '0.66' },
+            rounding: firstRounding,
+          },
+          {
+            id: 'triple',
+            type: 'numericOperation',
+            operation: 'multiply',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '3' },
+            rounding: 'none',
+          },
+        ],
+      },
+    });
+    const row = buildRow([
+      chainedColumn('rounded-each-step', 0),
+      chainedColumn('without-intermediate-rounding', 'none'),
+    ]);
+
+    expect(row.outputValues['rounded-each-step']).toBe('21');
+    expect(row.outputValues['without-intermediate-rounding']).toBe('19.8');
+  });
+
   it('adds previous result and a fixed operand', () => {
     const row = buildRow([
       outputColumn({
@@ -1452,10 +1607,25 @@ describe('outputModel numeric operands', () => {
           }],
         },
       }),
+      outputColumn({
+        id: 'empty-operand',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '' },
+          }],
+        },
+      }),
     ]);
 
     expect(row.outputValues.zero).toBe('200');
     expect(row.outputValues.invalid).toBe('200');
+    expect(row.outputValues['empty-operand']).toBe('200');
     expect(row.warnings).toContain('No se puede dividir por cero');
     expect(row.warnings).toContain('No se pudo aplicar operación numérica: operando inválido');
   });

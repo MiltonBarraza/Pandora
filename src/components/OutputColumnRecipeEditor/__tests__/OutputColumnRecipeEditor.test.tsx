@@ -9,6 +9,9 @@ import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnT
 import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorModalPendingApplyText, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
+import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
+import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
+import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
 import { RecipeStudioShell, addComposeRecipePart, getComposePreviewCountText, getPreviewRowsFromStart, getPreviewStartRowNumber } from '../RecipeStudio';
@@ -461,6 +464,7 @@ describe('constructor helpers', () => {
     expect(getStepActionHelpText('extractNumber', 'conversion')).toBe('Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.');
     expect(getStepActionHelpText('toNumber', 'conversion')).toBe('Convierte valores numéricos escritos como texto. Si no puede convertirlos, conserva el valor original.');
     expect(getStepActionHelpText('toText', 'conversion')).toBe('Trata el valor como texto para los siguientes pasos.');
+    expect(getStepActionHelpText('removeIncludedPercentage', 'number')).toBe('Calcula el valor antes de un porcentaje ya incluido. Ejemplo: 120 con 20% incluido → 100.');
   });
 
   it('keeps typed noop hidden until it has a direct value source', () => {
@@ -5585,6 +5589,151 @@ describe('constructor helpers', () => {
       'Quitar % incluido',
     ]);
     expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operación numérica');
+  });
+
+  it('uses plural number mode copy and contextual numeric operand labels', () => {
+    expect(stepModeOptions.find((option) => option.value === 'number')?.label).toBe('Trabajar con números');
+    expect(getNumericOperandLabels('add')).toEqual({ left: 'Valor base', right: 'Valor a sumar' });
+    expect(getNumericOperandLabels('subtract')).toEqual({ left: 'Valor base', right: 'Valor a restar' });
+    expect(getNumericOperandLabels('multiply')).toEqual({ left: 'Valor base', right: 'Factor' });
+    expect(getNumericOperandLabels('divide')).toEqual({ left: 'Valor base', right: 'Divisor' });
+    expect(getNumericOperandLabels('addPercentage')).toEqual({ left: 'Valor base', right: '%' });
+    expect(getNumericOperandLabels('subtractPercentage')).toEqual({ left: 'Valor base', right: '%' });
+    expect(getNumericOperandLabels('removeIncludedPercentage')).toEqual({
+      left: 'Valor con % incluido',
+      right: '% incluido',
+    });
+  });
+
+  it('filters numeric operand columns with the motor parser', () => {
+    const columns: InputColumn[] = [
+      { id: 'text', columnIndex: 0, columnLetter: 'A', label: 'A', active: true, sampleValues: ['ACCESORIOS', 'PINCEL'], nonEmptyCount: 2 },
+      { id: 'currency', columnIndex: 1, columnLetter: 'B', label: 'B', active: true, sampleValues: ['$ 1,948.63'], nonEmptyCount: 1 },
+      { id: 'mixed', columnIndex: 2, columnLetter: 'C', label: 'C', active: true, sampleValues: ['texto'], nonEmptyCount: 2 },
+    ];
+
+    expect(getNumericOperandInputColumns(columns, [
+      { rowNumber: 1, values: { text: 'LISTA DE PRECIOS', mixed: '576087' } },
+    ]).map((column) => column.id)).toEqual(['currency', 'mixed']);
+  });
+
+  it('shows a clear state when numeric operands have no available columns', () => {
+    const markup = renderToStaticMarkup(
+      <StepEditorBlock
+        step={{
+          id: 'numeric-no-columns',
+          mode: 'number',
+          type: 'numericOperation',
+          operation: 'add',
+          leftOperand: { type: 'input', inputColumnId: 'input-code' },
+          rightOperand: { type: 'fixedText', value: '10' },
+        }}
+        context={{ kind: 'normal', stepIndex: 0 }}
+        inputColumns={[{ ...inputColumns[0], sampleValues: ['ACCESORIOS'] }]}
+        manualRangeRows={[{ rowNumber: 1, values: { 'input-code': 'PINCEL' } }]}
+        onChange={() => undefined}
+        onReplace={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Sin columnas numéricas disponibles');
+    expect(markup).toContain('disabled=""');
+  });
+
+  it('shows explicit numeric preview states for incomplete, invalid, and complete operands', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'number',
+      parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+      separator: '',
+      steps: [{
+        id: 'add',
+        mode: 'number',
+        type: 'numericOperation',
+        operation: 'add',
+        leftOperand: { type: 'fixedText', value: '100' },
+        rightOperand: { type: 'fixedText', value: '' },
+        rounding: 0,
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá Valor a sumar para ver la vista previa.');
+    expect(buildCustomValuePreview({
+      ...recipe,
+      steps: [{ ...recipe.steps![0], rightOperand: { type: 'input', inputColumnId: 'text' } }],
+    }, { text: 'ACCESORIOS' }, true, 'number', [
+      { rowNumber: 1, values: { text: 'PINCEL' } },
+    ])).toBe('No se encontraron valores numéricos para calcular la vista previa.');
+    expect(buildCustomValuePreview({
+      ...recipe,
+      steps: [{ ...recipe.steps![0], rightOperand: { type: 'fixedText', value: '10' } }],
+    }, {}, true, 'number')).toBe('110');
+  });
+
+  it('uses percent labels in incomplete previews and omits unconfigured zero from titles', () => {
+    const emptyPercentageStep = {
+      id: 'remove-percentage',
+      mode: 'number' as const,
+      type: 'numericOperation' as const,
+      operation: 'removeIncludedPercentage' as const,
+      leftOperand: { type: 'fixedText' as const, value: '120' },
+      rightOperand: { type: 'fixedText' as const, value: '' },
+    };
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'number',
+      parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+      steps: [emptyPercentageStep],
+    };
+
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá % incluido para ver la vista previa.');
+    expect(getRecipeStepTitle(emptyPercentageStep)).toBe('Quitar % incluido');
+    expect(getRecipeStepTitle({
+      ...emptyPercentageStep,
+      rightOperand: { type: 'fixedText', value: '20' },
+    })).toBe('Quitar 20% incluido');
+  });
+
+  it('builds compact warnings for deterministic invalid numeric operands', () => {
+    expect(getNumericOperationUiWarning(
+      'add',
+      { type: 'fixedText', value: 'abc' },
+      { type: 'fixedText', value: '10' },
+    )).toBe('No se pudo calcular: el valor no es numérico.');
+    expect(getNumericOperationUiWarning(
+      'divide',
+      { type: 'fixedText', value: '100' },
+      { type: 'fixedText', value: '0' },
+    )).toBe('No se pudo calcular: división por cero.');
+    expect(getNumericOperationUiWarning(
+      'removeIncludedPercentage',
+      { type: 'fixedText', value: '100' },
+      { type: 'fixedText', value: '-100' },
+    )).toBe('No se pudo calcular: división por cero.');
+  });
+
+  it('renders contextual numeric fields with a compact deterministic warning', () => {
+    const markup = renderToStaticMarkup(
+      <StepEditorBlock
+        step={{
+          id: 'divide-zero',
+          mode: 'number',
+          type: 'numericOperation',
+          operation: 'divide',
+          leftOperand: { type: 'fixedText', value: '100' },
+          rightOperand: { type: 'fixedText', value: '0' },
+        }}
+        context={{ kind: 'normal', stepIndex: 0, defaultInputColumnId: 'input-code' }}
+        inputColumns={inputColumns}
+        onChange={() => undefined}
+        onReplace={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Valor base');
+    expect(markup).toContain('Divisor');
+    expect(markup).toContain('warningTooltipTrigger');
+    expect(markup).toContain('No se pudo calcular: división por cero.');
   });
 
   it('infers step mode from existing step type', () => {

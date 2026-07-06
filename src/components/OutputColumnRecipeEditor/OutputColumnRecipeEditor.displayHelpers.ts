@@ -1,8 +1,10 @@
 import { defaultDateInputFormat, parseDateValue } from '../../domain/import/dateOperations';
 import { describeManualRangeStepSummary } from '../../domain/import/manualRangeModel';
+import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
 import { canPreviewNumericValue, describeConcatPartSource, getCustomValueMode, getFirstStepSource, getInputColumnSummary, getSimpleInputPart, getStepMode, getVisibleRecipeSteps, hasConfiguredConcatStep, hasConfiguredManualRangeStep, hasConfiguredNumericStepOperands, isCustomValueConfigured, type CustomValueMode } from './OutputColumnRecipeEditor.recipeHelpers';
+import { getNumericOperandLabels } from './OutputColumnRecipeEditor.optionHelpers';
 
 export function describeCombineParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]) {
   if (recipe.parts.length === 0) {
@@ -196,33 +198,46 @@ function describeSimpleStep(step: TransformStep, inputColumns: InputColumn[] = [
 }
 
 function describeNumericOperation(step: TransformStep) {
-  const amount = step.amount ?? 0;
+  const amount = getConfiguredNumericDisplayAmount(step);
+  const amountSuffix = amount === null ? '' : ` ${amount}`;
 
   if (step.operation === 'subtract') {
-    return `restar valor ${amount}`;
+    return `restar valor${amountSuffix}`;
   }
 
   if (step.operation === 'multiply') {
-    return `multiplicar por ${amount}`;
+    return `multiplicar por${amountSuffix}`;
   }
 
   if (step.operation === 'divide') {
-    return `dividir por ${amount}`;
+    return `dividir por${amountSuffix}`;
   }
 
   if (step.operation === 'addPercentage') {
-    return `sumar ${amount}%`;
+    return amount === null ? 'sumar %' : `sumar ${amount}%`;
   }
 
   if (step.operation === 'subtractPercentage') {
-    return `restar ${amount}%`;
+    return amount === null ? 'restar %' : `restar ${amount}%`;
   }
 
   if (step.operation === 'removeIncludedPercentage') {
-    return `quitar ${amount}% incluido`;
+    return amount === null ? 'quitar % incluido' : `quitar ${amount}% incluido`;
   }
 
-  return `sumar valor ${amount}`;
+  return `sumar valor${amountSuffix}`;
+}
+
+function getConfiguredNumericDisplayAmount(step: TransformStep) {
+  if (step.rightOperand) {
+    return step.rightOperand.type === 'fixedText' && step.rightOperand.value.trim() !== ''
+      ? step.rightOperand.value.trim()
+      : null;
+  }
+
+  return typeof step.amount === 'number' && Number.isFinite(step.amount)
+    ? String(step.amount)
+    : null;
 }
 
 function describeRounding(rounding: TransformStep['rounding']) {
@@ -305,8 +320,62 @@ export function buildCustomValuePreview(
     return buildManualRangeAwarePreview(recipe, manualRangeRows) ?? 'Sin vista previa para los rangos configurados';
   }
 
-  const previewSampleInputValues = getDatePreviewSampleInputValues(recipe, sampleInputValues, manualRangeRows);
+  const numericPreview = getNumericOperationPreview(recipe, sampleInputValues, manualRangeRows);
+  if (numericPreview.message) {
+    return numericPreview.message;
+  }
+
+  const previewSampleInputValues = numericPreview.sampleInputValues
+    ?? getDatePreviewSampleInputValues(recipe, sampleInputValues, manualRangeRows);
   return buildCombinePreview(recipe, previewSampleInputValues) ?? 'Sin datos de ejemplo disponibles';
+}
+
+export function getNumericOperationPreview(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  rows: InputRow[],
+): { message?: string; sampleInputValues?: Record<string, string> } {
+  const operandSteps = getVisibleRecipeSteps(recipe).filter((step) => (
+    step.type === 'numericOperation' && Boolean(step.leftOperand || step.rightOperand)
+  ));
+  if (operandSteps.length === 0) {
+    return {};
+  }
+
+  for (const step of operandSteps) {
+    const labels = getNumericOperandLabels(step.operation);
+    const operands = [
+      { operand: step.leftOperand ?? { type: 'previousResult' as const }, label: labels.left },
+      { operand: step.rightOperand ?? { type: 'fixedText' as const, value: String(step.amount ?? '') }, label: labels.right },
+    ];
+    const incompleteOperand = operands.find(({ operand }) => (
+      (operand.type === 'fixedText' && operand.value.trim() === '' && !Number.isFinite(operand.numericFallback))
+      || (operand.type === 'input' && !operand.inputColumnId)
+    ));
+    if (incompleteOperand) {
+      return { message: `Completá ${incompleteOperand.label} para ver la vista previa.` };
+    }
+  }
+
+  const inputColumnIds = Array.from(new Set(operandSteps.flatMap((step) => (
+    [step.leftOperand, step.rightOperand]
+      .filter((operand): operand is Extract<StepSource, { type: 'input' }> => operand?.type === 'input')
+      .map((operand) => operand.inputColumnId)
+  ))));
+  if (inputColumnIds.length === 0) {
+    return { sampleInputValues: sampleInputValues ?? {} };
+  }
+
+  const candidates = [
+    ...rows.map((row) => row.values),
+    ...(sampleInputValues ? [sampleInputValues] : []),
+  ];
+  const numericCandidate = candidates.find((values) => inputColumnIds.every((inputColumnId) => (
+    parseNumericValue(values[inputColumnId]) !== null
+  )));
+  return numericCandidate
+    ? { sampleInputValues: numericCandidate }
+    : { message: 'No se encontraron valores numéricos para calcular la vista previa.' };
 }
 
 function getDatePreviewSampleInputValues(

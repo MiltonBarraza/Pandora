@@ -364,7 +364,7 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('P-1');
   });
 
-  it('keeps lowercase action when a cell text picker value is selected', async () => {
+  it('limits new range text transformers to input columns and previous result', async () => {
     const user = userEvent.setup();
     const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
     render(
@@ -383,16 +383,11 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     );
 
     await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
-    await selectModalDropdownOption(user, /Valor base/, 'Elegir texto desde celda');
-    await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-1');
-
-    const actionButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Acci.n/ });
-    expect(actionButton.textContent).toMatch(/Convertir a min.sculas/);
-    expect(actionButton.textContent).not.toContain('Usar texto fijo');
     const sourceButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Valor base/ });
-    expect(sourceButton.textContent).toContain('Elegir texto desde celda');
-    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
-    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-1');
+    await user.click(sourceButton);
+    expect(screen.getByRole('option', { name: 'A' })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'Elegir texto desde celda' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Texto fijo' })).toBeNull();
   });
 
   it('does not show the text input when a range number operation is selected', async () => {
@@ -425,9 +420,107 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
 
     expect(screen.queryByLabelText('Texto')).toBeNull();
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Valor a sumar' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Primer valor' })).toBeNull();
+    expect(screen.getByText('Completá Valor base para ver la vista previa.')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' })).not.toBeNull();
+
+    await selectModalDropdownOption(user, /Acci.n/, 'Quitar % incluido');
+    expect(screen.getByRole('button', { name: 'Valor con % incluido' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: '% incluido' })).not.toBeNull();
+    expect(screen.getByText(/Paso 1/).textContent).toContain('Quitar % incluido');
+    expect(screen.getByText(/Paso 1/).textContent).not.toContain('0%');
+    const actionField = within(screen.getByRole('dialog')).getByText('Acción').closest('.dropdownField');
+    await user.hover(within(actionField as HTMLElement).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('120 con 20% incluido → 100'));
+
+    await selectModalDropdownOption(user, /Valor con % incluido/, 'Columna de entrada');
+    expect(screen.getByRole('button', { name: 'Valor con % incluido: columna' }).textContent).toContain('Sin columnas numéricas disponibles');
+  });
+
+  it('filters range numeric operand columns with the engine parser and keeps mixed columns', async () => {
+    const user = userEvent.setup();
+    const numericColumns: InputColumn[] = [
+      { ...inputColumns[0], id: 'text', columnLetter: 'A', sampleValues: ['ACCESORIOS'] },
+      { ...inputColumns[1], id: 'mixed', columnLetter: 'B', sampleValues: ['PINCEL', '576087'] },
+      { ...inputColumns[1], id: 'currency', columnLetter: 'C', sampleValues: ['$ 1,948.63'] },
+    ];
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open recipe={recipe} range={unconfiguredRange} inputColumns={numericColumns}
+        manualRangeRows={[]} visibleColumnIds={['text']} showResultColumn
+        onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Tipo de operaci.n/, /Trabajar con n.meros/);
+    await selectModalDropdownOption(user, /Acci.n/, 'Sumar valor');
+    await selectModalDropdownOption(user, /Valor base/, 'Columna de entrada');
+    await user.click(screen.getByRole('button', { name: 'Valor base: columna' }));
+
+    expect(screen.queryByRole('option', { name: /^A/ })).toBeNull();
+    expect(screen.getByRole('option', { name: /^B/ })).not.toBeNull();
+    expect(screen.getByRole('option', { name: /^C/ })).not.toBeNull();
+  });
+
+  it('shows dynamic previous result for a range chain based on an input column', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open recipe={recipe} range={unconfiguredRange} inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows} visibleColumnIds={['input-code']} showResultColumn
+        onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Acci.n/, 'Usar columna de entrada');
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectModalDropdownOption(user, /Acci.n/, /Convertir a may.sculas/);
+
+    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('Valor dinámico');
+    const dynamicPreviousField = screen.getByRole('dialog').querySelector('.previousResultValueField') as HTMLElement;
+    await user.hover(within(dynamicPreviousField).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Este valor cambia según la fila. Ejemplos:'));
+    expect(screen.getByRole('tooltip').textContent).toContain('- P-1');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
+    await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
+    const previousValues = screen.getByRole('dialog').querySelectorAll('.previousResultValueField input');
+    expect(previousValues[previousValues.length - 1]?.getAttribute('value')).toBe('Valor dinámico');
+  });
+
+  it('uses conversion copy and filters found cell texts inside a range', async () => {
+    const user = userEvent.setup();
+    const columns: InputColumn[] = [{ ...inputColumns[0], sampleValues: ['ACCESORIOS', '123', 'Serie 304'] }];
+    const rows: InputRow[] = [
+      { rowNumber: 8, values: { 'input-code': 'ACCESORIOS' } },
+      { rowNumber: 9, values: { 'input-code': '123' } },
+      { rowNumber: 10, values: { 'input-code': 'Serie 304' } },
+    ];
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open recipe={recipe} range={unconfiguredRange} inputColumns={columns}
+        manualRangeRows={rows} visibleColumnIds={['input-code']} showResultColumn
+        onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Tipo de operaci.n/, /Conversi.n/);
+    await selectModalDropdownOption(user, /Acci.n/, 'Convertir a número');
+    await selectModalDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
+    await user.click(screen.getByRole('combobox', { name: /Texto encontrado/ }));
+    expect(screen.getByRole('option', { name: '123' })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'ACCESORIOS' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Serie 304' })).toBeNull();
+
+    await selectModalDropdownOption(user, /Acci.n/, 'Usar número del texto');
+    await selectModalDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
+    await user.click(screen.getByRole('combobox', { name: /Texto encontrado/ }));
+    expect(screen.getByRole('option', { name: 'Serie 304' })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'ACCESORIOS' })).toBeNull();
   });
 
   it('does not render mojibake in the range modal labels', () => {
@@ -533,6 +626,48 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     expect(addStepButton.closest('.concatPartStepsActions')?.parentElement?.classList.contains('rangeValuePrimaryLayout')).toBe(true);
   });
 
+  it('uses the modern concise range concat part summary', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open recipe={recipe} range={range} inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows} visibleColumnIds={['input-code']} showResultColumn
+        onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Acci.n/, 'Concatenar');
+    await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
+    expect(document.querySelector('.compositionTokenCard')?.textContent).toMatch(/Min.sculas/);
+    expect(document.querySelector('.compositionTokenCard')?.textContent).not.toContain('2 pasos configurados');
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
+    await selectModalDropdownOption(user, /Acci.n/, /Convertir a may.sculas/);
+    expect(document.querySelector('.compositionTokenCard')?.textContent).toContain('2 pasos configurados');
+  });
+
+  it('does not keep a stale fixed date after switching a range date step to a column', async () => {
+    const user = userEvent.setup();
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [unconfiguredRange] };
+    render(
+      <ManualRangeAdvancedRangeModal
+        open recipe={recipe} range={unconfiguredRange} inputColumns={inputColumns}
+        manualRangeRows={manualRangeRows} visibleColumnIds={['input-code']} showResultColumn
+        onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
+      />,
+    );
+
+    await selectModalDropdownOption(user, /Tipo de operaci.n/, 'Trabajar con fechas');
+    await selectModalDropdownOption(user, /Acci.n/, 'Formatear fecha');
+    await selectModalDropdownOption(user, /Qu. fecha usar/, 'Fecha fija');
+    const dateInput = screen.getByLabelText('Fecha fija') as HTMLInputElement;
+    await user.type(dateInput, '2026-07-01');
+    await selectModalDropdownOption(user, /Qu. fecha usar/, /^A/);
+
+    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).not.toContain('2026-07-01');
+  });
+
   it('updates range concat part actions without getting stuck on previous result', async () => {
     const user = userEvent.setup();
     const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
@@ -624,16 +759,12 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-1'));
 
     await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
-    await selectModalDropdownOption(user, /Valor base/, 'Elegir texto desde celda');
-    await selectModalSearchableDropdownOption(user, /Texto encontrado/, 'P-2');
-
     actionButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Acci.n/ });
     expect(actionButtons[actionButtons.length - 1].textContent).toMatch(/Convertir a min.sculas/);
     expect(actionButtons[actionButtons.length - 1].textContent).not.toContain('Usar texto fijo');
     const sourceButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Valor base/ });
-    expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Elegir texto desde celda');
-    await waitFor(() => expect((screen.getByRole('combobox', { name: /Texto encontrado/ }) as HTMLInputElement).value).toBe('P-2'));
-    expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('p-2');
+    await user.click(sourceButtons[sourceButtons.length - 1]);
+    expect(screen.queryByRole('option', { name: 'Elegir texto desde celda' })).toBeNull();
   });
 
   it('shows previous result value for additional range value steps', async () => {
@@ -663,8 +794,15 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
     await selectModalDropdownOption(user, /Acci.n/, /Convertir a may.sculas/);
 
-    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('Resultado del paso anterior');
+    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('asd');
+    const fixedPreviousField = screen.getByRole('dialog').querySelector('.previousResultValueField') as HTMLElement;
+    await user.hover(within(fixedPreviousField).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Este valor viene del paso anterior.'));
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('ASD');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
+    await selectModalDropdownOption(user, /Acci.n/, /Convertir a min.sculas/);
+    const previousValues = screen.getByRole('dialog').querySelectorAll('.previousResultValueField input');
+    expect(previousValues[previousValues.length - 1]?.getAttribute('value')).toBe('ASD');
   });
 
   it('shows previous result value for additional range concat part steps', async () => {
@@ -695,7 +833,7 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Agregar paso' }));
     await selectModalDropdownOption(user, /Acci.n/, /Convertir a may.sculas/);
 
-    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('Resultado del paso anterior');
+    expect(screen.getByRole('dialog').querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('asd');
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('ASD');
   });
 

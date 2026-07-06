@@ -647,14 +647,14 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     render(<ControlledRecipeEditor initialColumn={createMainConcatColumn('output-compose-number-date')} />);
 
     await openRecipeEditor(user);
-    await selectComposePartDropdownOption(user, /Tipo de operación/, /Trabajar con número/);
+    await selectComposePartDropdownOption(user, /Tipo de operación/, /Trabajar con números/);
     const actionButtons = within(getComposePartEditor()).getAllByRole('button', { name: /Acción/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
     expect(screen.getByRole('option', { name: 'Sumar valor' })).not.toBeNull();
     await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
-    expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Valor a sumar' })).not.toBeNull();
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
 
     await selectComposePartDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
@@ -780,10 +780,10 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-normal-first-number')} />);
 
     await openRecipeEditor(user);
-    await selectLastDropdownOption(user, /Tipo de operación/, /Trabajar con número/);
+    await selectLastDropdownOption(user, /Tipo de operación/, /Trabajar con números/);
 
     const modeButtons = screen.getAllByRole('button', { name: /Tipo de operación/ });
-    expect(modeButtons[modeButtons.length - 1].textContent).toContain('Trabajar con número');
+    expect(modeButtons[modeButtons.length - 1].textContent).toContain('Trabajar con números');
     expect(screen.getByText('Seleccionar acción')).not.toBeNull();
     expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
     expect(screen.queryByRole('button', { name: 'Qué valor usar' })).toBeNull();
@@ -795,11 +795,46 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getByRole('option', { name: 'Restar valor' })).not.toBeNull();
     await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
 
-    expect(screen.getByRole('button', { name: 'Primer valor' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Segundo valor' })).not.toBeNull();
-    expect((getInputByLabelText('Primer valor: valor fijo') as HTMLInputElement).value).toBe('');
-    expect((getInputByLabelText('Segundo valor: valor fijo') as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Valor a sumar' })).not.toBeNull();
+    expect((getInputByLabelText('Valor base: valor fijo') as HTMLInputElement).value).toBe('');
+    expect((getInputByLabelText('Valor a sumar: valor fijo') as HTMLInputElement).value).toBe('');
+    expect(screen.queryByText('Resultado anterior')).toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
+  });
+
+  it('defaults a new later numeric operation to the previous result', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={{
+      id: 'output-later-number-default',
+      label: 'Cálculo',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{ id: 'base-step', mode: 'number', type: 'noop', source: { type: 'fixedText', value: '100' } }],
+      },
+    }} />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
+    await selectLastDropdownOption(user, /Acción/, 'Restar valor');
+
+    expect(screen.getByRole('button', { name: 'Valor base' }).textContent).toContain('Resultado del paso anterior');
+    expect((getInputByLabelText('Valor a restar: valor fijo') as HTMLInputElement).value).toBe('');
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[1]).toMatchObject({
+      type: 'numericOperation',
+      operation: 'subtract',
+      leftOperand: { type: 'previousResult' },
+      rightOperand: { type: 'fixedText', value: '' },
+    });
   });
 
   it('filters cell texts for number conversion and resets search when reopened', async () => {
@@ -920,7 +955,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     render(<ControlledRecipeEditor initialColumn={createEmptyStepColumn('output-no-action')} />);
 
     await openRecipeEditor(user);
-    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     expect(screen.getByText('Seleccionar acción')).not.toBeNull();
     expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
     expect(screen.queryByText('Qué valor usar')).toBeNull();
@@ -943,7 +978,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByText('Fecha encontrada')).toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
 
-    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     expect(screen.getByText('Seleccionar acción')).not.toBeNull();
     expect(screen.getByText(/Paso 1/).textContent).toContain('Sin configurar');
     expect(screen.queryByText('Qué valor usar')).toBeNull();
@@ -964,7 +999,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
 
-    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     expect(screen.queryByText('Qué valor usar')).toBeNull();
     await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
     expect(screen.getByText('Qué valor usar')).not.toBeNull();
@@ -979,7 +1014,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con número');
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
     await selectLastDropdownOption(user, /Acción/, 'Usar texto fijo');
 

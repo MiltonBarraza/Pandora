@@ -23,7 +23,7 @@ import { pickCellTextLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
   { value: 'text', label: 'Trabajar con texto' },
-  { value: 'number', label: 'Trabajar con número' },
+  { value: 'number', label: 'Trabajar con números' },
   { value: 'conversion', label: 'Conversión' },
   { value: 'date', label: 'Trabajar con fechas' },
   { value: 'manualRange', label: 'Trabajar con rangos' },
@@ -219,6 +219,22 @@ export const numericOperationOptions = Object.entries(numericOperationLabels).ma
   value: value as NonNullable<TransformStep['operation']>,
   label,
 }));
+
+export function getNumericOperandLabels(operation: NonNullable<TransformStep['operation']> = 'add') {
+  if (operation === 'removeIncludedPercentage') {
+    return { left: 'Valor con % incluido', right: '% incluido' };
+  }
+
+  const rightLabels: Record<Exclude<NonNullable<TransformStep['operation']>, 'removeIncludedPercentage'>, string> = {
+    add: 'Valor a sumar',
+    subtract: 'Valor a restar',
+    multiply: 'Factor',
+    divide: 'Divisor',
+    addPercentage: '%',
+    subtractPercentage: '%',
+  };
+  return { left: 'Valor base', right: rightLabels[operation] };
+}
 
 export const dateInputFormatOptions: Array<{ value: DateInputFormat; label: string }> = supportedDateInputFormats.map((format) => ({
   value: format,

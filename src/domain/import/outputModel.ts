@@ -500,7 +500,7 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
     };
   }
 
-  if (operation === 'divide' && amount === 0) {
+  if ((operation === 'divide' && amount === 0) || (operation === 'removeIncludedPercentage' && amount === -100)) {
     return {
       value,
       warnings: ['No se puede dividir por cero'],
@@ -526,7 +526,7 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
     };
   }
 
-  if (operation === 'divide' && right.value === 0) {
+  if ((operation === 'divide' && right.value === 0) || (operation === 'removeIncludedPercentage' && right.value === -100)) {
     return {
       value: context.currentValue,
       warnings: ['No se puede dividir por cero'],
