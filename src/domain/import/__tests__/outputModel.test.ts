@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ColumnAnalysis, InputRow, NumericOperation, OutputColumn } from '../../../types/import';
+import { applyOutputIgnoreRulesToProcessedRows } from '../applyIgnoreRules';
 import { buildProcessedRows, buildProcessedRowsPipeline } from '../outputModel';
 
 const inputRows: InputRow[] = [
@@ -567,8 +568,254 @@ describe('outputModel manual range recipes', () => {
       rowNumber: row.rowNumber,
       comment: row.outputValues.comment,
     }))).toEqual([
+      { rowNumber: 7, comment: '' },
       { rowNumber: 8, comment: 'Dentro' },
       { rowNumber: 13, comment: 'Dentro' },
+    ]);
+  });
+
+  it('preserves rows outside manual ranges when a manual range is the only output', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Dentro' }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A9'],
+        ['A10'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 9 },
+        { internalRowIndex: 3, excelRowNumber: 10 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+    const rowsBeforeOutputValueFilter = buildProcessedRows(pipeline.includedInputRows, outputColumns);
+
+    expect(pipeline.ignoredInputRows).toEqual([]);
+    expect(pipeline.includedInputRows.map((row) => row.rowNumber)).toEqual([7, 8, 9, 10]);
+    expect(rowsBeforeOutputValueFilter.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, rangeLabel: '' },
+      { rowNumber: 8, rangeLabel: 'Dentro' },
+      { rowNumber: 9, rangeLabel: 'Dentro' },
+      { rowNumber: 10, rangeLabel: '' },
+    ]);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, rangeLabel: '' },
+      { rowNumber: 8, rangeLabel: 'Dentro' },
+      { rowNumber: 9, rangeLabel: 'Dentro' },
+      { rowNumber: 10, rangeLabel: '' },
+    ]);
+  });
+
+  it('keeps preserving manual range rows when another output column has a value', () => {
+    const outputColumns = [
+      outputColumn({ id: 'code', order: 0, recipe: { type: 'direct', inputColumnId: 'input-0' } }),
+      outputColumn({
+        id: 'range-label',
+        order: 1,
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Dentro' }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A9'],
+        ['A10'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 9 },
+        { internalRowIndex: 3, excelRowNumber: 10 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      code: row.outputValues.code,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, code: 'A7', rangeLabel: '' },
+      { rowNumber: 8, code: 'A8', rangeLabel: 'Dentro' },
+      { rowNumber: 9, code: 'A9', rangeLabel: 'Dentro' },
+      { rowNumber: 10, code: 'A10', rangeLabel: '' },
+    ]);
+  });
+
+  it('preserves rows when a manual range condition misses and no other output has a value', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8-9', startRowNumber: 8, endRowNumber: 9, value: 'Con codigo' }],
+          condition: { inputColumnId: 'input-1', operator: 'isNotEmpty' },
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A8', ''],
+        ['A9', 'OK'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 8 },
+        { internalRowIndex: 1, excelRowNumber: 9 },
+      ],
+      columnAnalysis: [
+        columnAnalysis(0, 'A', 'Codigo'),
+        columnAnalysis(1, 'B', 'Estado'),
+      ],
+      startRowIndex: 0,
+      outputColumns,
+    });
+    const rowsBeforeOutputValueFilter = buildProcessedRows(pipeline.includedInputRows, outputColumns);
+
+    expect(rowsBeforeOutputValueFilter.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 8, rangeLabel: '' },
+      { rowNumber: 9, rangeLabel: 'Con codigo' },
+    ]);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 8, rangeLabel: '' },
+      { rowNumber: 9, rangeLabel: 'Con codigo' },
+    ]);
+  });
+
+  it('preserves rows around suggested range metadata like manual ranges', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'suggested-range-8',
+            startRowNumber: 8,
+            endRowNumber: 8,
+            suggestedFromText: 'PINCELES SERIE 304',
+            value: 'Sugerido',
+          }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+        ['A9'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+        { internalRowIndex: 2, excelRowNumber: 9 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+    const rowsBeforeOutputValueFilter = buildProcessedRows(pipeline.includedInputRows, outputColumns);
+
+    expect(rowsBeforeOutputValueFilter.map((row) => row.outputValues['range-label'])).toEqual(['', 'Sugerido', '']);
+    expect(pipeline.processedRows.map((row) => ({
+      rowNumber: row.rowNumber,
+      rangeLabel: row.outputValues['range-label'],
+    }))).toEqual([
+      { rowNumber: 7, rangeLabel: '' },
+      { rowNumber: 8, rangeLabel: 'Sugerido' },
+      { rowNumber: 9, rangeLabel: '' },
+    ]);
+  });
+
+  it('keeps dropping fully empty output rows when no manual range recipe is present', () => {
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns: [
+        outputColumn({ id: 'blank', recipe: { type: 'fixedText', value: '' } }),
+      ],
+    });
+
+    expect(pipeline.includedInputRows.map((row) => row.rowNumber)).toEqual([7, 8]);
+    expect(pipeline.processedRows).toEqual([]);
+  });
+
+  it('allows explicit output ignore rules to remove preserved manual range rows', () => {
+    const outputColumns = [
+      outputColumn({
+        id: 'range-label',
+        label: 'Rango',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{ id: 'range-8', startRowNumber: 8, endRowNumber: 8, value: 'Dentro' }],
+        },
+      }),
+    ];
+    const pipeline = buildProcessedRowsPipeline({
+      rawRows: [
+        ['A7'],
+        ['A8'],
+      ],
+      rowMetadata: [
+        { internalRowIndex: 0, excelRowNumber: 7 },
+        { internalRowIndex: 1, excelRowNumber: 8 },
+      ],
+      columnAnalysis: [columnAnalysis(0, 'A', 'Codigo')],
+      startRowIndex: 0,
+      outputColumns,
+    });
+
+    const rowsWithOutputFilter = applyOutputIgnoreRulesToProcessedRows({
+      rows: pipeline.processedRows,
+      outputIgnoreRules: [{ id: 'ignore-empty-range', target: 'output', columnId: 'range-label', operator: 'isEmpty' }],
+      outputColumns,
+    });
+
+    expect(pipeline.processedRows.map((row) => row.rowNumber)).toEqual([7, 8]);
+    expect(rowsWithOutputFilter.map((row) => ({
+      rowNumber: row.rowNumber,
+      status: row.status,
+      ignoredReason: row.ignoredReason,
+    }))).toEqual([
+      { rowNumber: 7, status: 'ignored', ignoredReason: 'Ignorada por regla: Rango está vacía' },
+      { rowNumber: 8, status: 'included', ignoredReason: undefined },
     ]);
   });
 
@@ -883,6 +1130,95 @@ describe('outputModel numeric transformations', () => {
     expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
     expect(row.warnings).toContain('No se pudo aplicar operación numérica: valor inválido');
   });
+
+  it('converts numeric text with dot and comma decimals', () => {
+    const [row] = buildProcessedRows([
+      {
+        rowNumber: 1,
+        values: {
+          simple: '123',
+          dot: '123.45',
+          comma: '123,45',
+          currency: '$ 1.234,56',
+        },
+      },
+    ], [
+      outputColumn({ id: 'simple', recipe: { type: 'direct', inputColumnId: 'simple', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+      outputColumn({ id: 'dot', recipe: { type: 'direct', inputColumnId: 'dot', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+      outputColumn({ id: 'comma', recipe: { type: 'direct', inputColumnId: 'comma', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+      outputColumn({ id: 'currency', recipe: { type: 'direct', inputColumnId: 'currency', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.simple).toBe('123');
+    expect(row.outputValues.dot).toBe('123.45');
+    expect(row.outputValues.comma).toBe('123.45');
+    expect(row.outputValues.currency).toBe('1234.56');
+    expect(row.warnings).toBeUndefined();
+  });
+
+  it('keeps invalid values unchanged when converting to number', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { invalid: 'ABC' } },
+    ], [
+      outputColumn({ id: 'invalid', recipe: { type: 'direct', inputColumnId: 'invalid', steps: [{ id: 'to-number', type: 'toNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.invalid).toBe('ABC');
+    expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
+  });
+
+  it('treats values as text for later steps when converting to text', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { value: '123' } },
+    ], [
+      outputColumn({
+        id: 'text',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'value',
+          steps: [
+            { id: 'to-text', type: 'toText' },
+            { id: 'prefix', type: 'addPrefix', value: 'COD-' },
+          ],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.text).toBe('COD-123');
+  });
+
+  it('extracts the first number found in text', () => {
+    const [row] = buildProcessedRows([
+      {
+        rowNumber: 1,
+        values: {
+          code: 'ABC123',
+          measure: '12 kg x 3',
+          price: '$ 1.234,56',
+        },
+      },
+    ], [
+      outputColumn({ id: 'code', recipe: { type: 'direct', inputColumnId: 'code', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+      outputColumn({ id: 'measure', recipe: { type: 'direct', inputColumnId: 'measure', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+      outputColumn({ id: 'price', recipe: { type: 'direct', inputColumnId: 'price', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.code).toBe('123');
+    expect(row.outputValues.measure).toBe('12');
+    expect(row.outputValues.price).toBe('1234.56');
+    expect(row.warnings).toBeUndefined();
+  });
+
+  it('keeps original text and emits a warning when no number can be extracted', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { text: 'Sin número' } },
+    ], [
+      outputColumn({ id: 'text', recipe: { type: 'direct', inputColumnId: 'text', steps: [{ id: 'extract', type: 'extractNumber' }] } }),
+    ]);
+
+    expect(row.outputValues.text).toBe('Sin número');
+    expect(row.warnings).toContain('No se pudo extraer número del texto');
+  });
 });
 
 describe('outputModel step sources', () => {
@@ -954,6 +1290,161 @@ describe('outputModel step sources', () => {
 });
 
 describe('outputModel numeric operands', () => {
+  it('multiplies two explicit operands', () => {
+    const row = buildRow([outputColumn({
+      id: 'operand-multiply',
+      recipe: {
+        type: 'fixedText',
+        value: '',
+        steps: [{
+          id: 'multiply',
+          type: 'numericOperation',
+          operation: 'multiply',
+          leftOperand: { type: 'input', inputColumnId: 'input-price' },
+          rightOperand: { type: 'fixedText', value: '3' },
+          rounding: 0,
+        }],
+      },
+    })]);
+
+    expect(row.outputValues['operand-multiply']).toBe('600');
+  });
+
+  it('distinguishes subtracting a percentage from removing an included percentage with operands', () => {
+    const createPercentageColumn = (id: string, operation: NumericOperation) => outputColumn({
+      id,
+      recipe: {
+        type: 'fixedText',
+        value: '120',
+        steps: [{
+          id: operation,
+          type: 'numericOperation',
+          operation,
+          leftOperand: { type: 'previousResult' },
+          rightOperand: { type: 'fixedText', value: '20' },
+          rounding: 0,
+        }],
+      },
+    });
+    const row = buildRow([
+      createPercentageColumn('add-percentage-operand', 'addPercentage'),
+      createPercentageColumn('subtract-percentage-operand', 'subtractPercentage'),
+      createPercentageColumn('remove-included-percentage-operand', 'removeIncludedPercentage'),
+    ]);
+
+    expect(row.outputValues['add-percentage-operand']).toBe('144');
+    expect(row.outputValues['subtract-percentage-operand']).toBe('96');
+    expect(row.outputValues['remove-included-percentage-operand']).toBe('100');
+  });
+
+  it('treats minus one hundred included percentage as division by zero in legacy and operand recipes', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'legacy-minus-one-hundred',
+        recipe: {
+          type: 'fixedText',
+          value: '120',
+          steps: [{ id: 'remove', type: 'numericOperation', operation: 'removeIncludedPercentage', amount: -100 }],
+        },
+      }),
+      outputColumn({
+        id: 'operand-minus-one-hundred',
+        recipe: {
+          type: 'fixedText',
+          value: '120',
+          steps: [{
+            id: 'remove',
+            type: 'numericOperation',
+            operation: 'removeIncludedPercentage',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '-100' },
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['legacy-minus-one-hundred']).toBe('120');
+    expect(row.outputValues['operand-minus-one-hundred']).toBe('120');
+    expect(row.warnings).toContain('No se puede dividir por cero');
+  });
+
+  it('calculates A minus B times C plus D through sequential steps', () => {
+    const [row] = buildProcessedRows([{
+      rowNumber: 1,
+      values: { A: '100', B: '5', C: '4', D: '3' },
+    }], [outputColumn({
+      id: 'sequential-expression',
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'A' }],
+        steps: [
+          {
+            id: 'multiply',
+            type: 'numericOperation',
+            operation: 'multiply',
+            leftOperand: { type: 'input', inputColumnId: 'B' },
+            rightOperand: { type: 'input', inputColumnId: 'C' },
+            rounding: 'none',
+          },
+          {
+            id: 'subtract',
+            type: 'numericOperation',
+            operation: 'subtract',
+            leftOperand: { type: 'input', inputColumnId: 'A' },
+            rightOperand: { type: 'previousResult' },
+            rounding: 'none',
+          },
+          {
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'input', inputColumnId: 'D' },
+            rounding: 'none',
+          },
+        ],
+      },
+    })]);
+
+    expect(row.outputValues['sequential-expression']).toBe('83');
+  });
+
+  it('applies configured rounding after each numeric step', () => {
+    const chainedColumn = (id: string, firstRounding: 0 | 'none') => outputColumn({
+      id,
+      recipe: {
+        type: 'fixedText',
+        value: '10',
+        steps: [
+          {
+            id: 'fraction',
+            type: 'numericOperation',
+            operation: 'multiply',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '0.66' },
+            rounding: firstRounding,
+          },
+          {
+            id: 'triple',
+            type: 'numericOperation',
+            operation: 'multiply',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '3' },
+            rounding: 'none',
+          },
+        ],
+      },
+    });
+    const row = buildRow([
+      chainedColumn('rounded-each-step', 0),
+      chainedColumn('without-intermediate-rounding', 'none'),
+    ]);
+
+    expect(row.outputValues['rounded-each-step']).toBe('21');
+    expect(row.outputValues['without-intermediate-rounding']).toBe('19.8');
+  });
+
   it('adds previous result and a fixed operand', () => {
     const row = buildRow([
       outputColumn({
@@ -1116,10 +1607,25 @@ describe('outputModel numeric operands', () => {
           }],
         },
       }),
+      outputColumn({
+        id: 'empty-operand',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'add',
+            type: 'numericOperation',
+            operation: 'add',
+            leftOperand: { type: 'previousResult' },
+            rightOperand: { type: 'fixedText', value: '' },
+          }],
+        },
+      }),
     ]);
 
     expect(row.outputValues.zero).toBe('200');
     expect(row.outputValues.invalid).toBe('200');
+    expect(row.outputValues['empty-operand']).toBe('200');
     expect(row.warnings).toContain('No se puede dividir por cero');
     expect(row.warnings).toContain('No se pudo aplicar operación numérica: operando inválido');
   });
@@ -1210,6 +1716,29 @@ describe('outputModel concat step', () => {
 });
 
 describe('outputModel date steps', () => {
+  it('formats a date from an input column using the selected input and output formats', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { 'input-date': '31/12/2025' } },
+    ], [
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('2025-12-31');
+  });
+
   it('formats a direct recipe value as a string', () => {
     const row = buildRow([
       outputColumn({
@@ -1375,6 +1904,68 @@ describe('outputModel date steps', () => {
     ]);
 
     expect(row.outputValues.date).toBe('01/06/2024');
+  });
+
+  it('formats an ISO fixed date picker source even when the hidden input format is stale', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-12-31' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'DD/MM/YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('31/12/2025');
+  });
+
+  it('formats an ISO fixed date picker source with another supported output format', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-06-17' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'MM/DD/YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('06/17/2025');
+  });
+
+  it('keeps invalid date values unchanged by default', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'no es fecha',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('no es fecha');
   });
 
   it('formats the previous result from an earlier step', () => {

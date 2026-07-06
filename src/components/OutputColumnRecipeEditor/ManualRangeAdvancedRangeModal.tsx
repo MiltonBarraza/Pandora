@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  findOverlappingManualRange,
   parseManualRangeRowInput,
   reconcileManualRangeTextSelections,
   updateManualRangeFixedTextValue,
@@ -10,6 +11,7 @@ import {
 import type { InputColumn, InputRow, ManualRangeValue, StepSource, TransformStep } from '../../types/import';
 import { Modal } from '../Modal/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import {
   getManualRangeSpreadsheetCellValue,
   getManualRangeSpreadsheetColumnLabel,
@@ -95,12 +97,22 @@ export function ManualRangeAdvancedRangeModal({
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   const [useMainColumnView, setUseMainColumnView] = useState(true);
   const boundsValidation = validateManualRangeBounds(startRowInput, endRowInput);
+  const overlappingRange = boundsValidation.error === null && boundsValidation.startRowNumber !== null && boundsValidation.endRowNumber !== null && draftRange
+    ? findOverlappingManualRange({
+      startRowNumber: boundsValidation.startRowNumber,
+      endRowNumber: boundsValidation.endRowNumber,
+    }, recipe.ranges, draftRange.id)
+    : null;
+  const overlapError = overlappingRange
+    ? `Este rango se superpone con el rango ${overlappingRange.startRowNumber} - ${overlappingRange.endRowNumber}.`
+    : null;
+  const boundsError = boundsValidation.error ?? overlapError;
   const hasUncommittedRowInput = draftRange
     ? startRowInput !== String(draftRange.startRowNumber)
       || endRowInput !== String(draftRange.endRowNumber)
     : false;
   const isDirty = pendingDelete || hasUncommittedRowInput || getRangeSnapshot(draftRange) !== originalRangeSnapshot;
-  const canAccept = pendingDelete || boundsValidation.error === null;
+  const canAccept = pendingDelete || boundsError === null;
 
   useEffect(() => {
     if (!open || !range) {
@@ -121,7 +133,7 @@ export function ManualRangeAdvancedRangeModal({
     <span>Filas {startRowInput || '—'} - {endRowInput || '—'}</span>
   ), [endRowInput, startRowInput]);
   const coveredRows = useMemo(() => {
-    if (boundsValidation.error || boundsValidation.startRowNumber === null || boundsValidation.endRowNumber === null) {
+    if (boundsError || boundsValidation.startRowNumber === null || boundsValidation.endRowNumber === null) {
       return [];
     }
 
@@ -129,7 +141,7 @@ export function ManualRangeAdvancedRangeModal({
       row.rowNumber >= boundsValidation.startRowNumber!
       && row.rowNumber <= boundsValidation.endRowNumber!
     ));
-  }, [boundsValidation.endRowNumber, boundsValidation.error, boundsValidation.startRowNumber, manualRangeRows]);
+  }, [boundsError, boundsValidation.endRowNumber, boundsValidation.startRowNumber, manualRangeRows]);
   const coveredColumns = useMemo(() => {
     if (!useMainColumnView) {
       return inputColumns;
@@ -274,34 +286,28 @@ export function ManualRangeAdvancedRangeModal({
                 step="1"
                 value={startRowInput}
                 disabled={pendingDelete}
-                aria-invalid={!pendingDelete && boundsValidation.error !== null}
-                aria-describedby="manual-range-bounds-validation"
+                aria-invalid={!pendingDelete && boundsError !== null}
                 onChange={(event) => updateRowNumber('startRowNumber', event.target.value)}
               />
             </label>
-            <label className="field compact">
-              <span>Fin</span>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={endRowInput}
-                disabled={pendingDelete}
-                aria-invalid={!pendingDelete && boundsValidation.error !== null}
-                aria-describedby="manual-range-bounds-validation"
-                onChange={(event) => updateRowNumber('endRowNumber', event.target.value)}
-              />
-            </label>
+            <div className="manualRangeAdvancedRangeModalFieldWithWarning">
+              <label className="field compact">
+                <span>Fin</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={endRowInput}
+                  disabled={pendingDelete}
+                  aria-invalid={!pendingDelete && boundsError !== null}
+                  onChange={(event) => updateRowNumber('endRowNumber', event.target.value)}
+                />
+              </label>
+              {!pendingDelete && boundsError ? (
+                <WarningTooltip ariaLabel="Advertencia: rango invalido" content={boundsError} />
+              ) : null}
+            </div>
           </div>
-          {!pendingDelete ? (
-            <p
-              id="manual-range-bounds-validation"
-              className={`manualRangeAdvancedRangeModalValidation${boundsValidation.error ? ' manualRangeAdvancedRangeModalValidation-error' : ''}`}
-              role={boundsValidation.error ? 'alert' : undefined}
-            >
-              {boundsValidation.error ?? 'Inicio y fin usan números de fila reales del Excel.'}
-            </p>
-          ) : null}
           <ManualRangeCoveredRowsPreview
             rows={coveredRows}
             columns={coveredColumns}

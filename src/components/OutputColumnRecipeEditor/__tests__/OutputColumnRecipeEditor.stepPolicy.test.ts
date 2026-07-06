@@ -4,6 +4,7 @@ import {
   createCanonicalSourceForAction,
   createCanonicalStepForAction,
   getAllowedSourceActions,
+  getAllowedTextTransformerSourceActions,
   getAllowedStepActions,
   getAllowedStepModes,
   getVisibleStepAction,
@@ -107,6 +108,32 @@ describe('step editor policy', () => {
     expect(lower).toMatchObject({ mode: 'text', type: 'lowercase', source: { type: 'previousResult' } });
   });
 
+  it('offers only input and available previous result for new text transformers', () => {
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'input', inputColumnId },
+    }, context('normal', 0))).toEqual(['useInputColumn']);
+
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'input', inputColumnId },
+    }, context('normal', 1))).toEqual(['useInputColumn', 'usePreviousResult']);
+  });
+
+  it('preserves fixed text sources for existing text transformer recipes', () => {
+    expect(getVisibleStepAction({
+      id: 'legacy',
+      mode: 'text',
+      type: 'uppercase',
+      source: { type: 'fixedText', value: 'manual' },
+    }, context('normal'))).toBe('uppercase');
+
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'fixedText', value: 'manual' },
+    }, context('normal'))).toEqual(['useInputColumn', 'useFixedText']);
+  });
+
   it('creates numeric operations without stale text props', () => {
     const staleTextStep: TransformStep = {
       id: 'stale',
@@ -142,6 +169,19 @@ describe('step editor policy', () => {
       mode: 'date',
       type: 'noop',
       source: { type: 'input', inputColumnId },
+    });
+  });
+
+  it('allows previous result as numeric source only after the first step', () => {
+    expect(createCanonicalStepForAction('number', 'numericOperation', context('normal', 0))).toMatchObject({
+      mode: 'number',
+      type: 'numericOperation',
+      source: { type: 'input', inputColumnId },
+    });
+    expect(createCanonicalStepForAction('number', 'numericOperation', context('normal', 1))).toMatchObject({
+      mode: 'number',
+      type: 'numericOperation',
+      source: { type: 'previousResult' },
     });
   });
 

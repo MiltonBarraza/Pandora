@@ -230,7 +230,6 @@ function ComposeValueStudio({
             <ComposeValuePreview
               rows={previewRows}
               hasTokens={tokens.length > 0}
-              totalAvailable={manualRangeRows.length > 0 ? manualRangeRows.length : undefined}
             />
           </div>
         </div>
@@ -397,18 +396,25 @@ function ComposeTokenInspector({
 function ComposeValuePreview({
   rows,
   hasTokens,
-  totalAvailable,
 }: {
   rows: Array<{ rowNumber: string; value: string }>;
   hasTokens: boolean;
-  totalAvailable?: number;
 }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const previewRows = hasTokens ? rows.slice(0, 10) : [];
-  const emptyMessage = hasTokens ? 'No hay datos para previsualizar.' : 'Agregá una parte para ver la vista previa.';
-  const previewCount = totalAvailable === undefined
-    ? `Mostrando ${previewRows.length} filas`
-    : `Mostrando ${previewRows.length} filas de ${totalAvailable} disponibles`;
+  const firstAvailableRow = getFirstNumericPreviewRow(rows);
+  const [startRowInput, setStartRowInput] = useState(() => String(firstAvailableRow ?? 1));
+  useEffect(() => {
+    if (firstAvailableRow !== null && startRowInput.trim() !== '' && !isPreviewStartValid(startRowInput)) {
+      setStartRowInput(String(firstAvailableRow));
+    }
+  }, [firstAvailableRow, startRowInput]);
+
+  const requestedStartRowNumber = getPreviewStartRowNumber(startRowInput);
+  const startRowNumber = requestedStartRowNumber ?? firstAvailableRow;
+  const lastFileRowNumber = getLastNumericPreviewRow(rows);
+  const previewRows = hasTokens ? getPreviewRowsFromStart(rows, startRowNumber).slice(0, 10) : [];
+  const emptyMessage = hasTokens ? 'No se encontraron filas.' : 'Agregá una parte para ver la vista previa.';
+  const previewCount = getComposePreviewCountText(previewRows.length, startRowNumber, lastFileRowNumber);
 
   return (
     <div className="composePreviewControl">
@@ -416,11 +422,74 @@ function ComposeValuePreview({
         <ActionButton action="preview" variant="icon" size="sm" className="composeStudioActionButton composePreviewButton" title="Vista previa" aria-label="Vista previa" onClick={() => setIsPreviewOpen(true)} />
       </InfoTooltip>
       <Modal open={isPreviewOpen} title="Vista previa del resultado" className="composePreviewModal" onClose={() => setIsPreviewOpen(false)}>
-        <p className="composePreviewCount">{previewCount}</p>
+        {firstAvailableRow !== null ? (
+          <label className="field compact composePreviewStartField">
+            <span>Ver desde fila</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={startRowInput}
+              onBlur={() => setStartRowInput(String(isPreviewStartValid(startRowInput) ? startRowInput : firstAvailableRow))}
+              onChange={(event) => setStartRowInput(event.target.value)}
+            />
+          </label>
+        ) : null}
+        {previewCount ? <p className="composePreviewCount">{previewCount}</p> : null}
         <ComposePreviewTable rows={previewRows} emptyMessage={emptyMessage} />
       </Modal>
     </div>
   );
+}
+
+function getNumericPreviewRows(rows: Array<{ rowNumber: string; value: string }>) {
+  return rows
+    .map((row) => ({ ...row, numericRowNumber: Number(row.rowNumber) }))
+    .filter((row) => Number.isFinite(row.numericRowNumber));
+}
+
+function getFirstNumericPreviewRow(rows: Array<{ rowNumber: string; value: string }>) {
+  return getNumericPreviewRows(rows)[0]?.numericRowNumber ?? null;
+}
+
+function getLastNumericPreviewRow(rows: Array<{ rowNumber: string; value: string }>) {
+  const numericRows = getNumericPreviewRows(rows);
+  return numericRows[numericRows.length - 1]?.numericRowNumber ?? null;
+}
+
+function isPreviewStartValid(value: string) {
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue >= 1;
+}
+
+export function getPreviewStartRowNumber(value: string) {
+  const parsedValue = Number(value);
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+    return null;
+  }
+
+  return parsedValue;
+}
+
+export function getPreviewRowsFromStart(rows: Array<{ rowNumber: string; value: string }>, startRowNumber: number | null) {
+  if (startRowNumber === null) {
+    return rows;
+  }
+
+  return rows.filter((row) => Number(row.rowNumber) >= startRowNumber);
+}
+
+export function getComposePreviewCountText(rowCount: number, startRowNumber: number | null, lastFileRowNumber: number | null) {
+  const rowLabel = rowCount === 1 ? 'fila' : 'filas';
+  if (rowCount === 0 && startRowNumber !== null) {
+    return null;
+  }
+
+  if (startRowNumber !== null && lastFileRowNumber !== null) {
+    return `Mostrando ${rowCount} ${rowLabel} desde la fila ${startRowNumber} de ${lastFileRowNumber} filas del archivo.`;
+  }
+
+  return `Mostrando ${rowCount} ${rowLabel}`;
 }
 
 function ComposeTokenConditionTable({
@@ -466,8 +535,8 @@ function ComposePreviewTable({
   return (
     <table className="composePreviewTable">
       <colgroup>
-        <col className="composePreviewColumnRow" style={{ width: '15%' }} />
-        <col className="composePreviewColumnResult" style={{ width: '85%' }} />
+        <col className="composePreviewColumnRow" />
+        <col className="composePreviewColumnResult" />
       </colgroup>
       <thead>
         <tr>
@@ -596,12 +665,14 @@ function getComposeTokens(recipe: Extract<OutputRecipe, { type: 'combine' }>, in
     const concatPart = getComposeConcatPart(recipe, index);
 
     if (isComplex) {
+      const sourceSummary = getComposeTokenSourceSummary(part, concatPart, inputColumns);
+      const configuredStepCount = configuredSteps.length + 1;
       return {
         id: part.id,
-        kind: 'advanced',
-        label: 'Parte avanzada',
-        detail: `${configuredSteps.length} ${configuredSteps.length === 1 ? 'paso configurado' : 'pasos configurados'}`,
-        statusHint: 'Esta parte usa pasos avanzados',
+        kind: sourceSummary.kind === 'warning' ? 'advanced' : sourceSummary.kind,
+        label: sourceSummary.label,
+        detail: `${configuredStepCount} pasos configurados`,
+        statusHint: `Fuente: ${sourceSummary.detail}. Esta parte usa pasos avanzados`,
         index,
       };
     }
@@ -626,8 +697,8 @@ function getComposeTokens(recipe: Extract<OutputRecipe, { type: 'combine' }>, in
       return inputColumn ? {
         id: part.id,
         kind: 'input',
-        label: `Columna ${inputColumn.columnLetter}`,
-        detail: 'Dato del Excel',
+        label: 'Dato de Excel',
+        detail: `Columna ${inputColumn.columnLetter}`,
         index,
       } : createUnconfiguredComposeToken(part.id, index, 'Falta seleccionar origen');
     }
@@ -656,6 +727,35 @@ function createUnconfiguredComposeToken(id: string, index: number, statusHint: s
     statusHint,
     index,
   };
+}
+
+function getComposeTokenSourceSummary(
+  part: RecipePart,
+  concatPart: ConcatPart | undefined,
+  inputColumns: InputColumn[],
+): Pick<ComposeToken, 'label' | 'detail' | 'kind'> {
+  const source = concatPart?.source;
+
+  if (source?.type === 'input' || part.type === 'input') {
+    const inputColumnId = source?.type === 'input' ? source.inputColumnId : part.type === 'input' ? part.inputColumnId : '';
+    const inputColumn = inputColumns.find((column) => column.id === inputColumnId);
+    return inputColumn
+      ? { kind: 'input', label: 'Dato de Excel', detail: `Columna ${inputColumn.columnLetter}` }
+      : { kind: 'warning', label: 'Dato de Excel', detail: 'Sin columna' };
+  }
+
+  if (source?.type === 'previousResult') {
+    return { kind: 'previous', label: 'Dato calculado', detail: 'Resultado del paso anterior' };
+  }
+
+  if (source?.type === 'rangeText') {
+    return source.selectedText
+      ? { kind: 'text', label: 'Texto encontrado', detail: `"${source.selectedText}"` }
+      : { kind: 'warning', label: 'Sin texto encontrado', detail: 'Valor vacío' };
+  }
+
+  const fixedText = source?.type === 'fixedText' ? source.value : part.type === 'text' ? part.value : '';
+  return { kind: 'text', label: 'Texto fijo', detail: fixedText ? `"${fixedText}"` : 'Sin texto' };
 }
 
 function getComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }>): RecipePart[] {
@@ -799,7 +899,7 @@ function getComposePreviewRows(
     enabled: true,
     recipe,
   };
-  const rows = manualRangeRows.slice(0, 10);
+  const rows = manualRangeRows;
   if (rows.length > 0) {
     return buildProcessedRows(rows, [previewColumn]).map((row) => ({
       rowNumber: String(row.rowNumber),

@@ -146,7 +146,7 @@ export function OutputColumnsManager({
             : `${ordered.length} ${ordered.length === 1 ? 'columna configurada' : 'columnas configuradas'}.`}
         </p>
         <div className="outputColumnsHeaderActions">
-          <div className="inlineForm">
+          <div className="inlineForm outputColumnsAddForm">
             <input
               value={newColumnName}
               onChange={(event) => setNewColumnName(event.target.value)}

@@ -5,4 +5,4 @@ export const pickCellTextLabel = 'Elegir texto desde celda';
 export const operationTypeLabel = 'Tipo de operación';
 export const valueSourceLabel = 'Fuente del valor';
 export const addPartLabel = 'Agregar parte';
-export const recipeEditorPreviousResultHelpText = 'Toma el valor que salió del paso anterior, no de la parte anterior.';
+export const recipeEditorPreviousResultHelpText = 'Este valor se calcula para cada fila según los pasos anteriores.';

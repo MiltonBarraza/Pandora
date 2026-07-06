@@ -19,7 +19,9 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getInvalidPickerTooltip, invalidPickerValuesLabel } from './ColumnTextPicker';
 import { addPartLabel, noActiveColumnsLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
-import { StepSourceFields } from './OutputColumnRecipeEditor.StepFields';
+import { StepSourceFields, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
+import { getNumericOperationPreview, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
+import { createPreviousResultDisplay, isDeterministicStepChain } from './OutputColumnRecipeEditor.previousResultHelpers';
 import { getManualRangePreviewValueForRow } from './ManualRangeSpreadsheetEditor.helpers';
 import {
   createCanonicalStepForMode,
@@ -66,7 +68,7 @@ const rangeValueActionLabels: Record<RangeValueTextAction, string> = {
   replaceText: 'Reemplazar texto',
   concat: 'Concatenar',
   numericOperation: 'Operación numérica',
-  extractNumber: 'Extraer número del texto',
+  extractNumber: 'Usar número del texto',
   toNumber: 'Convertir a número',
   toText: 'Convertir a texto',
   formatDate: 'Formatear fecha',
@@ -335,7 +337,17 @@ function RangeValueStepsEditor({
   const deleteStep = (stepId: string) => onChange(safeSteps.filter((step) => step.id !== stepId));
   const isPrimaryConcat = primaryStep.type === 'concat';
   const shouldShowAdditionalStepControls = showAdditionalStepsHeader && !isPrimaryConcat;
+  const safeManualRangeRows = manualRangeRows ?? [];
+  const rangeRows = range
+    ? safeManualRangeRows.filter((row) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber)
+    : safeManualRangeRows;
+  const numericPreviewMessage = getNumericOperationPreview(
+    { type: 'combine', parts: [], steps: safeSteps },
+    undefined,
+    rangeRows,
+  ).message;
   const getPreviousStepPreviewValue = (stepIndex: number) => getRangeValuePreviousStepPreviewValue(range, manualRangeRows ?? [], sourceForPrimary, safeSteps, stepIndex);
+  const getPreviousStepDisplay = (stepIndex: number) => getRangeValuePreviousResultDisplay(range, manualRangeRows ?? [], sourceForPrimary, safeSteps, stepIndex);
 
   return (
     <div className="rangeValueTransforms">
@@ -362,7 +374,7 @@ function RangeValueStepsEditor({
           uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
-          title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext)}`}
+          title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext, inputColumns)}`}
           fixedTextInputLabel={fixedTextInputLabel}
           showCondition={!isPrimaryConcat}
           showAddStep={!isPrimaryConcat}
@@ -396,6 +408,7 @@ function RangeValueStepsEditor({
                 context={createRangeValueStepContext(contextKind, index + 1 + primaryStepIndex, inputColumns)}
                 uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${index + 1 + primaryStepIndex}` : undefined}
                 previousResultPreviewValue={getPreviousStepPreviewValue(index + 1 + primaryStepIndex)}
+                previousResultDisplay={getPreviousStepDisplay(index + 1 + primaryStepIndex)}
                 onChange={(patch) => updateStep(step.id, patch)}
                 onReplace={(nextStep) => replaceStep(step.id, nextStep)}
                 onDelete={() => deleteStep(step.id)}
@@ -404,6 +417,7 @@ function RangeValueStepsEditor({
           ))}
         </div>
       ) : null}
+      {numericPreviewMessage ? <p className="manualRangeValueHelp">{numericPreviewMessage}</p> : null}
     </div>
   );
 }
@@ -432,6 +446,26 @@ function getRangeValuePreviousStepPreviewValue(
   return getManualRangePreviewValueForRow(row.rowNumber, [previewRange], [row]);
 }
 
+function getRangeValuePreviousResultDisplay(
+  range: Pick<ManualRangeValue, 'id' | 'startRowNumber' | 'endRowNumber'> | undefined,
+  rows: InputRow[],
+  source: StepSource | undefined,
+  steps: TransformStep[],
+  stepIndex: number,
+): PreviousResultDisplay | null {
+  if (!range || !source || stepIndex <= 0) return null;
+
+  const previousSteps = steps.slice(0, stepIndex);
+  const rangeRows = rows.filter((row) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber);
+  const values = rangeRows.map((row) => {
+    const previewRange: ManualRangeValue = { ...range, valueRecipe: { source, steps: previousSteps } };
+    return getManualRangePreviewValueForRow(row.rowNumber, [previewRange], [row]);
+  });
+  const examples = Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean))).slice(0, 3);
+  const value = getRangeValuePreviousStepPreviewValue(range, rows, source, steps, stepIndex) ?? '';
+  return createPreviousResultDisplay(isDeterministicStepChain(source, previousSteps, true), value, examples);
+}
+
 export function isRangeValueTextSourceAction(value: RangeValueTextAction): value is StepSourceAction {
   return isStepSourceAction(value);
 }
@@ -445,6 +479,7 @@ function RangeValueStepEditor({
   context,
   uiStateKey,
   previousResultPreviewValue,
+  previousResultDisplay,
   onChange,
   onReplace,
   onDelete,
@@ -457,12 +492,13 @@ function RangeValueStepEditor({
   context: StepEditorContext;
   uiStateKey?: string;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   onChange: (patch: Partial<TransformStep>) => void;
   onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
   const title = stepNumber
-    ? `Paso ${stepNumber} · ${getRangeValueStepTitle(step, context)}`
+    ? `Paso ${stepNumber} · ${getRangeValueStepTitle(step, context, inputColumns)}`
     : `Paso adicional ${index + 1}`;
 
   return (
@@ -475,6 +511,7 @@ function RangeValueStepEditor({
       title={title}
       canDelete
       previousResultPreviewValue={previousResultPreviewValue}
+      previousResultDisplay={previousResultDisplay}
       onChange={onChange}
       onReplace={onReplace}
       onDelete={onDelete}
@@ -804,6 +841,15 @@ function getRangeValueConcatPartRangeTextSource(source: StepSource, inputColumns
 
 function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: InputColumn[]) {
   const { source } = part;
+  const configuredStepCount = (part.steps ?? []).length;
+
+  if (configuredStepCount > 1) {
+    return `${configuredStepCount} pasos configurados`;
+  }
+
+  if (configuredStepCount === 1 && part.steps?.[0]) {
+    return getRecipeStepTitle(part.steps[0], inputColumns, part.source);
+  }
 
   if (source.type === 'previousResult') {
     return 'Resultado anterior';
@@ -814,7 +860,7 @@ function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: Inpu
   }
 
   if (source.type === 'rangeText') {
-    return source.selectedText ? `Texto encontrado "${source.selectedText}"` : 'Texto encontrado en el rango';
+    return source.selectedText ? `Texto encontrado "${source.selectedText}"` : 'Sin texto encontrado en el rango';
   }
 
   const inputColumn = inputColumns.find((column) => column.id === source.inputColumnId);
@@ -924,11 +970,13 @@ function getRangeValueStepMode(step: TransformStep): Exclude<TransformStepMode, 
   return 'text';
 }
 
-function getRangeValueStepTitle(step: TransformStep, context: StepEditorContext) {
+function getRangeValueStepTitle(step: TransformStep, context: StepEditorContext, inputColumns: InputColumn[] = []) {
   const actionValue = getVisibleStepAction(step, context);
   if (actionValue === 'unconfigured') {
     return 'Sin configurar';
   }
 
-  return rangeValueActionLabels[actionValue] ?? 'Sin configurar';
+  return step.type === 'numericOperation'
+    ? getRecipeStepTitle(step, inputColumns)
+    : rangeValueActionLabels[actionValue] ?? 'Sin configurar';
 }

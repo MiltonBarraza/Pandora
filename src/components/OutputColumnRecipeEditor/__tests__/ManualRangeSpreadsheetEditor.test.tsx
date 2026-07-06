@@ -749,18 +749,20 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     const markup = renderSuggestedPanel();
 
     expect(markup).toContain('manualRangeSuggestedControlsCompact');
-    expect(markup).toContain('aria-label="Buscar sugerencias"');
+    expect(markup).toContain('aria-label="Buscar"');
     expect(markup).not.toContain('title="Buscar sugerencias"');
-    expect(markup).toContain('infoTooltipCustomTrigger');
+    expect(markup).not.toContain('infoTooltipCustomTrigger');
     expect(markup).toContain('dropdownTrigger');
     expect(markup).toContain('Guardar como valor');
     expect(markup).toContain('Sin valor');
     expect(markup).toContain('manualRangeSuggestedSummary');
     expect(markup).toContain('Pandora usará cada dato de A como inicio de un rango');
+    expect(markup).toContain('Cada rango termina antes del siguiente dato encontrado');
     expect(markup).toContain('Los rangos se crearán sin valor inicial.');
     expect(markup).toContain('Rangos sugeridos');
     expect(markup).toContain('Generá posibles rangos y revisalos antes de aplicarlos.');
-    expect(markup).toContain('Buscar sugerencias');
+    expect(markup).toContain('actionButtonText">Buscar');
+    expect(markup).not.toContain('Buscar sugerencias');
     expect(markup).toContain('Todavía no hay sugerencias.');
     expect(markup).toContain('Cada dato inicia un rango');
   });
@@ -815,7 +817,7 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     ];
     const markup = renderSuggestedPanel({
       suggestedRanges,
-      selectedSuggestedRangeIds: new Set(['suggested-8-13']),
+      selectedSuggestedRangeIds: new Set(['suggested-20-20']),
       hasSearchedSuggestions: true,
     });
 
@@ -831,7 +833,25 @@ describe('ManualRangeSuggestedRangesPanel', () => {
     expect(markup).toContain('manualRangeSuggestedItemOverlap');
     expect(markup).toContain('manualRangeSuggestedItemDeleteButton');
     expect(markup).toContain('Eliminar sugerencia 8 - 13');
-    expect(markup).toContain('Se superpone con un rango configurado');
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('Advertencia: sugerencia superpuesta');
+    expect(markup).toContain('warningTooltipTrigger');
+  });
+
+  it('uses empty copy for suggested range text values that were not found', () => {
+    const markup = renderSuggestedPanel({
+      recipe: { type: 'manualRange', ranges: [] },
+      suggestedRanges: [{
+        id: 'suggested-empty-text',
+        startRowNumber: 20,
+        endRowNumber: 25,
+        valueRecipe: { source: { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: '' }, steps: [] },
+      }],
+      hasSearchedSuggestions: true,
+    });
+
+    expect(markup).toContain('Sin texto encontrado');
+    expect(markup).not.toContain('Texto encontrado:');
   });
 
   it('renders the app confirmation dialog before clearing all suggestions', () => {
@@ -1189,7 +1209,40 @@ describe('ManualRangeSpreadsheetEditor helpers', () => {
     });
   });
 
+  it('builds text-start suggestions until the row before the next detected text', () => {
+    const rows: InputRow[] = Array.from({ length: 20 }, (_, index) => {
+      const rowNumber = index + 1;
+      return {
+        rowNumber,
+        values: { 'input-code': [3, 9, 12].includes(rowNumber) ? `Dato ${rowNumber}` : '' },
+      };
+    });
+    const ranges = getManualRangeSuggestedRanges({
+      manualRangeRows: rows,
+      inputColumnId: 'input-code',
+      startRowNumber: 1,
+      endRowNumber: 20,
+      detectionMode: 'textStarts',
+      initialValueMode: 'empty',
+    });
+
+    expect(ranges.map(({ startRowNumber, endRowNumber }) => ({ startRowNumber, endRowNumber }))).toEqual([
+      { startRowNumber: 3, endRowNumber: 8 },
+      { startRowNumber: 9, endRowNumber: 11 },
+      { startRowNumber: 12, endRowNumber: 20 },
+    ]);
+    expect(getOverlappingManualRangeIds(ranges)).toEqual(new Set());
+  });
+
   it('builds dynamic suggested range summary text', () => {
+    expect(getManualRangeSuggestedSummary({
+      detectionMode: 'textStarts',
+      inputColumn: inputColumns[0],
+      startRowInput: '3',
+      endRowInput: '137',
+      initialValueMode: 'empty',
+    })).toBe('Pandora usará cada dato de A como inicio de un rango, desde la fila 3 hasta la fila 137. Cada rango termina antes del siguiente dato encontrado. Los rangos se crearán sin valor inicial.');
+
     expect(getManualRangeSuggestedSummary({
       detectionMode: 'dataBlocks',
       inputColumn: inputColumns[0],
@@ -1394,6 +1447,18 @@ describe('ManualRangeSpreadsheetEditor helpers', () => {
       endRowNumber: 2,
       valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Marca' },
     })).toBe('Texto encontrado: Marca');
+    expect(getManualRangeValueSummary({
+      id: 'empty-range-text',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' }, steps: [] },
+    })).toBe('Sin texto encontrado');
+    expect(getManualRangeValueSummary({
+      id: 'empty-legacy-range-text',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' },
+    })).toBe('Sin texto encontrado');
     expect(getManualRangeValueSummary({
       id: 'suggested',
       startRowNumber: 1,

@@ -94,7 +94,10 @@ export function buildProcessedRowsPipeline({
     inputIgnoreRules,
     inputColumns,
   });
-  const processedRows = buildProcessedRows(includedInputRows, outputColumns).filter(hasAnyOutputValue);
+  // Manual ranges emit blank cells outside their bounds; that blank is data shape, not an implicit row filter.
+  const preserveRowsForManualRanges = hasEnabledManualRangeEvaluation(outputColumns);
+  const processedRows = buildProcessedRows(includedInputRows, outputColumns)
+    .filter((row) => shouldKeepProcessedRow(row, preserveRowsForManualRanges));
 
   return {
     inputColumns,
@@ -122,8 +125,33 @@ export function getInputColumnId(columnIndex: number) {
   return `input-${columnIndex}`;
 }
 
+function shouldKeepProcessedRow(row: ProcessedRow, preserveRowsForManualRanges: boolean) {
+  return hasAnyOutputValue(row) || preserveRowsForManualRanges;
+}
+
 function hasAnyOutputValue(row: ProcessedRow) {
   return Object.values(row.outputValues).some((value) => value.trim() !== '');
+}
+
+function hasEnabledManualRangeEvaluation(outputColumns: OutputColumn[]) {
+  return getEnabledOutputColumns(outputColumns).some((column) => recipeEvaluatesManualRanges(column.recipe));
+}
+
+function recipeEvaluatesManualRanges(recipe: OutputColumn['recipe']) {
+  if (recipe.type === 'manualRange') {
+    return true;
+  }
+
+  return getRecipeSteps(recipe).some(stepEvaluatesManualRanges)
+    || (recipe.type === 'combine' && recipe.parts.some((part) => (part.steps ?? []).some(stepEvaluatesManualRanges)));
+}
+
+function stepEvaluatesManualRanges(step: TransformStep): boolean {
+  if (step.type === 'manualRange') {
+    return true;
+  }
+
+  return (step.parts ?? []).some((part) => (part.steps ?? []).some(stepEvaluatesManualRanges));
 }
 
 function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: Record<string, string>) {
@@ -472,7 +500,7 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
     };
   }
 
-  if (operation === 'divide' && amount === 0) {
+  if ((operation === 'divide' && amount === 0) || (operation === 'removeIncludedPercentage' && amount === -100)) {
     return {
       value,
       warnings: ['No se puede dividir por cero'],
@@ -498,7 +526,7 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
     };
   }
 
-  if (operation === 'divide' && right.value === 0) {
+  if ((operation === 'divide' && right.value === 0) || (operation === 'removeIncludedPercentage' && right.value === -100)) {
     return {
       value: context.currentValue,
       warnings: ['No se puede dividir por cero'],

@@ -46,12 +46,13 @@ import {
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepModeSelect, StepTypeSelect } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepModeSelect, StepTypeSelect, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
 import { getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
+import { createPreviousResultDisplay, isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
   buildCombinePreview,
@@ -85,6 +86,7 @@ export {
 } from './OutputColumnRecipeEditor.optionHelpers';
 export type { StepTextSourceAction } from './OutputColumnRecipeEditor.optionHelpers';
 export { recipeEditorPreviousResultHelpText } from './OutputColumnRecipeEditor.constants';
+export { isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
 export { StepConditionFields, shouldShowStepTypeSelectForStep } from './OutputColumnRecipeEditor.StepFields';
 export {
   buildCombinePreview,
@@ -279,14 +281,16 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
+            title={`Columna: "${column.label || 'Sin nombre'}"`}
             titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa del primer dato:</strong>
-                <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
+              <div className="constructorModalHeaderDetails">
+                <div className="constructorModalHeaderPreview">
+                  <strong>Vista previa</strong>
+                  <span>{modalCombineRecipe ? buildCustomValuePreview(modalCombineRecipe, sampleInputValues, true, effectiveModalCustomValueMode, manualRangeRows) : customValuePreview}</span>
+                </div>
               </div>
             )}
             footer={(
@@ -346,19 +350,20 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
           />
           <Modal
             open={isConstructorOpen}
-            title={`Crear valor personalizado${column.label ? `: ${column.label}` : ''}`}
+            title={`Columna: "${column.label || 'Sin nombre'}"`}
             titleInfo="Configurá cómo se arma este valor antes de aplicarlo."
             size="xl"
             onClose={requestCancelConstructor}
             headerDetails={(
-              <div className="constructorModalHeaderPreview">
-                <strong>Vista previa del primer dato:</strong>
-                <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
+              <div className="constructorModalHeaderDetails">
+                <div className="constructorModalHeaderPreview">
+                  <strong>Vista previa</strong>
+                  <span>{modalManualRangeRecipe ? buildManualRangeRecipePreview(modalManualRangeRecipe, manualRangeRows, sampleInputValues) ?? 'Sin vista previa para los rangos configurados' : 'Sin vista previa para los rangos configurados'}</span>
+                </div>
               </div>
             )}
             footer={(
               <div className="constructorModalFooterContent">
-                <p>{recipeEditorModalPendingApplyText}</p>
                 <div className="constructorModalFooterActions">
                   <ActionButton action="close" variant="secondary" onClick={requestCancelConstructor}>
                     {recipeEditorModalCancelLabel}
@@ -434,9 +439,9 @@ function ManualRangeSummary({
           </div>
         </dl>
       </div>
-      <button type="button" onClick={onEdit}>
-        Editar valor personalizado
-      </button>
+      <ActionButton action="edit" variant="secondary" onClick={onEdit}>
+        Editar
+      </ActionButton>
     </div>
   );
 }
@@ -865,7 +870,7 @@ export function buildManualRangeGeneratorSummary({
   const intervalSummary = getManualRangeGeneratorIntervalSummary(startRowInput, endRowInput);
   const parts = detectionMode === 'dataBlocks'
     ? [`Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, ${intervalSummary}.`]
-    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalSummary}.`];
+    : [`Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalSummary}. Cada rango termina antes del siguiente dato encontrado.`];
 
   if (detectionMode === 'textStarts' && startFilterColumn) {
     parts.push(`Aceptará sólo grupos donde ${getManualRangeSummaryColumnLabel(startFilterColumn)} ${startFilterOperator === 'isEmpty' ? 'está vacía' : 'no está vacía'}.`);
@@ -1102,6 +1107,7 @@ export function ManualRangeTableRow({
                 onClick={() => setShowRowsPreview((isOpen) => !isOpen)}
               >
                 <AppIcon name="eye" size={18} aria-hidden="true" focusable="false" />
+                <span className="manualRangeIconActionLabel">{rowsPreviewActionLabel}</span>
               </button>
             </InfoTooltip>
             <InfoTooltip content="Duplicar rango">
@@ -1233,6 +1239,66 @@ export function getPreviousStepPreviewValue(
   return buildCombinePreview({ ...recipe, steps: previousSteps }, sampleInputValues);
 }
 
+export function getPreviousResultDisplay(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  rows: InputRow[],
+  stepIndex: number,
+): PreviousResultDisplay | null {
+  if (stepIndex <= 0) {
+    return null;
+  }
+
+  const previousSteps = getVisibleRecipeSteps(recipe).slice(0, stepIndex);
+  const previousRecipe = { ...recipe, steps: previousSteps };
+  const examples = getPreviousResultExamples(previousRecipe, sampleInputValues, rows);
+  return createPreviousResultDisplay(
+    isDeterministicPreviousResultRecipe(previousRecipe),
+    buildCombinePreview(previousRecipe, sampleInputValues ?? {}) ?? '',
+    examples,
+  );
+}
+
+function getPreviousResultExamples(
+  recipe: Extract<OutputRecipe, { type: 'combine' }>,
+  sampleInputValues: Record<string, string> | undefined,
+  rows: InputRow[],
+) {
+  const values: string[] = [];
+  const seen = new Set<string>();
+  const addValue = (value: string | null | undefined) => {
+    const normalizedValue = String(value ?? '').trim();
+    if (!normalizedValue || seen.has(normalizedValue)) {
+      return;
+    }
+
+    seen.add(normalizedValue);
+    values.push(normalizedValue);
+  };
+
+  if (rows.length > 0) {
+    const previewColumn: OutputColumn = {
+      id: 'previous-result-examples',
+      label: 'Resultado anterior',
+      order: 0,
+      enabled: true,
+      recipe,
+    };
+    for (const row of buildProcessedRows(rows, [previewColumn])) {
+      addValue(row.outputValues[previewColumn.id]);
+      if (values.length >= 3) {
+        return values;
+      }
+    }
+  }
+
+  if (sampleInputValues) {
+    addValue(buildCombinePreview(recipe, sampleInputValues));
+  }
+
+  return values.slice(0, 3);
+}
+
 export function CustomValueEditor({
   recipe,
   inputColumns,
@@ -1275,6 +1341,7 @@ export function CustomValueEditor({
         requireAtLeastOne
         studioLayout
         getPreviousStepPreviewValue={(stepIndex) => getPreviousStepPreviewValue(recipe, sampleInputValues, stepIndex)}
+        getPreviousResultDisplay={(stepIndex) => getPreviousResultDisplay(recipe, sampleInputValues, manualRangeRows, stepIndex)}
         onBaseInputColumnChange={updateBaseInputColumn}
         onStepsChange={updateSteps}
       />
@@ -1291,6 +1358,7 @@ function StepBlocksEditor({
   requireAtLeastOne = false,
   studioLayout = false,
   getPreviousStepPreviewValue,
+  getPreviousResultDisplay,
   onBaseInputColumnChange,
   onStepsChange,
 }: {
@@ -1302,6 +1370,7 @@ function StepBlocksEditor({
   requireAtLeastOne?: boolean;
   studioLayout?: boolean;
   getPreviousStepPreviewValue?: (stepIndex: number) => string | null;
+  getPreviousResultDisplay?: (stepIndex: number) => PreviousResultDisplay | null;
   onBaseInputColumnChange: (inputColumnId: string) => void;
   onStepsChange: (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => void;
 }) {
@@ -1331,6 +1400,7 @@ function StepBlocksEditor({
           baseInputColumnId={baseInputColumnId}
           canDelete={false}
           previousResultPreviewValue={getPreviousStepPreviewValue?.(0) ?? null}
+          previousResultDisplay={getPreviousResultDisplay?.(0) ?? null}
           studioLayout
           studioActionContent={(
             <>
@@ -1349,6 +1419,7 @@ function StepBlocksEditor({
                           baseInputColumnId={baseInputColumnId}
                           canDelete
                           previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+                          previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
                           onBaseInputColumnChange={onBaseInputColumnChange}
                           onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
                           onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
@@ -1392,6 +1463,7 @@ function StepBlocksEditor({
               baseInputColumnId={baseInputColumnId}
               canDelete={!requireAtLeastOne || steps.length > 1}
               previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+              previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
               onBaseInputColumnChange={onBaseInputColumnChange}
               onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
               onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
@@ -1434,6 +1506,7 @@ function SimpleStepBlock({
   baseInputColumnId,
   canDelete,
   previousResultPreviewValue,
+  previousResultDisplay,
   studioLayout = false,
   studioActionContent,
   onBaseInputColumnChange,
@@ -1449,6 +1522,7 @@ function SimpleStepBlock({
   baseInputColumnId: string;
   canDelete: boolean;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   studioLayout?: boolean;
   studioActionContent?: ReactNode;
   onBaseInputColumnChange: (inputColumnId: string) => void;
@@ -1511,6 +1585,7 @@ function SimpleStepBlock({
             showHeader={false}
             showCondition={false}
             previousResultPreviewValue={previousResultPreviewValue}
+            previousResultDisplay={previousResultDisplay}
             renderFields={renderManualRangeFields}
             onChange={handleChange}
             onReplace={handleReplace}
@@ -1532,6 +1607,7 @@ function SimpleStepBlock({
       canDelete={canDelete}
       gridClassName={`simpleCustomValueGrid${isManualRangeStep ? ' manualRangeStepGrid' : ''}`}
       previousResultPreviewValue={previousResultPreviewValue}
+      previousResultDisplay={previousResultDisplay}
       renderFields={renderManualRangeFields}
       renderCondition={renderStepCondition}
       onChange={handleChange}

@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
+  findOverlappingManualRange,
   generateManualRangesFromDataBlocks,
   generateManualRangesFromTexts,
   type ManualRangeInitialValueMode,
@@ -11,6 +12,7 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ManualRangeAdvancedRangeModal } from './ManualRangeAdvancedRangeModal';
 import { ManualRangeColumnsModal } from './ManualRangeColumnsModal';
 import './ManualRangeSpreadsheetEditor.css';
@@ -29,6 +31,7 @@ import {
   getManualRangeValueSummary,
   getOverlappingManualRangeIds,
   hasCompleteManualRangeSelection,
+  normalizeManualRangeSelectionBounds,
   reconcileManualRangeVisibleColumnIds,
   removeManualRangeFromRecipe,
   sortManualRangeRecipeByStart,
@@ -57,6 +60,8 @@ const manualRangeSuggestedDetectionModeOptions: Array<DropdownOption<ManualRange
   { value: 'textStarts', label: 'Cada dato inicia un rango' },
   { value: 'dataBlocks', label: 'Bloques consecutivos con datos' },
 ];
+
+const manualRangeOverlapMessage = 'Este rango se superpone con otro rango existente.';
 
 export function ManualRangeSpreadsheetEditor({
   recipe,
@@ -94,6 +99,9 @@ export function ManualRangeSpreadsheetEditor({
   } as CSSProperties;
   const hasSelection = selection.startRowNumber !== null;
   const hasCompleteSelection = hasCompleteManualRangeSelection(selection);
+  const selectionBounds = getManualRangeSelectionBoundsForCreate(selection);
+  const selectionOverlappingRange = selectionBounds ? findOverlappingManualRange(selectionBounds, recipe.ranges) : null;
+  const selectionOverlapMessage = selectionOverlappingRange ? getManualRangeOverlapMessage(selectionOverlappingRange) : '';
 
   useEffect(() => {
     setVisibleColumnIds((current) => reconcileManualRangeVisibleColumnIds(current, inputColumns));
@@ -131,6 +139,10 @@ export function ManualRangeSpreadsheetEditor({
     });
   };
   const createRangeFromSelection = () => {
+    if (selectionBounds && findOverlappingManualRange(selectionBounds, recipe.ranges)) {
+      return;
+    }
+
     const nextRecipe = createManualRangeFromSelection(recipe, selection);
     if (nextRecipe === recipe) {
       return;
@@ -144,6 +156,11 @@ export function ManualRangeSpreadsheetEditor({
   };
   const createRangeFromSingleSelectedRow = () => {
     if (selection.startRowNumber === null) {
+      return;
+    }
+
+    const singleRowBounds = { startRowNumber: selection.startRowNumber, endRowNumber: selection.startRowNumber };
+    if (findOverlappingManualRange(singleRowBounds, recipe.ranges)) {
       return;
     }
 
@@ -230,13 +247,16 @@ export function ManualRangeSpreadsheetEditor({
           ariaLabel="Ayuda: vista de filas para rangos"
           content="Muestra las filas visibles disponibles para configurar rangos. Los datos originales no se modifican."
         />
+        {selectionOverlapMessage ? (
+          <WarningTooltip ariaLabel="Advertencia: seleccion superpuesta" content={selectionOverlapMessage} />
+        ) : null}
       </div>
       <div className="manualRangeSpreadsheetToolbar">
         <div className="manualRangeSpreadsheetSelectionActions manualRangeSpreadsheetToolbarPrimaryActions manualRangeSpreadsheetToolbarActions">
           <button
             type="button"
             className="secondary sm manualRangeSpreadsheetCreateButton"
-            disabled={!hasSelection}
+            disabled={!hasSelection || selectionOverlappingRange !== null}
             onClick={createRangeFromCurrentSelection}
           >
             Crear rango
@@ -734,7 +754,12 @@ export function ManualRangeSuggestedRangesPanel({
   const shouldShowInitialValueColumn = initialValueMode === 'firstValueInColumn' || initialValueMode === 'lastValueInColumn';
   const selectedInputColumn = inputColumns.find((inputColumn) => inputColumn.id === inputColumnId);
   const selectedInitialValueColumn = inputColumns.find((inputColumn) => inputColumn.id === initialValueColumnId);
-  const selectedCount = suggestedRanges.filter((range) => selectedSuggestedRangeIds.has(range.id)).length;
+  const selectableSuggestedRanges = useMemo(
+    () => getNonOverlappingManualRangeSuggestions(recipe.ranges, suggestedRanges),
+    [recipe.ranges, suggestedRanges],
+  );
+  const selectableSuggestedRangeIds = useMemo(() => new Set(selectableSuggestedRanges.map((range) => range.id)), [selectableSuggestedRanges]);
+  const selectedCount = suggestedRanges.filter((range) => selectedSuggestedRangeIds.has(range.id) && selectableSuggestedRangeIds.has(range.id)).length;
   const suggestionCount = suggestedRanges.length;
   const suggestionCountLabel = suggestionCount === 1
     ? 'Se encontró 1 sugerencia.'
@@ -804,11 +829,11 @@ export function ManualRangeSuggestedRangesPanel({
   const searchSuggestions = () => {
     const nextSuggestions = getSuggestedRanges();
     onSuggestedRangesChange(nextSuggestions);
-    onSelectedSuggestedRangeIdsChange(new Set(nextSuggestions.map((range) => range.id)));
+    onSelectedSuggestedRangeIdsChange(new Set(getNonOverlappingManualRangeSuggestions(recipe.ranges, nextSuggestions).map((range) => range.id)));
     onSuggestionsSearchedChange(true);
   };
   const setAllSelected = () => {
-    onSelectedSuggestedRangeIdsChange(new Set(suggestedRanges.map((range) => range.id)));
+    onSelectedSuggestedRangeIdsChange(new Set(selectableSuggestedRanges.map((range) => range.id)));
   };
   const clearSelected = () => {
     onSelectedSuggestedRangeIdsChange(new Set());
@@ -830,12 +855,21 @@ export function ManualRangeSuggestedRangesPanel({
     if (nextSelectedIds.has(rangeId)) {
       nextSelectedIds.delete(rangeId);
     } else {
-      nextSelectedIds.add(rangeId);
+      const range = suggestedRanges.find((candidate) => candidate.id === rangeId);
+      if (range && selectableSuggestedRangeIds.has(range.id)) {
+        nextSelectedIds.add(rangeId);
+      }
     }
     onSelectedSuggestedRangeIdsChange(nextSelectedIds);
   };
   const applySelected = () => {
-    const applyResult = applyManualRangeSelectedSuggestions(recipe, suggestedRanges, selectedSuggestedRangeIds);
+    const safeSelectedSuggestedRangeIds = new Set(
+      getNonOverlappingManualRangeSuggestions(
+        recipe.ranges,
+        suggestedRanges.filter((range) => selectedSuggestedRangeIds.has(range.id)),
+      ).map((range) => range.id),
+    );
+    const applyResult = applyManualRangeSelectedSuggestions(recipe, suggestedRanges, safeSelectedSuggestedRangeIds);
     if (!applyResult) {
       return;
     }
@@ -896,17 +930,17 @@ export function ManualRangeSuggestedRangesPanel({
             onChange={setInitialValueColumnId}
           />
         ) : null}
-        <InfoTooltip content="Buscar sugerencias">
-          <ActionButton
-            icon={(props) => <Search {...props} />}
-            variant="icon"
-            size="sm"
-            className="manualRangeSuggestedSearchButton"
-            aria-label="Buscar sugerencias"
-            disabled={!canSearch}
-            onClick={searchSuggestions}
-          />
-        </InfoTooltip>
+        <ActionButton
+          icon={(props) => <Search {...props} />}
+          variant="ghost"
+          size="sm"
+          className="manualRangeSuggestedSearchButton"
+          aria-label="Buscar"
+          disabled={!canSearch}
+          onClick={searchSuggestions}
+        >
+          Buscar
+        </ActionButton>
       </div>
       <p className="manualRangeSuggestedSummary">{suggestedSummary}</p>
       {suggestedWarnings.length > 0 ? (
@@ -940,12 +974,14 @@ export function ManualRangeSuggestedRangesPanel({
             </button>
           </div>
           <div className="manualRangeSuggestedList">
-            {suggestedRanges.map((range) => {
-              const isSelected = selectedSuggestedRangeIds.has(range.id);
-              const overlapsConfiguredRange = recipe.ranges.some((configuredRange) => (
-                range.startRowNumber <= configuredRange.endRowNumber
-                && configuredRange.startRowNumber <= range.endRowNumber
-              ));
+            {suggestedRanges.map((range, index) => {
+              const isSelectable = selectableSuggestedRangeIds.has(range.id);
+              const isSelected = selectedSuggestedRangeIds.has(range.id) && isSelectable;
+              const overlappingRange = findOverlappingManualRange(range, [
+                ...recipe.ranges,
+                ...getNonOverlappingManualRangeSuggestions(recipe.ranges, suggestedRanges.slice(0, index)),
+              ]);
+              const overlapsConfiguredRange = overlappingRange !== null;
               return (
                 <div
                   key={range.id}
@@ -956,11 +992,18 @@ export function ManualRangeSuggestedRangesPanel({
                   ].filter(Boolean).join(' ')}
                 >
                   <label className="manualRangeSuggestedItemSelect">
-                    <input type="checkbox" checked={isSelected} onChange={() => toggleSuggestedRange(range.id)} />
+                    <input type="checkbox" checked={isSelected} disabled={!isSelectable} onChange={() => toggleSuggestedRange(range.id)} />
                     <span className="manualRangeSuggestedItemTitle">{range.startRowNumber} - {range.endRowNumber}</span>
                     <span className="manualRangeSuggestedItemSummary">{getManualRangeValueSummary(range, inputColumns)}</span>
                   </label>
-                  {overlapsConfiguredRange ? <span className="manualRangeSuggestedItemWarning">Se superpone con un rango configurado</span> : null}
+                  {overlapsConfiguredRange ? (
+                    <span className="manualRangeSuggestedItemWarning">
+                      <WarningTooltip
+                        ariaLabel="Advertencia: sugerencia superpuesta"
+                        content={getManualRangeOverlapMessage(overlappingRange)}
+                      />
+                    </span>
+                  ) : null}
                   <InfoTooltip content="Eliminar sugerencia">
                     <ActionButton
                       action="delete"
@@ -1133,10 +1176,38 @@ export function getManualRangeSuggestedRanges({
     inputColumnId,
     startRowNumber,
     endRowNumber,
-    mode: 'singleRow',
+    mode: 'untilNextText',
     initialValueMode,
     initialValueColumnId,
   });
+}
+
+function getManualRangeSelectionBoundsForCreate(selection: RangeSelectionDraft) {
+  if (selection.startRowNumber === null) {
+    return null;
+  }
+
+  if (selection.endRowNumber === null) {
+    return { startRowNumber: selection.startRowNumber, endRowNumber: selection.startRowNumber };
+  }
+
+  return normalizeManualRangeSelectionBounds(selection.startRowNumber, selection.endRowNumber);
+}
+
+function getManualRangeOverlapMessage(overlappingRange: Pick<ManualRangeValue, 'startRowNumber' | 'endRowNumber'> | null) {
+  return overlappingRange
+    ? `Este rango se superpone con el rango ${overlappingRange.startRowNumber} - ${overlappingRange.endRowNumber}.`
+    : manualRangeOverlapMessage;
+}
+
+function getNonOverlappingManualRangeSuggestions(configuredRanges: ManualRangeValue[], suggestedRanges: ManualRangeValue[]) {
+  return suggestedRanges.reduce<ManualRangeValue[]>((safeRanges, range) => {
+    if (findOverlappingManualRange(range, [...configuredRanges, ...safeRanges])) {
+      return safeRanges;
+    }
+
+    return [...safeRanges, range];
+  }, []);
 }
 
 export function getManualRangeSuggestedSummary({
@@ -1158,7 +1229,7 @@ export function getManualRangeSuggestedSummary({
   const intervalLabel = `desde la fila ${startRowInput || 'inicio'} hasta la fila ${endRowInput || 'fin'}`;
   const detectionText = detectionMode === 'dataBlocks'
     ? `Pandora creará un rango por cada bloque consecutivo con datos en ${columnLabel}, ${intervalLabel}.`
-    : `Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalLabel}.`;
+    : `Pandora usará cada dato de ${columnLabel} como inicio de un rango, ${intervalLabel}. Cada rango termina antes del siguiente dato encontrado.`;
 
   return `${detectionText} ${getManualRangeSuggestedValueSummary(initialValueMode, initialValueColumn)}`;
 }

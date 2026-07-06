@@ -41,6 +41,7 @@ const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRan
 ];
 
 const conversionActions: Array<Extract<VisibleStepAction, 'extractNumber' | 'toNumber' | 'toText'>> = ['extractNumber', 'toNumber', 'toText'];
+const textTransformerActions = textTransformActions.filter((action) => action !== 'concat');
 
 export function stepEditorPolicy(context: StepEditorContext): StepEditorPolicy {
   const stepIndex = context.stepIndex ?? 0;
@@ -109,6 +110,23 @@ export function getAllowedSourceActions(step: Pick<TransformStep, 'mode' | 'type
   }
 
   return actions;
+}
+
+export function getAllowedTextTransformerSourceActions(step: Pick<TransformStep, 'type' | 'source'>, context: StepEditorContext): StepSourceAction[] {
+  if (!isTextTransformerAction(step.type) || context.kind === 'concat') {
+    return getAllowedSourceActions({ mode: 'text', type: step.type, source: step.source }, context);
+  }
+
+  const policy = stepEditorPolicy(context);
+  return [
+    'useInputColumn',
+    ...(policy.allowPreviousResult ? ['usePreviousResult' as const] : []),
+    ...(step.source?.type === 'fixedText' ? ['useFixedText' as const] : []),
+  ];
+}
+
+export function isTextTransformerAction(action: VisibleStepAction | 'noop' | TransformStepType): action is typeof textTransformerActions[number] {
+  return textTransformerActions.includes(action as typeof textTransformerActions[number]);
 }
 
 export function getVisibleStepAction(step: TransformStep, context: StepEditorContext): VisibleStepAction {

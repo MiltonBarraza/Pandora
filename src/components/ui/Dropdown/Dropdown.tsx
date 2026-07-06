@@ -22,6 +22,7 @@ type DropdownProps<T extends string = string> = {
   searchable?: boolean;
   searchPlaceholder?: string;
   noMatchesText?: string;
+  resetSearchOnOpen?: boolean;
 };
 
 type MenuPosition = {
@@ -48,6 +49,7 @@ export function Dropdown<T extends string = string>({
   searchable = false,
   searchPlaceholder = 'Buscar…',
   noMatchesText = 'No hay coincidencias.',
+  resetSearchOnOpen = false,
 }: DropdownProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -239,11 +241,16 @@ export function Dropdown<T extends string = string>({
             value={isOpen ? searchQuery : selectedOption?.label ?? ''}
             onFocus={(event) => {
               if (!isOpen) {
-                open(selectedOption?.label ?? '');
+                open(resetSearchOnOpen ? '' : selectedOption?.label ?? '');
               }
               event.currentTarget.select();
             }}
-            onClick={(event) => event.currentTarget.select()}
+            onClick={(event) => {
+              if (resetSearchOnOpen && !isOpen) {
+                open('');
+              }
+              event.currentTarget.select();
+            }}
             onChange={(event) => {
               const nextQuery = event.target.value;
               const nextOptions = filterDropdownOptions(options, nextQuery);
@@ -264,7 +271,7 @@ export function Dropdown<T extends string = string>({
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault();
                 if (!isOpen) {
-                  open(selectedOption?.label ?? '');
+                  open(resetSearchOnOpen ? '' : selectedOption?.label ?? '');
                   return;
                 }
                 setActiveIndex((current) => getNextDropdownIndex(visibleOptions, current, event.key === 'ArrowDown' ? 1 : -1));
@@ -274,7 +281,7 @@ export function Dropdown<T extends string = string>({
               if (event.key === 'Enter') {
                 event.preventDefault();
                 if (!isOpen) {
-                  open(selectedOption?.label ?? '');
+                  open(resetSearchOnOpen ? '' : selectedOption?.label ?? '');
                   return;
                 }
                 const option = visibleOptions[activeIndex];

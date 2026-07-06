@@ -4,6 +4,7 @@ import {
   defaultDateInvalidFallback,
   defaultDateOutputFormat,
 } from '../../domain/import/dateOperations';
+import { extractNumericValue, parseNumericValue } from '../../domain/import/numericOperations';
 import type {
   DateInputFormat,
   DateInvalidFallback,
@@ -11,6 +12,7 @@ import type {
   InputColumn,
   InputRow,
   NumericOperation,
+  StepOperand,
   StepSource,
   TransformStep,
   TransformStepMode,
@@ -18,23 +20,27 @@ import type {
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { operationTypeLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
 import {
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
   dateOutputFormatOptions,
+  getNumericOperandLabels,
   numericOperationOptions,
   parseRounding,
 } from './OutputColumnRecipeEditor.optionHelpers';
 import { getVisibleLeftOperand, getVisibleRightOperand, shouldShowTextSourceFields } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepOperandFields, StepSourceFields, type StepSourceChangeContext } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepOperandFields, StepSourceFields, getStepActionHelpText, type PreviousResultDisplay, type StepSourceChangeContext, type StepValueSourceOptionsConfig } from './OutputColumnRecipeEditor.StepFields';
 import {
   createCanonicalStepForAction,
   createCanonicalStepForMode,
   getAllowedSourceActions,
+  getAllowedTextTransformerSourceActions,
   getAllowedStepActions,
   getAllowedStepModes,
   getVisibleStepAction,
+  isTextTransformerAction,
   isStepSourceAction,
   isVisibleStepActionConfigured,
   replaceStepActionWithSource,
@@ -69,6 +75,7 @@ type StepEditorBlockProps = {
   hideTransformSourceFields?: boolean;
   uiStateKey?: string;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   renderCondition?: (step: TransformStep, onChange: (patch: Partial<TransformStep>) => void) => ReactNode;
   onChange: (patch: Partial<TransformStep>) => void;
   onReplace: (step: TransformStep) => void;
@@ -85,7 +92,7 @@ type SourceActionOverrideState = {
 
 const stepModeLabels: Record<TransformStepMode, string> = {
   text: 'Trabajar con texto',
-  number: 'Trabajar con número',
+  number: 'Trabajar con números',
   conversion: 'Conversión',
   date: 'Trabajar con fechas',
   manualRange: 'Trabajar con rangos',
@@ -107,7 +114,7 @@ const stepActionLabels: Record<Exclude<VisibleStepAction, 'unconfigured'>, strin
   replaceText: 'Reemplazar texto',
   concat: 'Concatenar',
   numericOperation: 'Operación numérica',
-  extractNumber: 'Extraer número del texto',
+  extractNumber: 'Usar número del texto',
   toNumber: 'Convertir a número',
   toText: 'Convertir a texto',
   formatDate: 'Formatear fecha',
@@ -130,6 +137,7 @@ export function StepEditorBlock({
   hideTransformSourceFields = false,
   uiStateKey,
   previousResultPreviewValue,
+  previousResultDisplay,
   renderCondition,
   onChange,
   onReplace,
@@ -203,6 +211,7 @@ export function StepEditorBlock({
       fixedTextInputLabel,
       hideTransformSourceFields,
       previousResultPreviewValue,
+      previousResultDisplay,
       sourceActionOverride,
       onSourceActionOverrideChange: setScopedSourceActionOverride,
       onSourceChange: updateSource,
@@ -216,7 +225,6 @@ export function StepEditorBlock({
         <Dropdown<TransformStepMode>
           className="compact recipeField"
           label={operationTypeLabel}
-          labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
           value={mode}
           options={getStepModeOptionsForContext(effectiveContext)}
           scrollStrategy="close"
@@ -228,8 +236,13 @@ export function StepEditorBlock({
         {showActionDropdown ? (
           <Dropdown<BlockAction>
             className="compact recipeField"
-            label="Qué quiero hacer"
-            labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+            label="Acción"
+            labelInfo={<InfoTooltip content={getStepActionHelpText(
+              step.type === 'numericOperation'
+                ? step.operation ?? 'add'
+                : visibleAction === 'unconfigured' ? '' : visibleAction,
+              mode,
+            )} />}
             value={actionValue}
             options={getStepActionOptionsForContext(mode, effectiveContext)}
             placeholder="Seleccionar acción"
@@ -273,7 +286,11 @@ export function StepEditorBlock({
     <div className={className}>
       <div className="stepCardHeader">
         <strong>{title ?? `Paso ${(context.stepIndex ?? 0) + 1}`}</strong>
-        {canDelete && onDelete ? <button type="button" className="secondary" onClick={onDelete}>Eliminar paso</button> : <span aria-hidden="true" />}
+        {canDelete && onDelete ? (
+          <ActionButton action="delete" variant="danger" size="sm" onClick={onDelete}>
+            Eliminar paso
+          </ActionButton>
+        ) : <span aria-hidden="true" />}
       </div>
       <div className={gridClassName}>
         {body}
@@ -292,6 +309,7 @@ function renderDefaultFields({
   fixedTextInputLabel,
   hideTransformSourceFields,
   previousResultPreviewValue,
+  previousResultDisplay,
   sourceActionOverride,
   onSourceActionOverrideChange,
   onSourceChange,
@@ -306,6 +324,7 @@ function renderDefaultFields({
   fixedTextInputLabel?: string;
   hideTransformSourceFields?: boolean;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   sourceActionOverride?: StepSourceAction;
   onSourceActionOverrideChange: (action: StepSourceAction | undefined) => void;
   onSourceChange: (source: StepSource, changeContext?: StepSourceChangeContext) => void;
@@ -313,6 +332,19 @@ function renderDefaultFields({
 }) {
   const mode = getStepModeForBlock(step);
   const allowPreviousResult = getAllowedSourceActions(step, context).includes('usePreviousResult');
+  const conversionPickerProps = step.type === 'toNumber'
+    ? {
+        columnTextPickerValueValidator: (value: string) => parseNumericValue(value) !== null,
+        columnTextPickerEmptyLabel: 'Sin valores numéricos encontrados',
+        columnTextPickerFilteredValuesHelp: 'Se omitieron textos que no se pueden convertir a número.',
+      }
+    : step.type === 'extractNumber'
+      ? {
+          columnTextPickerValueValidator: (value: string) => extractNumericValue(value) !== null,
+          columnTextPickerEmptyLabel: 'Sin textos con números encontrados',
+          columnTextPickerFilteredValuesHelp: 'Se omitieron textos sin números.',
+        }
+      : {};
 
   if (step.type === 'noop') {
     if (mode === 'text' && isStepSourceAction(visibleAction)) {
@@ -323,6 +355,7 @@ function renderDefaultFields({
           inputRows={manualRangeRows}
           allowPreviousResult={allowPreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
+          previousResultDisplay={previousResultDisplay}
           fixedTextInputLabel={fixedTextInputLabel}
           hideSourceSelector
           columnTextPickerOpen={visibleAction === 'pickColumnText' || sourceActionOverride === 'pickColumnText'}
@@ -345,6 +378,7 @@ function renderDefaultFields({
           inputRows={manualRangeRows}
           allowPreviousResult={allowPreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
+          previousResultDisplay={previousResultDisplay}
           fixedTextInputType={mode === 'number' ? 'number' : 'date'}
           fixedTextInputLabel={mode === 'number' ? 'Valor fijo' : 'Fecha fija'}
           valueKind={mode}
@@ -358,17 +392,21 @@ function renderDefaultFields({
 
   const renderTextSourceFields = (afterSourceSelector?: ReactNode) => !hideTransformSourceFields && shouldShowTextSourceFields(step.type) ? (
     <StepSourceFields
-      label={step.type === 'formatDate' ? 'Qué fecha usar' : 'Qué valor usar'}
+      label={getStepSourceFieldLabel(step.type)}
       source={stepSource}
       inputColumns={inputColumns}
       inputRows={manualRangeRows}
       allowPreviousResult={allowPreviousResult}
       previousResultPreviewValue={previousResultPreviewValue}
+      previousResultDisplay={previousResultDisplay}
       fixedTextInputType={step.type === 'formatDate' ? 'date' : 'text'}
       fixedTextDateInputFormat={step.dateInputFormat ?? defaultDateInputFormat}
       fixedTextInputLabel={step.type === 'formatDate' ? 'Fecha fija' : 'Valor fijo'}
       valueKind={step.type === 'formatDate' ? 'date' : 'text'}
       explicitTextValueSource={step.type !== 'formatDate'}
+      sourceOptionsConfig={getSourceOptionsConfigForStep(step, context)}
+      labelInfoText={getStepSourceHelpText(step.type)}
+      {...conversionPickerProps}
       afterSourceSelector={afterSourceSelector}
       onChange={onSourceChange}
     />
@@ -431,26 +469,30 @@ function renderDefaultFields({
   if (step.type === 'numericOperation') {
     const leftOperand = getVisibleLeftOperand(step, stepSource);
     const rightOperand = getVisibleRightOperand(step);
+    const numericInputColumns = getNumericOperandInputColumns(inputColumns, manualRangeRows);
+    const operandLabels = getNumericOperandLabels(step.operation);
+    const numericWarning = getNumericOperationUiWarning(step.operation, leftOperand, rightOperand);
 
     return (
       <div className="numericOperationFields">
         <StepOperandFields
-          label="Primer valor"
+          label={operandLabels.left}
           operand={leftOperand}
-          inputColumns={inputColumns}
+          inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
           onChange={(leftOperand) => onChange({ leftOperand })}
         />
         <StepOperandFields
-          label="Segundo valor"
+          label={operandLabels.right}
           operand={rightOperand}
-          inputColumns={inputColumns}
+          inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
           onChange={(rightOperand) => onChange({ rightOperand })}
         />
         <Dropdown
           className="compact recipeField"
           label="Decimales / redondeo"
+          labelInfo={numericWarning ? <WarningTooltip content={numericWarning} /> : undefined}
           value={String(step.rounding ?? 0)}
           options={[
             { value: 'none', label: 'Sin redondeo' },
@@ -516,6 +558,42 @@ function renderDefaultFields({
   return sourceFields;
 }
 
+function getStepSourceFieldLabel(type: TransformStep['type']) {
+  if (type === 'formatDate') {
+    return 'Qué fecha usar';
+  }
+
+  if (isTextTransformerAction(type)) {
+    return 'Valor base';
+  }
+
+  return 'Qué valor usar';
+}
+
+function getStepSourceHelpText(type: TransformStep['type']) {
+  if (isTextTransformerAction(type)) {
+    return 'Elegí la columna o el resultado anterior sobre el que se aplica esta acción.';
+  }
+
+  return 'Indica de donde sale el valor de este paso.';
+}
+
+function getSourceOptionsConfigForStep(step: TransformStep, context: StepEditorContext): StepValueSourceOptionsConfig | undefined {
+  if (!isTextTransformerAction(step.type) || context.kind === 'concat') {
+    return undefined;
+  }
+
+  const allowedActions = getAllowedTextTransformerSourceActions(step, context);
+  return {
+    allowedSources: [
+      ...(allowedActions.includes('usePreviousResult') ? ['previousResult' as const] : []),
+      ...(allowedActions.includes('useInputColumn') ? ['input' as const] : []),
+      ...(allowedActions.includes('useFixedText') ? ['fixedText' as const] : []),
+    ],
+    fixedTextLabel: 'Texto fijo actual',
+  };
+}
+
 function getStepModeOptionsForContext(context: StepEditorContext) {
   return getAllowedStepModes(context).map((mode) => ({ value: mode, label: stepModeLabels[mode] }));
 }
@@ -549,10 +627,51 @@ function createNewNumericOperationStep(stepId: string, context: StepEditorContex
   return {
     ...step,
     operation,
-    leftOperand: { type: 'fixedText', value: '' },
+    leftOperand: (context.stepIndex ?? 0) > 0
+      ? { type: 'previousResult' }
+      : { type: 'fixedText', value: '' },
     rightOperand: { type: 'fixedText', value: '' },
     rounding: 0,
   };
+}
+
+export function getNumericOperandInputColumns(inputColumns: InputColumn[], rows: InputRow[]) {
+  return inputColumns.filter((inputColumn) => {
+    const values = [
+      ...inputColumn.sampleValues,
+      ...rows.map((row) => row.values[inputColumn.id] ?? ''),
+    ];
+    return values.some((value) => parseNumericValue(value) !== null);
+  });
+}
+
+export function getNumericOperationUiWarning(
+  operation: NumericOperation | undefined,
+  leftOperand: StepOperand,
+  rightOperand: StepOperand,
+) {
+  const fixedOperands = [leftOperand, rightOperand].filter((operand) => operand.type === 'fixedText');
+  if (fixedOperands.some((operand) => operand.type === 'fixedText' && operand.value.trim() !== '' && getFixedNumericOperandValue(operand) === null)) {
+    return 'No se pudo calcular: el valor no es numérico.';
+  }
+
+  const rightValue = rightOperand.type === 'fixedText' ? getFixedNumericOperandValue(rightOperand) : null;
+  if ((operation === 'divide' && rightValue === 0) || (operation === 'removeIncludedPercentage' && rightValue === -100)) {
+    return 'No se pudo calcular: división por cero.';
+  }
+
+  return '';
+}
+
+function getFixedNumericOperandValue(operand: Extract<StepOperand, { type: 'fixedText' }>) {
+  const parsedValue = parseNumericValue(operand.value);
+  if (parsedValue !== null) {
+    return parsedValue;
+  }
+
+  return typeof operand.numericFallback === 'number' && Number.isFinite(operand.numericFallback)
+    ? operand.numericFallback
+    : null;
 }
 
 function getStepModeForBlock(step: TransformStep): TransformStepMode {

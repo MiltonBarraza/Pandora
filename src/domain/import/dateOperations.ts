@@ -79,13 +79,18 @@ export function formatDateValue(dateParts: DateParts, outputFormat: DateOutputFo
 export function applyFormatDateStep(value: string, step: TransformStep) {
   const inputFormat = step.dateInputFormat ?? defaultDateInputFormat;
   const outputFormat = step.dateOutputFormat ?? defaultDateOutputFormat;
-  const dateParts = parseDateValue(value, inputFormat);
+  const dateParts = parseDateValue(value, inputFormat)
+    ?? (shouldParseFixedIsoDate(value, step) ? parseDateValue(value, 'YYYY-MM-DD') : null);
 
   if (dateParts) {
     return formatDateValue(dateParts, outputFormat);
   }
 
   return applyInvalidDateFallback(value, step);
+}
+
+function shouldParseFixedIsoDate(value: string, step: TransformStep) {
+  return step.source?.type === 'fixedText' && Boolean(parseDateValue(value, 'YYYY-MM-DD'));
 }
 
 function applyInvalidDateFallback(value: string, step: TransformStep) {

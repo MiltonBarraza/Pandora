@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { defaultDateInputFormat, parseDateValue, supportedDateInputFormats } from '../../domain/import/dateOperations';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { normalizeNumberInputWhileTyping, parseOptionalNumberInput } from '../../domain/import/numberInput';
@@ -31,7 +31,18 @@ import {
 
 export type StepValueKind = 'text' | 'number' | 'date';
 export type StepSourceChangeContext = { origin: 'cellValuePicker' };
+export type PreviousResultDisplay = {
+  value: string;
+  helpText: string;
+};
 type VisibleStepAction = StepTextAction | NonNullable<TransformStep['operation']> | '';
+type StepValueSourceKind = 'previousResult' | 'input' | 'fixedText' | 'columnTextPicker';
+
+export type StepValueSourceOptionsConfig = {
+  allowedSources?: StepValueSourceKind[];
+  fixedTextLabel?: string;
+  columnTextPickerLabel?: string;
+};
 
 export function getVisibleStepAction(
   step: TransformStep,
@@ -84,17 +95,32 @@ export function getStepValueSourceOptions(
   valueKind: StepValueKind,
   allowPreviousResult: boolean,
   explicitTextValueSource = false,
+  config: StepValueSourceOptionsConfig = {},
 ) {
+  const isAllowed = (source: StepValueSourceKind) => !config.allowedSources || config.allowedSources.includes(source);
+  const inputOptions = isAllowed('input')
+    ? inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) }))
+    : [];
+  const previousResultOptions = allowPreviousResult && isAllowed('previousResult')
+    ? [{ value: 'previousResult', label: 'Usar resultado anterior' }]
+    : [];
+  const fixedTextOptions = isAllowed('fixedText')
+    ? [{ value: 'fixedText', label: config.fixedTextLabel ?? (valueKind === 'number' ? 'Valor fijo' : valueKind === 'date' ? 'Fecha fija' : 'Texto fijo') }]
+    : [];
+  const pickerOptions = isAllowed('columnTextPicker')
+    ? [{ value: 'columnTextPicker', label: config.columnTextPickerLabel ?? (valueKind === 'number' ? 'Elegir valor desde columna' : valueKind === 'date' ? 'Elegir fecha desde columna' : pickCellTextLabel) }]
+    : [];
+
   if (valueKind === 'text' && !explicitTextValueSource) {
     return getStepSourceDropdownOptions(inputColumns, allowPreviousResult, true);
   }
 
   if (valueKind === 'text') {
     return [
-      ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Usar resultado anterior' }] : []),
-      ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
-      { value: 'fixedText', label: 'Texto fijo' },
-      { value: 'columnTextPicker', label: pickCellTextLabel },
+      ...previousResultOptions,
+      ...inputOptions,
+      ...fixedTextOptions,
+      ...pickerOptions,
     ];
   }
 
@@ -104,9 +130,9 @@ export function getStepValueSourceOptions(
   });
 
   return [
-    ...compatibleColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
-    { value: 'fixedText', label: valueKind === 'number' ? 'Valor fijo' : 'Fecha fija' },
-    { value: 'columnTextPicker', label: valueKind === 'number' ? 'Elegir valor desde columna' : 'Elegir fecha desde columna' },
+    ...(isAllowed('input') ? compatibleColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })) : []),
+    ...fixedTextOptions,
+    ...pickerOptions,
   ];
 }
 
@@ -123,6 +149,26 @@ export function getTextStepActionOptions(_allowPreviousResult: boolean, allowCon
 
 export function getConversionStepActionOptions() {
   return getStepTypesForMode('conversion').filter((option) => option.value !== 'noop');
+}
+
+export function getStepActionHelpText(action: string, _mode?: TransformStepMode) {
+  if (action === 'extractNumber') {
+    return 'Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.';
+  }
+
+  if (action === 'toNumber') {
+    return 'Convierte valores numéricos escritos como texto. Si no puede convertirlos, conserva el valor original.';
+  }
+
+  if (action === 'toText') {
+    return 'Trata el valor como texto para los siguientes pasos.';
+  }
+
+  if (action === 'removeIncludedPercentage') {
+    return 'Calcula el valor antes de un porcentaje ya incluido. Ejemplo: 120 con 20% incluido → 100.';
+  }
+
+  return 'Elegí cómo se va a transformar esta información.';
 }
 
 export function StepTypeSelect({
@@ -145,13 +191,14 @@ export function StepTypeSelect({
   onChange: (type: TransformStepType, operation?: NonNullable<TransformStep['operation']>) => void;
 }) {
   const visibleAction = getVisibleStepAction(step, mode, textSourceAction);
+  const actionHelpText = getStepActionHelpText(visibleAction, mode);
 
   if (mode === 'number') {
     return (
       <Dropdown<NonNullable<TransformStep['operation']> | 'noop' | ''>
         className="compact recipeField"
-        label="Qué quiero hacer"
-        labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+        label="Acción"
+        labelInfo={<InfoTooltip content={actionHelpText} />}
         value={visibleAction as NonNullable<TransformStep['operation']> | 'noop' | ''}
         options={[
           { value: 'noop', label: useValueAsIsLabel },
@@ -177,8 +224,8 @@ export function StepTypeSelect({
     <div className="stepTypeFieldGroup">
       <Dropdown<StepTextAction>
         className="compact recipeField"
-        label="Qué quiero hacer"
-        labelInfo={<InfoTooltip content="Definí cómo se va a transformar esta información." />}
+        label="Acción"
+        labelInfo={<InfoTooltip content={actionHelpText} />}
         value={visibleAction as StepTextAction}
         options={visibleOptions}
         placeholder="Seleccionar acción"
@@ -214,7 +261,6 @@ export function StepModeSelect({
     <Dropdown<TransformStepMode>
       className="compact recipeField"
       label={operationTypeLabel}
-      labelInfo={<InfoTooltip content="Agrupa las acciones segun el tipo de dato." />}
       value={mode}
       options={getStepModeOptions({ allowManualRange })}
       scrollStrategy="close"
@@ -230,15 +276,21 @@ export function StepSourceFields({
   inputRows = [],
   allowPreviousResult,
   previousResultPreviewValue,
+  previousResultDisplay,
   fixedTextInputType = 'text',
   fixedTextDateInputFormat = defaultDateInputFormat,
   fixedTextInputLabel,
   valueKind = 'text',
   dateValueValidator,
+  columnTextPickerValueValidator,
+  columnTextPickerEmptyLabel,
+  columnTextPickerFilteredValuesHelp,
   explicitTextValueSource = false,
   hideFixedTextInput = false,
   hideSourceSelector = false,
   columnTextPickerOpen = false,
+  sourceOptionsConfig,
+  labelInfoText = 'Indica de donde sale el valor de este paso.',
   afterSourceSelector,
   onChange,
 }: {
@@ -248,15 +300,21 @@ export function StepSourceFields({
   inputRows?: InputRow[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
+  previousResultDisplay?: PreviousResultDisplay | null;
   fixedTextInputType?: 'text' | 'number' | 'date';
   fixedTextDateInputFormat?: DateInputFormat;
   fixedTextInputLabel?: string;
   valueKind?: StepValueKind;
   dateValueValidator?: (value: string) => boolean;
+  columnTextPickerValueValidator?: (value: string) => boolean;
+  columnTextPickerEmptyLabel?: string;
+  columnTextPickerFilteredValuesHelp?: string;
   explicitTextValueSource?: boolean;
   hideFixedTextInput?: boolean;
   hideSourceSelector?: boolean;
   columnTextPickerOpen?: boolean;
+  sourceOptionsConfig?: StepValueSourceOptionsConfig;
+  labelInfoText?: string;
   afterSourceSelector?: ReactNode;
   onChange: (source: StepSource, context?: StepSourceChangeContext) => void;
 }) {
@@ -267,10 +325,13 @@ export function StepSourceFields({
     : source;
   const effectiveColumnTextPickerOpen = columnTextPickerOpen || isColumnTextPickerOpen;
   const showPreviousResultField = !effectiveColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
-  const previousResultValue = previousResultPreviewValue ?? '';
+  const previousResultValue = previousResultDisplay?.value ?? 'Resultado del paso anterior';
+  const previousResultHelpText = previousResultDisplay?.helpText ?? recipeEditorPreviousResultHelpText;
   const usesTypedValuePicker = valueKind === 'number' || valueKind === 'date';
   const canPickColumnText = valueKind === 'text';
   const isAllowedDateValue = dateValueValidator ?? isDatePickerValue;
+  const pickerValueValidator = columnTextPickerValueValidator
+    ?? (valueKind === 'number' ? isNumericPickerValue : valueKind === 'date' ? isAllowedDateValue : undefined);
   const hasInvalidDateSource = valueKind === 'date'
     && safeSource.type === 'fixedText'
     && Boolean(safeSource.value.trim())
@@ -280,7 +341,7 @@ export function StepSourceFields({
     : '';
   const sourceValue = effectiveColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
   const sourceOptions = usesTypedValuePicker || explicitTextValueSource
-    ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource)
+    ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource, sourceOptionsConfig)
     : getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText);
   const sourceIdentity = safeSource.type === 'input'
     ? `${safeSource.type}:${safeSource.inputColumnId}`
@@ -298,13 +359,17 @@ export function StepSourceFields({
         <Dropdown
           className="compact recipeField"
           label={label}
-          labelInfo={<InfoTooltip content="Indica de donde sale el valor de este paso." />}
+          labelInfo={<InfoTooltip content={labelInfoText} />}
           value={sourceValue}
           options={sourceOptions}
           placeholder="Seleccionar fuente"
           scrollStrategy="close"
           onChange={(value) => {
             if (value === 'columnTextPicker') {
+              if (valueKind === 'date') {
+                setPickedColumnTextSourceIdentity('fixedText:');
+                onChange({ type: 'fixedText', value: '' });
+              }
               setIsColumnTextPickerOpen(true);
               return;
             }
@@ -320,7 +385,12 @@ export function StepSourceFields({
         <label className="field compact recipeField previousResultValueField">
           <span className="labelWithInfo">
             <span>Resultado anterior</span>
-            <InfoTooltip content={recipeEditorPreviousResultHelpText} />
+            <InfoTooltip content={previousResultHelpText.split('\n').map((line, index) => (
+              <Fragment key={`${index}-${line}`}>
+                {index > 0 ? <br /> : null}
+                {line}
+              </Fragment>
+            ))} />
           </span>
           <input readOnly value={previousResultValue} placeholder="Sin valor disponible" />
         </label>
@@ -333,12 +403,11 @@ export function StepSourceFields({
           value={safeSource.type === 'fixedText' ? safeSource.value : ''}
           columnLabel={valueKind === 'number' ? 'Buscar valores en' : valueKind === 'date' ? 'Buscar fechas en' : undefined}
           valueLabel={valueKind === 'number' ? 'Valor encontrado' : valueKind === 'date' ? 'Fecha encontrada' : undefined}
-          emptyLabel={valueKind === 'number' ? 'No hay valores numéricos disponibles' : valueKind === 'date' ? 'No hay fechas válidas disponibles' : 'No hay textos disponibles'}
+          emptyLabel={columnTextPickerEmptyLabel ?? (valueKind === 'number' ? 'No hay valores numéricos disponibles' : valueKind === 'date' ? 'No hay fechas válidas disponibles' : 'No hay textos disponibles')}
+          invalidOptionsLabel={columnTextPickerEmptyLabel}
           searchPlaceholder={valueKind === 'number' ? 'Buscar valor' : valueKind === 'date' ? 'Buscar fecha' : undefined}
-          isValueAllowed={valueKind === 'number'
-            ? isNumericPickerValue
-            : valueKind === 'date' ? isAllowedDateValue : undefined}
-          filteredValuesHelp={valueKind === 'date' ? 'Se omitieron valores que no parecen fechas válidas.' : undefined}
+          isValueAllowed={pickerValueValidator}
+          filteredValuesHelp={columnTextPickerFilteredValuesHelp ?? (valueKind === 'date' ? 'Se omitieron valores que no parecen fechas válidas.' : undefined)}
           fieldClassName="recipeField"
           onSelect={(value) => {
             setPickedColumnTextSourceIdentity(`fixedText:${value}`);
@@ -385,12 +454,14 @@ export function StepOperandFields({
   operand,
   inputColumns,
   allowPreviousResult,
+  emptyInputColumnsLabel = 'Sin columnas numéricas disponibles',
   onChange,
 }: {
   label: string;
   operand: StepOperand;
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
+  emptyInputColumnsLabel?: string;
   onChange: (operand: StepOperand) => void;
 }) {
   const safeOperand = !allowPreviousResult && operand.type === 'previousResult'
@@ -430,6 +501,8 @@ export function StepOperandFields({
           label={`${label}: columna`}
           value={safeOperand.inputColumnId}
           inputColumns={inputColumns}
+          emptyLabel={emptyInputColumnsLabel}
+          disableWhenEmpty
           onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })}
         />
       ) : null}
@@ -464,11 +537,15 @@ export function InputColumnSelect({
   value,
   inputColumns,
   label = 'Columna de entrada',
+  emptyLabel = 'Sin columnas disponibles',
+  disableWhenEmpty = false,
   onChange,
 }: {
   value: string;
   inputColumns: InputColumn[];
   label?: string;
+  emptyLabel?: string;
+  disableWhenEmpty?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -476,11 +553,14 @@ export function InputColumnSelect({
       className="compact recipeField"
       label={label}
       labelInfo={<InfoTooltip content="Elegí la columna del Excel que contiene este dato." />}
-      value={value}
-      options={[
-        { value: '', label: 'Seleccionar columna' },
-        ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
-      ]}
+      value={disableWhenEmpty && inputColumns.length === 0 ? '' : value}
+      options={inputColumns.length > 0 || !disableWhenEmpty
+        ? [
+            { value: '', label: 'Seleccionar columna' },
+            ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) })),
+          ]
+        : [{ value: '', label: emptyLabel, disabled: true }]}
+      disabled={disableWhenEmpty && inputColumns.length === 0}
       scrollStrategy="close"
       onChange={onChange}
     />
