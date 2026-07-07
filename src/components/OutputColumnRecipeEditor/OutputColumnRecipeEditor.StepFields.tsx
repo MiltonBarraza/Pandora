@@ -457,8 +457,9 @@ export function StepSourceFields({
         <Dropdown
           className="compact recipeField"
           label="Columna de entrada"
+          labelInfo={usesTypedValuePicker && compatibilityHint ? <WarningTooltip content={compatibilityHint} ariaLabel="Aviso de compatibilidad" /> : undefined}
           value={safeSource.inputColumnId}
-          options={inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
+          options={(usesTypedValuePicker ? compatibleColumns : inputColumns).map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))}
           scrollStrategy="close"
           onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })}
         />

@@ -658,9 +658,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
 
     await selectComposePartDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectComposePartDropdownOption(user, /Acción/, 'Usar valor tal cual');
-    expect(screen.getByText('Qué fecha usar')).not.toBeNull();
-    await selectComposePartDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
+    await selectComposePartDropdownOption(user, /Acción/, 'Usar fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Operación numérica')).toBeNull();
   });
@@ -993,17 +991,13 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
-    expect(screen.getByText('Qué fecha usar')).not.toBeNull();
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
+    await selectLastDropdownOption(user, /Acción/, 'Usar fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
 
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     expect(screen.queryByText('Qué valor usar')).toBeNull();
-    await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
-    expect(screen.getByText('Qué valor usar')).not.toBeNull();
-    await selectLastDropdownOption(user, /Qué valor usar/, 'Valor fijo');
+    await selectLastDropdownOption(user, /Acción/, 'Usar número fijo');
     expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
   });
@@ -1046,11 +1040,9 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
+    await selectLastDropdownOption(user, /Acción/, 'Usar fecha fija');
 
-    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar valor tal cual');
-    expect(screen.getByRole('button', { name: 'Qué fecha usar' })).not.toBeNull();
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
+    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Sólo se agregan pasos cuando elegís una acción útil.')).toBeNull();
   });

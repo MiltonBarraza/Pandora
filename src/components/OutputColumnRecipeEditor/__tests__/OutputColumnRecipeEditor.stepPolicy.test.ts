@@ -72,7 +72,13 @@ describe('step editor policy', () => {
       mode: 'number',
       type: 'noop',
       source: { type: 'input', inputColumnId },
-    }, context('normal'))).toBe('useValueAsIs');
+    }, context('normal'))).toBe('useNumberInputColumn');
+    expect(getVisibleStepAction({
+      id: 'd',
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'input', inputColumnId },
+    }, context('normal'))).toBe('useDateInputColumn');
   });
 
   it('creates canonical text source steps', () => {
@@ -160,6 +166,18 @@ describe('step editor policy', () => {
   });
 
   it('creates useful value-as-is sources for number and date', () => {
+    expect(getAllowedStepActions('number', context('normal'))).toEqual([
+      'useNumberInputColumn',
+      'useFixedNumber',
+      'pickNumberCell',
+      'numericOperation',
+    ]);
+    expect(getAllowedStepActions('date', context('normal'))).toEqual([
+      'useDateInputColumn',
+      'useFixedDate',
+      'pickDateCell',
+      'formatDate',
+    ]);
     expect(createCanonicalStepForAction('number', 'useValueAsIs', context('normal'))).toMatchObject({
       mode: 'number',
       type: 'noop',
@@ -169,6 +187,26 @@ describe('step editor policy', () => {
       mode: 'date',
       type: 'noop',
       source: { type: 'input', inputColumnId },
+    });
+    expect(createCanonicalStepForAction('number', 'useFixedNumber', context('normal'))).toMatchObject({
+      mode: 'number',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(createCanonicalStepForAction('number', 'pickNumberCell', context('normal'))).toMatchObject({
+      mode: 'number',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(createCanonicalStepForAction('date', 'useFixedDate', context('normal'))).toMatchObject({
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(createCanonicalStepForAction('date', 'pickDateCell', context('normal'))).toMatchObject({
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
     });
   });
 

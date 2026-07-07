@@ -264,7 +264,11 @@ export function getRecipeStepTitle(
 ) {
   if (step.type === 'noop') {
     const mode = getStepMode(step);
-    if ((mode === 'date' || mode === 'number') && source) return 'Usar valor tal cual';
+    if (mode === 'number' && source?.type === 'input' && source.inputColumnId) return 'Usar número desde columna';
+    if (mode === 'number' && source?.type === 'fixedText') return 'Usar número fijo';
+    if (mode === 'date' && source?.type === 'input' && source.inputColumnId) return 'Usar fecha desde columna';
+    if (mode === 'date' && source?.type === 'fixedText') return 'Usar fecha fija';
+    if ((mode === 'date' || mode === 'number') && source?.type === 'previousResult') return 'Usar resultado anterior';
     if (source?.type === 'fixedText') return 'Usar texto fijo';
     if (source?.type === 'input' && source.inputColumnId) return 'Usar columna de entrada';
     if (source?.type === 'previousResult') return 'Sin configurar';

@@ -894,16 +894,14 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     await selectModalDropdownOption(user, /Acci.n/, 'Concatenar');
     await selectModalDropdownOption(user, /Tipo de operaci.n/, /Trabajar con n.mero/);
     expect(screen.queryByText('Resultado anterior')).toBeNull();
-    await selectModalDropdownOption(user, /Acci.n/, 'Usar valor tal cual');
-    expect(screen.getByRole('button', { name: /valor usar/ })).not.toBeNull();
-    await selectModalDropdownOption(user, /valor usar/, 'Valor fijo');
+    await selectModalDropdownOption(user, /Acci.n/, 'Usar número fijo');
+    expect(screen.queryByRole('button', { name: /valor usar/ })).toBeNull();
     await waitFor(() => expect(screen.getByLabelText('Valor fijo')).not.toBeNull());
 
     await selectModalDropdownOption(user, /Tipo de operaci.n/, 'Trabajar con fechas');
     expect(screen.queryByText('Resultado anterior')).toBeNull();
-    await selectModalDropdownOption(user, /Acci.n/, 'Usar valor tal cual');
-    expect(screen.getByRole('button', { name: /fecha usar/ })).not.toBeNull();
-    await selectModalDropdownOption(user, /fecha usar/, 'Fecha fija');
+    await selectModalDropdownOption(user, /Acci.n/, 'Usar fecha fija');
+    expect(screen.queryByRole('button', { name: /fecha usar/ })).toBeNull();
     await waitFor(() => expect(screen.getByLabelText('Fecha fija')).not.toBeNull());
   });
 });

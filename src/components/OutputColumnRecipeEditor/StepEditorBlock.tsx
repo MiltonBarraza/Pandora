@@ -41,9 +41,11 @@ import {
   getAllowedTextTransformerSourceActions,
   getAllowedStepActions,
   getAllowedStepModes,
+  getSourceActionForTypedStepSourceAction,
   getVisibleStepAction,
   isTextTransformerAction,
   isStepSourceAction,
+  isTypedStepSourceAction,
   isVisibleStepActionConfigured,
   replaceStepActionWithSource,
   type StepEditorContext,
@@ -106,6 +108,12 @@ const stepActionLabels: Record<Exclude<VisibleStepAction, 'unconfigured'>, strin
   useInputColumn: 'Usar columna de entrada',
   useFixedText: 'Usar texto fijo',
   pickColumnText: 'Elegir texto desde celda',
+  useNumberInputColumn: 'Usar número desde columna',
+  useFixedNumber: 'Usar número fijo',
+  pickNumberCell: 'Elegir número desde celda',
+  useDateInputColumn: 'Usar fecha desde columna',
+  useFixedDate: 'Usar fecha fija',
+  pickDateCell: 'Elegir fecha desde celda',
   useRangeText: 'Texto encontrado en el rango',
   usePreviousResult: 'Usar resultado anterior',
   trim: 'Limpiar espacios',
@@ -265,6 +273,13 @@ export function StepEditorBlock({
                 return;
               }
 
+              if (isTypedStepSourceAction(action)) {
+                const sourceAction = getSourceActionForTypedStepSourceAction(action);
+                setScopedSourceActionOverride(sourceAction === 'pickColumnText' || sourceAction === 'useInputColumn' ? sourceAction : undefined);
+                replaceStep(replaceStepActionWithSource(step, action, effectiveContext));
+                return;
+              }
+
               setScopedSourceActionOverride(undefined);
               replaceStep(createCanonicalStepForAction(mode, action, { ...effectiveContext, idFactory: () => step.id }));
             }}
@@ -378,9 +393,9 @@ function renderDefaultFields({
     }
 
     if (mode === 'number' || mode === 'date') {
+      const isCellPickerAction = visibleAction === 'pickNumberCell' || visibleAction === 'pickDateCell' || sourceActionOverride === 'pickColumnText';
       return (
         <StepSourceFields
-          label={mode === 'number' ? 'Qué valor usar' : 'Qué fecha usar'}
           source={getTypedStepSource(stepSource)}
           inputColumns={inputColumns}
           inputRows={manualRangeRows}
@@ -391,8 +406,15 @@ function renderDefaultFields({
           fixedTextInputType={mode === 'number' ? 'number' : 'date'}
           fixedTextInputLabel={mode === 'number' ? 'Valor fijo' : 'Fecha fija'}
           valueKind={mode}
+          hideSourceSelector
+          columnTextPickerOpen={isCellPickerAction}
           limitColumnTextPickerToCompatibleColumns={!isRangeEditorContext(context)}
-          onChange={onSourceChange}
+          onChange={(source, changeContext) => {
+            if (changeContext?.origin === 'cellValuePicker') {
+              onSourceActionOverrideChange('pickColumnText');
+            }
+            onSourceChange(source, changeContext);
+          }}
         />
       );
     }
@@ -636,10 +658,13 @@ function getStepModeOptionsForContext(context: StepEditorContext) {
 }
 
 function getStepActionOptionsForContext(mode: TransformStepMode, context: StepEditorContext): Array<{ value: BlockAction; label: string }> {
-  const actions = getAllowedStepActions(mode, context).filter((action) => action !== 'unconfigured' && action !== 'usePreviousResult');
+  const actions = getAllowedStepActions(mode, context)
+    .filter((action) => action !== 'unconfigured' && ((mode === 'number' || mode === 'date') || action !== 'usePreviousResult'));
   if (mode === 'number' && actions.includes('numericOperation')) {
     return [
-      ...(actions.includes('useValueAsIs') ? [{ value: 'useValueAsIs' as const, label: useValueAsIsLabel }] : []),
+      ...actions
+        .filter((action) => action !== 'numericOperation')
+        .map((action) => ({ value: action as Exclude<VisibleStepAction, 'unconfigured'>, label: stepActionLabels[action as Exclude<VisibleStepAction, 'unconfigured'>] })),
       ...numericOperationOptions,
     ];
   }

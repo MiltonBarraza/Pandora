@@ -1004,10 +1004,12 @@ describe('constructor helpers', () => {
       },
     }, { manualRangeRows });
 
-    expect(numericMarkup).toContain('Qué valor usar');
+    expect(numericMarkup).toContain('Usar número fijo');
+    expect(numericMarkup).not.toContain('Qué valor usar');
     expect(numericMarkup).toContain('Valor fijo');
     expect(numericMarkup).toContain('type="number"');
-    expect(dateMarkup).toContain('Qué fecha usar');
+    expect(dateMarkup).toContain('Usar fecha fija');
+    expect(dateMarkup).not.toContain('Qué fecha usar');
     expect(dateMarkup).toContain('Fecha fija');
     expect(dateMarkup).toContain('type="date"');
     expect(getStepValueSourceOptions(inputColumns, 'number', false).map((option) => option.label)).toEqual([
@@ -5825,8 +5827,8 @@ describe('constructor helpers', () => {
     expect(numericOperationOptions.map((option) => option.label)).toEqual([
       'Sumar valor',
       'Restar valor',
-      'Multiplicar por',
-      'Dividir por',
+      'Multiplicar por valor',
+      'Dividir por valor',
       'Sumar %',
       'Restar %',
       'Quitar % incluido',

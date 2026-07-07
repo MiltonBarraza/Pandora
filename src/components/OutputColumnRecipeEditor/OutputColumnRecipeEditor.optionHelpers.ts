@@ -209,8 +209,8 @@ export const conditionOperators: Array<{ value: ConditionOperator; label: string
 const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
   add: 'Sumar valor',
   subtract: 'Restar valor',
-  multiply: 'Multiplicar por',
-  divide: 'Dividir por',
+  multiply: 'Multiplicar por valor',
+  divide: 'Dividir por valor',
   addPercentage: 'Sumar %',
   subtractPercentage: 'Restar %',
   removeIncludedPercentage: 'Quitar % incluido',
