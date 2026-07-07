@@ -386,11 +386,11 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
   }
 
   if (step.type === 'extractNumber') {
-    return applyExtractNumberStep(value);
+    return applyExtractNumberStep(value, step);
   }
 
   if (step.type === 'toNumber') {
-    return applyToNumberStep(value);
+    return applyToNumberStep(value, step);
   }
 
   if (step.type === 'toText') {
@@ -540,28 +540,35 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
   };
 }
 
-function applyExtractNumberStep(value: string) {
+function applyExtractNumberStep(value: string, step: TransformStep) {
   const parsedValue = extractNumericValue(value);
   if (parsedValue === null) {
-    return {
-      value,
-      warnings: ['No se pudo extraer número del texto'],
-    };
+    return applyConversionInvalidFallback(value, step, 'No se pudo extraer número del texto');
   }
 
   return { value: formatNumericResult(parsedValue, 'none'), warnings: [] };
 }
 
-function applyToNumberStep(value: string) {
+function applyToNumberStep(value: string, step: TransformStep) {
   const parsedValue = parseNumericValue(value);
   if (parsedValue === null) {
-    return {
-      value,
-      warnings: ['No se pudo convertir a número: valor inválido'],
-    };
+    return applyConversionInvalidFallback(value, step, 'No se pudo convertir a número: valor inválido');
   }
 
   return { value: formatNumericResult(parsedValue, 'none'), warnings: [] };
+}
+
+function applyConversionInvalidFallback(value: string, step: TransformStep, warning: string): TransformResult {
+  const fallback = step.conversionInvalidFallback ?? 'original';
+  if (fallback === 'empty') {
+    return { value: '', warnings: [warning] };
+  }
+
+  if (fallback === 'fixedText') {
+    return { value: step.conversionInvalidFallbackText ?? '', warnings: [warning] };
+  }
+
+  return { value, warnings: [warning] };
 }
 
 function shouldSkipEmptyValue(value: string, step: TransformStep) {

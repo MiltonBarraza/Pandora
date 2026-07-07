@@ -276,6 +276,14 @@ export function normalizeStepForContext(step: TransformStep, context: StepEditor
     };
   }
 
+  if (step.type === 'extractNumber' || step.type === 'toNumber') {
+    return {
+      ...nextStep,
+      ...(step.conversionInvalidFallback ? { conversionInvalidFallback: step.conversionInvalidFallback } : {}),
+      ...(typeof step.conversionInvalidFallbackText === 'string' ? { conversionInvalidFallbackText: step.conversionInvalidFallbackText } : {}),
+    };
+  }
+
   if (step.type === 'concat') {
     return {
       ...nextStep,

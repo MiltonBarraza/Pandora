@@ -6,6 +6,7 @@ import {
 } from '../../domain/import/dateOperations';
 import { extractNumericValue, parseNumericValue } from '../../domain/import/numericOperations';
 import type {
+  ConversionInvalidFallback,
   DateInputFormat,
   DateInvalidFallback,
   DateOutputFormat,
@@ -23,6 +24,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { operationTypeLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
 import {
+  conversionInvalidFallbackOptions,
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
   dateOutputFormatOptions,
@@ -31,7 +33,7 @@ import {
   parseRounding,
 } from './OutputColumnRecipeEditor.optionHelpers';
 import { getVisibleLeftOperand, getVisibleRightOperand, shouldShowTextSourceFields } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepOperandFields, StepSourceFields, getStepActionHelpText, type PreviousResultDisplay, type StepSourceChangeContext, type StepValueSourceOptionsConfig } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepOperandFields, StepSourceFields, getColumnCompatibilityHint, getStepActionHelpText, type PreviousResultDisplay, type StepSourceChangeContext, type StepValueSourceOptionsConfig } from './OutputColumnRecipeEditor.StepFields';
 import {
   createCanonicalStepForAction,
   createCanonicalStepForMode,
@@ -472,6 +474,7 @@ function renderDefaultFields({
     const numericInputColumns = getNumericOperandInputColumns(inputColumns, manualRangeRows);
     const operandLabels = getNumericOperandLabels(step.operation);
     const numericWarning = getNumericOperationUiWarning(step.operation, leftOperand, rightOperand);
+    const numericCompatibilityHint = getColumnCompatibilityHint('number', inputColumns.length, numericInputColumns.length);
 
     return (
       <div className="numericOperationFields">
@@ -480,6 +483,7 @@ function renderDefaultFields({
           operand={leftOperand}
           inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
+          compatibilityHint={numericCompatibilityHint}
           onChange={(leftOperand) => onChange({ leftOperand })}
         />
         <StepOperandFields
@@ -487,6 +491,7 @@ function renderDefaultFields({
           operand={rightOperand}
           inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
+          compatibilityHint={numericCompatibilityHint}
           onChange={(rightOperand) => onChange({ rightOperand })}
         />
         <Dropdown
@@ -548,7 +553,29 @@ function renderDefaultFields({
   }
 
   if (step.type === 'extractNumber' || step.type === 'toNumber' || step.type === 'toText') {
-    return sourceFields;
+    if (step.type === 'toText') {
+      return sourceFields;
+    }
+
+    return (
+      <>
+        {sourceFields}
+        <Dropdown<ConversionInvalidFallback>
+          className="compact recipeField"
+          label="Si no se puede obtener un número"
+          value={step.conversionInvalidFallback ?? 'original'}
+          options={conversionInvalidFallbackOptions}
+          scrollStrategy="close"
+          onChange={(conversionInvalidFallback) => onChange({ conversionInvalidFallback })}
+        />
+        {(step.conversionInvalidFallback ?? 'original') === 'fixedText' ? (
+          <label className="field compact recipeField">
+            <span>Valor fallback</span>
+            <input value={step.conversionInvalidFallbackText ?? ''} onChange={(event) => onChange({ conversionInvalidFallbackText: event.target.value })} />
+          </label>
+        ) : null}
+      </>
+    );
   }
 
   if (step.type === 'concat') {

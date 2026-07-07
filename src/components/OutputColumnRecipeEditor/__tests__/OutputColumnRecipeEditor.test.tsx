@@ -8,7 +8,7 @@ import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
 import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
-import { StepSourceFields, StepTypeSelect, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
+import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
@@ -924,6 +924,55 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Texto fallback');
   });
 
+  it('renders conversion fallback controls only when a fixed fallback is selected', () => {
+    const fixedFallbackMarkup = renderRecipeEditorMarkup({
+      id: 'output-conversion-fallback',
+      label: 'Numero convertido',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: 'to-number',
+          mode: 'conversion',
+          type: 'toNumber',
+          source: { type: 'input', inputColumnId: 'input-code' },
+          conversionInvalidFallback: 'fixedText',
+          conversionInvalidFallbackText: '0',
+        }],
+      },
+    });
+    const originalFallbackMarkup = renderRecipeEditorMarkup({
+      id: 'output-conversion-original',
+      label: 'Numero convertido',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: 'extract',
+          mode: 'conversion',
+          type: 'extractNumber',
+          source: { type: 'input', inputColumnId: 'input-code' },
+        }],
+      },
+    });
+
+    expect(fixedFallbackMarkup).toContain('Si no se puede obtener un número');
+    expect(fixedFallbackMarkup).toContain('Usar valor fijo');
+    expect(fixedFallbackMarkup).toContain('Valor fallback');
+    expect(fixedFallbackMarkup).toContain('value="0"');
+    expect(originalFallbackMarkup).toContain('Si no se puede obtener un número');
+    expect(originalFallbackMarkup).toContain('Conservar valor original');
+    expect(originalFallbackMarkup).not.toContain('Valor fallback');
+  });
+
   it('renders typed source UX for number and date values without new recipe shapes', () => {
     const numericMarkup = renderRecipeEditorMarkup({
       id: 'output-number-source',
@@ -959,10 +1008,10 @@ describe('constructor helpers', () => {
     expect(dateMarkup).toContain('Fecha fija');
     expect(dateMarkup).toContain('type="date"');
     expect(getStepValueSourceOptions(inputColumns, 'number', false).map((option) => option.label)).toEqual([
-      'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Valor fijo', 'Elegir valor desde columna',
+      'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Valor fijo', 'Elegir valor desde celda',
     ]);
     expect(getStepValueSourceOptions(inputColumns, 'date', false).map((option) => option.label)).toEqual([
-      'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Fecha fija', 'Elegir fecha desde columna',
+      'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Fecha fija', 'Elegir fecha desde celda',
     ]);
     expect(getNumericStepTypeFromSelection('')).toEqual({ type: 'noop' });
     expect(getNumericStepTypeFromSelection('add')).toEqual({ type: 'numericOperation', operation: 'add' });
@@ -1037,8 +1086,9 @@ describe('constructor helpers', () => {
     );
 
     expect(textPicker).toContain('Valores no válidos');
-    expect(textPicker).toContain('No hay textos disponibles');
+    expect(textPicker).not.toContain('No hay textos disponibles');
     expect(textPicker).toContain('warningTooltipTrigger');
+    expect(textPicker).toContain('aria-label="Aviso de compatibilidad"');
     expect(textPicker).toContain('disabled=""');
     expect(textPicker).toContain('dropdownSearchableControl-disabled');
     expect(numericPicker).toContain('Buscar valores en');
@@ -1047,13 +1097,16 @@ describe('constructor helpers', () => {
     expect(numericPicker).toContain('dropdownSearchableControl-disabled');
     expect(datePicker).toContain('Buscar fechas en');
     expect(datePicker).toContain('Fecha encontrada');
-    expect(mixedDatePicker).toContain('Se omitieron valores que no parecen fechas válidas.');
-    expect(mixedDatePicker).not.toContain('warningTooltipTrigger');
+    expect(mixedDatePicker).not.toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(mixedDatePicker).toContain('warningTooltipTrigger');
+    expect(mixedDatePicker).toContain('aria-label="Aviso de compatibilidad"');
+    expect(mixedDatePicker).not.toContain('columnValuePickerHelp');
     expect(datePicker.match(/dropdownField compact recipeField/g)).toHaveLength(3);
     expect(datePicker).not.toContain('manualRangeValueDetailField');
     expect(invalidDatePicker).toContain('Valores no válidos');
-    expect(invalidDatePicker).toContain('No hay fechas válidas disponibles');
+    expect(invalidDatePicker).not.toContain('No hay fechas válidas disponibles');
     expect(invalidDatePicker).toContain('warningTooltipTrigger');
+    expect(invalidDatePicker).toContain('aria-label="Aviso de compatibilidad"');
     expect(invalidDatePicker).toContain('disabled=""');
     expect(invalidDatePicker).toContain('dropdownSearchableControl-disabled');
   });
@@ -1081,7 +1134,10 @@ describe('constructor helpers', () => {
     );
 
     expect(markup).toContain('Fecha encontrada');
-    expect(markup).toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(markup).not.toContain('Se omitieron valores que no parecen fechas válidas.');
+    expect(markup).toContain('warningTooltipTrigger');
+    expect(markup).toContain('aria-label="Aviso de compatibilidad"');
+    expect(markup).not.toContain('columnValuePickerHelp');
     expect(getUniqueColumnTextOptions(rows, 'input-code', acceptsFormatDateValue)).toEqual([
       { value: '28/06/2026', label: '28/06/2026' },
       { value: '2026-06-28', label: '2026-06-28' },
@@ -1126,6 +1182,62 @@ describe('constructor helpers', () => {
     expect(markup).toContain('aria-label="Este valor no parece una fecha válida. Valor guardado: no-es-fecha"');
     expect(markup).not.toContain('columnValuePickerWarning');
     expect(markup).not.toContain('>no-es-fecha</button>');
+  });
+
+  it('explains when typed source selectors hide incompatible columns', () => {
+    const typedColumns: InputColumn[] = [
+      { id: 'text', columnIndex: 0, columnLetter: 'A', label: 'A', active: true, sampleValues: ['ACCESORIOS'], nonEmptyCount: 1 },
+      { id: 'number', columnIndex: 1, columnLetter: 'B', label: 'B', active: true, sampleValues: ['123'], nonEmptyCount: 1 },
+      { id: 'date', columnIndex: 2, columnLetter: 'C', label: 'C', active: true, sampleValues: ['2026-06-28'], nonEmptyCount: 1 },
+    ];
+    const numberMarkup = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué valor usar"
+        source={{ type: 'input', inputColumnId: 'number' }}
+        inputColumns={typedColumns}
+        allowPreviousResult={false}
+        valueKind="number"
+        fixedTextInputType="number"
+        onChange={() => undefined}
+      />,
+    );
+    const dateMarkup = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué fecha usar"
+        source={{ type: 'input', inputColumnId: 'date' }}
+        inputColumns={typedColumns}
+        allowPreviousResult={false}
+        valueKind="date"
+        fixedTextInputType="date"
+        onChange={() => undefined}
+      />,
+    );
+    const noCompatibleMarkup = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué valor usar"
+        source={{ type: 'fixedText', value: '' }}
+        inputColumns={[typedColumns[0]]}
+        allowPreviousResult={false}
+        valueKind="number"
+        fixedTextInputType="number"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(numberMarkup).not.toContain('No se muestran algunas columnas porque no contienen valores numéricos compatibles.');
+    expect(numberMarkup).toContain('warningTooltipTrigger');
+    expect(numberMarkup).toContain('aria-label="Aviso de compatibilidad"');
+    expect(numberMarkup).not.toContain('compatibilityHint');
+    expect(dateMarkup).not.toContain('No se muestran algunas columnas porque Pandora no detectó valores de fecha compatibles.');
+    expect(dateMarkup).toContain('warningTooltipTrigger');
+    expect(dateMarkup).toContain('aria-label="Aviso de compatibilidad"');
+    expect(dateMarkup).not.toContain('compatibilityHint');
+    expect(noCompatibleMarkup).not.toContain('No hay columnas compatibles para esta operación.');
+    expect(noCompatibleMarkup).toContain('warningTooltipTrigger');
+    expect(noCompatibleMarkup).toContain('aria-label="Aviso de compatibilidad"');
+    expect(noCompatibleMarkup).not.toContain('compatibilityHint');
+    expect(getCompatibleStepValueInputColumns(typedColumns, 'date').map((column) => column.id)).toEqual(['date']);
+    expect(getCompatibleStepValueInputColumns(typedColumns, 'number').map((column) => column.id)).toEqual(['number']);
   });
 
   it('keeps ordinary text cell choices unfiltered', () => {
@@ -3370,8 +3482,9 @@ describe('constructor helpers', () => {
     );
 
     expect(markup).toContain('Valores no válidos');
-    expect(markup).toContain('Sin textos disponibles');
+    expect(markup).not.toContain('Sin textos disponibles');
     expect(markup).toContain('warningTooltipTrigger');
+    expect(markup).toContain('aria-label="Aviso de compatibilidad"');
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('dropdownSearchableControl-disabled');
     expect(markup).not.toContain('No hay textos disponibles en esta columna.');

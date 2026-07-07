@@ -685,7 +685,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
     await selectLastDropdownOption(user, /Acción/, 'Formatear fecha');
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde columna');
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde celda');
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
     await selectLastDropdownOption(user, /Acción/, 'Usar texto fijo');
 
@@ -741,7 +741,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const headerPreview = document.querySelector('.constructorModalHeaderPreview span') as HTMLElement;
     expect(headerPreview.textContent).toBe('2026-07-01');
 
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde columna');
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde celda');
     expect(headerPreview.textContent).not.toContain('2026-07-01');
 
     await selectLastDropdownOption(user, /Formato de salida/, 'DD/MM/AAAA');

@@ -108,7 +108,7 @@ export function getStepValueSourceOptions(
     ? [{ value: 'fixedText', label: config.fixedTextLabel ?? (valueKind === 'number' ? 'Valor fijo' : valueKind === 'date' ? 'Fecha fija' : 'Texto fijo') }]
     : [];
   const pickerOptions = isAllowed('columnTextPicker')
-    ? [{ value: 'columnTextPicker', label: config.columnTextPickerLabel ?? (valueKind === 'number' ? 'Elegir valor desde columna' : valueKind === 'date' ? 'Elegir fecha desde columna' : pickCellTextLabel) }]
+    ? [{ value: 'columnTextPicker', label: config.columnTextPickerLabel ?? (valueKind === 'number' ? 'Elegir valor desde celda' : valueKind === 'date' ? 'Elegir fecha desde celda' : pickCellTextLabel) }]
     : [];
 
   if (valueKind === 'text' && !explicitTextValueSource) {
@@ -124,16 +124,40 @@ export function getStepValueSourceOptions(
     ];
   }
 
-  const compatibleColumns = inputColumns.filter((inputColumn) => {
-    const values = inputColumn.sampleValues.map((value) => value.trim()).filter(Boolean);
-    return values.length === 0 || values.some(valueKind === 'number' ? isNumericPickerValue : isDatePickerValue);
-  });
+  const compatibleColumns = getCompatibleStepValueInputColumns(inputColumns, valueKind);
 
   return [
     ...(isAllowed('input') ? compatibleColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })) : []),
     ...fixedTextOptions,
     ...pickerOptions,
   ];
+}
+
+export function getCompatibleStepValueInputColumns(inputColumns: InputColumn[], valueKind: StepValueKind) {
+  if (valueKind === 'text') {
+    return inputColumns;
+  }
+
+  return inputColumns.filter((inputColumn) => {
+    const values = inputColumn.sampleValues.map((value) => value.trim()).filter(Boolean);
+    return values.length === 0 || values.some(valueKind === 'number' ? isNumericPickerValue : isDatePickerValue);
+  });
+}
+
+export function getColumnCompatibilityHint(valueKind: StepValueKind, totalColumns: number, compatibleColumns: number) {
+  if (valueKind === 'text' || totalColumns === 0 || compatibleColumns === totalColumns) {
+    return '';
+  }
+
+  if (compatibleColumns === 0) {
+    return 'No hay columnas compatibles para esta operación.';
+  }
+
+  if (valueKind === 'number') {
+    return 'No se muestran algunas columnas porque no contienen valores numéricos compatibles.';
+  }
+
+  return 'No se muestran algunas columnas porque Pandora no detectó valores de fecha compatibles.';
 }
 
 export function getNumericStepTypeFromSelection(value: NonNullable<TransformStep['operation']> | 'noop' | '') {
@@ -343,6 +367,9 @@ export function StepSourceFields({
   const sourceOptions = usesTypedValuePicker || explicitTextValueSource
     ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource, sourceOptionsConfig)
     : getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText);
+  const compatibleColumns = usesTypedValuePicker ? getCompatibleStepValueInputColumns(inputColumns, valueKind) : inputColumns;
+  const compatibilityHint = getColumnCompatibilityHint(valueKind, inputColumns.length, compatibleColumns.length);
+  const pickerInputColumns = usesTypedValuePicker ? compatibleColumns : inputColumns;
   const sourceIdentity = safeSource.type === 'input'
     ? `${safeSource.type}:${safeSource.inputColumnId}`
     : safeSource.type === 'fixedText' ? `${safeSource.type}:${safeSource.value}` : safeSource.type;
@@ -359,7 +386,7 @@ export function StepSourceFields({
         <Dropdown
           className="compact recipeField"
           label={label}
-          labelInfo={<InfoTooltip content={labelInfoText} />}
+          labelInfo={renderLabelInfo(labelInfoText, compatibilityHint)}
           value={sourceValue}
           options={sourceOptions}
           placeholder="Seleccionar fuente"
@@ -398,10 +425,11 @@ export function StepSourceFields({
 
       {effectiveColumnTextPickerOpen ? (
         <ColumnTextPicker
-          inputColumns={inputColumns}
+          inputColumns={pickerInputColumns}
           rows={inputRows}
           value={safeSource.type === 'fixedText' ? safeSource.value : ''}
           columnLabel={valueKind === 'number' ? 'Buscar valores en' : valueKind === 'date' ? 'Buscar fechas en' : undefined}
+          columnLabelInfo={compatibilityHint ? <WarningTooltip content={compatibilityHint} ariaLabel="Aviso de compatibilidad" /> : undefined}
           valueLabel={valueKind === 'number' ? 'Valor encontrado' : valueKind === 'date' ? 'Fecha encontrada' : undefined}
           emptyLabel={columnTextPickerEmptyLabel ?? (valueKind === 'number' ? 'No hay valores numéricos disponibles' : valueKind === 'date' ? 'No hay fechas válidas disponibles' : 'No hay textos disponibles')}
           invalidOptionsLabel={columnTextPickerEmptyLabel}
@@ -455,6 +483,7 @@ export function StepOperandFields({
   inputColumns,
   allowPreviousResult,
   emptyInputColumnsLabel = 'Sin columnas numéricas disponibles',
+  compatibilityHint = '',
   onChange,
 }: {
   label: string;
@@ -462,6 +491,7 @@ export function StepOperandFields({
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
   emptyInputColumnsLabel?: string;
+  compatibilityHint?: string;
   onChange: (operand: StepOperand) => void;
 }) {
   const safeOperand = !allowPreviousResult && operand.type === 'previousResult'
@@ -473,7 +503,7 @@ export function StepOperandFields({
       <Dropdown<StepOperand['type']>
         className="compact recipeField"
         label={label}
-        labelInfo={<InfoTooltip content="Elige si el valor viene de una columna, un numero fijo o un paso previo." />}
+        labelInfo={renderLabelInfo('Elige si el valor viene de una columna, un numero fijo o un paso previo.', compatibilityHint)}
         value={safeOperand.type}
         options={[
           ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado del paso anterior' }] : []),
@@ -502,6 +532,7 @@ export function StepOperandFields({
           value={safeOperand.inputColumnId}
           inputColumns={inputColumns}
           emptyLabel={emptyInputColumnsLabel}
+          compatibilityHint={compatibilityHint}
           disableWhenEmpty
           onChange={(inputColumnId) => onChange({ type: 'input', inputColumnId })}
         />
@@ -539,6 +570,7 @@ export function InputColumnSelect({
   label = 'Columna de entrada',
   emptyLabel = 'Sin columnas disponibles',
   disableWhenEmpty = false,
+  compatibilityHint = '',
   onChange,
 }: {
   value: string;
@@ -546,13 +578,14 @@ export function InputColumnSelect({
   label?: string;
   emptyLabel?: string;
   disableWhenEmpty?: boolean;
+  compatibilityHint?: string;
   onChange: (value: string) => void;
 }) {
   return (
     <Dropdown
       className="compact recipeField"
       label={label}
-      labelInfo={<InfoTooltip content="Elegí la columna del Excel que contiene este dato." />}
+      labelInfo={renderLabelInfo('Elegí la columna del Excel que contiene este dato.', compatibilityHint)}
       value={disableWhenEmpty && inputColumns.length === 0 ? '' : value}
       options={inputColumns.length > 0 || !disableWhenEmpty
         ? [
@@ -564,6 +597,15 @@ export function InputColumnSelect({
       scrollStrategy="close"
       onChange={onChange}
     />
+  );
+}
+
+function renderLabelInfo(helpText: ReactNode, compatibilityHint = '') {
+  return (
+    <>
+      {compatibilityHint ? <WarningTooltip content={compatibilityHint} ariaLabel="Aviso de compatibilidad" /> : null}
+      <InfoTooltip content={helpText} />
+    </>
   );
 }
 

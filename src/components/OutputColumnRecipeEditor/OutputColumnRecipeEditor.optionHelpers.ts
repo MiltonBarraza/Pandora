@@ -8,6 +8,7 @@ import {
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import type {
   ConditionOperator,
+  ConversionInvalidFallback,
   DateInputFormat,
   DateInvalidFallback,
   DateOutputFormat,
@@ -250,6 +251,12 @@ export const dateInvalidFallbackOptions: Array<{ value: DateInvalidFallback; lab
   { value: 'empty', label: 'Dejar vacío' },
   { value: 'original', label: 'Mantener valor original' },
   { value: 'fixedText', label: 'Usar texto fijo' },
+];
+
+export const conversionInvalidFallbackOptions: Array<{ value: ConversionInvalidFallback; label: string }> = [
+  { value: 'original', label: 'Conservar valor original' },
+  { value: 'empty', label: 'Dejar vacío' },
+  { value: 'fixedText', label: 'Usar valor fijo' },
 ];
 
 function getDateInputFormatLabel(format: DateInputFormat) {
