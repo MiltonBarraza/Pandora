@@ -189,7 +189,6 @@ export function OutputColumnsManager({
 
                 return (
                   <div className={`outputColumnListItem${isSelected ? ' selected' : ''}`}>
-                    {handle}
                     <OutputColumnSelectButton
                       index={index}
                       label={outputColumn.label || 'Sin nombre'}
@@ -206,6 +205,7 @@ export function OutputColumnsManager({
                           onClick={() => duplicateColumn(outputColumn.id)}
                         />
                       </InfoTooltip>
+                      {handle}
                       <InfoTooltip content="Eliminar columna">
                         <DeleteButton title="Eliminar columna" onClick={() => removeColumn(outputColumn.id)} />
                       </InfoTooltip>
