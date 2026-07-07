@@ -512,6 +512,8 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     );
 
     await selectModalDropdownOption(user, /Tipo de operaci.n/, /Conversi.n/);
+    expect(screen.queryByText(/Extraer n.mero del resultado/)).toBeNull();
+    expect(screen.queryByText(/Convertir resultado anterior/)).toBeNull();
     await selectModalDropdownOption(user, /Acci.n/, 'Convertir a número');
     await selectModalDropdownOption(user, /Qu. valor usar/, 'Elegir texto desde celda');
     await user.click(screen.getByRole('combobox', { name: /Texto encontrado/ }));

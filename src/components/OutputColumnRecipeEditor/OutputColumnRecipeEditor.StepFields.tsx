@@ -128,6 +128,7 @@ export function getStepValueSourceOptions(
   const compatibleColumns = getCompatibleStepValueInputColumns(inputColumns, valueKind, compatibilityRows);
 
   return [
+    ...previousResultOptions,
     ...(isAllowed('input') ? compatibleColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })) : []),
     ...fixedTextOptions,
     ...pickerOptions,
@@ -360,7 +361,7 @@ export function StepSourceFields({
     : source;
   const effectiveColumnTextPickerOpen = columnTextPickerOpen || isColumnTextPickerOpen;
   const showPreviousResultField = !effectiveColumnTextPickerOpen && shouldShowPreviousResultSourceHelp(safeSource);
-  const previousResultValue = previousResultDisplay?.value ?? 'Resultado del paso anterior';
+  const previousResultValue = previousResultDisplay?.value ?? previousResultPreviewValue ?? 'Valor dinámico';
   const previousResultHelpText = previousResultDisplay?.helpText ?? recipeEditorPreviousResultHelpText;
   const usesTypedValuePicker = valueKind === 'number' || valueKind === 'date';
   const canPickColumnText = valueKind === 'text';
@@ -494,6 +495,7 @@ export function StepOperandFields({
   operand,
   inputColumns,
   allowPreviousResult,
+  allowedTypes,
   emptyInputColumnsLabel = 'Sin columnas numéricas disponibles',
   compatibilityHint = '',
   onChange,
@@ -502,6 +504,7 @@ export function StepOperandFields({
   operand: StepOperand;
   inputColumns: InputColumn[];
   allowPreviousResult: boolean;
+  allowedTypes?: StepOperand['type'][];
   emptyInputColumnsLabel?: string;
   compatibilityHint?: string;
   onChange: (operand: StepOperand) => void;
@@ -519,9 +522,9 @@ export function StepOperandFields({
         value={safeOperand.type}
         options={[
           ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado del paso anterior' }] : []),
-          { value: 'input', label: 'Columna de entrada' },
-          { value: 'fixedText', label: 'Valor fijo' },
-        ]}
+          { value: 'input' as const, label: 'Columna de entrada' },
+          { value: 'fixedText' as const, label: 'Valor fijo' },
+        ].filter((option) => !allowedTypes || allowedTypes.includes(option.value))}
         scrollStrategy="close"
         onChange={(type) => {
           if (type === 'previousResult') {

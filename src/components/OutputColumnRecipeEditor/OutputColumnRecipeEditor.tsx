@@ -1373,7 +1373,7 @@ function StepBlocksEditor({
   onStepsChange: (steps: TransformStep[] | ((currentSteps: TransformStep[]) => TransformStep[])) => void;
 }) {
   const addStep = () => {
-    onStepsChange((currentSteps) => [...currentSteps, createNoopStep(defaultStepMode)]);
+    onStepsChange((currentSteps) => [...currentSteps, createFollowUpStep(defaultStepMode)]);
   };
 
   const deleteStep = (indexToDelete: number) => {
@@ -1477,6 +1477,13 @@ function StepBlocksEditor({
       </div>
     </div>
   );
+}
+
+function createFollowUpStep(mode: TransformStepMode): TransformStep {
+  return {
+    ...createNoopStep(mode),
+    source: { type: 'previousResult' },
+  };
 }
 
 function updateStepWithIndexFallback(steps: TransformStep[], id: string, patch: Partial<TransformStep>, fallbackIndex: number) {

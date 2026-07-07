@@ -80,12 +80,17 @@ export function getAllowedStepModes(context: StepEditorContext): TransformStepMo
 
 export function getAllowedStepActions(mode: TransformStepMode, context: StepEditorContext): VisibleStepAction[] {
   const policy = stepEditorPolicy(context);
+  const isFollowUpStep = policy.allowPreviousResult;
 
   if (mode === 'manualRange') {
     return policy.allowManualRange ? ['manualRange'] : [];
   }
 
   if (mode === 'number') {
+    if (isFollowUpStep) {
+      return ['usePreviousResult', 'numericOperation'];
+    }
+
     return [
       'useNumberInputColumn',
       'useFixedNumber',
@@ -96,6 +101,10 @@ export function getAllowedStepActions(mode: TransformStepMode, context: StepEdit
   }
 
   if (mode === 'date') {
+    if (isFollowUpStep) {
+      return ['usePreviousResult', 'formatDate'];
+    }
+
     return [
       'useDateInputColumn',
       'useFixedDate',
@@ -107,6 +116,13 @@ export function getAllowedStepActions(mode: TransformStepMode, context: StepEdit
 
   if (mode === 'conversion') {
     return conversionActions;
+  }
+
+  if (isFollowUpStep && mode === 'text') {
+    return [
+      'usePreviousResult',
+      ...textTransformActions.filter((action) => action !== 'concat' || policy.allowConcat),
+    ];
   }
 
   return [
@@ -137,6 +153,14 @@ export function getAllowedTextTransformerSourceActions(step: Pick<TransformStep,
   }
 
   const policy = stepEditorPolicy(context);
+  if (policy.allowPreviousResult) {
+    return [
+      'usePreviousResult',
+      ...(step.source?.type === 'input' ? ['useInputColumn' as const] : []),
+      ...(step.source?.type === 'fixedText' ? ['useFixedText' as const] : []),
+    ];
+  }
+
   return [
     'useInputColumn',
     ...(policy.allowPreviousResult ? ['usePreviousResult' as const] : []),
@@ -214,6 +238,7 @@ export function createCanonicalStepForMode(mode: TransformStepMode, context: Ste
     id: createStepId(context),
     mode,
     type: 'noop',
+    ...(stepEditorPolicy(context).allowPreviousResult ? { source: { type: 'previousResult' as const } } : {}),
     applyToEmptyValues: false,
   };
 }

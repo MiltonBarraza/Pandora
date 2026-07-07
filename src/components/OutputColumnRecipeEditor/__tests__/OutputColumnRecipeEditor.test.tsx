@@ -897,6 +897,30 @@ describe('constructor helpers', () => {
     }).map((option) => option.label)).toEqual(['A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Texto fijo actual']);
   });
 
+  it('keeps legacy follow-up source replacements visible and evaluable', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [
+        { id: 'first', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'A' } },
+        { id: 'legacy-overwrite', mode: 'text', type: 'noop', source: { type: 'fixedText', value: 'B' } },
+      ],
+    };
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-legacy-overwrite',
+      label: 'Legacy overwrite',
+      order: 0,
+      enabled: true,
+      recipe,
+    });
+
+    expect(markup).toContain('Paso 2 · Usar texto fijo');
+    expect(markup).toContain('value="B"');
+    expect(buildCustomValuePreview(recipe, { 'input-code': 'base' }, true, 'text')).toBe('B');
+  });
+
   it('uses a clear, compact date fallback field', () => {
     const markup = renderRecipeEditorMarkup({
       id: 'output-date-fallback',
