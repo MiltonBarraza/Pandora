@@ -208,6 +208,24 @@ describe('getSheetRows', () => {
     });
   });
 
+  it('shows the warning for a large horizontal trim across the same row span', () => {
+    const workbook = workbookWithSheet({
+      A1: { t: 's', v: 'A' },
+      M109: { t: 's', v: 'M' },
+      XET109: { t: 'z' },
+      '!ref': 'A1:XET109',
+    });
+
+    expect(getSheetRowsWithMetadata(workbook, 'Hoja 1').rangeMetadata).toMatchObject({
+      originalRef: 'A1:XET109',
+      effectiveRef: 'A1:M109',
+      wasTrimmed: true,
+      shouldShowTrimWarning: true,
+      ignoredTrailingColumns: 16361,
+      ignoredTrailingRows: 0,
+    });
+  });
+
   it('shows the warning for a large vertical trim', () => {
     const workbook = workbookWithSheet({
       A1: { t: 's', v: 'A' },

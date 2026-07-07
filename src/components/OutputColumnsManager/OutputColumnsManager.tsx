@@ -29,7 +29,6 @@ export function OutputColumnsManager({
   outputColumns,
   onChange,
 }: OutputColumnsManagerProps) {
-  const [newColumnName, setNewColumnName] = useState('');
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [isRegenerateConfirmationOpen, setIsRegenerateConfirmationOpen] = useState(false);
   const ordered = [...outputColumns].sort((a, b) => a.order - b.order);
@@ -50,14 +49,13 @@ export function OutputColumnsManager({
   const addColumn = () => {
     const nextColumn: OutputColumn = {
       id: crypto.randomUUID(),
-      label: newColumnName.trim() || 'Nueva columna',
+      label: 'Nueva columna',
       order: ordered.length,
       enabled: true,
-      recipe: { type: 'empty' },
+      recipe: { type: 'fixedText', value: '' },
     };
     onChange([...ordered, nextColumn]);
     setSelectedColumnId(nextColumn.id);
-    setNewColumnName('');
   };
 
   const createFromActiveColumns = () => {
@@ -146,20 +144,7 @@ export function OutputColumnsManager({
             : `${ordered.length} ${ordered.length === 1 ? 'columna configurada' : 'columnas configuradas'}.`}
         </p>
         <div className="outputColumnsHeaderActions">
-          <div className="inlineForm outputColumnsAddForm">
-            <input
-              value={newColumnName}
-              onChange={(event) => setNewColumnName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') {
-                  return;
-                }
-
-                event.preventDefault();
-                addColumn();
-              }}
-              placeholder="Nueva columna"
-            />
+          <div className="outputColumnsAddForm">
             <InfoTooltip content="Agrega una columna nueva al archivo final.">
               <ActionButton type="button" action="add" onClick={addColumn}>Agregar</ActionButton>
             </InfoTooltip>

@@ -148,7 +148,6 @@ type OutputColumnRecipeEditorProps = {
 export type ManualRangeDetectionMode = 'textStarts' | 'dataBlocks';
 export const manualRangeUsageHelpText = 'Los rangos sirven cuando un valor debe repetirse en varias filas. Si el valor ya está en cada fila, usá una columna de entrada.';
 
-export const recipeEditorModalPendingApplyText = 'Los cambios se aplican al confirmar.';
 export const recipeEditorModalCancelLabel = 'Cancelar';
 export const recipeEditorModalApplyLabel = 'Aplicar';
 export const recipeEditorDiscardChangesTitle = 'Descartar';
@@ -295,7 +294,6 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
             )}
             footer={(
               <div className="constructorModalFooterContent">
-                <p>{recipeEditorModalPendingApplyText}</p>
                 <div className="constructorModalFooterActions">
                   <ActionButton action="close" variant="secondary" onClick={requestCancelConstructor}>
                     {recipeEditorModalCancelLabel}

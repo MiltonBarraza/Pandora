@@ -495,6 +495,25 @@ h1 {
   width: 100%;
 }
 
+.toolLoadingWizard {
+  margin-top: 0;
+  padding-top: 96px;
+}
+
+.toolLoadingPanel {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.toolLoadingPanel p {
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  margin: 0;
+}
+
 .toolSelectorPanel {
   padding: 20px;
 }
@@ -2068,7 +2087,8 @@ tbody tr:hover {
 }
 
 .outputColumnsAddForm {
-  grid-template-columns: minmax(140px, 220px) auto;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .outputColumnsHeaderActions {
@@ -2563,13 +2583,8 @@ tbody tr:hover {
   align-items: center;
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: flex-end;
   min-width: 0;
-}
-
-.constructorModalFooterContent p {
-  color: var(--color-text-muted);
-  margin: 0;
 }
 
 .constructorModalFooterActions {
