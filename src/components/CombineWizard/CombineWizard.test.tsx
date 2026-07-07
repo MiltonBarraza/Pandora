@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exportCombinedXlsx } from '../../domain/combine/exportCombinedXlsx';
 import { exportCombinedCsv } from '../../domain/combine/exportCombinedCsv';
-import { combineDraftStorageKey, loadCombineDraft, saveCombineDraft } from '../../domain/combine/combineDraft';
+import { loadCombineDraft, saveCombineDraft } from '../../domain/combine/combineDraft';
 import type { CombineDraft } from '../../domain/combine/combineDraft';
 import { showInfoToast } from '../../services/toastService';
 import type { CombineSource } from '../../types/combine';
@@ -50,6 +50,7 @@ describe('CombineWizard basket sources', () => {
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('radio', { name: /Por posición/ }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     dragOutputColumn(container, 0, 1);
     await user.click(screen.getByLabelText('Incluir Archivo origen'));
     await user.click(screen.getByRole('button', { name: 'Columna' }));
@@ -96,27 +97,10 @@ describe('CombineWizard basket sources', () => {
 
     render(<CombineWizard basketSources={[basketSource]} />);
 
-    expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
+    expect(screen.queryByRole('textbox', { name: /Nombre de columna de salida/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
+    expect(screen.getByText('Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.')).not.toBeNull();
     expect(showInfoToast).not.toHaveBeenCalled();
-  });
-
-  it('allows deleting the temporary draft without resetting current UI', async () => {
-    saveCombineDraft(restorableDraft());
-    render(<CombineWizard basketSources={[basketSource]} />);
-
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Eliminar borrador temporal' }));
-
-    expect(sessionStorage.getItem(combineDraftStorageKey)).toBeNull();
-    expect(screen.getByRole('textbox', { name: 'Nombre base' })).toHaveProperty('value', 'Reporte restaurado');
-  });
-
-  it('does not let a pending debounced save recreate a cleared draft', async () => {
-    render(<CombineWizard basketSources={[basketSource]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar columna' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar borrador temporal' }));
-
-    await new Promise((resolve) => window.setTimeout(resolve, 250));
-    expect(sessionStorage.getItem(combineDraftStorageKey)).toBeNull();
   });
 
   it('flushes a pending draft before the page is hidden', () => {
@@ -128,18 +112,11 @@ describe('CombineWizard basket sources', () => {
     expect(loadCombineDraft()?.outputColumns).toHaveLength(1);
   });
 
-  it('clears the draft when an incompatible settings file is loaded', async () => {
-    saveCombineDraft(restorableDraft());
+  it('does not render the removed settings import input', () => {
     const { container } = render(<CombineWizard basketSources={[basketSource]} />);
     const input = container.querySelector<HTMLInputElement>('.combineSettingsFileInput');
-    if (!input) {
-      throw new Error('No se encontró el input de configuración.');
-    }
 
-    await userEvent.setup().upload(input, jsonFile('incompatible.json', '{invalid'));
-
-    await waitFor(() => expect(sessionStorage.getItem(combineDraftStorageKey)).toBeNull());
-    expect(screen.getByText('El archivo no contiene un JSON válido.')).not.toBeNull();
+    expect(input).toBeNull();
   });
 
   it('keeps the files section clean while no files are loaded', () => {
@@ -147,10 +124,10 @@ describe('CombineWizard basket sources', () => {
 
     expect(screen.getByRole('heading', { name: '1. Archivos' })).not.toBeNull();
     expect(screen.queryByRole('heading', { name: '2. Configuración' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: '3. Columnas de salida' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: '4. Asignar columnas' })).toBeNull();
-    expect(screen.queryByText('Archivos cargados')).toBeNull();
-    expect(screen.queryByLabelText('0 archivos cargados')).toBeNull();
+    expect(screen.queryByRole('heading', { name: '2. Columnas de salida' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
+    expect(screen.queryByText('Fuentes cargadas')).toBeNull();
+    expect(screen.queryByLabelText('0 fuentes cargadas')).toBeNull();
     expect(screen.queryByText('Todavía no hay archivos cargados.')).toBeNull();
     expect(screen.getByText('Elegir archivos')).not.toBeNull();
   });
@@ -162,47 +139,42 @@ describe('CombineWizard basket sources', () => {
     expect(screen.getByText('Archivo preparado')).not.toBeNull();
     expect(screen.getByText('Hoja usada: Productos · 1 columna · 1 fila de datos')).not.toBeNull();
     expect(screen.getByText(/son temporales y se pierden al recargar/)).not.toBeNull();
-    expect(screen.queryByRole('button', { name: 'Hoja usada' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hoja' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Agregar hoja' })).toBeNull();
   });
 
   it('uses numbered sections, plural upload copy and file terminology', () => {
     const { container } = render(<CombineWizard basketSources={[basketSource]} />);
 
     expect(screen.getByRole('heading', { name: '1. Archivos' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '2. Configuración' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '3. Columnas de salida' })).not.toBeNull();
-    expect(screen.getByText('Archivos cargados')).not.toBeNull();
-    expect(screen.getByLabelText('1 archivo cargado').textContent).toBe('1');
+    expect(screen.queryByRole('heading', { name: '2. Configuración' })).toBeNull();
+    expect(screen.getByRole('heading', { name: '2. Columnas de salida' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Exportar configuración' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Importar configuración' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Eliminar borrador temporal' })).toBeNull();
+    expect(screen.getByText('Fuentes cargadas')).not.toBeNull();
+    expect(screen.getByLabelText('1 fuente cargada').textContent).toBe('1');
     expect(screen.queryByText('1 archivo')).toBeNull();
     expect(screen.getByText('Elegir archivos')).not.toBeNull();
     expect(screen.getByText('Arrastrá archivos aquí de tipo .xlsx, .xls, .xlsm o .csv')).not.toBeNull();
     expect(screen.getByText('Hacé click para subir archivos desde tu computadora')).not.toBeNull();
     expect((container.querySelector('input[type="file"][multiple]') as HTMLInputElement | null)?.multiple).toBe(true);
     expect(screen.getByRole('button', { name: 'Información sobre los archivos para combinar' })).not.toBeNull();
-    expect(screen.queryByText('Fuentes')).toBeNull();
+    expect(screen.queryByText('Archivos cargados')).toBeNull();
     expect(screen.queryByText('Excel: primera hoja.')).toBeNull();
-  });
-
-  it('places configuration copy and regular-size actions below its title', () => {
-    const { container } = render(<CombineWizard basketSources={[basketSource]} />);
-
-    expect(container.querySelector('.combineSettingsPanel > h2')).not.toBeNull();
-    expect(screen.getByText('Guardá o restaurá columnas, asignaciones, datos de origen y nombre de salida para reutilizar esta combinación.')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Exportar configuración' }).classList).toContain('actionButton-md');
-    expect(screen.getByRole('button', { name: 'Importar configuración' }).classList).toContain('actionButton-md');
   });
 
   it('numbers mapping, preview and export after output columns are initialized', async () => {
     render(<CombineWizard basketSources={[basketSource]} />);
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Generar columnas' }));
 
-    expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '3. Asignar columnas' })).not.toBeNull();
     expect(screen.queryByRole('heading', { name: '5. Datos de origen' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '6. Orden del resultado' })).toBeNull();
-    expect(screen.getByRole('heading', { name: '5. Vista previa' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '6. Nombre del archivo' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '7. Descargar archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '4. Vista previa' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '5. Nombre del archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Descargar archivo' })).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Datos de origen' })).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Orden del resultado' })).not.toBeNull();
   });
@@ -287,7 +259,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={orderedBasketSources.slice(0, 2)} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     dragSource(container, 0, 1);
 
     expect(getPreviewSourceOrder(container)).toEqual(['febrero.xlsx', 'enero.xlsx']);
@@ -309,7 +281,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={sources} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     expect(getPreviewSourceOrder(container)).toEqual(['primero.xlsx', 'segundo.xlsx']);
 
     await user.click(screen.getByRole('button', { name: 'Columna' }));
@@ -338,7 +310,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={sources} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     expect((screen.getByLabelText('Incluir Archivo origen') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Incluir Hoja origen') as HTMLInputElement).checked).toBe(false);
 
@@ -379,11 +351,11 @@ describe('CombineWizard basket sources', () => {
     });
   });
 
-  it('uses section 3 drag order in preview and export columns', async () => {
+  it('uses section 2 drag order in preview and export columns', async () => {
     const { container } = render(<CombineWizard basketSources={[twoColumnBasketSource]} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     dragOutputColumn(container, 0, 1);
 
     expect(Array.from(container.querySelectorAll('.combinePreviewTable thead th')).slice(-2).map((cell) => cell.textContent)).toEqual([
@@ -404,7 +376,7 @@ describe('CombineWizard basket sources', () => {
     const user = userEvent.setup();
 
     expect((screen.getByRole('radio', { name: /Por nombre/ }) as HTMLInputElement).checked).toBe(true);
-    await user.click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     await user.click(screen.getByRole('radio', { name: /Por posición/ }));
 
     expect(screen.getByRole('heading', { name: 'Cambiar modo de asignación' })).not.toBeNull();
@@ -422,6 +394,7 @@ describe('CombineWizard basket sources', () => {
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('radio', { name: /Por posición/ }));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     await waitFor(() => expect(container.querySelectorAll('.combinePreviewTable tbody tr')).toHaveLength(2));
 
     expect(getPreviewDataRows(container)).toEqual([
@@ -443,9 +416,11 @@ describe('CombineWizard basket sources', () => {
 
   it('uses reordered first source as position-mode name reference', async () => {
     const { container } = render(<CombineWizard basketSources={assignmentModeSources} />);
+    const user = userEvent.setup();
 
-    await userEvent.setup().click(screen.getByRole('radio', { name: /Por posición/ }));
+    await user.click(screen.getByRole('radio', { name: /Por posición/ }));
     dragSource(container, 0, 1);
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
 
     await waitFor(() => expect(screen.getAllByRole('textbox', { name: /Nombre de columna de salida/ }).map((input) => (
       (input as HTMLInputElement).value
@@ -454,6 +429,257 @@ describe('CombineWizard basket sources', () => {
 });
 
 describe('CombineWizard uploaded source sheets', () => {
+  it('shows add sheet for multi-sheet Excel files and not for CSV files', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['E1'],
+    ]), 'Enero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['F1'],
+    ]), 'Febrero');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+
+    expect(screen.getByRole('button', { name: 'Agregar hoja' })).not.toBeNull();
+    expect(screen.getByText('Hoja')).not.toBeNull();
+    expect(screen.queryByText('Agregar hoja')).toBeNull();
+
+    await user.upload(getUploadInput(container), csvFile('datos.csv', 'Código\nC1'));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('datos.csv'));
+
+    expect(screen.getAllByRole('button', { name: 'Agregar hoja' })).toHaveLength(1);
+  });
+
+  it('adds another sheet from the same workbook as an independent source without generating columns', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['E1'],
+    ]), 'Enero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['F1'],
+    ]), 'Febrero');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+    await user.click(screen.getByRole('button', { name: 'Agregar hoja' }));
+
+    expect(getVisibleSourceOrder(container)).toEqual(['multi.xlsx', 'multi.xlsx']);
+    expect(getVisibleSheetSelections()).toEqual(['Enero', 'Febrero']);
+    expect(screen.queryByRole('textbox', { name: /Nombre de columna de salida/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
+    const addSheetButtons = screen.getAllByRole('button', { name: 'Agregar hoja' });
+    expect(addSheetButtons.every((button) => (
+      (button as HTMLButtonElement).disabled
+    ))).toBe(true);
+    await user.hover(addSheetButtons[0].parentElement as HTMLElement);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Todas las hojas ya fueron agregadas');
+  });
+
+  it('does not allow selecting a sheet already used by another source from the same workbook', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['E1'],
+    ]), 'Enero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['F1'],
+    ]), 'Febrero');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+    await user.click(screen.getByRole('button', { name: 'Agregar hoja' }));
+    await user.click(screen.getAllByRole('button', { name: 'Hoja' })[0]);
+
+    expect(screen.getByRole('option', { name: 'Febrero (ya agregada)' })).toHaveProperty('disabled', true);
+  });
+
+  it('changes one added sheet without affecting another source from the same workbook', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['E1'],
+    ]), 'Enero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['F1'],
+    ]), 'Febrero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['M1'],
+    ]), 'Marzo');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+    await user.click(screen.getByRole('button', { name: 'Agregar hoja' }));
+    await user.click(screen.getAllByRole('button', { name: 'Hoja' })[0]);
+    await user.click(screen.getByRole('option', { name: 'Marzo' }));
+
+    await waitFor(() => expect(getVisibleSheetSelections()).toEqual(['Marzo', 'Febrero']));
+  });
+
+  it('removes one added sheet without removing the other and makes the removed sheet available again', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['E1'],
+    ]), 'Enero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['F1'],
+    ]), 'Febrero');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+    await user.click(screen.getByRole('button', { name: 'Agregar hoja' }));
+    await user.click(screen.getAllByRole('button', { name: 'Remover multi.xlsx' })[0]);
+
+    expect(getVisibleSourceOrder(container)).toEqual(['multi.xlsx']);
+    expect(getVisibleSheetSelections()).toEqual(['Febrero']);
+    expect((screen.getByRole('button', { name: 'Agregar hoja' }) as HTMLButtonElement).disabled).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Agregar hoja' }));
+
+    expect(getVisibleSheetSelections()).toEqual(['Febrero', 'Enero']);
+  });
+
+  it('previews and exports added sheets with distinct sheet metadata', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código', 'Nombre'],
+      ['E1', 'Enero'],
+    ]), 'Enero');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Nombre', 'Código'],
+      ['Febrero', 'F1'],
+    ]), 'Febrero');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('precios.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('precios.xlsx'));
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar hoja' }));
+    await user.click(screen.getByLabelText('Incluir Archivo origen'));
+    await user.click(screen.getByLabelText('Incluir Hoja origen'));
+
+    await waitFor(() => expect(getPreviewDataRows(container)).toEqual([
+      ['precios.xlsx', 'Enero', 'E1', 'Enero'],
+      ['precios.xlsx', 'Febrero', 'F1', 'Febrero'],
+    ]));
+
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel combinado' }));
+    await waitFor(() => expect(exportCombinedXlsx).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(exportCombinedXlsx).mock.calls[0][0];
+    expect(payload.outputColumns.map((column) => column.name)).toEqual(['Código', 'Nombre', 'Archivo origen', 'Hoja origen']);
+    expect(payload.combinedRows.map((row) => payload.outputColumns.map((column) => row.values[column.id] ?? ''))).toEqual([
+      ['E1', 'Enero', 'precios.xlsx', 'Enero'],
+      ['F1', 'Febrero', 'precios.xlsx', 'Febrero'],
+    ]);
+  });
+
+  it('does not repopulate output columns from an old draft when uploading new manual files', async () => {
+    saveCombineDraft({
+      ...restorableDraft(),
+      outputColumns: [
+        { id: 'old-name', name: 'Nombre' },
+        { id: 'old-code', name: 'codigo' },
+        { id: 'old-price', name: 'Precio' },
+      ],
+      mappings: [
+        { sourceId: 'old-source', outputColumnId: 'old-name', sourceColumnId: 'old:name' },
+        { sourceId: 'old-source', outputColumnId: 'old-code', sourceColumnId: 'old:code' },
+        { sourceId: 'old-source', outputColumnId: 'old-price', sourceColumnId: 'old:price' },
+      ],
+      resultSort: { columnId: 'old-name', direction: 'asc' },
+      sourceIds: ['old-source'],
+      sourceOrder: ['old-source'],
+    });
+    const { container } = render(<CombineWizard />);
+
+    await userEvent.setup().upload(getUploadInput(container), csvFile('nuevo.csv', 'Nombre,codigo,Precio\nA,1,10'));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('nuevo.csv'));
+
+    expect((screen.getByRole('radio', { name: /Por nombre/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: /Por posición/ }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText('Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.')).not.toBeNull();
+    expect(screen.queryByRole('textbox', { name: /Nombre de columna de salida/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Generar columnas' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Agregar columna' })).not.toBeNull();
+  });
+
+  it('does not auto-generate output columns after uploading files', async () => {
+    const { container } = render(<CombineWizard />);
+
+    await userEvent.setup().upload(getUploadInput(container), csvFile('datos.csv', 'Código\nA1'));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('datos.csv'));
+
+    expect(screen.getByText('Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Generar columnas' })).not.toBeNull();
+    expect(screen.queryByRole('textbox', { name: /Nombre de columna de salida/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '4. Vista previa' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '6. Descargar archivo' })).toBeNull();
+  });
+
+  it('does not overwrite manual columns when another uploaded file is added', async () => {
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), csvFile('uno.csv', 'Código\nA1'));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('uno.csv'));
+    await user.click(screen.getByRole('button', { name: 'Agregar columna' }));
+    const manualColumnInput = screen.getByRole('textbox', { name: 'Nombre de columna de salida 1' });
+    await user.clear(manualColumnInput);
+    await user.type(manualColumnInput, 'Manual');
+
+    await user.upload(getUploadInput(container), csvFile('dos.csv', 'Producto\nB1'));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('dos.csv'));
+
+    expect(screen.getAllByRole('textbox', { name: /Nombre de columna de salida/ })).toHaveLength(1);
+    expect(screen.getByRole('textbox', { name: 'Nombre de columna de salida 1' })).toHaveProperty('value', 'Manual');
+  });
+
+  it('does not auto-generate output columns after changing an uploaded sheet', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Código'],
+      ['A1'],
+    ]), 'Primera');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['Producto'],
+      ['B1'],
+    ]), 'Segunda');
+    const { container } = render(<CombineWizard />);
+    const user = userEvent.setup();
+
+    await user.upload(getUploadInput(container), excelFile('multi.xlsx', workbook));
+    await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
+    await user.click(screen.getByRole('button', { name: 'Hoja' }));
+    await user.click(screen.getByRole('option', { name: 'Segunda' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja' }).textContent).toContain('Segunda'));
+    expect(screen.getByText('Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.')).not.toBeNull();
+    expect(screen.queryByRole('textbox', { name: /Nombre de columna de salida/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '4. Vista previa' })).toBeNull();
+  });
+
   it('reorders manual and sanitizer sources in the same list', async () => {
     const { container } = render(<CombineWizard basketSources={[orderedBasketSources[0]]} />);
     const user = userEvent.setup();
@@ -485,8 +711,15 @@ describe('CombineWizard uploaded source sheets', () => {
     await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('multi.xlsx'));
     const multiSourceName = getSourceNameElement(container, 'multi.xlsx');
     expect(multiSourceName?.closest('.combineSourceMain')).toBe(
-      screen.getByRole('button', { name: 'Hoja usada' }).closest('.combineSourceMain'),
+      screen.getByRole('button', { name: 'Hoja' }).closest('.combineSourceMain'),
     );
+    expect(screen.getByText('Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.')).not.toBeNull();
+    expect(screen.queryByRole('textbox', { name: /Nombre de columna de salida/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '4. Vista previa' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '6. Descargar archivo' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Generar columnas' }));
     await waitFor(() => expect(screen.getAllByText('A1').length).toBeGreaterThan(0));
     await user.click(screen.getByLabelText('Incluir Hoja origen'));
     const firstSheetPreview = getPreviewDataRows(container)[0];
@@ -497,10 +730,10 @@ describe('CombineWizard uploaded source sheets', () => {
       'Anterior',
     ]);
 
-    await user.click(screen.getByRole('button', { name: 'Hoja usada' }));
+    await user.click(screen.getByRole('button', { name: 'Hoja' }));
     await user.click(screen.getByRole('option', { name: 'Segunda' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja usada' }).textContent).toContain('Segunda'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja' }).textContent).toContain('Segunda'));
     await waitFor(() => expect(screen.getByText('3 columnas · 2 filas de datos')).not.toBeNull());
     expect(screen.getAllByText('A2').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Actual').length).toBeGreaterThan(0);
@@ -523,7 +756,7 @@ describe('CombineWizard uploaded source sheets', () => {
     await userEvent.setup().upload(getUploadInput(container), excelFile('simple.xlsx', workbook));
 
     expect(await screen.findByText('Hoja usada: Hoja sanitizada · 1 columna · 1 fila de datos')).not.toBeNull();
-    expect(screen.queryByRole('button', { name: 'Hoja usada' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hoja' })).toBeNull();
   });
 
   it('does not show sheet controls for CSV', async () => {
@@ -533,7 +766,7 @@ describe('CombineWizard uploaded source sheets', () => {
     await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('datos.csv'));
 
     expect(screen.queryByText(/Hoja usada:/)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Hoja usada' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hoja' })).toBeNull();
   });
 
   it('keeps previous source and shows an error when selected sheet cannot be used', async () => {
@@ -548,10 +781,10 @@ describe('CombineWizard uploaded source sheets', () => {
 
     await user.upload(getUploadInput(container), excelFile('fallo.xlsx', workbook));
     await waitFor(() => expect(getVisibleSourceOrder(container)).toContain('fallo.xlsx'));
-    await user.click(screen.getByRole('button', { name: 'Hoja usada' }));
+    await user.click(screen.getByRole('button', { name: 'Hoja' }));
     await user.click(screen.getByRole('option', { name: 'Vacía' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja usada' }).textContent).toContain('Con datos'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hoja' }).textContent).toContain('Con datos'));
     expect(await screen.findByText(/No se pudo usar la hoja "Vacía"/)).not.toBeNull();
     expect(screen.getByText('1 columna · 1 fila de datos')).not.toBeNull();
   });
@@ -652,6 +885,12 @@ function getPreviewDataRows(container: HTMLElement) {
   ));
 }
 
+function getVisibleSheetSelections() {
+  return screen.getAllByRole('button', { name: 'Hoja' }).map((button) => (
+    button.textContent?.replace('▾', '').trim()
+  ));
+}
+
 function createDataTransfer() {
   const values = new Map<string, string>();
   return {
@@ -701,12 +940,6 @@ function excelFile(name: string, workbook: XLSX.WorkBook) {
 
 function csvFile(name: string, contents: string) {
   const file = new File([contents], name, { type: 'text/csv' });
-  Object.defineProperty(file, 'text', { value: async () => contents });
-  return file;
-}
-
-function jsonFile(name: string, contents: string) {
-  const file = new File([contents], name, { type: 'application/json' });
   Object.defineProperty(file, 'text', { value: async () => contents });
   return file;
 }
