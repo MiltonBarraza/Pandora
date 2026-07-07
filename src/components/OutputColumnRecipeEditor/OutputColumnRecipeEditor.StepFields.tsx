@@ -96,6 +96,7 @@ export function getStepValueSourceOptions(
   allowPreviousResult: boolean,
   explicitTextValueSource = false,
   config: StepValueSourceOptionsConfig = {},
+  compatibilityRows?: InputRow[],
 ) {
   const isAllowed = (source: StepValueSourceKind) => !config.allowedSources || config.allowedSources.includes(source);
   const inputOptions = isAllowed('input')
@@ -124,7 +125,7 @@ export function getStepValueSourceOptions(
     ];
   }
 
-  const compatibleColumns = getCompatibleStepValueInputColumns(inputColumns, valueKind);
+  const compatibleColumns = getCompatibleStepValueInputColumns(inputColumns, valueKind, compatibilityRows);
 
   return [
     ...(isAllowed('input') ? compatibleColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })) : []),
@@ -133,13 +134,19 @@ export function getStepValueSourceOptions(
   ];
 }
 
-export function getCompatibleStepValueInputColumns(inputColumns: InputColumn[], valueKind: StepValueKind) {
+export function getCompatibleStepValueInputColumns(inputColumns: InputColumn[], valueKind: StepValueKind, compatibilityRows?: InputRow[]) {
   if (valueKind === 'text') {
     return inputColumns;
   }
 
   return inputColumns.filter((inputColumn) => {
-    const values = inputColumn.sampleValues.map((value) => value.trim()).filter(Boolean);
+    const values = compatibilityRows
+      ? compatibilityRows.map((row) => String(row.values[inputColumn.id] ?? '').trim()).filter(Boolean)
+      : inputColumn.sampleValues.map((value) => value.trim()).filter(Boolean);
+    if (compatibilityRows) {
+      return values.some(valueKind === 'number' ? isNumericPickerValue : isDatePickerValue);
+    }
+
     return values.length === 0 || values.some(valueKind === 'number' ? isNumericPickerValue : isDatePickerValue);
   });
 }
@@ -298,6 +305,7 @@ export function StepSourceFields({
   source,
   inputColumns,
   inputRows = [],
+  inputCompatibilityRows,
   allowPreviousResult,
   previousResultPreviewValue,
   previousResultDisplay,
@@ -313,6 +321,7 @@ export function StepSourceFields({
   hideFixedTextInput = false,
   hideSourceSelector = false,
   columnTextPickerOpen = false,
+  limitColumnTextPickerToCompatibleColumns = true,
   sourceOptionsConfig,
   labelInfoText = 'Indica de donde sale el valor de este paso.',
   afterSourceSelector,
@@ -322,6 +331,7 @@ export function StepSourceFields({
   source: StepSource;
   inputColumns: InputColumn[];
   inputRows?: InputRow[];
+  inputCompatibilityRows?: InputRow[];
   allowPreviousResult: boolean;
   previousResultPreviewValue?: string | null;
   previousResultDisplay?: PreviousResultDisplay | null;
@@ -337,6 +347,7 @@ export function StepSourceFields({
   hideFixedTextInput?: boolean;
   hideSourceSelector?: boolean;
   columnTextPickerOpen?: boolean;
+  limitColumnTextPickerToCompatibleColumns?: boolean;
   sourceOptionsConfig?: StepValueSourceOptionsConfig;
   labelInfoText?: string;
   afterSourceSelector?: ReactNode;
@@ -365,11 +376,11 @@ export function StepSourceFields({
     : '';
   const sourceValue = effectiveColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
   const sourceOptions = usesTypedValuePicker || explicitTextValueSource
-    ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource, sourceOptionsConfig)
+    ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource, sourceOptionsConfig, inputCompatibilityRows)
     : getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText);
-  const compatibleColumns = usesTypedValuePicker ? getCompatibleStepValueInputColumns(inputColumns, valueKind) : inputColumns;
+  const compatibleColumns = usesTypedValuePicker ? getCompatibleStepValueInputColumns(inputColumns, valueKind, inputCompatibilityRows) : inputColumns;
   const compatibilityHint = getColumnCompatibilityHint(valueKind, inputColumns.length, compatibleColumns.length);
-  const pickerInputColumns = usesTypedValuePicker ? compatibleColumns : inputColumns;
+  const pickerInputColumns = usesTypedValuePicker && limitColumnTextPickerToCompatibleColumns ? compatibleColumns : inputColumns;
   const sourceIdentity = safeSource.type === 'input'
     ? `${safeSource.type}:${safeSource.inputColumnId}`
     : safeSource.type === 'fixedText' ? `${safeSource.type}:${safeSource.value}` : safeSource.type;

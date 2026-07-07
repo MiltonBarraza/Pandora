@@ -65,7 +65,10 @@ const manualRangeRows: InputRow[] = [
   { rowNumber: 10, values: { 'input-name': 'RODILLO SIMIL LANA', 'input-pack': '5L' } },
 ];
 
-function renderRangeValueEditor(range: Parameters<typeof RangeValueEditor>[0]['range']) {
+function renderRangeValueEditor(
+  range: Parameters<typeof RangeValueEditor>[0]['range'],
+  options: { inputColumns?: InputColumn[]; manualRangeRows?: InputRow[] } = {},
+) {
   vi.stubGlobal('document', { body: {} });
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -73,8 +76,8 @@ function renderRangeValueEditor(range: Parameters<typeof RangeValueEditor>[0]['r
     return renderToStaticMarkup(
       <RangeValueEditor
         range={range}
-        inputColumns={inputColumns}
-        manualRangeRows={manualRangeRows}
+        inputColumns={options.inputColumns ?? inputColumns}
+        manualRangeRows={options.manualRangeRows ?? manualRangeRows}
         onSourceAndStepsChange={() => undefined}
         onStepsChange={() => undefined}
       />,
@@ -3201,6 +3204,104 @@ describe('constructor helpers', () => {
     });
   });
 
+  it('limits range row-by-row numeric source compatibility to covered rows', () => {
+    const columns: InputColumn[] = [
+      { id: 'number-in-range', columnIndex: 0, columnLetter: 'A', label: 'A', header: 'Number in range', active: true, sampleValues: [''], nonEmptyCount: 1 },
+      { id: 'number-outside-range', columnIndex: 1, columnLetter: 'B', label: 'B', header: 'Number outside range', active: true, sampleValues: ['999'], nonEmptyCount: 1 },
+      { id: 'text-only', columnIndex: 2, columnLetter: 'C', label: 'C', header: 'Text only', active: true, sampleValues: ['ABC'], nonEmptyCount: 1 },
+    ];
+    const rows: InputRow[] = [
+      { rowNumber: 1, values: { 'number-in-range': '12', 'number-outside-range': '', 'text-only': 'ABC' } },
+      { rowNumber: 2, values: { 'number-in-range': '', 'number-outside-range': '', 'text-only': 'DEF' } },
+      { rowNumber: 8, values: { 'number-in-range': '', 'number-outside-range': '999', 'text-only': 'GHI' } },
+    ];
+    const markup = renderRangeValueEditor({
+      id: 'range-number-1-2',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: {
+        source: { type: 'input', inputColumnId: 'number-in-range' },
+        steps: [{ id: 'number-step', mode: 'number', type: 'noop', source: { type: 'input', inputColumnId: 'number-in-range' } }],
+      },
+    }, { inputColumns: columns, manualRangeRows: rows });
+
+    expect(getCompatibleStepValueInputColumns(columns, 'number', rows.slice(0, 2)).map((column) => column.id)).toEqual(['number-in-range']);
+    expect(markup).toContain('A - Number in range');
+    expect(markup).not.toContain('B - Number outside range');
+    expect(markup).not.toContain('No se muestran algunas columnas porque no contienen valores numéricos compatibles.');
+  });
+
+  it('limits range row-by-row date source compatibility to covered rows', () => {
+    const columns: InputColumn[] = [
+      { id: 'date-in-range', columnIndex: 0, columnLetter: 'A', label: 'A', header: 'Date in range', active: true, sampleValues: [''], nonEmptyCount: 1 },
+      { id: 'date-outside-range', columnIndex: 1, columnLetter: 'B', label: 'B', header: 'Date outside range', active: true, sampleValues: ['2026-07-07'], nonEmptyCount: 1 },
+      { id: 'text-only', columnIndex: 2, columnLetter: 'C', label: 'C', header: 'Text only', active: true, sampleValues: ['ABC'], nonEmptyCount: 1 },
+    ];
+    const rows: InputRow[] = [
+      { rowNumber: 1, values: { 'date-in-range': '2026-07-07', 'date-outside-range': '', 'text-only': 'ABC' } },
+      { rowNumber: 2, values: { 'date-in-range': '', 'date-outside-range': '', 'text-only': 'DEF' } },
+      { rowNumber: 8, values: { 'date-in-range': '', 'date-outside-range': '2026-07-08', 'text-only': 'GHI' } },
+    ];
+    const markup = renderRangeValueEditor({
+      id: 'range-date-1-2',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: {
+        source: { type: 'input', inputColumnId: 'date-in-range' },
+        steps: [{ id: 'date-step', mode: 'date', type: 'noop', source: { type: 'input', inputColumnId: 'date-in-range' } }],
+      },
+    }, { inputColumns: columns, manualRangeRows: rows });
+
+    expect(getCompatibleStepValueInputColumns(columns, 'date', rows.slice(0, 2)).map((column) => column.id)).toEqual(['date-in-range']);
+    expect(markup).toContain('A - Date in range');
+    expect(markup).not.toContain('B - Date outside range');
+    expect(markup).not.toContain('No se muestran algunas columnas porque Pandora no detectó valores de fecha compatibles.');
+  });
+
+  it('keeps range cell pickers using all rows and columns', () => {
+    const columns: InputColumn[] = [
+      { id: 'number-outside-range', columnIndex: 0, columnLetter: 'A', label: 'A', header: 'Number outside range', active: true, sampleValues: ['999'], nonEmptyCount: 1 },
+      { id: 'number-in-range', columnIndex: 1, columnLetter: 'B', label: 'B', header: 'Number in range', active: true, sampleValues: [''], nonEmptyCount: 1 },
+    ];
+    const rows: InputRow[] = [
+      { rowNumber: 1, values: { 'number-outside-range': '', 'number-in-range': '12' } },
+      { rowNumber: 2, values: { 'number-outside-range': '', 'number-in-range': '' } },
+      { rowNumber: 8, values: { 'number-outside-range': '999', 'number-in-range': '' } },
+    ];
+    const markup = renderToStaticMarkup(
+      <StepSourceFields
+        label="Qué valor usar"
+        source={{ type: 'fixedText', value: '999' }}
+        inputColumns={columns}
+        inputRows={rows}
+        inputCompatibilityRows={rows.slice(0, 2)}
+        allowPreviousResult={false}
+        valueKind="number"
+        fixedTextInputType="number"
+        columnTextPickerOpen
+        limitColumnTextPickerToCompatibleColumns={false}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(getCompatibleStepValueInputColumns(columns, 'number', rows.slice(0, 2)).map((column) => column.id)).toEqual(['number-in-range']);
+    expect(markup).toContain('A - Number outside range');
+    expect(markup).toContain('999');
+  });
+
+  it('keeps general editor typed compatibility based on column samples', () => {
+    const columns: InputColumn[] = [
+      { id: 'number-sample', columnIndex: 0, columnLetter: 'A', label: 'A', header: 'Number sample', active: true, sampleValues: ['999'], nonEmptyCount: 1 },
+      { id: 'text-sample', columnIndex: 1, columnLetter: 'B', label: 'B', header: 'Text sample', active: true, sampleValues: ['ABC'], nonEmptyCount: 1 },
+    ];
+
+    expect(getStepValueSourceOptions(columns, 'number', false).map((option) => option.label)).toEqual([
+      'A - Number sample',
+      'Valor fijo',
+      'Elegir valor desde celda',
+    ]);
+  });
+
   it('renders range text sources inside the range value operation editor', () => {
     const markup = renderRangeValueEditor({
       id: 'range-8-9',
@@ -5757,6 +5858,40 @@ describe('constructor helpers', () => {
     expect(getNumericOperandInputColumns(columns, [
       { rowNumber: 1, values: { text: 'LISTA DE PRECIOS', mixed: '576087' } },
     ]).map((column) => column.id)).toEqual(['currency', 'mixed']);
+  });
+
+  it('filters range numeric operand columns with covered rows only', () => {
+    const columns: InputColumn[] = [
+      { id: 'inside', columnIndex: 0, columnLetter: 'A', label: 'A', header: 'Inside', active: true, sampleValues: [''], nonEmptyCount: 1 },
+      { id: 'outside', columnIndex: 1, columnLetter: 'B', label: 'B', header: 'Outside', active: true, sampleValues: ['999'], nonEmptyCount: 1 },
+    ];
+    const coveredRows = [
+      { rowNumber: 1, values: { inside: '12', outside: '' } },
+      { rowNumber: 2, values: { inside: '', outside: '' } },
+    ];
+    const markup = renderToStaticMarkup(
+      <StepEditorBlock
+        step={{
+          id: 'range-numeric-operands',
+          mode: 'number',
+          type: 'numericOperation',
+          operation: 'add',
+          leftOperand: { type: 'input', inputColumnId: 'inside' },
+          rightOperand: { type: 'fixedText', value: '10' },
+        }}
+        context={{ kind: 'range', stepIndex: 0 }}
+        inputColumns={columns}
+        manualRangeRows={[...coveredRows, { rowNumber: 8, values: { inside: '', outside: '999' } }]}
+        inputCompatibilityRows={coveredRows}
+        onChange={() => undefined}
+        onReplace={() => undefined}
+      />,
+    );
+
+    expect(getNumericOperandInputColumns(columns, coveredRows, { includeSampleValues: false }).map((column) => column.id)).toEqual(['inside']);
+    expect(markup).toContain('A - Inside');
+    expect(markup).not.toContain('B - Outside');
+    expect(markup).not.toContain('No se muestran algunas columnas porque no contienen valores numéricos compatibles.');
   });
 
   it('shows a clear state when numeric operands have no available columns', () => {

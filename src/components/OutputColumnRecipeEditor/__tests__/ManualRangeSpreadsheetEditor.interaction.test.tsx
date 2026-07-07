@@ -450,7 +450,10 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     render(
       <ManualRangeAdvancedRangeModal
         open recipe={recipe} range={unconfiguredRange} inputColumns={numericColumns}
-        manualRangeRows={[]} visibleColumnIds={['text']} showResultColumn
+        manualRangeRows={[
+          { rowNumber: 8, values: { text: 'ACCESORIOS', mixed: '576087', currency: '$ 1,948.63' } },
+          { rowNumber: 9, values: { text: 'PINCEL', mixed: '', currency: '' } },
+        ]} visibleColumnIds={['text']} showResultColumn
         onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
       />,
     );
@@ -653,7 +656,10 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     render(
       <ManualRangeAdvancedRangeModal
         open recipe={recipe} range={unconfiguredRange} inputColumns={inputColumns}
-        manualRangeRows={manualRangeRows} visibleColumnIds={['input-code']} showResultColumn
+        manualRangeRows={[
+          { rowNumber: 8, values: { 'input-code': '2026-07-02' } },
+          { rowNumber: 12, values: { 'input-code': '2026-07-03' } },
+        ]} visibleColumnIds={['input-code']} showResultColumn
         onChange={() => undefined} onClose={() => undefined} onRemove={() => undefined}
       />,
     );

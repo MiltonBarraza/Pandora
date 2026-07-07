@@ -359,6 +359,7 @@ function RangeValueStepsEditor({
             uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
             inputColumns={inputColumns}
             manualRangeRows={manualRangeRows}
+            inputCompatibilityRows={rangeRows}
             showHeader={false}
             showCondition={!isPrimaryConcat}
             fixedTextInputLabel={fixedTextInputLabel}
@@ -374,6 +375,7 @@ function RangeValueStepsEditor({
           uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
           inputColumns={inputColumns}
           manualRangeRows={manualRangeRows}
+          inputCompatibilityRows={rangeRows}
           title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext, inputColumns)}`}
           fixedTextInputLabel={fixedTextInputLabel}
           showCondition={!isPrimaryConcat}
@@ -405,6 +407,7 @@ function RangeValueStepsEditor({
                 stepNumber={showAdditionalStepsHeader ? undefined : index + 2}
                 inputColumns={inputColumns}
                 manualRangeRows={manualRangeRows}
+                inputCompatibilityRows={rangeRows}
                 context={createRangeValueStepContext(contextKind, index + 1 + primaryStepIndex, inputColumns)}
                 uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${index + 1 + primaryStepIndex}` : undefined}
                 previousResultPreviewValue={getPreviousStepPreviewValue(index + 1 + primaryStepIndex)}
@@ -476,6 +479,7 @@ function RangeValueStepEditor({
   stepNumber,
   inputColumns,
   manualRangeRows,
+  inputCompatibilityRows,
   context,
   uiStateKey,
   previousResultPreviewValue,
@@ -489,6 +493,7 @@ function RangeValueStepEditor({
   stepNumber?: number;
   inputColumns: InputColumn[];
   manualRangeRows?: InputRow[];
+  inputCompatibilityRows?: InputRow[];
   context: StepEditorContext;
   uiStateKey?: string;
   previousResultPreviewValue?: string | null;
@@ -508,6 +513,7 @@ function RangeValueStepEditor({
       uiStateKey={uiStateKey}
       inputColumns={inputColumns}
       manualRangeRows={manualRangeRows}
+      inputCompatibilityRows={inputCompatibilityRows}
       title={title}
       canDelete
       previousResultPreviewValue={previousResultPreviewValue}

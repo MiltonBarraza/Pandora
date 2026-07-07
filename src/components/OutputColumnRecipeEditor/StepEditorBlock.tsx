@@ -66,6 +66,7 @@ type StepEditorBlockProps = {
   context: StepEditorContext;
   inputColumns: InputColumn[];
   manualRangeRows?: InputRow[];
+  inputCompatibilityRows?: InputRow[];
   title?: string;
   canDelete?: boolean;
   showHeader?: boolean;
@@ -128,6 +129,7 @@ export function StepEditorBlock({
   context,
   inputColumns,
   manualRangeRows = [],
+  inputCompatibilityRows,
   title,
   canDelete = false,
   showHeader = true,
@@ -210,6 +212,7 @@ export function StepEditorBlock({
       stepSource,
       inputColumns,
       manualRangeRows,
+      inputCompatibilityRows,
       fixedTextInputLabel,
       hideTransformSourceFields,
       previousResultPreviewValue,
@@ -308,6 +311,7 @@ function renderDefaultFields({
   stepSource,
   inputColumns,
   manualRangeRows,
+  inputCompatibilityRows,
   fixedTextInputLabel,
   hideTransformSourceFields,
   previousResultPreviewValue,
@@ -323,6 +327,7 @@ function renderDefaultFields({
   stepSource: StepSource;
   inputColumns: InputColumn[];
   manualRangeRows: InputRow[];
+  inputCompatibilityRows?: InputRow[];
   fixedTextInputLabel?: string;
   hideTransformSourceFields?: boolean;
   previousResultPreviewValue?: string | null;
@@ -355,6 +360,7 @@ function renderDefaultFields({
           source={stepSource}
           inputColumns={inputColumns}
           inputRows={manualRangeRows}
+          inputCompatibilityRows={inputCompatibilityRows}
           allowPreviousResult={allowPreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
           previousResultDisplay={previousResultDisplay}
@@ -378,12 +384,14 @@ function renderDefaultFields({
           source={getTypedStepSource(stepSource)}
           inputColumns={inputColumns}
           inputRows={manualRangeRows}
+          inputCompatibilityRows={inputCompatibilityRows}
           allowPreviousResult={allowPreviousResult}
           previousResultPreviewValue={previousResultPreviewValue}
           previousResultDisplay={previousResultDisplay}
           fixedTextInputType={mode === 'number' ? 'number' : 'date'}
           fixedTextInputLabel={mode === 'number' ? 'Valor fijo' : 'Fecha fija'}
           valueKind={mode}
+          limitColumnTextPickerToCompatibleColumns={!isRangeEditorContext(context)}
           onChange={onSourceChange}
         />
       );
@@ -398,6 +406,7 @@ function renderDefaultFields({
       source={stepSource}
       inputColumns={inputColumns}
       inputRows={manualRangeRows}
+      inputCompatibilityRows={inputCompatibilityRows}
       allowPreviousResult={allowPreviousResult}
       previousResultPreviewValue={previousResultPreviewValue}
       previousResultDisplay={previousResultDisplay}
@@ -409,6 +418,7 @@ function renderDefaultFields({
       sourceOptionsConfig={getSourceOptionsConfigForStep(step, context)}
       labelInfoText={getStepSourceHelpText(step.type)}
       {...conversionPickerProps}
+      limitColumnTextPickerToCompatibleColumns={!isRangeEditorContext(context)}
       afterSourceSelector={afterSourceSelector}
       onChange={onSourceChange}
     />
@@ -471,7 +481,7 @@ function renderDefaultFields({
   if (step.type === 'numericOperation') {
     const leftOperand = getVisibleLeftOperand(step, stepSource);
     const rightOperand = getVisibleRightOperand(step);
-    const numericInputColumns = getNumericOperandInputColumns(inputColumns, manualRangeRows);
+    const numericInputColumns = getNumericOperandInputColumns(inputColumns, inputCompatibilityRows ?? manualRangeRows, { includeSampleValues: !inputCompatibilityRows });
     const operandLabels = getNumericOperandLabels(step.operation);
     const numericWarning = getNumericOperationUiWarning(step.operation, leftOperand, rightOperand);
     const numericCompatibilityHint = getColumnCompatibilityHint('number', inputColumns.length, numericInputColumns.length);
@@ -662,14 +672,19 @@ function createNewNumericOperationStep(stepId: string, context: StepEditorContex
   };
 }
 
-export function getNumericOperandInputColumns(inputColumns: InputColumn[], rows: InputRow[]) {
+export function getNumericOperandInputColumns(inputColumns: InputColumn[], rows: InputRow[], options: { includeSampleValues?: boolean } = {}) {
+  const includeSampleValues = options.includeSampleValues ?? true;
   return inputColumns.filter((inputColumn) => {
     const values = [
-      ...inputColumn.sampleValues,
+      ...(includeSampleValues ? inputColumn.sampleValues : []),
       ...rows.map((row) => row.values[inputColumn.id] ?? ''),
     ];
     return values.some((value) => parseNumericValue(value) !== null);
   });
+}
+
+function isRangeEditorContext(context: StepEditorContext) {
+  return context.kind === 'range' || context.kind === 'rangeConcat';
 }
 
 export function getNumericOperationUiWarning(
