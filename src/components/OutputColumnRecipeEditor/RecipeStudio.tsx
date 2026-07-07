@@ -288,13 +288,13 @@ function CompositionTokenList({
           <div className="compositionTokenSlot">
             {token.index > 0 ? <span className="compositionJoiner">{separator ? JSON.stringify(separator) : '+'}</span> : null}
             <div className={`compositionTokenCard compositionToken-${token.kind}${token.id === selectedTokenId ? ' selected' : ' unselected'}`}>
-              {dragHandle}
               <CompositionToken
                 token={token}
                 selected={token.id === selectedTokenId}
                 onClick={() => onSelect(token.id)}
               />
               <div className="compositionTokenActions">
+                {dragHandle}
                 <InfoTooltip content="Eliminar parte">
                   <DeleteButton title="Eliminar parte" onClick={() => onRemove(token.id)} />
                 </InfoTooltip>

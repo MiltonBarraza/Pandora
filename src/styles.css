@@ -2162,7 +2162,7 @@ tbody tr:hover {
   border-radius: 7px;
   display: grid;
   gap: 6px;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 46px;
   min-width: 0;
   padding: 6px;
@@ -2256,6 +2256,34 @@ tbody tr:hover {
 
 .outputColumnActions .infoTooltipCustomTrigger {
   display: inline-flex;
+}
+
+.outputColumnActions .dragHandle {
+  border-radius: 6px;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  color: var(--color-text-secondary);
+  height: 40px;
+  min-height: 40px;
+  width: 40px;
+}
+
+.outputColumnActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.outputColumnListItem.selected .outputColumnActions .dragHandle {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
+  color: var(--color-text-secondary);
+}
+
+.outputColumnListItem.selected .outputColumnActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
 }
 
 .outputColumnDetailPanel {
@@ -4277,8 +4305,10 @@ tbody tr:hover {
 }
 
 .columnTransferItem.isSelected {
-  border-color: var(--color-focus-border);
-  box-shadow: inset 3px 0 0 var(--color-focus-border), 0 0 0 2px var(--color-focus-ring);
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+  color: var(--color-selected-text);
 }
 
 .columnTransferSelectArea {
@@ -4421,9 +4451,30 @@ tbody tr:hover {
 }
 
 .columnTransferActions .dragHandle {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  color: var(--color-text-secondary);
   height: 40px;
   min-height: 40px;
   width: 40px;
+}
+
+.columnTransferActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.columnTransferItem.isSelected .columnTransferActions .dragHandle {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
+  color: var(--color-text-secondary);
+}
+
+.columnTransferItem.isSelected .columnTransferActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
 }
 
 .columnTransferItem.hasAlias .columnTransferActions {

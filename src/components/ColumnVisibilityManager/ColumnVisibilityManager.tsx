@@ -390,6 +390,7 @@ function ColumnTransferItem({
             </button>
           </InfoTooltip>
         ) : null}
+        {showAliasInput ? dragHandle : null}
         {showAliasInput ? (
           <InfoTooltip content={actionLabel}>
             <button
@@ -411,7 +412,6 @@ function ColumnTransferItem({
             {actionLabel}
           </button>
         )}
-        {dragHandle}
       </div>
     </article>
   );
