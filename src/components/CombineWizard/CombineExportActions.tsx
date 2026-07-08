@@ -69,7 +69,7 @@ export function CombineExportActions({
   return (
     <>
       <section className="panel combineFlowPanel combineFileNamePanel">
-        <h2>6. Nombre del archivo</h2>
+        <h2>5. Nombre del archivo</h2>
         <div className="manager combineExportNameManager">
           <div className="segmentedControl">
             <label>
@@ -145,7 +145,7 @@ export function CombineExportActions({
       </section>
 
       <section className="panel combineFlowPanel combineExportPanel">
-        <h2>7. Descargar archivo</h2>
+        <h2>6. Descargar archivo</h2>
         <div className="combineExportSummaryRow">
           <p className="muted combineExportSummary">
             Se exportarán {combinedRows.length} {combinedRows.length === 1 ? 'fila' : 'filas'} y{' '}

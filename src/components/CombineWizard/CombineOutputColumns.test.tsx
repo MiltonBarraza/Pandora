@@ -17,12 +17,32 @@ describe('CombineOutputColumns', () => {
     expect(screen.getByRole('button', { name: 'Información sobre las columnas de salida' })).not.toBeNull();
     expect((screen.getByRole('radio', { name: /Por nombre/ }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('radio', { name: /Por posición/ }) as HTMLInputElement).checked).toBe(false);
-    expect(screen.queryByText('Todavía no definiste columnas de salida.')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }).parentElement?.classList).toContain('infoTooltip');
+    expect(screen.getByText('Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Generar columnas' }).parentElement?.classList).toContain('infoTooltip');
     expect(screen.getByRole('button', { name: 'Agregar columna' }).parentElement?.classList).toContain('infoTooltip');
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Usar columnas del primer archivo' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Generar columnas' }));
     expect(onChange).toHaveBeenCalledWith([{ id: expect.any(String), name: 'Código' }]);
+  });
+
+  it('generates columns using position mode when selected', async () => {
+    const onChange = vi.fn();
+    render(
+      <CombineOutputColumns
+        sources={positionSources}
+        outputColumns={[]}
+        onChange={onChange}
+        assignmentMode="position"
+      />,
+    );
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Generar columnas' }));
+
+    expect(onChange).toHaveBeenCalledWith([
+      { id: expect.any(String), name: 'Cod' },
+      { id: expect.any(String), name: 'Producto' },
+      { id: expect.any(String), name: 'Precio' },
+    ]);
   });
 
   it('keeps add, edit and remove behavior in compact rows', async () => {
@@ -71,6 +91,29 @@ describe('CombineOutputColumns', () => {
     expect(onAssignmentModeChange).toHaveBeenCalledWith('position');
   });
 
+  it('shows duplicate column warnings as a compact title tooltip', async () => {
+    const user = userEvent.setup();
+    render(
+      <CombineOutputColumns
+        sources={[source]}
+        outputColumns={[
+          { id: 'output:1', name: 'Código' },
+          { id: 'output:2', name: 'código' },
+        ]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Hay nombres de columnas de salida duplicados.')).toBeNull();
+
+    const title = screen.getByText('2. Columnas de salida').closest('h2');
+    const warningButton = screen.getByRole('button', { name: 'Advertencia: 2. Columnas de salida' });
+    expect(title?.contains(warningButton)).toBe(true);
+
+    await user.hover(warningButton);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Hay nombres de columnas de salida duplicados.');
+  });
+
   it('reorders output columns by dragging the right-side handle', () => {
     const { container } = render(<OutputColumnsHarness />);
     const items = Array.from(container.querySelectorAll<HTMLElement>('.combineOutputColumnItem'));
@@ -105,6 +148,28 @@ const source: CombineSource = {
 const outputColumns: CombineOutputColumn[] = [
   { id: 'output:1', name: 'Código' },
   { id: 'output:2', name: 'Nombre' },
+];
+
+const positionSources: CombineSource[] = [
+  {
+    id: 'source:short',
+    fileName: 'corto.xlsx',
+    columns: [
+      { id: 'short:code', name: 'Cod', index: 0 },
+      { id: 'short:product', name: 'Producto', index: 1 },
+    ],
+    rows: [],
+  },
+  {
+    id: 'source:long',
+    fileName: 'largo.xlsx',
+    columns: [
+      { id: 'long:code', name: 'Código', index: 0 },
+      { id: 'long:description', name: 'Descripción', index: 1 },
+      { id: 'long:price', name: 'Precio', index: 2 },
+    ],
+    rows: [],
+  },
 ];
 
 function createDataTransfer() {

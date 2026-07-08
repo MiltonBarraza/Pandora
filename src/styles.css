@@ -887,6 +887,10 @@ h3 {
   display: inline-flex;
 }
 
+.combineAddSheetButton {
+  min-height: 34px;
+}
+
 .combineSourceItem .actionButton-iconOnly,
 .combineOutputColumnItem .actionButton-iconOnly {
   height: 34px;
@@ -922,32 +926,6 @@ h3 {
   width: 1px;
 }
 
-.combineSettingsPanel {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-}
-
-.combineSettingsPanel > h2 {
-  margin: 0;
-}
-
-.combineSettingsToolbar {
-  align-items: center;
-  display: flex;
-  gap: 12px 16px;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-
-.combineSettingsToolbar > p {
-  margin: 0;
-}
-
-.combineSettingsActions {
-  flex: 0 0 auto;
-  gap: 8px;
-}
-
 .combineOutputColumnsPanel {
   padding-block: 12px;
 }
@@ -961,6 +939,10 @@ h3 {
   display: flex;
   gap: 12px 16px;
   justify-content: space-between;
+  margin-top: 12px;
+}
+
+.combineOutputColumnsEmpty {
   margin-top: 12px;
 }
 
@@ -1364,6 +1346,10 @@ h3 {
   min-height: 40px;
 }
 
+.combineResultSortHelper {
+  margin: -4px 0 12px;
+}
+
 .combinePreviewEmpty {
   padding: 16px;
 }
@@ -1476,14 +1462,6 @@ h3 {
   min-height: 36px;
 }
 
-.combineSettingsFileInput {
-  display: none;
-}
-
-.combineSettingsMessage {
-  margin: 12px 0 0;
-}
-
 @media (max-width: 720px) {
   .combineResultSortControls {
     align-items: stretch;
@@ -1494,7 +1472,6 @@ h3 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .combineSettingsToolbar,
   .combineOutputColumnsToolbar,
   .combineMappingsToolbar {
     align-items: stretch;
@@ -1528,8 +1505,6 @@ h3 {
     white-space: normal;
   }
 
-  .combineSettingsActions,
-  .combineSettingsActions .actionButton,
   .combineOutputColumnsActions,
   .combineOutputColumnsActions .infoTooltip,
   .combineOutputColumnsActions .actionButton {

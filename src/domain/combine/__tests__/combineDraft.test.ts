@@ -84,9 +84,22 @@ describe('restoreCombineDraft', () => {
 
     expect(restored.hasDraft).toBe(true);
     expect(restored.hasDiscardedSourceState).toBe(true);
+    expect(restored.columnAssignmentMode).toBe('name');
     expect(restored.sourceOrder).toEqual(['basket:2']);
     expect(restored.mappings).toEqual([]);
-    expect(restored.outputColumns).toEqual([{ id: 'code', name: 'Código' }]);
+    expect(restored.outputColumns).toEqual([]);
+    expect(restored.resultSort.columnId).toBeNull();
+  });
+
+  it('does not restore output columns or mappings when no saved sources are available', () => {
+    const restored = restoreCombineDraft(createDraft(), []);
+
+    expect(restored.hasDraft).toBe(true);
+    expect(restored.hasDiscardedSourceState).toBe(true);
+    expect(restored.columnAssignmentMode).toBe('name');
+    expect(restored.outputColumns).toEqual([]);
+    expect(restored.mappings).toEqual([]);
+    expect(restored.resultSort.columnId).toBeNull();
   });
 
   it('disables sorting when its saved column no longer exists', () => {
