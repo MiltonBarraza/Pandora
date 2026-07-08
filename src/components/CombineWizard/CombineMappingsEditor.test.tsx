@@ -29,7 +29,7 @@ describe('CombineMappingsEditor accordion', () => {
     const firstToggle = screen.getByRole('button', { name: /a\.xlsx/ });
     const secondToggle = screen.getByRole('button', { name: /b\.csv/ });
     await waitFor(() => expect(firstToggle.getAttribute('aria-expanded')).toBe('true'));
-    expect(screen.getByRole('heading', { name: '4. Asignar columnas' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '3. Asignar columnas' })).not.toBeNull();
     expect(screen.queryByRole('heading', { name: '4. Mapeo' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Reasignar columnas' }).parentElement?.classList).toContain('infoTooltip');
     expect(screen.getByText('1/2 columnas asignadas')).not.toBeNull();

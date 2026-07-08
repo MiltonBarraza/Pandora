@@ -6,7 +6,6 @@ import {
   buildSuggestedCombineOutputColumns,
   reapplyCombineMappings,
 } from '../../domain/combine/combineColumnMappings';
-import type { AppliedCombineSettings } from '../../domain/combine/combineSettings';
 import {
   clearCombineDraft,
   loadCombineDraft,
@@ -35,6 +34,7 @@ import type {
   SourceMetadataOptions,
 } from '../../types/combine';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
@@ -43,9 +43,7 @@ import { CombinedRowsPreview } from './CombinedRowsPreview';
 import { CombineExportActions } from './CombineExportActions';
 import { CombineMappingsEditor } from './CombineMappingsEditor';
 import { CombineOutputColumns } from './CombineOutputColumns';
-import { CombineSettingsActions } from './CombineSettingsActions';
 import { MultipleFileUploader } from './MultipleFileUploader';
-import { showInfoToast } from '../../services/toastService';
 
 type CombineWizardProps = {
   appearanceToolbar?: ReactNode;
@@ -73,7 +71,6 @@ export function CombineWizard({
   const [isReading, setIsReading] = useState(false);
   const [readingFileCount, setReadingFileCount] = useState(0);
   const [changingSourceSheetId, setChangingSourceSheetId] = useState<string | null>(null);
-  const [hasImportedSettings, setHasImportedSettings] = useState(false);
   const [columnAssignmentMode, setColumnAssignmentMode] = useState<ColumnAssignmentMode>(restoredDraft.columnAssignmentMode);
   const [pendingAssignmentMode, setPendingAssignmentMode] = useState<ColumnAssignmentMode | null>(null);
   const [sourceOrder, setSourceOrder] = useState<string[]>(restoredDraft.sourceOrder);
@@ -85,7 +82,6 @@ export function CombineWizard({
   const draftSaveTimeoutRef = useRef<number | null>(null);
   const pendingDraftRef = useRef<CombineDraft | null>(null);
   const savedDraftSignatureRef = useRef(initialDraft ? JSON.stringify(initialDraft) : null);
-  const hasAutoInitializedOutputColumnsRef = useRef(restoredDraft.outputColumns.length > 0);
   const uploadedSources = useMemo(
     () => loadedUploadedSources.map((loadedSource) => loadedSource.source),
     [loadedUploadedSources],
@@ -120,41 +116,11 @@ export function CombineWizard({
   }, [sources, outputColumns, columnAssignmentMode]);
 
   useEffect(() => {
-    if (sources.length === 0) {
-      hasAutoInitializedOutputColumnsRef.current = false;
-      return;
-    }
-
-    if (
-      uploadedSources.length > 0
-      && outputColumns.length === 0
-      && !hasAutoInitializedOutputColumnsRef.current
-    ) {
-      setOutputColumns(buildSuggestedCombineOutputColumns(sources, columnAssignmentMode));
-      hasAutoInitializedOutputColumnsRef.current = true;
-      return;
-    }
-
-    if (outputColumns.length > 0) {
-      hasAutoInitializedOutputColumnsRef.current = true;
-    }
-
-    if (columnAssignmentMode !== 'position') {
-      return;
-    }
-    setOutputColumns((current) => {
-      const suggested = buildSuggestedCombineOutputColumns(sources, 'position', current);
-      return combineOutputColumnsEqual(current, suggested) ? current : suggested;
-    });
-  }, [sources, columnAssignmentMode, outputColumns.length, uploadedSources.length]);
-
-  useEffect(() => {
     onLocalStatePresenceChange?.(
       loadedUploadedSources.length > 0
         || outputColumns.length > 0
         || mappings.length > 0
         || outputFileName !== 'Archivo combinado'
-        || hasImportedSettings
         || columnAssignmentMode !== 'name'
         || sourceOrder.length > 0
         || resultSort.columnId !== null
@@ -166,7 +132,6 @@ export function CombineWizard({
     outputColumns.length,
     mappings.length,
     outputFileName,
-    hasImportedSettings,
     columnAssignmentMode,
     sourceOrder.length,
     resultSort.columnId,
@@ -279,21 +244,47 @@ export function CombineWizard({
     pendingDraftRef.current = null;
   };
 
-  const applySettings = (settings: AppliedCombineSettings) => {
-    setHasImportedSettings(true);
-    setOutputColumns(settings.outputColumns);
-    setMappings(settings.mappings);
-    setOutputFileName(settings.outputFileName);
-    setColumnAssignmentMode(settings.columnAssignmentMode);
-    setResultSort(settings.resultSort);
-    setSourceMetadataOptions(settings.sourceMetadataOptions);
-  };
+  const getUsedWorkbookSheetNames = (workbook: Extract<LoadedCombineSource, { kind: 'excel' }>['workbook'], exceptSourceId?: string) => new Set(
+    loadedUploadedSources.flatMap((loadedSource) => (
+      loadedSource.kind === 'excel'
+      && loadedSource.workbook === workbook
+      && loadedSource.source.id !== exceptSourceId
+      && loadedSource.source.sheetName
+        ? [loadedSource.source.sheetName]
+        : []
+    )),
+  );
 
-  const clearTemporaryDraft = () => {
-    cancelPendingDraftSave();
-    savedDraftSignatureRef.current = null;
-    clearCombineDraft();
-    showInfoToast('Borrador temporal de Combinar archivos eliminado.');
+  const addUploadedSourceSheet = (sourceId: string) => {
+    const loadedSource = loadedUploadedSourcesById.get(sourceId);
+    if (loadedSource?.kind !== 'excel') {
+      return;
+    }
+
+    const usedSheetNames = getUsedWorkbookSheetNames(loadedSource.workbook);
+    const nextSheetName = loadedSource.sheetNames.find((sheetName) => !usedSheetNames.has(sheetName));
+    if (!nextSheetName) {
+      return;
+    }
+
+    const nextSourceId = `source:${nextSourceIndexRef.current++}`;
+    const nextSource = createCombineSourceFromWorkbookSheet({
+      workbook: loadedSource.workbook,
+      fileName: loadedSource.source.fileName,
+      sourceId: nextSourceId,
+      sheetName: nextSheetName,
+    });
+
+    setLoadedUploadedSources((current) => [
+      ...current,
+      {
+        kind: 'excel',
+        source: nextSource,
+        sheetNames: loadedSource.sheetNames,
+        workbook: loadedSource.workbook,
+      },
+    ]);
+    setSourceOrder(() => [...sources.map((source) => source.id), nextSourceId]);
   };
 
   const applyAssignmentMode = (nextMode: ColumnAssignmentMode) => {
@@ -316,7 +307,7 @@ export function CombineWizard({
       setPendingAssignmentMode(nextMode);
       return;
     }
-    applyAssignmentMode(nextMode);
+    setColumnAssignmentMode(nextMode);
   };
 
   const combinedRows = useMemo(() => buildCombinedRows({
@@ -394,6 +385,9 @@ export function CombineWizard({
     }
     if (loadedSource.source.sheetName === nextSheetName) {
       setReadErrors((current) => current.filter((error) => error.id !== `sheet:${sourceId}`));
+      return;
+    }
+    if (getUsedWorkbookSheetNames(loadedSource.workbook, sourceId).has(nextSheetName)) {
       return;
     }
 
@@ -536,10 +530,10 @@ export function CombineWizard({
           {sources.length > 0 ? (
             <>
               <div className="combineSourcesHeader">
-                <h3>Archivos cargados</h3>
+                <h3>Fuentes cargadas</h3>
                 <span
                   className="combineSourcesCount"
-                  aria-label={`${sources.length} ${sources.length === 1 ? 'archivo cargado' : 'archivos cargados'}`}
+                  aria-label={`${sources.length} ${sources.length === 1 ? 'fuente cargada' : 'fuentes cargadas'}`}
                 >
                   {sources.length}
                 </span>
@@ -557,6 +551,16 @@ export function CombineWizard({
                   const hasSheetSelector = loadedSource?.kind === 'excel'
                     && loadedSource.sheetNames.length > 1;
                   const isSourceSheetProcessing = changingSourceSheetId === source.id;
+                  const usedWorkbookSheetNames = loadedSource?.kind === 'excel'
+                    ? getUsedWorkbookSheetNames(loadedSource.workbook, source.id)
+                    : new Set<string>();
+                  const availableWorkbookSheets = loadedSource?.kind === 'excel'
+                    ? loadedSource.sheetNames.filter((sheetName) => (
+                      sheetName !== source.sheetName && !usedWorkbookSheetNames.has(sheetName)
+                    ))
+                    : [];
+                  const canAddWorkbookSheet = loadedSource?.kind === 'excel'
+                    && loadedSource.sheetNames.length > 1;
 
                   return (
                     <article
@@ -588,11 +592,12 @@ export function CombineWizard({
                         {hasSheetSelector ? (
                           <Dropdown
                             className="compact combineSourceSheetSelector"
-                            label="Hoja usada"
+                            label="Hoja"
                             value={source.sheetName ?? ''}
                             options={loadedSource.sheetNames.map((sheetName) => ({
                               value: sheetName,
-                              label: sheetName,
+                              label: usedWorkbookSheetNames.has(sheetName) ? `${sheetName} (ya agregada)` : sheetName,
+                              disabled: usedWorkbookSheetNames.has(sheetName),
                             }))}
                             disabled={isSourceSheetProcessing}
                             onChange={(sheetName) => void changeUploadedSourceSheet(source.id, sheetName)}
@@ -611,6 +616,22 @@ export function CombineWizard({
                         </p>
                       </div>
                       <div className="combineSourceActions">
+                        {canAddWorkbookSheet ? (
+                          <InfoTooltip
+                            content={availableWorkbookSheets.length > 0 ? 'Agregar hoja' : 'Todas las hojas ya fueron agregadas'}
+                            placement="left"
+                          >
+                            <ActionButton
+                              action="add"
+                              variant="icon"
+                              size="sm"
+                              className="combineAddSheetButton"
+                              aria-label="Agregar hoja"
+                              disabled={availableWorkbookSheets.length === 0 || isSourceSheetProcessing}
+                              onClick={() => addUploadedSourceSheet(source.id)}
+                            />
+                          </InfoTooltip>
+                        ) : null}
                         <span
                           className="dragHandle combineSourceDragHandle"
                           draggable={!isSourceSheetProcessing}
@@ -638,31 +659,13 @@ export function CombineWizard({
           ) : null}
         </section>
         {sources.length > 0 ? (
-          <>
-            <CombineSettingsActions
-              sources={sources}
-              outputColumns={outputColumns}
-              mappings={mappings}
-              outputFileName={outputFileName}
-              columnAssignmentMode={columnAssignmentMode}
-              resultSort={resultSort}
-              sourceMetadataOptions={sourceMetadataOptions}
-              onClearDraft={clearTemporaryDraft}
-              onIncompatibleSettings={() => {
-                cancelPendingDraftSave();
-                savedDraftSignatureRef.current = null;
-                clearCombineDraft();
-              }}
-              onApplySettings={applySettings}
-            />
-            <CombineOutputColumns
-              sources={sources}
-              outputColumns={outputColumns}
-              onChange={setOutputColumns}
-              assignmentMode={columnAssignmentMode}
-              onAssignmentModeChange={requestAssignmentMode}
-            />
-          </>
+          <CombineOutputColumns
+            sources={sources}
+            outputColumns={outputColumns}
+            onChange={setOutputColumns}
+            assignmentMode={columnAssignmentMode}
+            onAssignmentModeChange={requestAssignmentMode}
+          />
         ) : null}
         {sources.length > 0 && outputColumns.length > 0 ? (
           <>
@@ -746,12 +749,6 @@ export function reorderCombineSources(sources: CombineSource[], fromIndex: numbe
   const [movedSource] = reordered.splice(fromIndex, 1);
   reordered.splice(toIndex, 0, movedSource);
   return reordered;
-}
-
-function combineOutputColumnsEqual(left: CombineOutputColumn[], right: CombineOutputColumn[]) {
-  return left.length === right.length && left.every((column, index) => (
-    column.id === right[index]?.id && column.name === right[index]?.name
-  ));
 }
 
 function combineMappingsEqual(left: CombineColumnMapping[], right: CombineColumnMapping[]) {

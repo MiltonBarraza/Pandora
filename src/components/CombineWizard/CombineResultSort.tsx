@@ -54,6 +54,11 @@ export function CombineResultSort({ outputColumns, resultSort, onChange }: Combi
           </button>
         ) : null}
       </div>
+      {!resultSort.columnId ? (
+        <p className="muted combineResultSortHelper">
+          Sin ordenar, las filas se combinan siguiendo el orden de los archivos cargados.
+        </p>
+      ) : null}
     </div>
   );
 }

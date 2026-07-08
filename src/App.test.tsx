@@ -91,7 +91,7 @@ describe('App combine basket wiring', () => {
     expect(screen.getByRole('heading', { name: '¿Qué querés hacer?' })).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
-    expect(screen.getByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
+    expect(await screen.findByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
   });
 
   it('leaves an empty sanitizer without confirmation', async () => {

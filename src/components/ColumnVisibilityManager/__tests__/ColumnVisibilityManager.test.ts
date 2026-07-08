@@ -499,6 +499,8 @@ describe('ColumnVisibilityManager quick actions', () => {
     expect(markup).toContain('columnTransferIconAction');
     expect(markup).not.toContain('>Ver ejemplos</button>');
     expect(markup).not.toContain('>Quitar</button>');
+    expect(markup.indexOf('aria-label="Ver ejemplos"')).toBeLessThan(markup.indexOf('aria-label="Arrastrar para ordenar"'));
+    expect(markup.indexOf('aria-label="Arrastrar para ordenar"')).toBeLessThan(markup.indexOf('aria-label="Quitar columna A"'));
   });
 
   it('labels the examples payload', () => {

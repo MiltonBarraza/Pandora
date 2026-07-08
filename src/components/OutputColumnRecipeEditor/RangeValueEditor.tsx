@@ -602,12 +602,12 @@ function RangeValueConcatEditor({
                 <div className="compositionTokenSlot">
                   {index > 0 ? <span className="compositionJoiner">{part.separatorBefore ? JSON.stringify(part.separatorBefore) : '+'}</span> : null}
                   <div className={`compositionTokenCard compositionToken-${kind}${selected ? ' selected' : ' unselected'}`}>
-                    {handle}
                     <button type="button" className={`compositionToken compositionToken-${kind}${selected ? ' selected' : ''}`} aria-pressed={selected} onClick={() => setSelectedPartId(part.id)}>
                       <span>Parte {index + 1}</span>
                       <small>{describeRangeValueConcatPartSource(part, inputColumns)}</small>
                     </button>
                     <div className="compositionTokenActions">
+                      {handle}
                       {safeParts.length > 1 ? (
                         <InfoTooltip content="Eliminar parte">
                           <DeleteButton title="Eliminar parte" onClick={() => deletePart(part.id)} />

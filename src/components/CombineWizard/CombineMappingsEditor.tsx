@@ -62,7 +62,7 @@ export function CombineMappingsEditor({
         }}
       />
       <h2 className="headingWithInfo">
-        <span>4. Asignar columnas</span>
+        <span>3. Asignar columnas</span>
         <InfoTooltip
           ariaLabel="Información sobre la asignación de columnas"
           placement="right"

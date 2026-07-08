@@ -28,8 +28,8 @@ describe('CombineExportActions', () => {
     const user = userEvent.setup();
     render(<ExportHarness />);
 
-    expect(screen.getByRole('heading', { name: '6. Nombre del archivo' })).not.toBeNull();
-    expect(screen.getByRole('heading', { name: '7. Descargar archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '5. Nombre del archivo' })).not.toBeNull();
+    expect(screen.getByRole('heading', { name: '6. Descargar archivo' })).not.toBeNull();
     expect((screen.getByLabelText('Nombre predeterminado') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText('Nombre personalizado') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Incluir texto base') as HTMLInputElement).checked).toBe(true);

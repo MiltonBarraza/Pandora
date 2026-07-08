@@ -31,6 +31,9 @@ describe('CombinedRowsPreview limits', () => {
 
     expect(container.querySelectorAll('.combinePreviewTable tbody tr')).toHaveLength(30);
     expect(container.textContent).toContain('Mostrando las primeras 30 de 45 filas combinadas.');
+    expect(screen.getByText('Sin ordenar, las filas se combinan siguiendo el orden de los archivos cargados.')).not.toBeNull();
+    expect(screen.getByRole('radio', { name: 'Ascendente' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('radio', { name: 'Descendente' })).toHaveProperty('disabled', true);
     const summary = container.querySelector('.combinePreviewSummary');
     const sortPanel = container.querySelector('.combineResultSortPanel');
     const limit = container.querySelector('.combinePreviewLimit');
@@ -40,6 +43,29 @@ describe('CombinedRowsPreview limits', () => {
     const exportAoA = buildCombinedExportAoA({ outputColumns, combinedRows: rows });
     expect(exportAoA).toHaveLength(46);
     expect(exportAoA[45]).toEqual(['Valor 45']);
+  });
+
+  it('hides the unsorted order helper when a sort column is selected without changing preview rows', () => {
+    const rows: CombinedRow[] = [
+      { id: 'combined:1', sourceId: 'source:1', sourceFileName: 'b.xlsx', values: { output: 'B' } },
+      { id: 'combined:2', sourceId: 'source:1', sourceFileName: 'a.xlsx', values: { output: 'A' } },
+    ];
+    const { container } = render(
+      <CombinedRowsPreview
+        sources={sources}
+        outputColumns={[{ id: 'output', name: 'Resultado' }]}
+        mappings={[{ sourceId: 'source:1', outputColumnId: 'output', sourceColumnId: 'input' }]}
+        rows={rows}
+        resultSort={{ columnId: 'output', direction: 'asc' }}
+        onResultSortChange={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText('Sin ordenar, las filas se combinan siguiendo el orden de los archivos cargados.')).toBeNull();
+    expect(Array.from(container.querySelectorAll('.combinePreviewTable tbody tr')).map((row) => row.textContent)).toEqual([
+      'b.xlsxB',
+      'a.xlsxA',
+    ]);
   });
 
   it('shows unmapped columns as a compact tooltip chip', async () => {

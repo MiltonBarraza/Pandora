@@ -135,18 +135,26 @@ export function restoreCombineDraft(
   const hasChangedSheets = draft.sourceSheets.some(({ sourceId, sheetName }) => (
     sourcesById.has(sourceId) && sourcesById.get(sourceId)?.sheetName !== sheetName
   ));
+  const hasDiscardedSourceState = hasMissingSources
+    || hasChangedSheets
+    || mappings.length !== draft.mappings.length
+    || sourceOrder.length !== draft.sourceOrder.length;
+  const outputColumns = hasDiscardedSourceState
+    ? []
+    : draft.outputColumns.map((column) => ({ ...column }));
+  const restoredMappings = hasDiscardedSourceState ? [] : mappings;
+  const restoredResultSort = hasDiscardedSourceState
+    ? { ...resultSort, columnId: null }
+    : resultSort;
 
   return {
     hasDraft: true,
-    hasDiscardedSourceState: hasMissingSources
-      || hasChangedSheets
-      || mappings.length !== draft.mappings.length
-      || sourceOrder.length !== draft.sourceOrder.length,
-    columnAssignmentMode: draft.columnAssignmentMode,
-    outputColumns: draft.outputColumns.map((column) => ({ ...column })),
-    mappings,
+    hasDiscardedSourceState,
+    columnAssignmentMode: hasDiscardedSourceState ? 'name' : draft.columnAssignmentMode,
+    outputColumns,
+    mappings: restoredMappings,
     sourceMetadataOptions: { ...draft.sourceMetadataOptions },
-    resultSort,
+    resultSort: restoredResultSort,
     outputFileName: draft.outputFileName,
     sourceOrder,
   };

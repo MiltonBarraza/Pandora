@@ -2,9 +2,11 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import React from 'react';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OutputColumnsManager, shouldApplyGeneratedColumnsResult, shouldShowOutputColumnNameTooltip } from '../OutputColumnsManager';
+import type { OutputColumn } from '../../../types/import';
 
 afterEach(() => {
   cleanup();
@@ -27,7 +29,7 @@ describe('OutputColumnsManager helpers', () => {
     const onChange = vi.fn();
     vi.stubGlobal('crypto', { randomUUID: () => 'output-new' });
 
-    render(React.createElement(OutputColumnsManager, { outputColumns: [], onChange }));
+    render(createElement(OutputColumnsManager, { outputColumns: [], onChange }));
 
     expect(screen.queryByRole('textbox', { name: /Nueva columna/i })).toBeNull();
     expect(screen.queryByPlaceholderText('Nueva columna')).toBeNull();
@@ -46,7 +48,7 @@ describe('OutputColumnsManager helpers', () => {
   it('keeps an existing column recipe unchanged until the operation type changes', () => {
     const onChange = vi.fn();
 
-    render(React.createElement(OutputColumnsManager, {
+    render(createElement(OutputColumnsManager, {
       outputColumns: [{
         id: 'output-current',
         label: 'Cliente',
@@ -61,4 +63,29 @@ describe('OutputColumnsManager helpers', () => {
     expect(screen.getAllByText('Texto fijo').length).toBeGreaterThan(0);
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it('renders configured column actions as duplicate, drag, then delete', () => {
+    const markup = renderToStaticMarkup(createElement(OutputColumnsManager, {
+      outputColumns: [outputColumn('name', 'Nombre'), outputColumn('price', 'Precio')],
+      onChange: () => undefined,
+    }));
+    const itemStart = markup.indexOf('outputColumnListItem selected');
+    const duplicateIndex = markup.indexOf('aria-label="Duplicar columna"', itemStart);
+    const dragIndex = markup.indexOf('aria-label="Reordenar"', itemStart);
+    const deleteIndex = markup.indexOf('aria-label="Eliminar columna"', itemStart);
+
+    expect(duplicateIndex).toBeGreaterThan(itemStart);
+    expect(duplicateIndex).toBeLessThan(dragIndex);
+    expect(dragIndex).toBeLessThan(deleteIndex);
+  });
 });
+
+function outputColumn(id: string, label: string): OutputColumn {
+  return {
+    id,
+    label,
+    order: id === 'name' ? 0 : 1,
+    enabled: true,
+    recipe: { type: 'empty' },
+  };
+}

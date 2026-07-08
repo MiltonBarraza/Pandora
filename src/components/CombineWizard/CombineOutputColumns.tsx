@@ -5,6 +5,7 @@ import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 
 type CombineOutputColumnsProps = {
   sources: CombineSource[];
@@ -23,6 +24,11 @@ export function CombineOutputColumns({
 }: CombineOutputColumnsProps) {
   const hasEmptyNames = outputColumns.some((column) => column.name.trim() === '');
   const hasDuplicateNames = getDuplicateNormalizedNames(outputColumns).length > 0;
+  const outputColumnWarnings = [
+    ...(hasEmptyNames ? ['Hay columnas de salida sin nombre.'] : []),
+    ...(hasDuplicateNames ? ['Hay nombres de columnas de salida duplicados.'] : []),
+  ];
+  const outputColumnWarning = outputColumnWarnings.join(' ');
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
@@ -33,7 +39,7 @@ export function CombineOutputColumns({
     ]);
   };
 
-  const initializeFromFirstSource = () => {
+  const generateColumns = () => {
     if (sources.length === 0) {
       return;
     }
@@ -66,12 +72,15 @@ export function CombineOutputColumns({
   return (
     <section className="panel combineFlowPanel combineOutputColumnsPanel">
       <h2 className="headingWithInfo">
-        <span>3. Columnas de salida</span>
+        <span>2. Columnas de salida</span>
         <InfoTooltip
           ariaLabel="Información sobre las columnas de salida"
           placement="right"
           content="Definí las columnas que tendrá el archivo combinado. Cada archivo cargado se asignará a esta estructura de salida."
         />
+        {outputColumnWarning ? (
+          <WarningTooltip content={outputColumnWarning} ariaLabel="Advertencia: 2. Columnas de salida" />
+        ) : null}
       </h2>
       <div className="combineOutputColumnsToolbar">
         <fieldset className="combineAssignmentMode">
@@ -108,9 +117,9 @@ export function CombineOutputColumns({
         </fieldset>
         <div className="actions combineOutputColumnsActions">
           {sources.length > 0 && outputColumns.length === 0 ? (
-            <InfoTooltip content="Crea las columnas de salida copiando los encabezados del primer archivo cargado." placement="bottom">
-              <ActionButton action="duplicate" variant="secondary" onClick={initializeFromFirstSource}>
-                {assignmentMode === 'position' ? 'Generar columnas por posición' : 'Usar columnas del primer archivo'}
+            <InfoTooltip content="Genera columnas de salida según el modo de asignación seleccionado." placement="bottom">
+              <ActionButton action="duplicate" onClick={generateColumns}>
+                Generar columnas
               </ActionButton>
             </InfoTooltip>
           ) : null}
@@ -125,10 +134,11 @@ export function CombineOutputColumns({
         </div>
       </div>
 
-      {hasEmptyNames ? <p className="combineColumnWarning">Hay columnas de salida sin nombre.</p> : null}
-      {hasDuplicateNames ? <p className="combineColumnWarning">Hay nombres de columnas de salida duplicados.</p> : null}
-
-      {outputColumns.length > 0 ? (
+      {outputColumns.length === 0 ? (
+        <div className="emptyState combineOutputColumnsEmpty">
+          Todavía no hay columnas de salida. Generá columnas automáticamente o agregá una columna manualmente.
+        </div>
+      ) : (
         <div className="combineOutputColumnList">
           {outputColumns.map((column, index) => (
             <div
@@ -175,7 +185,7 @@ export function CombineOutputColumns({
             </div>
           ))}
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

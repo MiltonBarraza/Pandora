@@ -906,6 +906,10 @@ h3 {
   display: inline-flex;
 }
 
+.combineAddSheetButton {
+  min-height: 34px;
+}
+
 .combineSourceItem .actionButton-iconOnly,
 .combineOutputColumnItem .actionButton-iconOnly {
   height: 34px;
@@ -941,32 +945,6 @@ h3 {
   width: 1px;
 }
 
-.combineSettingsPanel {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-}
-
-.combineSettingsPanel > h2 {
-  margin: 0;
-}
-
-.combineSettingsToolbar {
-  align-items: center;
-  display: flex;
-  gap: 12px 16px;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-
-.combineSettingsToolbar > p {
-  margin: 0;
-}
-
-.combineSettingsActions {
-  flex: 0 0 auto;
-  gap: 8px;
-}
-
 .combineOutputColumnsPanel {
   padding-block: 12px;
 }
@@ -980,6 +958,10 @@ h3 {
   display: flex;
   gap: 12px 16px;
   justify-content: space-between;
+  margin-top: 12px;
+}
+
+.combineOutputColumnsEmpty {
   margin-top: 12px;
 }
 
@@ -1383,6 +1365,10 @@ h3 {
   min-height: 40px;
 }
 
+.combineResultSortHelper {
+  margin: -4px 0 12px;
+}
+
 .combinePreviewEmpty {
   padding: 16px;
 }
@@ -1495,14 +1481,6 @@ h3 {
   min-height: 36px;
 }
 
-.combineSettingsFileInput {
-  display: none;
-}
-
-.combineSettingsMessage {
-  margin: 12px 0 0;
-}
-
 @media (max-width: 720px) {
   .combineResultSortControls {
     align-items: stretch;
@@ -1513,7 +1491,6 @@ h3 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .combineSettingsToolbar,
   .combineOutputColumnsToolbar,
   .combineMappingsToolbar {
     align-items: stretch;
@@ -1547,8 +1524,6 @@ h3 {
     white-space: normal;
   }
 
-  .combineSettingsActions,
-  .combineSettingsActions .actionButton,
   .combineOutputColumnsActions,
   .combineOutputColumnsActions .infoTooltip,
   .combineOutputColumnsActions .actionButton {
@@ -2207,7 +2182,7 @@ tbody tr:hover {
   border-radius: 7px;
   display: grid;
   gap: 6px;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 46px;
   min-width: 0;
   padding: 6px;
@@ -2301,6 +2276,34 @@ tbody tr:hover {
 
 .outputColumnActions .infoTooltipCustomTrigger {
   display: inline-flex;
+}
+
+.outputColumnActions .dragHandle {
+  border-radius: 6px;
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  color: var(--color-text-secondary);
+  height: 40px;
+  min-height: 40px;
+  width: 40px;
+}
+
+.outputColumnActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.outputColumnListItem.selected .outputColumnActions .dragHandle {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
+  color: var(--color-text-secondary);
+}
+
+.outputColumnListItem.selected .outputColumnActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
 }
 
 .outputColumnDetailPanel {
@@ -3876,6 +3879,14 @@ tbody tr:hover {
   padding: 8px 12px;
 }
 
+.segmentedControl label:has(input:disabled) {
+  background: var(--color-bg-surface-subtle);
+  border-color: var(--color-border-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: var(--opacity-disabled);
+}
+
 .segmentedControl input {
   min-height: auto;
   width: auto;
@@ -4317,8 +4328,10 @@ tbody tr:hover {
 }
 
 .columnTransferItem.isSelected {
-  border-color: var(--color-focus-border);
-  box-shadow: inset 3px 0 0 var(--color-focus-border), 0 0 0 2px var(--color-focus-ring);
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+  color: var(--color-selected-text);
 }
 
 .columnTransferSelectArea {
@@ -4461,9 +4474,30 @@ tbody tr:hover {
 }
 
 .columnTransferActions .dragHandle {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  color: var(--color-text-secondary);
   height: 40px;
   min-height: 40px;
   width: 40px;
+}
+
+.columnTransferActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.columnTransferItem.isSelected .columnTransferActions .dragHandle {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-muted);
+  color: var(--color-text-secondary);
+}
+
+.columnTransferItem.isSelected .columnTransferActions .dragHandle:hover:not(:disabled) {
+  background: var(--color-border-subtle);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
 }
 
 .columnTransferItem.hasAlias .columnTransferActions {
