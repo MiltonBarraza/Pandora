@@ -613,6 +613,32 @@ h3 {
   width: 16px;
 }
 
+.toolLoadingPanel {
+  align-items: center;
+  display: flex;
+  min-height: 112px;
+}
+
+.toolLoadingPanel [role='status'] {
+  align-items: center;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-weight: 700;
+  gap: 8px;
+  margin: 0;
+}
+
+.toolLoadingPanel [role='status']::before {
+  animation: processingSpinnerRotate 800ms linear infinite;
+  border: 2px solid var(--color-border-muted);
+  border-top-color: var(--color-primary-bg);
+  border-radius: 999px;
+  content: '';
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
 @keyframes processingSpinnerRotate {
   to {
     transform: rotate(360deg);

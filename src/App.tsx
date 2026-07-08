@@ -108,7 +108,7 @@ export default function App() {
   if (selectedTool === 'sanitize') {
     return (
       <>
-        <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} />}>
+        <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} tool={selectedTool} />}>
           <ImportWizard
             appearanceToolbar={appearanceToolbar}
             onSaveProcessedResult={saveProcessedResult}
@@ -126,7 +126,7 @@ export default function App() {
   if (selectedTool === 'combine') {
     return (
       <>
-        <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} />}>
+        <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} tool={selectedTool} />}>
           <CombineWizard
             appearanceToolbar={appearanceToolbar}
             basketSources={combineBasketSources}
@@ -154,17 +154,47 @@ export default function App() {
   );
 }
 
-function ToolLoadingFallback({ appearanceToolbar }: { appearanceToolbar: ReactNode }) {
+function ToolLoadingFallback({
+  appearanceToolbar,
+  tool,
+}: {
+  appearanceToolbar: ReactNode;
+  tool: AppTool;
+}) {
+  const hero = getToolHeroContent(tool);
+
   return (
-    <main className="appShell">
+    <main className={`appShell${tool === 'combine' ? ' combineWizard' : ''}`}>
       {appearanceToolbar}
+      <header className={`hero${tool === 'combine' ? ' combineHero' : ''}`}>
+        <div>
+          <p className="eyebrow">PANDORA</p>
+          <h1>{hero.title}</h1>
+          <p>{hero.description}</p>
+        </div>
+      </header>
+
       <div className="wizard">
-        <section className="panel">
+        <section className="panel toolLoadingPanel">
           <p role="status">Cargando herramienta…</p>
         </section>
       </div>
     </main>
   );
+}
+
+function getToolHeroContent(tool: AppTool) {
+  if (tool === 'combine') {
+    return {
+      title: 'Combiná varios archivos en una sola planilla',
+      description: 'Cargá tus archivos, organizá las columnas y generá un único Excel.',
+    };
+  }
+
+  return {
+    title: 'Limpia, transforma y guarda tus planillas',
+    description: 'Cargá un Excel, configurá columnas, aplicá transformaciones y descargá un archivo limpio sin tocar fórmulas ni código.',
+  };
 }
 
 function ToolSelector({
