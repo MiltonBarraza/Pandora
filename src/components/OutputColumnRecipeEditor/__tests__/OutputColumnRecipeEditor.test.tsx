@@ -3644,6 +3644,8 @@ describe('constructor helpers', () => {
     const rangeTokenDeleteIndex = markup.indexOf('aria-label="Eliminar parte"', rangeTokenCardIndex);
     expect(rangeTokenButtonIndex).toBeLessThan(rangeTokenDragIndex);
     expect(rangeTokenDragIndex).toBeLessThan(rangeTokenDeleteIndex);
+    expect(markup).toContain('rangeValueOperationPanel');
+    expect(markup).toContain('rangeValueFlatSteps');
     expect(markup).toContain('stepDetailPanel');
     expect(markup).toContain('stepCardHeader');
     expect(markup).toContain('Paso 1');
@@ -3874,6 +3876,90 @@ describe('constructor helpers', () => {
     expect(nextSteps).toHaveLength(2);
     expect(nextSteps[0]).toMatchObject({ mode: 'text', type: 'noop' });
     expect(nextSteps[1]).toMatchObject({ mode: 'text', type: 'noop' });
+  });
+
+  it('renders the add-step button at the last configured step inside range concat', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-9',
+      startRowNumber: 8,
+      endRowNumber: 9,
+      valueRecipe: {
+        source: { type: 'fixedText', value: '' },
+        steps: [{
+          id: 'range-concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [{
+            id: 'pack',
+            source: { type: 'input', inputColumnId: 'input-pack' },
+            steps: [
+              { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+              { id: 'trim', mode: 'text', type: 'trim', source: { type: 'previousResult' } },
+            ],
+          }],
+        }],
+      },
+    });
+
+    expect(markup).toContain('rangeValueOperationPanel');
+    expect(markup).toContain('concatPartStepDivider');
+    expect(markup).toContain('rangeValueFlatSteps');
+    expect(markup).toContain('stepDetailPanel');
+    expect(markup.match(/Agregar paso/g)).toHaveLength(1);
+    expect(markup.match(/Eliminar paso/g)).toHaveLength(1);
+    expect(markup.indexOf('rangeValueOperationPanel')).toBeLessThan(markup.indexOf('Paso 1'));
+    expect(markup.indexOf('Paso 1')).toBeLessThan(markup.indexOf('concatPartStepDivider'));
+    expect(markup.indexOf('Paso 2')).toBeLessThan(markup.indexOf('Agregar paso'));
+  });
+
+  it('keeps the add-step button on the only configured range concat step', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-9',
+      startRowNumber: 8,
+      endRowNumber: 9,
+      valueRecipe: {
+        source: { type: 'fixedText', value: '' },
+        steps: [{
+          id: 'range-concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [{ id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' }, steps: [] }],
+        }],
+      },
+    });
+
+    expect(markup.match(/Agregar paso/g)).toHaveLength(1);
+    expect(markup).toContain('rangeValueOperationPanel');
+    expect(markup).not.toContain('concatPartStepDivider');
+    expect(markup.indexOf('Paso 1')).toBeLessThan(markup.indexOf('Agregar paso'));
+  });
+
+  it('renders suffix after previous result on follow-up steps inside range concat', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-8-9',
+      startRowNumber: 8,
+      endRowNumber: 9,
+      valueRecipe: {
+        source: { type: 'fixedText', value: '' },
+        steps: [{
+          id: 'range-concat',
+          mode: 'text',
+          type: 'concat',
+          parts: [{
+            id: 'pack',
+            source: { type: 'input', inputColumnId: 'input-pack' },
+            steps: [
+              { id: 'upper', mode: 'text', type: 'uppercase', source: { type: 'previousResult' } },
+              { id: 'suffix', mode: 'text', type: 'addSuffix', source: { type: 'previousResult' }, value: '!' },
+            ],
+          }],
+        }],
+      },
+    });
+    const secondStepMarkup = markup.slice(markup.indexOf('Paso 2'));
+
+    expect(secondStepMarkup.indexOf('Valor base')).toBeLessThan(secondStepMarkup.indexOf('Resultado anterior'));
+    expect(secondStepMarkup.indexOf('Resultado anterior')).toBeLessThan(secondStepMarkup.indexOf('Sufijo'));
   });
 
   it('builds concat part source options for range values without fixed text as a source', () => {

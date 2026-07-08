@@ -3932,6 +3932,15 @@ tbody tr:hover {
   padding: 10px;
 }
 
+.rangeValueOperationPanel.rangeValueFlatSteps > .stepDetailPanel,
+.rangeValueOperationPanel.rangeValueFlatSteps .concatPartStepDivider > .stepDetailPanel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
 .rangeValuePrimaryLayout {
   align-items: end;
   display: grid;

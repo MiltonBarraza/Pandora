@@ -845,7 +845,7 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     expect(document.querySelector('.manualRangeCoveredRowsTable')?.textContent).toContain('ASD');
   });
 
-  it('keeps the additional-step delete button inside the range concat step card', async () => {
+  it('keeps the additional-step delete button inside the range concat step panel', async () => {
     const user = userEvent.setup();
     const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = { type: 'manualRange', ranges: [range] };
     render(

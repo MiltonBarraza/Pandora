@@ -440,14 +440,25 @@ function renderDefaultFields({
   }
 
   if (step.type === 'addSuffix') {
+    const suffixField = (
+      <label className="field compact recipeField">
+        <span>Sufijo</span>
+        <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
+      </label>
+    );
+
+    if (contextFacts.isFollowUpStep) {
+      return (
+        <>
+          {sourceFields}
+          {suffixField}
+        </>
+      );
+    }
+
     return (
       <>
-        {renderTextSourceFields(
-          <label className="field compact recipeField">
-            <span>Sufijo</span>
-            <input value={step.value ?? ''} onChange={(event) => onChange({ value: event.target.value })} />
-          </label>,
-        )}
+        {renderTextSourceFields(suffixField)}
       </>
     );
   }
