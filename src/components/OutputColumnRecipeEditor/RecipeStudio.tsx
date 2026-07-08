@@ -8,10 +8,10 @@ import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { previousResultSourceLabel, recipeStepActionLabels } from './OutputColumnRecipeEditor.actionDefinitions';
-import { applyComposeRecipePartsUpdate } from './OutputColumnRecipeEditor.composePartsStorage';
+import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage } from './OutputColumnRecipeEditor.composePartsStorage';
 import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
-import { buildSimpleCustomValueRecipeWithSteps, createNoopStep, getConcatPartFromRecipePart, getFirstStepSource, getRecipePartFromConcatPart, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
+import { buildSimpleCustomValueRecipeWithSteps, createNoopStep, getFirstStepSource, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
@@ -200,7 +200,7 @@ function ComposeValueStudio({
       return;
     }
 
-    const parts = getComposeRecipeParts(recipe);
+    const parts = getComposeRecipePartsFromStorage(recipe);
     const nextParts = parts.filter((_, index) => index !== token.index);
     onChange(applyComposeRecipePartsUpdate(recipe, nextParts));
     onSelectedTokenChange(nextParts[token.index]?.id ?? nextParts[token.index - 1]?.id ?? null);
@@ -349,9 +349,9 @@ function ComposeTokenInspector({
   renderComposePartEditor: RecipeStudioRenderers['renderComposePartEditor'];
   onChange: RecipeChangeHandler<CombineRecipe>;
 }) {
-  const parts = getComposeRecipeParts(recipe);
+  const parts = getComposeRecipePartsFromStorage(recipe);
   const part = token ? parts[token.index] : undefined;
-  const concatPart = token ? getComposeConcatPart(recipe, token.index) : undefined;
+  const concatPart = token ? getComposeConcatPartFromStorage(recipe, token.id) : undefined;
 
   if (!token || !part || !concatPart) {
     return (
@@ -378,7 +378,7 @@ function ComposeTokenInspector({
             manualRangeRows,
             sampleInputValues,
             allowPreviousResultSource: hasLegacyConcatParts,
-            onChange: (nextPart) => onChange(updateComposeConcatPart(recipe, token.index, nextPart)),
+            onChange: (nextPart) => onChange(applyComposeConcatPartUpdate(recipe, token.id, nextPart)),
           })}
         </div>
         <details className="composeTokenRules">
@@ -659,12 +659,12 @@ function createComposeStudioRecipe(recipe: EditableCustomRecipe): Extract<Output
 }
 
 function getComposeTokens(recipe: Extract<OutputRecipe, { type: 'combine' }>, inputColumns: InputColumn[]): ComposeToken[] {
-  const parts = getComposeRecipeParts(recipe);
+  const parts = getComposeRecipePartsFromStorage(recipe);
   return parts.map((part, index) => {
     const steps = part.steps ?? [];
     const configuredSteps = steps.filter((step) => step.type !== 'noop' || Boolean(step.condition));
     const isComplex = configuredSteps.length > 0;
-    const concatPart = getComposeConcatPart(recipe, index);
+    const concatPart = getComposeConcatPartFromStorage(recipe, part.id);
 
     if (isComplex) {
       const sourceSummary = getComposeTokenSourceSummary(part, concatPart, inputColumns);
@@ -760,64 +760,19 @@ function getComposeTokenSourceSummary(
   return { kind: 'text', label: 'Texto fijo', detail: fixedText ? `"${fixedText}"` : 'Sin texto' };
 }
 
-function getComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }>): RecipePart[] {
-  const concatStep = getConfiguredConcatStep(recipe);
-  if (recipe.parts.length > 0 || !concatStep?.parts?.length) {
-    return recipe.parts;
-  }
-
-  return concatStep.parts.map((part) => getRecipePartFromConcatPart(part));
-}
-
-function getComposeConcatPart(recipe: Extract<OutputRecipe, { type: 'combine' }>, index: number): ConcatPart | undefined {
-  const concatStep = getConfiguredConcatStep(recipe);
-  if (recipe.parts.length === 0 && concatStep?.parts?.length) {
-    return concatStep.parts[index];
-  }
-
-  const part = recipe.parts[index];
-  return part ? getConcatPartFromRecipePart(part) : undefined;
-}
-
-function updateComposeConcatPart(
-  recipe: Extract<OutputRecipe, { type: 'combine' }>,
-  index: number,
-  nextPart: ConcatPart,
-): Extract<OutputRecipe, { type: 'combine' }> {
-  const concatStep = getConfiguredConcatStep(recipe);
-  if (recipe.parts.length === 0 && concatStep?.parts?.length) {
-    return {
-      ...recipe,
-      steps: (recipe.steps ?? []).map((step) => step.id === concatStep.id
-        ? { ...step, parts: concatStep.parts?.map((part, partIndex) => (partIndex === index ? nextPart : part)) }
-        : step),
-    };
-  }
-
-  const currentPart = recipe.parts[index];
-  if (!currentPart) {
-    return recipe;
-  }
-
-  const nextRecipePart = getRecipePartFromConcatPart(nextPart);
-  return applyComposeRecipePartsUpdate(recipe, recipe.parts.map((part, partIndex) => partIndex === index
-    ? { ...nextRecipePart, ...(currentPart.separatorAfter !== undefined ? { separatorAfter: currentPart.separatorAfter } : {}) }
-    : part));
-}
-
 export function addComposeRecipePart(
   recipe: Extract<OutputRecipe, { type: 'combine' }>,
   _inputColumns: InputColumn[],
 ): { recipe: Extract<OutputRecipe, { type: 'combine' }>; selectedPartId: string } {
   const part = createComposeInputPart('');
   return {
-    recipe: applyComposeRecipePartsUpdate(recipe, [...getComposeRecipeParts(recipe), part]),
+    recipe: applyComposeRecipePartsUpdate(recipe, [...getComposeRecipePartsFromStorage(recipe), part]),
     selectedPartId: part.id,
   };
 }
 
 export function reorderComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }>, orderedPartIds: string[]): Extract<OutputRecipe, { type: 'combine' }> {
-  const parts = getComposeRecipeParts(recipe);
+  const parts = getComposeRecipePartsFromStorage(recipe);
   const partsById = new Map(parts.map((part) => [part.id, part]));
   const movedParts = orderedPartIds.map((id) => partsById.get(id)).filter((part): part is RecipePart => Boolean(part));
   const remainingParts = parts.filter((part) => !orderedPartIds.includes(part.id));
@@ -893,7 +848,7 @@ export function updateComposeColumnTextSelection(
   partId: string,
   selectedText: string,
 ): Extract<OutputRecipe, { type: 'combine' }> {
-  return applyComposeRecipePartsUpdate(recipe, getComposeRecipeParts(recipe).map((part) => (
+  return applyComposeRecipePartsUpdate(recipe, getComposeRecipePartsFromStorage(recipe).map((part) => (
     part.id === partId
       ? {
         id: part.id,
