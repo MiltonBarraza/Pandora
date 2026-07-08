@@ -19,6 +19,7 @@ import type {
   TransformStepType,
   CustomValueMode as PersistedCustomValueMode,
 } from '../../types/import';
+import { previousResultSourceLabel } from './OutputColumnRecipeEditor.actionDefinitions';
 import { valueSourceLabel } from './OutputColumnRecipeEditor.constants';
 import { getStepTypesForMode } from './OutputColumnRecipeEditor.optionHelpers';
 
@@ -351,7 +352,7 @@ export function describeConcatPartSource(part: ConcatPart, inputColumns: InputCo
   const { source } = part;
 
   if (source.type === 'previousResult') {
-    return 'Resultado del paso anterior';
+    return previousResultSourceLabel;
   }
 
   if (source.type === 'fixedText') {

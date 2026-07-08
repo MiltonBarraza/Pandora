@@ -7,7 +7,14 @@ import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
-import { operationTypeLabel, pickCellTextLabel, recipeEditorPreviousResultHelpText, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { operationTypeLabel, recipeEditorPreviousResultHelpText, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  cellValuePickerActionLabels,
+  previousResultActionLabel,
+  previousResultFieldLabel,
+  previousResultSourceLabel,
+  recipeStepActionLabels,
+} from './OutputColumnRecipeEditor.actionDefinitions';
 import {
   conditionNeedsValue,
   conditionOperators,
@@ -103,13 +110,13 @@ export function getStepValueSourceOptions(
     ? inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) }))
     : [];
   const previousResultOptions = allowPreviousResult && isAllowed('previousResult')
-    ? [{ value: 'previousResult', label: 'Usar resultado anterior' }]
+    ? [{ value: 'previousResult', label: previousResultActionLabel }]
     : [];
   const fixedTextOptions = isAllowed('fixedText')
     ? [{ value: 'fixedText', label: config.fixedTextLabel ?? (valueKind === 'number' ? 'Valor fijo' : valueKind === 'date' ? 'Fecha fija' : 'Texto fijo') }]
     : [];
   const pickerOptions = isAllowed('columnTextPicker')
-    ? [{ value: 'columnTextPicker', label: config.columnTextPickerLabel ?? (valueKind === 'number' ? 'Elegir valor desde celda' : valueKind === 'date' ? 'Elegir fecha desde celda' : pickCellTextLabel) }]
+    ? [{ value: 'columnTextPicker', label: config.columnTextPickerLabel ?? (valueKind === 'number' ? cellValuePickerActionLabels.number : valueKind === 'date' ? cellValuePickerActionLabels.date : cellValuePickerActionLabels.text) }]
     : [];
 
   if (valueKind === 'text' && !explicitTextValueSource) {
@@ -233,7 +240,7 @@ export function StepTypeSelect({
         labelInfo={<InfoTooltip content={actionHelpText} />}
         value={visibleAction as NonNullable<TransformStep['operation']> | 'noop' | ''}
         options={[
-          { value: 'noop', label: useValueAsIsLabel },
+          { value: 'noop', label: recipeStepActionLabels.useValueAsIs },
           ...numericOperationOptions,
         ]}
         placeholder="Seleccionar acción"
@@ -423,7 +430,7 @@ export function StepSourceFields({
       {showPreviousResultField ? (
         <label className="field compact recipeField previousResultValueField">
           <span className="labelWithInfo">
-            <span>Resultado anterior</span>
+            <span>{previousResultFieldLabel}</span>
             <InfoTooltip content={previousResultHelpText.split('\n').map((line, index) => (
               <Fragment key={`${index}-${line}`}>
                 {index > 0 ? <br /> : null}
@@ -521,7 +528,7 @@ export function StepOperandFields({
         labelInfo={renderLabelInfo('Elige si el valor viene de una columna, un numero fijo o un paso previo.', compatibilityHint)}
         value={safeOperand.type}
         options={[
-          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado del paso anterior' }] : []),
+          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: previousResultSourceLabel }] : []),
           { value: 'input' as const, label: 'Columna de entrada' },
           { value: 'fixedText' as const, label: 'Valor fijo' },
         ].filter((option) => !allowedTypes || allowedTypes.includes(option.value))}

@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
+import { previousResultFieldLabel, recipeStepModeLabels } from './OutputColumnRecipeEditor.actionDefinitions';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
   getDatePickerValue,
@@ -419,7 +420,7 @@ function ManualRangeSummary({
     <div className="recipeSubBlock constructorSummary manualRangeSummary">
       <div>
         <strong className="headingWithInfo">
-          <span>Trabajar con rangos</span>
+          <span>{recipeStepModeLabels.manualRange}</span>
           <InfoTooltip content="Asigna valores segun rangos de filas reales del Excel." />
         </strong>
         <dl className="customValueSummaryList">
@@ -1277,7 +1278,7 @@ function getPreviousResultExamples(
   if (rows.length > 0) {
     const previewColumn: OutputColumn = {
       id: 'previous-result-examples',
-      label: 'Resultado anterior',
+      label: previousResultFieldLabel,
       order: 0,
       enabled: true,
       recipe,

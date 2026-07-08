@@ -3,6 +3,7 @@ import { describeManualRangeStepSummary } from '../../domain/import/manualRangeM
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
+import { recipeStepActionLabels } from './OutputColumnRecipeEditor.actionDefinitions';
 import { canPreviewNumericValue, describeConcatPartSource, getCustomValueMode, getFirstStepSource, getInputColumnSummary, getSimpleInputPart, getStepMode, getVisibleRecipeSteps, hasConfiguredConcatStep, hasConfiguredManualRangeStep, hasConfiguredNumericStepOperands, isCustomValueConfigured, type CustomValueMode } from './OutputColumnRecipeEditor.recipeHelpers';
 import { getNumericOperandLabels } from './OutputColumnRecipeEditor.optionHelpers';
 
@@ -98,10 +99,10 @@ function formatAdjustmentForDisplay(adjustment: string) {
     'sin operación seleccionada': 'Sin operación seleccionada',
     mayúsculas: 'Mayúsculas',
     minúsculas: 'Minúsculas',
-    concatenar: 'Concatenar',
-    'usar número del texto': 'Usar número del texto',
-    'convertir a número': 'Convertir a número',
-    'convertir a texto': 'Convertir a texto',
+    concatenar: recipeStepActionLabels.concat,
+    'usar número del texto': recipeStepActionLabels.extractNumber,
+    'convertir a número': recipeStepActionLabels.toNumber,
+    'convertir a texto': recipeStepActionLabels.toText,
     'sin redondeo': 'Sin redondeo',
   };
 
@@ -264,14 +265,14 @@ export function getRecipeStepTitle(
 ) {
   if (step.type === 'noop') {
     const mode = getStepMode(step);
-    if (mode === 'number' && source?.type === 'input' && source.inputColumnId) return 'Usar número desde columna';
-    if (mode === 'number' && source?.type === 'fixedText') return 'Usar número fijo';
-    if (mode === 'date' && source?.type === 'input' && source.inputColumnId) return 'Usar fecha desde columna';
-    if (mode === 'date' && source?.type === 'fixedText') return 'Usar fecha fija';
-    if ((mode === 'date' || mode === 'number') && source?.type === 'previousResult') return 'Usar resultado anterior';
-    if (source?.type === 'fixedText') return 'Usar texto fijo';
-    if (source?.type === 'input' && source.inputColumnId) return 'Usar columna de entrada';
-    if (source?.type === 'previousResult') return 'Usar resultado anterior';
+    if (mode === 'number' && source?.type === 'input' && source.inputColumnId) return recipeStepActionLabels.useNumberInputColumn;
+    if (mode === 'number' && source?.type === 'fixedText') return recipeStepActionLabels.useFixedNumber;
+    if (mode === 'date' && source?.type === 'input' && source.inputColumnId) return recipeStepActionLabels.useDateInputColumn;
+    if (mode === 'date' && source?.type === 'fixedText') return recipeStepActionLabels.useFixedDate;
+    if ((mode === 'date' || mode === 'number') && source?.type === 'previousResult') return recipeStepActionLabels.usePreviousResult;
+    if (source?.type === 'fixedText') return recipeStepActionLabels.useFixedText;
+    if (source?.type === 'input' && source.inputColumnId) return recipeStepActionLabels.useInputColumn;
+    if (source?.type === 'previousResult') return recipeStepActionLabels.usePreviousResult;
     return 'Sin configurar';
   }
 

@@ -22,7 +22,8 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
-import { operationTypeLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
+import { operationTypeLabel } from './OutputColumnRecipeEditor.constants';
+import { getRecipeStepActionLabel, getRecipeStepModeLabel } from './OutputColumnRecipeEditor.actionDefinitions';
 import {
   conversionInvalidFallbackOptions,
   dateInputFormatOptions,
@@ -93,43 +94,6 @@ type BlockAction = Exclude<VisibleStepAction, 'unconfigured'> | NumericOperation
 type SourceActionOverrideState = {
   action: StepSourceAction;
   identity: string;
-};
-
-const stepModeLabels: Record<TransformStepMode, string> = {
-  text: 'Trabajar con texto',
-  number: 'Trabajar con números',
-  conversion: 'Conversión',
-  date: 'Trabajar con fechas',
-  manualRange: 'Trabajar con rangos',
-};
-
-const stepActionLabels: Record<Exclude<VisibleStepAction, 'unconfigured'>, string> = {
-  useValueAsIs: useValueAsIsLabel,
-  useInputColumn: 'Usar columna de entrada',
-  useFixedText: 'Usar texto fijo',
-  pickColumnText: 'Elegir texto desde celda',
-  useNumberInputColumn: 'Usar número desde columna',
-  useFixedNumber: 'Usar número fijo',
-  pickNumberCell: 'Elegir número desde celda',
-  useDateInputColumn: 'Usar fecha desde columna',
-  useFixedDate: 'Usar fecha fija',
-  pickDateCell: 'Elegir fecha desde celda',
-  useRangeText: 'Texto encontrado en el rango',
-  usePreviousResult: 'Usar resultado anterior',
-  trim: 'Limpiar espacios',
-  uppercase: 'Convertir a mayúsculas',
-  lowercase: 'Convertir a minúsculas',
-  addPrefix: 'Agregar prefijo',
-  addSuffix: 'Agregar sufijo',
-  removeText: 'Quitar texto',
-  replaceText: 'Reemplazar texto',
-  concat: 'Concatenar',
-  numericOperation: 'Operación numérica',
-  extractNumber: 'Usar número del texto',
-  toNumber: 'Convertir a número',
-  toText: 'Convertir a texto',
-  formatDate: 'Formatear fecha',
-  manualRange: 'Trabajar con rangos',
 };
 
 export function StepEditorBlock({
@@ -675,7 +639,7 @@ function getFollowUpSourceTypes(source: StepSource | undefined): StepValueSource
 }
 
 function getStepModeOptionsForContext(context: StepEditorContext) {
-  return getAllowedStepModes(context).map((mode) => ({ value: mode, label: stepModeLabels[mode] }));
+  return getAllowedStepModes(context).map((mode) => ({ value: mode, label: getRecipeStepModeLabel(mode) }));
 }
 
 function getStepActionOptionsForContext(mode: TransformStepMode, context: StepEditorContext, visibleAction: VisibleStepAction): Array<{ value: BlockAction; label: string }> {
@@ -704,7 +668,7 @@ function includeCurrentVisibleAction(actions: VisibleStepAction[], visibleAction
 
 function getStepActionLabel(action: Exclude<VisibleStepAction, 'unconfigured'>, context: StepEditorContext) {
   void context;
-  return stepActionLabels[action];
+  return getRecipeStepActionLabel(action);
 }
 
 function getContextWithDefaultColumnForTypedAction(

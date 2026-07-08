@@ -7,6 +7,7 @@ import { Modal } from '../Modal/Modal';
 import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { previousResultSourceLabel, recipeStepActionLabels } from './OutputColumnRecipeEditor.actionDefinitions';
 import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
 import { buildSimpleCustomValueRecipeWithSteps, createNoopStep, getFirstStepSource, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
@@ -209,7 +210,7 @@ function ComposeValueStudio({
       <section className="recipeStudioSection recipeStudioGeneralSection composeStudioHeader" aria-label="Configuración general">
         <div className="composeStudioHeaderTitle">
           <span>Configuración general</span>
-          <strong>Paso 1 · Concatenar</strong>
+          <strong>Paso 1 · {recipeStepActionLabels.concat}</strong>
         </div>
         <div className="composeStudioHeaderFields stepPrimaryFieldsRow">
           {renderComposeStepHeader({ recipe, inputColumns, onChange })}
@@ -745,7 +746,7 @@ function getComposeTokenSourceSummary(
   }
 
   if (source?.type === 'previousResult') {
-    return { kind: 'previous', label: 'Dato calculado', detail: 'Resultado del paso anterior' };
+    return { kind: 'previous', label: 'Dato calculado', detail: previousResultSourceLabel };
   }
 
   if (source?.type === 'rangeText') {
