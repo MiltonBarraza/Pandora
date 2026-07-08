@@ -10,6 +10,10 @@ export function getComposeRecipePartsStorageMode(recipe: CombineRecipe): Compose
   return recipe.parts.length === 0 && getConfiguredConcatStep(recipe) ? 'concatStepParts' : 'recipeParts';
 }
 
+export function hasComposePreviousResultSource(recipe: CombineRecipe): boolean {
+  return getComposeRecipePartsStorageMode(recipe) === 'concatStepParts';
+}
+
 export function getComposeRecipePartsFromStorage(recipe: CombineRecipe): RecipePart[] {
   const concatStep = getConfiguredConcatStep(recipe);
   if (recipe.parts.length > 0 || !concatStep?.parts?.length) {

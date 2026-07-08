@@ -12,7 +12,7 @@ import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, g
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
-import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage, getComposeRecipePartsStorageMode } from '../OutputColumnRecipeEditor.composePartsStorage';
+import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage, getComposeRecipePartsStorageMode, hasComposePreviousResultSource } from '../OutputColumnRecipeEditor.composePartsStorage';
 import { getConcatPartFromRecipePart, getConcatPartsFromRecipeParts, getRecipePartFromConcatPart } from '../OutputColumnRecipeEditor.recipeHelpers';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, updateRangeConcatPartPrimarySource } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
@@ -826,6 +826,9 @@ describe('constructor helpers', () => {
     expect(getComposeRecipePartsStorageMode(legacyRecipe)).toBe('recipeParts');
     expect(getComposeRecipePartsStorageMode(stepConcatRecipe)).toBe('concatStepParts');
     expect(getComposeRecipePartsStorageMode({ ...stepConcatRecipe, steps: [{ ...stepConcatRecipe.steps![0], parts: [] }] })).toBe('recipeParts');
+    expect(hasComposePreviousResultSource(legacyRecipe)).toBe(false);
+    expect(hasComposePreviousResultSource(stepConcatRecipe)).toBe(true);
+    expect(hasComposePreviousResultSource({ ...stepConcatRecipe, steps: [{ ...stepConcatRecipe.steps![0], parts: [] }] })).toBe(false);
   });
 
   it('updates legacy compose recipe parts without migrating storage', () => {

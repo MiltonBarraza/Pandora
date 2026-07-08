@@ -8,10 +8,11 @@ import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { previousResultSourceLabel, recipeStepActionLabels } from './OutputColumnRecipeEditor.actionDefinitions';
-import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage } from './OutputColumnRecipeEditor.composePartsStorage';
+import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage, hasComposePreviousResultSource } from './OutputColumnRecipeEditor.composePartsStorage';
 import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
 import { buildSimpleCustomValueRecipeWithSteps, createNoopStep, getFirstStepSource, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
+import { createStepEditorContext, shouldAllowPreviousResultSource } from './OutputColumnRecipeEditor.stepPolicy';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
@@ -362,7 +363,10 @@ function ComposeTokenInspector({
     );
   }
 
-  const hasLegacyConcatParts = recipe.parts.length === 0 && Boolean(getConfiguredConcatStep(recipe)?.parts?.length);
+  const allowPreviousResultSource = shouldAllowPreviousResultSource(createStepEditorContext({
+    kind: 'concat',
+    allowPreviousResultSource: hasComposePreviousResultSource(recipe),
+  }));
 
   return (
     <section className="recipeStudioSection composeTokenInspector composeTokenInspectorFlat">
@@ -377,7 +381,7 @@ function ComposeTokenInspector({
             inputColumns,
             manualRangeRows,
             sampleInputValues,
-            allowPreviousResultSource: hasLegacyConcatParts,
+            allowPreviousResultSource,
             onChange: (nextPart) => onChange(applyComposeConcatPartUpdate(recipe, token.id, nextPart)),
           })}
         </div>

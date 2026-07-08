@@ -22,6 +22,7 @@ export type StepEditorContext = {
   partIndex?: number;
   defaultInputColumnId?: string;
   sourceActionOverride?: StepSourceAction;
+  allowPreviousResultSource?: boolean;
   idFactory?: () => string;
 };
 
@@ -86,6 +87,10 @@ export function createStepEditorContext(options: CreateStepEditorContextOptions)
     context.sourceActionOverride = options.sourceActionOverride;
   }
 
+  if (typeof options.allowPreviousResultSource === 'boolean') {
+    context.allowPreviousResultSource = options.allowPreviousResultSource;
+  }
+
   if (options.idFactory) {
     context.idFactory = options.idFactory;
   }
@@ -101,13 +106,17 @@ export function stepEditorPolicy(context: StepEditorContext): StepEditorPolicy {
   return {
     allowManualRange: context.kind === 'normal',
     allowConcat: context.kind === 'normal' || context.kind === 'range',
-    allowPreviousResult: stepIndex > 0,
+    allowPreviousResult: typeof context.allowPreviousResultSource === 'boolean' ? context.allowPreviousResultSource : stepIndex > 0,
     allowRangeText: isRangeValueEditor,
     allowNestedRanges: false,
     isConcatPart,
     isRangeValueEditor,
     stepIndex,
   };
+}
+
+export function shouldAllowPreviousResultSource(context: StepEditorContext): boolean {
+  return stepEditorPolicy(context).allowPreviousResult;
 }
 
 export function getStepEditorContextFacts(context: StepEditorContext): StepEditorContextFacts {

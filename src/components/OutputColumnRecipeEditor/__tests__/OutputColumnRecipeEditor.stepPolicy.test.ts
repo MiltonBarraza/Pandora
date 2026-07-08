@@ -17,6 +17,7 @@ import {
   isVisibleStepActionConfigured,
   normalizeStepForContext,
   replaceStepActionWithSource,
+  shouldAllowPreviousResultSource,
   stepEditorPolicy,
   type StepEditorContext,
 } from '../OutputColumnRecipeEditor.stepPolicy';
@@ -219,6 +220,21 @@ describe('step editor policy', () => {
     expect(stepEditorPolicy(context('rangeConcat', 1)).allowPreviousResult).toBe(true);
     expect(getAllowedSourceActions(noop(), context('normal', 0))).not.toContain('usePreviousResult');
     expect(getAllowedSourceActions(noop(), context('normal', 1))).toContain('usePreviousResult');
+  });
+
+  it('allows previousResult through one policy helper for normal, concat and range concat contexts', () => {
+    expect(shouldAllowPreviousResultSource(context('normal', 0))).toBe(false);
+    expect(shouldAllowPreviousResultSource(context('normal', 1))).toBe(true);
+    expect(shouldAllowPreviousResultSource(context('rangeConcat', 0))).toBe(false);
+    expect(shouldAllowPreviousResultSource(context('rangeConcat', 1))).toBe(true);
+    expect(shouldAllowPreviousResultSource(createStepEditorContext({
+      kind: 'concat',
+      allowPreviousResultSource: false,
+    }))).toBe(false);
+    expect(shouldAllowPreviousResultSource(createStepEditorContext({
+      kind: 'concat',
+      allowPreviousResultSource: true,
+    }))).toBe(true);
   });
 
   it('keeps unconfigured separate from use value as is', () => {
