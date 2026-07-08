@@ -273,29 +273,58 @@ function createConcatStepFromLegacyRecipe(recipe: Extract<OutputRecipe, { type: 
     id: recipe.parts[0]?.id ? `concat-${recipe.parts[0].id}` : crypto.randomUUID(),
     mode: 'text',
     type: 'concat',
-    parts: recipePartsToConcatParts(recipe.parts, recipe.separator),
+    parts: getConcatPartsFromRecipeParts(recipe.parts, recipe.separator),
     applyToEmptyValues: false,
   };
 }
 
-function recipePartsToConcatParts(parts: RecipePart[], globalSeparator?: string): ConcatPart[] {
+export function getConcatPartsFromRecipeParts(parts: RecipePart[], globalSeparator?: string): ConcatPart[] {
   return parts.map((part, index) => {
     const previousPart = parts[index - 1];
     return {
       id: part.id,
-      source: recipePartToStepSource(part),
+      source: getConcatPartFromRecipePart(part).source,
       ...(index > 0 ? { separatorBefore: previousPart?.separatorAfter ?? globalSeparator ?? '' } : {}),
       ...(part.steps ? { steps: part.steps } : {}),
     };
   });
 }
 
-function recipePartToStepSource(part: RecipePart): StepSource {
-  if (part.type === 'input') {
-    return { type: 'input', inputColumnId: part.inputColumnId };
+export function getConcatPartFromRecipePart(part: RecipePart): ConcatPart {
+  return {
+    id: part.id,
+    source: part.type === 'input'
+      ? { type: 'input', inputColumnId: part.inputColumnId }
+      : { type: 'fixedText', value: part.value },
+    ...(part.steps ? { steps: part.steps } : {}),
+  };
+}
+
+export function getRecipePartFromConcatPart(part: ConcatPart): RecipePart {
+  if (part.source.type === 'input') {
+    return {
+      id: part.id,
+      type: 'input',
+      inputColumnId: part.source.inputColumnId,
+      ...(part.steps ? { steps: part.steps } : {}),
+    };
   }
 
-  return { type: 'fixedText', value: part.value };
+  if (part.source.type === 'fixedText') {
+    return {
+      id: part.id,
+      type: 'text',
+      value: part.source.value,
+      ...(part.steps ? { steps: part.steps } : {}),
+    };
+  }
+
+  return {
+    id: part.id,
+    type: 'text',
+    value: part.source.type === 'rangeText' ? part.source.selectedText : '',
+    steps: part.steps ?? [createNoopStep('text')],
+  };
 }
 
 export function getSafeSelectedConcatPartId(parts: ConcatPart[], selectedPartId: string | null) {
@@ -335,6 +364,41 @@ export function normalizeConcatPartsAfterReorder(parts: ConcatPart[]) {
 
 export function updateConcatPartSteps(parts: ConcatPart[], partId: string, steps: TransformStep[]) {
   return parts.map((part) => (part.id === partId ? { ...part, steps } : part));
+}
+
+export function updateConcatPartInList(parts: ConcatPart[], partId: string, patch: Partial<ConcatPart>): ConcatPart[] {
+  return parts.map((part) => (part.id === partId ? { ...part, ...patch } : part));
+}
+
+export function addConcatPartToList(parts: ConcatPart[], part: ConcatPart): ConcatPart[] {
+  return [...parts, part];
+}
+
+export function removeConcatPartFromList(
+  parts: ConcatPart[],
+  partId: string,
+  { keepAtLeastOne = false }: { keepAtLeastOne?: boolean } = {},
+): ConcatPart[] {
+  if (keepAtLeastOne && parts.length <= 1) {
+    return parts;
+  }
+
+  return parts.filter((part) => part.id !== partId);
+}
+
+export function reorderConcatParts(parts: ConcatPart[], orderedPartIds: string[]): ConcatPart[] {
+  const partsById = new Map(parts.map((part) => [part.id, part]));
+  const movedParts = orderedPartIds.map((id) => partsById.get(id)).filter((part): part is ConcatPart => Boolean(part));
+  const remainingParts = parts.filter((part) => !orderedPartIds.includes(part.id));
+  return [...movedParts, ...remainingParts];
+}
+
+export function updateConcatPartPrimarySource(part: ConcatPart, source: StepSource, steps?: TransformStep[]): ConcatPart {
+  return {
+    ...part,
+    source,
+    ...(steps ? { steps } : {}),
+  };
 }
 
 function omitSeparatorBefore(part: ConcatPart): ConcatPart {

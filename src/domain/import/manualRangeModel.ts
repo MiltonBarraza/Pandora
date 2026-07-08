@@ -372,6 +372,48 @@ export function updateManualRangeValueRecipeSteps(
   };
 }
 
+export function updateManualRangePrimarySource(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  source: StepSource,
+  rows: InputRow[] = [],
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  if (source.type === 'input') {
+    return updateManualRangeInputValue(recipe, rangeId, source.inputColumnId);
+  }
+
+  if (source.type === 'rangeText') {
+    return reconcileManualRangeTextSelections(
+      updateManualRangeRangeTextValue(recipe, rangeId, {
+        inputColumnId: source.inputColumnId,
+        selectedText: source.selectedText,
+      }),
+      rangeId,
+      rows,
+    );
+  }
+
+  if (source.type === 'fixedText') {
+    return updateManualRangeFixedTextValue(recipe, rangeId, source.value);
+  }
+
+  return recipe;
+}
+
+export function updateManualRangePrimarySourceAndSteps(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  rangeId: string,
+  source: StepSource,
+  steps: TransformStep[],
+  rows: InputRow[] = [],
+): Extract<OutputRecipe, { type: 'manualRange' }> {
+  return updateManualRangeValueRecipeSteps(
+    updateManualRangePrimarySource(recipe, rangeId, source, rows),
+    rangeId,
+    steps,
+  );
+}
+
 function sanitizeRangeValueRecipeSteps(steps: TransformStep[]): TransformStep[] {
   return steps
     .filter((step) => step.type !== 'manualRange')

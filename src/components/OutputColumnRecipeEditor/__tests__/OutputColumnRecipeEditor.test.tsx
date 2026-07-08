@@ -6,13 +6,15 @@ import { buildInputRows, buildProcessedRows } from '../../../domain/import/outpu
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
-import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, addConcatPartToList, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorPreviousResultHelpText, removeConcatPartFromList, reorderComposeRecipeParts, reorderConcatParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartInList, updateConcatPartPrimarySource, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
-import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection } from '../RangeValueEditor';
+import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage, getComposeRecipePartsStorageMode, hasComposePreviousResultSource } from '../OutputColumnRecipeEditor.composePartsStorage';
+import { getConcatPartFromRecipePart, getConcatPartsFromRecipeParts, getRecipePartFromConcatPart } from '../OutputColumnRecipeEditor.recipeHelpers';
+import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, updateRangeConcatPartPrimarySource } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
 import { RecipeStudioShell, addComposeRecipePart, getComposePreviewCountText, getPreviewRowsFromStart, getPreviewStartRowNumber } from '../RecipeStudio';
 
@@ -799,6 +801,236 @@ describe('constructor helpers', () => {
       type: 'input',
       inputColumnId: '',
     }]);
+  });
+
+  it('characterizes compose part storage mode for legacy and step concat recipes', () => {
+    const legacyRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [{ id: 'part-name', type: 'input', inputColumnId: 'input-name' }],
+      separator: ' - ',
+    };
+    const stepConcatRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [{ id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } }],
+      }],
+    };
+
+    expect(getComposeRecipePartsStorageMode(legacyRecipe)).toBe('recipeParts');
+    expect(getComposeRecipePartsStorageMode(stepConcatRecipe)).toBe('concatStepParts');
+    expect(getComposeRecipePartsStorageMode({ ...stepConcatRecipe, steps: [{ ...stepConcatRecipe.steps![0], parts: [] }] })).toBe('recipeParts');
+    expect(hasComposePreviousResultSource(legacyRecipe)).toBe(false);
+    expect(hasComposePreviousResultSource(stepConcatRecipe)).toBe(true);
+    expect(hasComposePreviousResultSource({ ...stepConcatRecipe, steps: [{ ...stepConcatRecipe.steps![0], parts: [] }] })).toBe(false);
+  });
+
+  it('updates legacy compose recipe parts without migrating storage', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [
+        { id: 'part-name', type: 'input', inputColumnId: 'input-name', separatorAfter: ' - ' },
+        { id: 'part-text', type: 'text', value: 'Manual' },
+      ],
+      separator: '',
+    };
+    const nextParts = [
+      { id: 'part-text', type: 'text' as const, value: 'Manual', steps: [{ id: 'upper', type: 'uppercase' as const }] },
+      { id: 'part-name', type: 'input' as const, inputColumnId: 'input-name' },
+    ];
+
+    const updated = applyComposeRecipePartsUpdate(recipe, nextParts);
+
+    expect(updated.parts).toEqual(nextParts);
+    expect(updated.steps).toBeUndefined();
+    expect(updated.separator).toBe('');
+    expect(updated.customMode).toBe('concat');
+    expect(buildCombinePreview(updated, { 'input-name': 'Pincel' })).toBe('MANUALPincel');
+  });
+
+  it('updates step concat recipe parts without migrating storage', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+          { id: 'part-text', source: { type: 'fixedText', value: 'Manual' }, separatorBefore: ' - ' },
+        ],
+      }],
+    };
+    const nextParts = [
+      { id: 'part-text', type: 'text' as const, value: 'Manual', steps: [{ id: 'upper', type: 'uppercase' as const }] },
+      { id: 'part-name', type: 'input' as const, inputColumnId: 'input-name', separatorAfter: ' / ' },
+    ];
+
+    const updated = applyComposeRecipePartsUpdate(recipe, nextParts);
+
+    expect(updated.parts).toEqual([]);
+    expect(updated.steps?.[0]).toMatchObject({
+      id: 'concat-step',
+      type: 'concat',
+      parts: [
+        { id: 'part-text', source: { type: 'fixedText', value: 'Manual' }, steps: [{ id: 'upper', type: 'uppercase' }] },
+        { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+      ],
+    });
+    expect(updated.customMode).toBe('concat');
+    expect(buildCustomValuePreview(updated, { 'input-name': 'Pincel' })).toBe('MANUALPincel');
+  });
+
+  it('keeps step concat storage when adding and reordering compose parts', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+          { id: 'part-fixed', source: { type: 'fixedText', value: 'Manual' }, separatorBefore: ' - ' },
+        ],
+      }],
+    };
+
+    const added = addComposeRecipePart(recipe, inputColumns);
+    expect(added.recipe.parts).toEqual([]);
+    expect(added.recipe.steps?.[0].parts).toHaveLength(3);
+    expect(added.recipe.steps?.[0].parts?.[2]).toMatchObject({
+      id: added.selectedPartId,
+      source: { type: 'input', inputColumnId: '' },
+    });
+
+    const reordered = reorderComposeRecipeParts(recipe, ['part-fixed', 'part-name']);
+    expect(reordered.parts).toEqual([]);
+    expect(reordered.steps?.[0].parts?.map((part) => part.id)).toEqual(['part-fixed', 'part-name']);
+    expect(buildCustomValuePreview(reordered, { 'input-name': 'Pincel' })).toBe('ManualPincel');
+  });
+
+  it('reads compose parts and concat parts from legacy storage by id', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [
+        { id: 'part-name', type: 'input', inputColumnId: 'input-name', separatorAfter: ' - ' },
+        { id: 'part-text', type: 'text', value: 'Manual', steps: [{ id: 'trim', type: 'trim' }] },
+      ],
+      separator: '',
+    };
+
+    expect(getComposeRecipePartsFromStorage(recipe)).toEqual(recipe.parts);
+    expect(getComposeConcatPartFromStorage(recipe, 'part-name')).toEqual({
+      id: 'part-name',
+      source: { type: 'input', inputColumnId: 'input-name' },
+    });
+    expect(getComposeConcatPartFromStorage(recipe, 'part-text')).toEqual({
+      id: 'part-text',
+      source: { type: 'fixedText', value: 'Manual' },
+      steps: [{ id: 'trim', type: 'trim' }],
+    });
+    expect(getComposeConcatPartFromStorage(recipe, 'missing')).toBeUndefined();
+  });
+
+  it('reads compose parts and concat parts from step concat storage by id', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+          { id: 'part-fixed', source: { type: 'fixedText', value: 'Manual' }, separatorBefore: ' - ', steps: [{ id: 'upper', type: 'uppercase' }] },
+        ],
+      }],
+    };
+
+    expect(getComposeRecipePartsFromStorage(recipe)).toEqual([
+      { id: 'part-name', type: 'input', inputColumnId: 'input-name' },
+      { id: 'part-fixed', type: 'text', value: 'Manual', steps: [{ id: 'upper', type: 'uppercase' }] },
+    ]);
+    expect(getComposeConcatPartFromStorage(recipe, 'part-fixed')).toEqual({
+      id: 'part-fixed',
+      source: { type: 'fixedText', value: 'Manual' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+    expect(getComposeConcatPartFromStorage(recipe, 'missing')).toBeUndefined();
+  });
+
+  it('updates one legacy compose concat part by id while preserving legacy separators and preview', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [
+        { id: 'part-name', type: 'input', inputColumnId: 'input-name', separatorAfter: ' - ' },
+        { id: 'part-text', type: 'text', value: 'Manual' },
+      ],
+      separator: '',
+    };
+
+    const updated = applyComposeConcatPartUpdate(recipe, 'part-name', {
+      id: 'part-name',
+      source: { type: 'fixedText', value: 'nuevo' },
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+
+    expect(updated.parts).toEqual([
+      { id: 'part-name', type: 'text', value: 'nuevo', steps: [{ id: 'upper', type: 'uppercase' }], separatorAfter: ' - ' },
+      { id: 'part-text', type: 'text', value: 'Manual' },
+    ]);
+    expect(updated.steps).toBeUndefined();
+    expect(buildCombinePreview(updated, { 'input-name': 'Pincel' })).toBe('NUEVO - Manual');
+  });
+
+  it('updates one step concat part by id while preserving modern storage and preview', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+          { id: 'part-fixed', source: { type: 'fixedText', value: 'manual' }, separatorBefore: ' - ' },
+        ],
+      }],
+    };
+
+    const updated = applyComposeConcatPartUpdate(recipe, 'part-fixed', {
+      id: 'part-fixed',
+      source: { type: 'fixedText', value: 'manual' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+
+    expect(updated.parts).toEqual([]);
+    expect(updated.steps?.[0].parts).toEqual([
+      { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+      { id: 'part-fixed', source: { type: 'fixedText', value: 'manual' }, separatorBefore: ' - ', steps: [{ id: 'upper', type: 'uppercase' }] },
+    ]);
+    expect(buildCustomValuePreview(updated, { 'input-name': 'Pincel' })).toBe('Pincel - MANUAL');
   });
 
   it('renders a text compose part with fixed text input by default', () => {
@@ -3657,6 +3889,48 @@ describe('constructor helpers', () => {
     expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).not.toContain('Texto fijo');
   });
 
+  it('updates range concat part sources without changing unrelated part fields', () => {
+    const part = {
+      id: 'range-part',
+      source: { type: 'input' as const, inputColumnId: 'input-name' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' as const }],
+    };
+
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'previousResult' })).toEqual({
+      ...part,
+      source: { type: 'previousResult' },
+    });
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' })).toEqual({
+      ...part,
+      source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+    });
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'fixedText', value: 'Texto elegido desde celda' })).toEqual({
+      ...part,
+      source: { type: 'fixedText', value: 'Texto elegido desde celda' },
+    });
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'input', inputColumnId: 'input-pack' })).toEqual({
+      ...part,
+      source: { type: 'input', inputColumnId: 'input-pack' },
+    });
+  });
+
+  it('updates range concat part source and steps together without changing separators', () => {
+    const part = {
+      id: 'range-part',
+      source: { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+      separatorBefore: ' / ',
+      steps: [{ id: 'trim', type: 'trim' as const }],
+    };
+
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'input', inputColumnId: 'input-pack' }, [{ id: 'upper', type: 'uppercase' }])).toEqual({
+      id: 'range-part',
+      source: { type: 'input', inputColumnId: 'input-pack' },
+      separatorBefore: ' / ',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+  });
+
   it('renders range text configuration inside concat range value parts', () => {
     const markup = renderRangeValueEditor({
       id: 'range-8-9',
@@ -6313,6 +6587,97 @@ describe('constructor helpers', () => {
     expect(getNextSelectedConcatPartIdAfterRemove([{ id: 'only', source: { type: 'previousResult' as const } }], 'only', 'only')).toBeNull();
   });
 
+  it('updates concat parts in a list without changing order or unrelated parts', () => {
+    const parts = [
+      { id: 'first', source: { type: 'input' as const, inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' as const }] },
+      { id: 'second', source: { type: 'fixedText' as const, value: 'OK' }, separatorBefore: ' - ' },
+    ];
+
+    expect(updateConcatPartInList(parts, 'first', { source: { type: 'input', inputColumnId: 'input-pack' } })).toEqual([
+      { id: 'first', source: { type: 'input', inputColumnId: 'input-pack' }, steps: [{ id: 'trim', type: 'trim' }] },
+      parts[1],
+    ]);
+    expect(updateConcatPartInList(parts, 'missing', { separatorBefore: ' / ' })).toEqual(parts);
+  });
+
+  it('adds and removes concat parts without changing remaining part content', () => {
+    const parts = [
+      { id: 'first', source: { type: 'input' as const, inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' as const }] },
+      { id: 'second', source: { type: 'fixedText' as const, value: 'OK' }, separatorBefore: ' - ' },
+    ];
+    const nextPart = { id: 'third', source: { type: 'input' as const, inputColumnId: '' } };
+
+    expect(addConcatPartToList(parts, nextPart)).toEqual([...parts, nextPart]);
+    expect(removeConcatPartFromList([...parts, nextPart], 'second')).toEqual([parts[0], nextPart]);
+    expect(removeConcatPartFromList([parts[0]], 'first', { keepAtLeastOne: true })).toEqual([parts[0]]);
+  });
+
+  it('reorders concat parts by id while preserving separators and steps', () => {
+    const parts = [
+      { id: 'first', source: { type: 'input' as const, inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' as const }] },
+      { id: 'second', source: { type: 'fixedText' as const, value: 'OK' }, separatorBefore: ' - ' },
+      { id: 'third', source: { type: 'input' as const, inputColumnId: 'input-pack' }, separatorBefore: ' / ' },
+    ];
+
+    expect(reorderConcatParts(parts, ['third', 'first'])).toEqual([parts[2], parts[0], parts[1]]);
+  });
+
+  it('converts legacy recipe parts to concat parts preserving source, separators and steps', () => {
+    expect(getConcatPartsFromRecipeParts([
+      { id: 'name', type: 'input', inputColumnId: 'input-name', steps: [{ id: 'trim', type: 'trim' }], separatorAfter: ' - ' },
+      { id: 'fixed', type: 'text', value: 'OK' },
+      { id: 'pack', type: 'input', inputColumnId: 'input-pack' },
+    ], ' / ')).toEqual([
+      { id: 'name', source: { type: 'input', inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' }] },
+      { id: 'fixed', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+      { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' }, separatorBefore: ' / ' },
+    ]);
+  });
+
+  it('converts concat parts back to recipe parts using current legacy fallback behavior', () => {
+    expect(getRecipePartFromConcatPart({
+      id: 'name',
+      source: { type: 'input', inputColumnId: 'input-name' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'trim', type: 'trim' }],
+    })).toEqual({
+      id: 'name',
+      type: 'input',
+      inputColumnId: 'input-name',
+      steps: [{ id: 'trim', type: 'trim' }],
+    });
+    expect(getRecipePartFromConcatPart({ id: 'fixed', source: { type: 'fixedText', value: 'OK' } })).toEqual({
+      id: 'fixed',
+      type: 'text',
+      value: 'OK',
+    });
+    expect(getRecipePartFromConcatPart({ id: 'range', source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Found' } })).toMatchObject({
+      id: 'range',
+      type: 'text',
+      value: 'Found',
+      steps: [{ type: 'noop' }],
+    });
+    expect(getRecipePartFromConcatPart({ id: 'previous', source: { type: 'previousResult' } })).toMatchObject({
+      id: 'previous',
+      type: 'text',
+      value: '',
+      steps: [{ type: 'noop' }],
+    });
+  });
+
+  it('converts one legacy recipe part to a concat part without separator context', () => {
+    expect(getConcatPartFromRecipePart({
+      id: 'fixed',
+      type: 'text',
+      value: 'OK',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    })).toEqual({
+      id: 'fixed',
+      source: { type: 'fixedText', value: 'OK' },
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
+  });
+
   it('summarizes concat parts for the lateral list', () => {
     expect(describeConcatPartSource({ id: 'name', source: { type: 'input', inputColumnId: 'input-name' } }, inputColumns)).toBe('Columna D (Nombre)');
     expect(describeConcatPartSource({ id: 'fixed', source: { type: 'fixedText', value: ' - ' } }, inputColumns)).toBe('Texto fijo " - "');
@@ -6348,14 +6713,65 @@ describe('constructor helpers', () => {
       steps: [{ id: 'upper', type: 'uppercase' as const }],
     };
 
-    expect({ ...part, source: { type: 'fixedText' as const, value: 'Nombre' } }).toMatchObject({
+    expect(updateConcatPartPrimarySource(part, { type: 'fixedText', value: 'Nombre' })).toMatchObject({
       separatorBefore: ' - ',
+      source: { type: 'fixedText', value: 'Nombre' },
       steps: [{ id: 'upper', type: 'uppercase' }],
     });
     expect({ ...part, separatorBefore: ' / ' }).toMatchObject({
       source: { type: 'input', inputColumnId: 'input-name' },
       steps: [{ id: 'upper', type: 'uppercase' }],
     });
+  });
+
+  it('updates concat part primary source and optional steps without changing other part fields', () => {
+    const part = {
+      id: 'name',
+      source: { type: 'fixedText' as const, value: 'Manual' },
+      separatorBefore: ' / ',
+      steps: [{ id: 'upper', type: 'uppercase' as const }],
+    };
+
+    expect(updateConcatPartPrimarySource(part, { type: 'input', inputColumnId: 'input-name' })).toEqual({
+      ...part,
+      source: { type: 'input', inputColumnId: 'input-name' },
+    });
+    expect(updateConcatPartPrimarySource(part, { type: 'fixedText', value: 'Celda elegida' }, [{ id: 'trim', type: 'trim' }])).toEqual({
+      ...part,
+      source: { type: 'fixedText', value: 'Celda elegida' },
+      steps: [{ id: 'trim', type: 'trim' }],
+    });
+  });
+
+  it('keeps concat part source previews stable for column, fixed text and picked cell text', () => {
+    const recipeForPart = (part: ReturnType<typeof updateConcatPartPrimarySource>): Extract<OutputRecipe, { type: 'combine' }> => ({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{ id: 'concat', mode: 'text', type: 'concat', parts: [part] }],
+    });
+    const basePart = { id: 'part', source: { type: 'input' as const, inputColumnId: 'input-name' } };
+
+    expect(buildCustomValuePreview(recipeForPart(updateConcatPartPrimarySource(basePart, { type: 'input', inputColumnId: 'input-name' })), { 'input-name': 'Pincel' })).toBe('Pincel');
+    expect(buildCustomValuePreview(recipeForPart(updateConcatPartPrimarySource(basePart, { type: 'fixedText', value: 'Manual' })), { 'input-name': 'Pincel' })).toBe('Manual');
+    expect(buildCustomValuePreview(recipeForPart(updateConcatPartPrimarySource(basePart, { type: 'fixedText', value: 'Celda elegida' })), { 'input-name': 'Pincel' })).toBe('Celda elegida');
+  });
+
+  it('keeps concat part internal steps evaluation when source changes', () => {
+    const part = updateConcatPartPrimarySource(
+      { id: 'part', source: { type: 'fixedText' as const, value: '' } },
+      { type: 'input', inputColumnId: 'input-name' },
+      [{ id: 'upper', type: 'uppercase' }],
+    );
+
+    expect(buildCustomValuePreview({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{ id: 'concat', mode: 'text', type: 'concat', parts: [part] }],
+    }, { 'input-name': 'pincel' })).toBe('PINCEL');
   });
 
   it('does not invent a transformation for a neutral first step', () => {
