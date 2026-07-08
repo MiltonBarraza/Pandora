@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { noActiveColumnsLabel } from './OutputColumnRecipeEditor.constants';
+import { previousResultFieldLabel, recipeStepModeLabels } from './OutputColumnRecipeEditor.actionDefinitions';
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
   getDatePickerValue,
@@ -51,7 +52,7 @@ import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
-import { getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
+import { createStepEditorContext, getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
 import { createPreviousResultDisplay, isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
@@ -419,7 +420,7 @@ function ManualRangeSummary({
     <div className="recipeSubBlock constructorSummary manualRangeSummary">
       <div>
         <strong className="headingWithInfo">
-          <span>Trabajar con rangos</span>
+          <span>{recipeStepModeLabels.manualRange}</span>
           <InfoTooltip content="Asigna valores segun rangos de filas reales del Excel." />
         </strong>
         <dl className="customValueSummaryList">
@@ -1277,7 +1278,7 @@ function getPreviousResultExamples(
   if (rows.length > 0) {
     const previewColumn: OutputColumn = {
       id: 'previous-result-examples',
-      label: 'Resultado anterior',
+      label: previousResultFieldLabel,
       order: 0,
       enabled: true,
       recipe,
@@ -1535,11 +1536,11 @@ function SimpleStepBlock({
   onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
-  const context: StepEditorContext = {
+  const context = createStepEditorContext({
     kind: 'normal',
     stepIndex: index,
     defaultInputColumnId: baseInputColumnId,
-  };
+  });
   const isManualRangeStep = step.type === 'manualRange';
   const summarySource = step.source;
   const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getSimpleStepBlockTitle(step, index, inputColumns, summarySource);
@@ -1876,12 +1877,12 @@ function createPreviewPartFromSource(source: StepSource, previousResultPreviewVa
 }
 
 function getConcatPartStepContext(stepIndex: number, sourceActionOverride?: StepSourceAction): StepEditorContext {
-  return {
+  return createStepEditorContext({
     kind: 'concat',
     stepIndex,
     defaultInputColumnId: '',
-    ...(sourceActionOverride ? { sourceActionOverride } : {}),
-  };
+    sourceActionOverride,
+  });
 }
 function getConcatPrimarySourceActionOverride(step: TransformStep, source: StepSource, hasStoredPrimaryStep: boolean): StepSourceAction | undefined {
   if (!hasStoredPrimaryStep || step.type !== 'noop') {

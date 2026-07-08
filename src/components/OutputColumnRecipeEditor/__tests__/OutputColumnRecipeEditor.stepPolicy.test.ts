@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { StepSource, TransformStep } from '../../../types/import';
+import type { InputRow, StepSource, TransformStep } from '../../../types/import';
 import {
   createCanonicalSourceForAction,
   createCanonicalStepForAction,
+  createStepEditorContext,
   getAllowedSourceActions,
   getAllowedTextTransformerSourceActions,
   getAllowedStepActions,
   getAllowedStepModes,
+  getStepEditorContextFacts,
+  getStepRowsForCellPicker,
+  getStepRowsForNumericOperandCompatibility,
+  getStepRowsForSourceCompatibility,
+  getStepRowsForTypedActionCompatibility,
   getVisibleStepAction,
   isVisibleStepActionConfigured,
   normalizeStepForContext,
@@ -32,6 +38,159 @@ function noop(source?: StepSource): TransformStep {
 }
 
 describe('step editor policy', () => {
+  it('creates normalized context facts for normal steps', () => {
+    const firstStep = createStepEditorContext({
+      kind: 'normal',
+      defaultInputColumnId: inputColumnId,
+      idFactory,
+    });
+    const followUpStep = createStepEditorContext({
+      kind: 'normal',
+      stepIndex: 1,
+      defaultInputColumnId: inputColumnId,
+      sourceActionOverride: 'pickColumnText',
+      idFactory,
+    });
+
+    expect(firstStep).toEqual({
+      kind: 'normal',
+      stepIndex: 0,
+      defaultInputColumnId: inputColumnId,
+      idFactory,
+    });
+    expect(getStepEditorContextFacts(firstStep)).toMatchObject({
+      contextKind: 'normal',
+      stepIndex: 0,
+      isFirstStep: true,
+      isFollowUpStep: false,
+      isRangeContext: false,
+      isConcatContext: false,
+      isRangeConcatContext: false,
+      allowManualRange: true,
+      allowConcat: true,
+      allowPreviousResult: false,
+      allowRangeText: false,
+      allowsResultOverwriteActions: false,
+      cellPickerScope: 'global',
+    });
+    expect(getStepEditorContextFacts(followUpStep)).toMatchObject({
+      contextKind: 'normal',
+      stepIndex: 1,
+      isFirstStep: false,
+      isFollowUpStep: true,
+      allowPreviousResult: true,
+      allowsResultOverwriteActions: true,
+      cellPickerScope: 'global',
+    });
+  });
+
+  it('creates context facts for concat, range and range concat paths', () => {
+    expect(getStepEditorContextFacts(createStepEditorContext({ kind: 'concat' }))).toMatchObject({
+      contextKind: 'concat',
+      isRangeContext: false,
+      isConcatContext: true,
+      isRangeConcatContext: false,
+      allowManualRange: false,
+      allowConcat: false,
+      allowRangeText: false,
+      cellPickerScope: 'global',
+    });
+    expect(getStepEditorContextFacts(createStepEditorContext({ kind: 'range' }))).toMatchObject({
+      contextKind: 'range',
+      isRangeContext: true,
+      isConcatContext: false,
+      isRangeConcatContext: false,
+      allowManualRange: false,
+      allowConcat: true,
+      allowRangeText: true,
+      cellPickerScope: 'range',
+    });
+    expect(getStepEditorContextFacts(createStepEditorContext({ kind: 'rangeConcat' }))).toMatchObject({
+      contextKind: 'rangeConcat',
+      isRangeContext: true,
+      isConcatContext: true,
+      isRangeConcatContext: true,
+      allowManualRange: false,
+      allowConcat: false,
+      allowRangeText: true,
+      cellPickerScope: 'range',
+    });
+  });
+
+  it('keeps row policy for compatibility and cell picker paths', () => {
+    const allRows: InputRow[] = [{ rowNumber: 1, values: { name: 'Ana', amount: '10' } }];
+    const rangeRows: InputRow[] = [{ rowNumber: 5, values: { name: 'Beto', amount: '20' } }];
+
+    expect(getStepRowsForCellPicker({ manualRangeRows: allRows })).toBe(allRows);
+    expect(getStepRowsForSourceCompatibility({ manualRangeRows: allRows })).toBeUndefined();
+    expect(getStepRowsForSourceCompatibility({ manualRangeRows: allRows, inputCompatibilityRows: rangeRows })).toBe(rangeRows);
+    expect(getStepRowsForTypedActionCompatibility({ manualRangeRows: allRows })).toBe(allRows);
+    expect(getStepRowsForTypedActionCompatibility({ manualRangeRows: allRows, inputCompatibilityRows: rangeRows })).toBe(rangeRows);
+    expect(getStepRowsForNumericOperandCompatibility({ manualRangeRows: allRows })).toEqual({
+      rows: allRows,
+      includeSampleValues: true,
+    });
+    expect(getStepRowsForNumericOperandCompatibility({ manualRangeRows: allRows, inputCompatibilityRows: rangeRows })).toEqual({
+      rows: rangeRows,
+      includeSampleValues: false,
+    });
+  });
+
+  it('keeps visible text actions by editor path', () => {
+    expect(getAllowedStepActions('text', createStepEditorContext({ kind: 'normal' }))).toEqual([
+      'useInputColumn',
+      'useFixedText',
+      'pickColumnText',
+      'trim',
+      'uppercase',
+      'lowercase',
+      'addPrefix',
+      'addSuffix',
+      'removeText',
+      'replaceText',
+      'concat',
+    ]);
+    expect(getAllowedStepActions('text', createStepEditorContext({ kind: 'concat' }))).toEqual([
+      'useInputColumn',
+      'useFixedText',
+      'pickColumnText',
+      'trim',
+      'uppercase',
+      'lowercase',
+      'addPrefix',
+      'addSuffix',
+      'removeText',
+      'replaceText',
+    ]);
+    expect(getAllowedStepActions('text', createStepEditorContext({ kind: 'range' }))).toEqual([
+      'useInputColumn',
+      'useFixedText',
+      'pickColumnText',
+      'useRangeText',
+      'trim',
+      'uppercase',
+      'lowercase',
+      'addPrefix',
+      'addSuffix',
+      'removeText',
+      'replaceText',
+      'concat',
+    ]);
+    expect(getAllowedStepActions('text', createStepEditorContext({ kind: 'rangeConcat' }))).toEqual([
+      'useInputColumn',
+      'useFixedText',
+      'pickColumnText',
+      'useRangeText',
+      'trim',
+      'uppercase',
+      'lowercase',
+      'addPrefix',
+      'addSuffix',
+      'removeText',
+      'replaceText',
+    ]);
+  });
+
   it('defines allowed modes by context', () => {
     expect(stepEditorPolicy(context('normal')).allowManualRange).toBe(true);
     expect(getAllowedStepModes(context('normal'))).toContain('manualRange');

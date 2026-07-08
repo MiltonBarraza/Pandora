@@ -7,27 +7,40 @@ import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText } from './ColumnTextPicker';
-import { operationTypeLabel, pickCellTextLabel, recipeEditorPreviousResultHelpText, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { operationTypeLabel, recipeEditorPreviousResultHelpText, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  previousResultFieldLabel,
+} from './OutputColumnRecipeEditor.actionDefinitions';
 import {
   conditionNeedsValue,
   conditionOperators,
   createDefaultCondition,
   getDatePickerValue,
   getStepModeOptions,
-  getStepSourceDropdownOptions,
   getStepSourceDropdownValue,
   getStepSourceFromDropdownValue,
-  getStepTextSourceActionOptions,
-  getStepTypeOptions,
   getStepTypesForMode,
   isNumericConditionOperator,
   isStepTextSourceAction,
   normalizeConditionToInput,
-  numericOperationOptions,
   shouldShowPreviousResultSourceHelp,
   type StepTextAction,
   type StepTextSourceAction,
 } from './OutputColumnRecipeEditor.optionHelpers';
+import {
+  getCompatibleStepValueInputColumns,
+  getLegacyConversionStepActionOptions,
+  getLegacyNumericStepActionOptions,
+  getLegacyStepTypeSelectOptions,
+  getLegacyTextStepActionOptions,
+  getStepOperandTypeOptions,
+  getStepValueSourceOptions,
+} from './OutputColumnRecipeEditor.stepOptions';
+
+export {
+  getCompatibleStepValueInputColumns,
+  getStepValueSourceOptions,
+};
 
 export type StepValueKind = 'text' | 'number' | 'date';
 export type StepSourceChangeContext = { origin: 'cellValuePicker' };
@@ -90,68 +103,6 @@ export function isVisibleStepActionConfigured(
   return getVisibleStepAction(step, mode, textSourceAction) !== '';
 }
 
-export function getStepValueSourceOptions(
-  inputColumns: InputColumn[],
-  valueKind: StepValueKind,
-  allowPreviousResult: boolean,
-  explicitTextValueSource = false,
-  config: StepValueSourceOptionsConfig = {},
-  compatibilityRows?: InputRow[],
-) {
-  const isAllowed = (source: StepValueSourceKind) => !config.allowedSources || config.allowedSources.includes(source);
-  const inputOptions = isAllowed('input')
-    ? inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) }))
-    : [];
-  const previousResultOptions = allowPreviousResult && isAllowed('previousResult')
-    ? [{ value: 'previousResult', label: 'Usar resultado anterior' }]
-    : [];
-  const fixedTextOptions = isAllowed('fixedText')
-    ? [{ value: 'fixedText', label: config.fixedTextLabel ?? (valueKind === 'number' ? 'Valor fijo' : valueKind === 'date' ? 'Fecha fija' : 'Texto fijo') }]
-    : [];
-  const pickerOptions = isAllowed('columnTextPicker')
-    ? [{ value: 'columnTextPicker', label: config.columnTextPickerLabel ?? (valueKind === 'number' ? 'Elegir valor desde celda' : valueKind === 'date' ? 'Elegir fecha desde celda' : pickCellTextLabel) }]
-    : [];
-
-  if (valueKind === 'text' && !explicitTextValueSource) {
-    return getStepSourceDropdownOptions(inputColumns, allowPreviousResult, true);
-  }
-
-  if (valueKind === 'text') {
-    return [
-      ...previousResultOptions,
-      ...inputOptions,
-      ...fixedTextOptions,
-      ...pickerOptions,
-    ];
-  }
-
-  const compatibleColumns = getCompatibleStepValueInputColumns(inputColumns, valueKind, compatibilityRows);
-
-  return [
-    ...previousResultOptions,
-    ...(isAllowed('input') ? compatibleColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })) : []),
-    ...fixedTextOptions,
-    ...pickerOptions,
-  ];
-}
-
-export function getCompatibleStepValueInputColumns(inputColumns: InputColumn[], valueKind: StepValueKind, compatibilityRows?: InputRow[]) {
-  if (valueKind === 'text') {
-    return inputColumns;
-  }
-
-  return inputColumns.filter((inputColumn) => {
-    const values = compatibilityRows
-      ? compatibilityRows.map((row) => String(row.values[inputColumn.id] ?? '').trim()).filter(Boolean)
-      : inputColumn.sampleValues.map((value) => value.trim()).filter(Boolean);
-    if (compatibilityRows) {
-      return values.some(valueKind === 'number' ? isNumericPickerValue : isDatePickerValue);
-    }
-
-    return values.length === 0 || values.some(valueKind === 'number' ? isNumericPickerValue : isDatePickerValue);
-  });
-}
-
 export function getColumnCompatibilityHint(valueKind: StepValueKind, totalColumns: number, compatibleColumns: number) {
   if (valueKind === 'text' || totalColumns === 0 || compatibleColumns === totalColumns) {
     return '';
@@ -172,15 +123,12 @@ export function getNumericStepTypeFromSelection(value: NonNullable<TransformStep
   return value === '' || value === 'noop' ? { type: 'noop' as const } : { type: 'numericOperation' as const, operation: value };
 }
 
-export function getTextStepActionOptions(_allowPreviousResult: boolean, allowConcat = true) {
-  return [
-    ...getStepTextSourceActionOptions(false),
-    ...getStepTypesForMode('text', { allowConcat }).filter((option) => option.value !== 'noop'),
-  ];
+export function getTextStepActionOptions(allowPreviousResult: boolean, allowConcat = true) {
+  return getLegacyTextStepActionOptions(allowPreviousResult, allowConcat);
 }
 
 export function getConversionStepActionOptions() {
-  return getStepTypesForMode('conversion').filter((option) => option.value !== 'noop');
+  return getLegacyConversionStepActionOptions();
 }
 
 export function getStepActionHelpText(action: string, _mode?: TransformStepMode) {
@@ -232,10 +180,7 @@ export function StepTypeSelect({
         label="Acción"
         labelInfo={<InfoTooltip content={actionHelpText} />}
         value={visibleAction as NonNullable<TransformStep['operation']> | 'noop' | ''}
-        options={[
-          { value: 'noop', label: useValueAsIsLabel },
-          ...numericOperationOptions,
-        ]}
+        options={getLegacyNumericStepActionOptions()}
         placeholder="Seleccionar acción"
         scrollStrategy="close"
         onChange={(value) => {
@@ -246,12 +191,11 @@ export function StepTypeSelect({
     );
   }
 
-  const options = mode ? getStepTypesForMode(mode, { allowConcat }) : getStepTypeOptions({ allowConcat });
-  const textOptions = getTextStepActionOptions(allowPreviousResultSource, allowConcat);
-  const visibleOptions = mode === 'text' && onTextSourceAction
-    ? textOptions
-    : mode === 'conversion' ? getConversionStepActionOptions()
-      : options;
+  const visibleOptions = getLegacyStepTypeSelectOptions({
+    mode,
+    allowConcat,
+    hasTextSourceAction: Boolean(onTextSourceAction),
+  });
   return (
     <div className="stepTypeFieldGroup">
       <Dropdown<StepTextAction>
@@ -364,7 +308,6 @@ export function StepSourceFields({
   const previousResultValue = previousResultDisplay?.value ?? previousResultPreviewValue ?? 'Valor dinámico';
   const previousResultHelpText = previousResultDisplay?.helpText ?? recipeEditorPreviousResultHelpText;
   const usesTypedValuePicker = valueKind === 'number' || valueKind === 'date';
-  const canPickColumnText = valueKind === 'text';
   const isAllowedDateValue = dateValueValidator ?? isDatePickerValue;
   const pickerValueValidator = columnTextPickerValueValidator
     ?? (valueKind === 'number' ? isNumericPickerValue : valueKind === 'date' ? isAllowedDateValue : undefined);
@@ -376,9 +319,7 @@ export function StepSourceFields({
     ? `Este valor no parece una fecha válida. Valor guardado: ${safeSource.value}`
     : '';
   const sourceValue = effectiveColumnTextPickerOpen ? 'columnTextPicker' : getStepSourceDropdownValue(safeSource);
-  const sourceOptions = usesTypedValuePicker || explicitTextValueSource
-    ? getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource, sourceOptionsConfig, inputCompatibilityRows)
-    : getStepSourceDropdownOptions(inputColumns, allowPreviousResult, canPickColumnText);
+  const sourceOptions = getStepValueSourceOptions(inputColumns, valueKind, allowPreviousResult, explicitTextValueSource, sourceOptionsConfig, inputCompatibilityRows);
   const compatibleColumns = usesTypedValuePicker ? getCompatibleStepValueInputColumns(inputColumns, valueKind, inputCompatibilityRows) : inputColumns;
   const compatibilityHint = getColumnCompatibilityHint(valueKind, inputColumns.length, compatibleColumns.length);
   const pickerInputColumns = usesTypedValuePicker && limitColumnTextPickerToCompatibleColumns ? compatibleColumns : inputColumns;
@@ -423,7 +364,7 @@ export function StepSourceFields({
       {showPreviousResultField ? (
         <label className="field compact recipeField previousResultValueField">
           <span className="labelWithInfo">
-            <span>Resultado anterior</span>
+            <span>{previousResultFieldLabel}</span>
             <InfoTooltip content={previousResultHelpText.split('\n').map((line, index) => (
               <Fragment key={`${index}-${line}`}>
                 {index > 0 ? <br /> : null}
@@ -520,11 +461,7 @@ export function StepOperandFields({
         label={label}
         labelInfo={renderLabelInfo('Elige si el valor viene de una columna, un numero fijo o un paso previo.', compatibilityHint)}
         value={safeOperand.type}
-        options={[
-          ...(allowPreviousResult ? [{ value: 'previousResult' as const, label: 'Resultado del paso anterior' }] : []),
-          { value: 'input' as const, label: 'Columna de entrada' },
-          { value: 'fixedText' as const, label: 'Valor fijo' },
-        ].filter((option) => !allowedTypes || allowedTypes.includes(option.value))}
+        options={getStepOperandTypeOptions(allowPreviousResult, allowedTypes)}
         scrollStrategy="close"
         onChange={(type) => {
           if (type === 'previousResult') {

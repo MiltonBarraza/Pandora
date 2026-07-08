@@ -20,14 +20,22 @@ import type {
   TransformStepType,
 } from '../../types/import';
 import type { DropdownOption } from '../ui/Dropdown/Dropdown';
-import { pickCellTextLabel, useValueAsIsLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  cellValuePickerActionLabels,
+  numericOperationLabels,
+  previousResultActionLabel,
+  previousResultSourceLabel,
+  recipeStepActionLabels,
+  recipeStepModeLabels,
+  recipeStepTypeLabels,
+} from './OutputColumnRecipeEditor.actionDefinitions';
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
-  { value: 'text', label: 'Trabajar con texto' },
-  { value: 'number', label: 'Trabajar con números' },
-  { value: 'conversion', label: 'Conversión' },
-  { value: 'date', label: 'Trabajar con fechas' },
-  { value: 'manualRange', label: 'Trabajar con rangos' },
+  { value: 'text', label: recipeStepModeLabels.text },
+  { value: 'number', label: recipeStepModeLabels.number },
+  { value: 'conversion', label: recipeStepModeLabels.conversion },
+  { value: 'date', label: recipeStepModeLabels.date },
+  { value: 'manualRange', label: recipeStepModeLabels.manualRange },
 ];
 
 export function getStepModeOptions({ allowManualRange = true }: { allowManualRange?: boolean } = {}) {
@@ -58,8 +66,8 @@ export function getStepSourceDropdownValue(source: StepSource) {
 
 export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
   return [
-    ...(allowPreviousResult ? [{ value: 'previousResult', label: 'Resultado del paso anterior' }] : []),
-    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: pickCellTextLabel }] : []),
+    ...(allowPreviousResult ? [{ value: 'previousResult', label: previousResultSourceLabel }] : []),
+    ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: cellValuePickerActionLabels.text }] : []),
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
   ];
 }
@@ -85,21 +93,21 @@ export function shouldShowPreviousResultSourceHelp(source: StepSource) {
 }
 
 const stepTypes: Array<{ value: TransformStepType; label: string }> = [
-  { value: 'noop', label: useValueAsIsLabel },
-  { value: 'trim', label: 'Limpiar espacios' },
-  { value: 'uppercase', label: 'Convertir a mayúsculas' },
-  { value: 'lowercase', label: 'Convertir a minúsculas' },
-  { value: 'addPrefix', label: 'Agregar prefijo' },
-  { value: 'addSuffix', label: 'Agregar sufijo' },
-  { value: 'removeText', label: 'Quitar texto' },
-  { value: 'replaceText', label: 'Reemplazar texto' },
-  { value: 'manualRange', label: 'Trabajar con rangos' },
-  { value: 'concat', label: 'Concatenar' },
-  { value: 'extractNumber', label: 'Usar número del texto' },
-  { value: 'toNumber', label: 'Convertir a número' },
-  { value: 'toText', label: 'Convertir a texto' },
-  { value: 'formatDate', label: 'Formatear fecha' },
-  { value: 'numericOperation', label: 'Operación numérica' },
+  { value: 'noop', label: recipeStepTypeLabels.noop },
+  { value: 'trim', label: recipeStepTypeLabels.trim },
+  { value: 'uppercase', label: recipeStepTypeLabels.uppercase },
+  { value: 'lowercase', label: recipeStepTypeLabels.lowercase },
+  { value: 'addPrefix', label: recipeStepTypeLabels.addPrefix },
+  { value: 'addSuffix', label: recipeStepTypeLabels.addSuffix },
+  { value: 'removeText', label: recipeStepTypeLabels.removeText },
+  { value: 'replaceText', label: recipeStepTypeLabels.replaceText },
+  { value: 'manualRange', label: recipeStepTypeLabels.manualRange },
+  { value: 'concat', label: recipeStepTypeLabels.concat },
+  { value: 'extractNumber', label: recipeStepTypeLabels.extractNumber },
+  { value: 'toNumber', label: recipeStepTypeLabels.toNumber },
+  { value: 'toText', label: recipeStepTypeLabels.toText },
+  { value: 'formatDate', label: recipeStepTypeLabels.formatDate },
+  { value: 'numericOperation', label: recipeStepTypeLabels.numericOperation },
 ];
 
 const textStepTypes = stepTypes.filter((stepType) => [
@@ -119,10 +127,10 @@ export type StepTextAction = TransformStepType | StepTextSourceAction;
 
 export function getStepTextSourceActionOptions(allowPreviousResult: boolean): Array<{ value: StepTextSourceAction; label: string }> {
   return [
-    { value: 'useInputColumn', label: 'Usar columna de entrada' },
-    { value: 'useFixedText', label: 'Usar texto fijo' },
-    { value: 'pickColumnText', label: pickCellTextLabel },
-    ...(allowPreviousResult ? [{ value: 'usePreviousResult' as const, label: 'Usar resultado anterior' }] : []),
+    { value: 'useInputColumn', label: recipeStepActionLabels.useInputColumn },
+    { value: 'useFixedText', label: recipeStepActionLabels.useFixedText },
+    { value: 'pickColumnText', label: recipeStepActionLabels.pickColumnText },
+    ...(allowPreviousResult ? [{ value: 'usePreviousResult' as const, label: previousResultActionLabel }] : []),
   ];
 }
 
@@ -205,16 +213,6 @@ export const conditionOperators: Array<{ value: ConditionOperator; label: string
   { value: 'numericEquals', label: 'Igual numérico' },
   { value: 'numericNotEquals', label: 'Distinto numérico' },
 ];
-
-const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
-  add: 'Sumar valor',
-  subtract: 'Restar valor',
-  multiply: 'Multiplicar por valor',
-  divide: 'Dividir por valor',
-  addPercentage: 'Sumar %',
-  subtractPercentage: 'Restar %',
-  removeIncludedPercentage: 'Quitar % incluido',
-};
 
 export const numericOperationOptions = Object.entries(numericOperationLabels).map(([value, label]) => ({
   value: value as NonNullable<TransformStep['operation']>,

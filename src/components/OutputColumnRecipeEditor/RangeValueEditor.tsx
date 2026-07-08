@@ -6,7 +6,6 @@ import {
   getManualRangeRangeTextSource,
   getManualRangeSelectedTextOptions,
   getManualRangeValueSourceType,
-  manualRangeValueSourceOptions,
   type ManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
 import { useState } from 'react';
@@ -18,13 +17,18 @@ import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getInvalidPickerTooltip, invalidPickerValuesLabel } from './ColumnTextPicker';
-import { addPartLabel, noActiveColumnsLabel, pickColumnTextLabel, useValueAsIsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import { addPartLabel, noActiveColumnsLabel, valueSourceLabel } from './OutputColumnRecipeEditor.constants';
+import {
+  previousResultFieldLabel,
+  recipeStepActionLabels,
+} from './OutputColumnRecipeEditor.actionDefinitions';
 import { StepSourceFields, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { getNumericOperationPreview, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { createPreviousResultDisplay, isDeterministicStepChain } from './OutputColumnRecipeEditor.previousResultHelpers';
 import { getManualRangePreviewValueForRow } from './ManualRangeSpreadsheetEditor.helpers';
 import {
   createCanonicalStepForMode,
+  createStepEditorContext,
   getVisibleStepAction,
   isStepSourceAction,
   normalizeStepForContext,
@@ -33,6 +37,11 @@ import {
   type StepSourceAction,
   type VisibleStepAction,
 } from './OutputColumnRecipeEditor.stepPolicy';
+import {
+  getInputColumnOptions,
+  getRangeValueConcatPartSourceDropdownOptions as getAdapterRangeValueConcatPartSourceDropdownOptions,
+  getRangeValueSourceDropdownOptions as getAdapterRangeValueSourceDropdownOptions,
+} from './OutputColumnRecipeEditor.stepOptions';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
@@ -52,35 +61,6 @@ export type RangeValueSourceSelection =
   | { type: 'valueSourceType'; value: ManualRangeValueSourceType }
   | { type: 'inputColumn'; inputColumnId: string };
 
-const rangeValueActionLabels: Record<RangeValueTextAction, string> = {
-  useValueAsIs: useValueAsIsLabel,
-  useInputColumn: 'Usar columna de entrada',
-  useFixedText: 'Usar texto fijo',
-  pickColumnText: pickColumnTextLabel,
-  useNumberInputColumn: 'Usar número desde columna',
-  useFixedNumber: 'Usar número fijo',
-  pickNumberCell: 'Elegir número desde celda',
-  useDateInputColumn: 'Usar fecha desde columna',
-  useFixedDate: 'Usar fecha fija',
-  pickDateCell: 'Elegir fecha desde celda',
-  useRangeText: 'Texto encontrado en el rango',
-  usePreviousResult: 'Usar resultado anterior',
-  trim: 'Limpiar espacios',
-  uppercase: 'Convertir a mayúsculas',
-  lowercase: 'Convertir a minúsculas',
-  addPrefix: 'Agregar prefijo',
-  addSuffix: 'Agregar sufijo',
-  removeText: 'Quitar texto',
-  replaceText: 'Reemplazar texto',
-  concat: 'Concatenar',
-  numericOperation: 'Operación numérica',
-  extractNumber: 'Usar número del texto',
-  toNumber: 'Convertir a número',
-  toText: 'Convertir a texto',
-  formatDate: 'Formatear fecha',
-  manualRange: 'Trabajar con rangos',
-};
-
 const rangeValuePrimaryStepId = 'range-value-primary-step';
 
 function createRangeValueStepContext(
@@ -89,12 +69,12 @@ function createRangeValueStepContext(
   inputColumns: InputColumn[],
   sourceActionOverride?: StepSourceAction,
 ): StepEditorContext {
-  return {
+  return createStepEditorContext({
     kind,
     stepIndex,
     defaultInputColumnId: inputColumns[0]?.id ?? '',
     sourceActionOverride,
-  };
+  });
 }
 
 function getStepWithRangeValueSource(step: TransformStep, source?: StepSource, context?: StepEditorContext, forceConfiguredSource = false): TransformStep {
@@ -165,9 +145,7 @@ export function RangeValueEditor({
   const valueSourceType = getManualRangeValueSourceType(range);
   const inputSource = getManualRangeInputSource(range);
   const rangeTextSource = getManualRangeRangeTextSource(range);
-  const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: noActiveColumnsLabel }]
-    : [{ value: '', label: 'Seleccionar' }, ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))];
+  const inputColumnOptions = getInputColumnOptions(inputColumns, noActiveColumnsLabel, { includeBlankOption: true, blankLabel: 'Seleccionar' });
   const hasSourceDetails = true;
 
   const steps = range.valueRecipe?.steps ?? [];
@@ -261,11 +239,7 @@ function getRangeValuePrimaryStep(steps: TransformStep[]) {
 }
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
-  return [
-    ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input' && option.value !== 'fixedText'),
-    { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
-  ];
+  return getAdapterRangeValueSourceDropdownOptions(inputColumns);
 }
 
 export function getRangeValueSourceSelection(value: Exclude<RangeValueSourceDropdownValue, 'columnTextPicker'>): RangeValueSourceSelection {
@@ -757,9 +731,7 @@ function RangeValueConcatPartSourceFields({
   const noRangeTextWarning = hasNoRangeTextOptions
     ? getInvalidPickerTooltip(rangeTextHelpText || 'Sin textos en el rango')
     : '';
-  const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: noActiveColumnsLabel }]
-    : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
+  const inputColumnOptions = getInputColumnOptions(inputColumns, noActiveColumnsLabel);
 
   return (
     <>
@@ -837,12 +809,7 @@ function RangeValueConcatPartSourceFields({
 }
 
 export function getRangeValueConcatPartSourceDropdownOptions(inputColumns: InputColumn[]) {
-  return [
-    { value: 'previousResult' as const, label: 'Resultado anterior' },
-    { value: 'columnTextPicker' as const, label: pickColumnTextLabel },
-    { value: 'rangeText' as const, label: 'Texto encontrado en el rango' },
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
-  ];
+  return getAdapterRangeValueConcatPartSourceDropdownOptions(inputColumns);
 }
 
 function getRangeValueConcatPartRangeTextSource(source: StepSource, inputColumns: InputColumn[]): Extract<StepSource, { type: 'rangeText' }> {
@@ -864,7 +831,7 @@ function describeRangeValueConcatPartSource(part: ConcatPart, inputColumns: Inpu
   }
 
   if (source.type === 'previousResult') {
-    return 'Resultado anterior';
+    return previousResultFieldLabel;
   }
 
   if (source.type === 'fixedText') {
@@ -897,7 +864,7 @@ function getRangeValueCompositionTokenKind(part: ConcatPart) {
 
 function createRangeValueStep(
   mode: Exclude<TransformStepMode, 'manualRange'> = 'text',
-  context: StepEditorContext = { kind: 'range', stepIndex: 0 },
+  context: StepEditorContext = createStepEditorContext({ kind: 'range', stepIndex: 0 }),
 ): TransformStep {
   return normalizeRangeValueStep(createCanonicalStepForMode(mode, context), context);
 }
@@ -918,7 +885,7 @@ export function createDefaultRangeValueConcatParts(): ConcatPart[] {
   ];
 }
 
-export function appendRangeValueStep(steps: TransformStep[], context: StepEditorContext = { kind: 'range', stepIndex: steps.length }): TransformStep[] {
+export function appendRangeValueStep(steps: TransformStep[], context: StepEditorContext = createStepEditorContext({ kind: 'range', stepIndex: steps.length })): TransformStep[] {
   return steps.length === 0
     ? [createRangeValueStep('text', { ...context, stepIndex: 0 }), createRangeValueStep('text', context)]
     : [...steps, createRangeValueStep('text', context)];
@@ -990,5 +957,5 @@ function getRangeValueStepTitle(step: TransformStep, context: StepEditorContext,
 
   return step.type === 'numericOperation'
     ? getRecipeStepTitle(step, inputColumns)
-    : rangeValueActionLabels[actionValue] ?? 'Sin configurar';
+    : recipeStepActionLabels[actionValue] ?? 'Sin configurar';
 }
