@@ -6,7 +6,6 @@ import {
   getManualRangeRangeTextSource,
   getManualRangeSelectedTextOptions,
   getManualRangeValueSourceType,
-  manualRangeValueSourceOptions,
   type ManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
 import { useState } from 'react';
@@ -38,6 +37,11 @@ import {
   type StepSourceAction,
   type VisibleStepAction,
 } from './OutputColumnRecipeEditor.stepPolicy';
+import {
+  getInputColumnOptions,
+  getRangeValueConcatPartSourceDropdownOptions as getAdapterRangeValueConcatPartSourceDropdownOptions,
+  getRangeValueSourceDropdownOptions as getAdapterRangeValueSourceDropdownOptions,
+} from './OutputColumnRecipeEditor.stepOptions';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
@@ -141,9 +145,7 @@ export function RangeValueEditor({
   const valueSourceType = getManualRangeValueSourceType(range);
   const inputSource = getManualRangeInputSource(range);
   const rangeTextSource = getManualRangeRangeTextSource(range);
-  const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: noActiveColumnsLabel }]
-    : [{ value: '', label: 'Seleccionar' }, ...inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }))];
+  const inputColumnOptions = getInputColumnOptions(inputColumns, noActiveColumnsLabel, { includeBlankOption: true, blankLabel: 'Seleccionar' });
   const hasSourceDetails = true;
 
   const steps = range.valueRecipe?.steps ?? [];
@@ -237,11 +239,7 @@ function getRangeValuePrimaryStep(steps: TransformStep[]) {
 }
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
-  return [
-    ...manualRangeValueSourceOptions.filter((option) => option.value !== 'input' && option.value !== 'fixedText'),
-    { value: 'columnTextPicker' as const, label: recipeStepActionLabels.pickColumnText },
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
-  ];
+  return getAdapterRangeValueSourceDropdownOptions(inputColumns);
 }
 
 export function getRangeValueSourceSelection(value: Exclude<RangeValueSourceDropdownValue, 'columnTextPicker'>): RangeValueSourceSelection {
@@ -733,9 +731,7 @@ function RangeValueConcatPartSourceFields({
   const noRangeTextWarning = hasNoRangeTextOptions
     ? getInvalidPickerTooltip(rangeTextHelpText || 'Sin textos en el rango')
     : '';
-  const inputColumnOptions = inputColumns.length === 0
-    ? [{ value: '', label: noActiveColumnsLabel }]
-    : inputColumns.map((inputColumn) => ({ value: inputColumn.id, label: getInputColumnLabel(inputColumn) }));
+  const inputColumnOptions = getInputColumnOptions(inputColumns, noActiveColumnsLabel);
 
   return (
     <>
@@ -813,12 +809,7 @@ function RangeValueConcatPartSourceFields({
 }
 
 export function getRangeValueConcatPartSourceDropdownOptions(inputColumns: InputColumn[]) {
-  return [
-    { value: 'previousResult' as const, label: previousResultFieldLabel },
-    { value: 'columnTextPicker' as const, label: recipeStepActionLabels.pickColumnText },
-    { value: 'rangeText' as const, label: recipeStepActionLabels.useRangeText },
-    ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}` as const, label: getInputColumnLabel(inputColumn) })),
-  ];
+  return getAdapterRangeValueConcatPartSourceDropdownOptions(inputColumns);
 }
 
 function getRangeValueConcatPartRangeTextSource(source: StepSource, inputColumns: InputColumn[]): Extract<StepSource, { type: 'rangeText' }> {
