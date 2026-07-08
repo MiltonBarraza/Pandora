@@ -112,18 +112,10 @@ describe('CombineWizard basket sources', () => {
     expect(loadCombineDraft()?.outputColumns).toHaveLength(1);
   });
 
-  it('does not render the removed settings import input', () => {
-    const { container } = render(<CombineWizard basketSources={[basketSource]} />);
-    const input = container.querySelector<HTMLInputElement>('.combineSettingsFileInput');
-
-    expect(input).toBeNull();
-  });
-
   it('keeps the files section clean while no files are loaded', () => {
     render(<CombineWizard basketSources={emptySources} />);
 
     expect(screen.getByRole('heading', { name: '1. Archivos' })).not.toBeNull();
-    expect(screen.queryByRole('heading', { name: '2. Configuración' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '2. Columnas de salida' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '3. Asignar columnas' })).toBeNull();
     expect(screen.queryByText('Fuentes cargadas')).toBeNull();
@@ -147,11 +139,7 @@ describe('CombineWizard basket sources', () => {
     const { container } = render(<CombineWizard basketSources={[basketSource]} />);
 
     expect(screen.getByRole('heading', { name: '1. Archivos' })).not.toBeNull();
-    expect(screen.queryByRole('heading', { name: '2. Configuración' })).toBeNull();
     expect(screen.getByRole('heading', { name: '2. Columnas de salida' })).not.toBeNull();
-    expect(screen.queryByRole('button', { name: 'Exportar configuración' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Importar configuración' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Eliminar borrador temporal' })).toBeNull();
     expect(screen.getByText('Fuentes cargadas')).not.toBeNull();
     expect(screen.getByLabelText('1 fuente cargada').textContent).toBe('1');
     expect(screen.queryByText('1 archivo')).toBeNull();

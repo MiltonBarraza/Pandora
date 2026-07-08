@@ -32,6 +32,8 @@ describe('CombinedRowsPreview limits', () => {
     expect(container.querySelectorAll('.combinePreviewTable tbody tr')).toHaveLength(30);
     expect(container.textContent).toContain('Mostrando las primeras 30 de 45 filas combinadas.');
     expect(screen.getByText('Sin ordenar, las filas se combinan siguiendo el orden de los archivos cargados.')).not.toBeNull();
+    expect(screen.getByRole('radio', { name: 'Ascendente' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('radio', { name: 'Descendente' })).toHaveProperty('disabled', true);
     const summary = container.querySelector('.combinePreviewSummary');
     const sortPanel = container.querySelector('.combineResultSortPanel');
     const limit = container.querySelector('.combinePreviewLimit');

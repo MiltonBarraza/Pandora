@@ -589,6 +589,12 @@ describe('constructor helpers', () => {
     expect(markup).toContain('class="dragHandle"');
     expect(markup).not.toContain('aria-label="Duplicar parte"');
     expect(markup).toContain('aria-label="Eliminar parte"');
+    const selectedTokenCardIndex = markup.indexOf('compositionTokenCard compositionToken-input selected');
+    const selectedTokenButtonIndex = markup.indexOf('class="compositionToken compositionToken-input selected"', selectedTokenCardIndex);
+    const selectedTokenDragIndex = markup.indexOf('class="dragHandle"', selectedTokenCardIndex);
+    const selectedTokenDeleteIndex = markup.indexOf('aria-label="Eliminar parte"', selectedTokenCardIndex);
+    expect(selectedTokenButtonIndex).toBeLessThan(selectedTokenDragIndex);
+    expect(selectedTokenDragIndex).toBeLessThan(selectedTokenDeleteIndex);
     expect(markup).not.toContain('Izquierda');
     expect(markup).not.toContain('Derecha');
     expect(markup).toContain('Vista previa');
@@ -3158,6 +3164,12 @@ describe('constructor helpers', () => {
     expect(markup).toContain('composeTokenInspector');
     expect(markup).toContain('Parte seleccionada');
     expect(markup).toContain('dragHandle');
+    const rangeTokenCardIndex = markup.indexOf('compositionTokenCard');
+    const rangeTokenButtonIndex = markup.indexOf('class="compositionToken', rangeTokenCardIndex);
+    const rangeTokenDragIndex = markup.indexOf('class="dragHandle"', rangeTokenCardIndex);
+    const rangeTokenDeleteIndex = markup.indexOf('aria-label="Eliminar parte"', rangeTokenCardIndex);
+    expect(rangeTokenButtonIndex).toBeLessThan(rangeTokenDragIndex);
+    expect(rangeTokenDragIndex).toBeLessThan(rangeTokenDeleteIndex);
     expect(markup).toContain('stepDetailPanel');
     expect(markup).toContain('stepCardHeader');
     expect(markup).toContain('Paso 1');
