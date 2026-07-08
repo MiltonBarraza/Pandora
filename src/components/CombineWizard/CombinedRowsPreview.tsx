@@ -45,7 +45,7 @@ export const CombinedRowsPreview = memo(function CombinedRowsPreview({
   );
 
   return (
-    <section className="panel combineFlowPanel combinePreviewPanel">
+    <section className="panel combineFlowPanel combinePreviewPanel wizardSectionEnter">
       <h2>4. Vista previa</h2>
       <div className="combinePreviewSummary">
         <p className="combinePreviewOverview">

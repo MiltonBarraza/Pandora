@@ -390,6 +390,8 @@ button.danger:hover:not(:disabled) {
 }
 
 .appShell {
+  --app-first-card-min-height: 260px;
+  --app-hero-min-height: clamp(260px, 28vw, 356px);
   --app-layout-gutter: 12px;
   --app-panel-border-width: 1px;
   --app-panel-padding: 16px;
@@ -451,8 +453,11 @@ button.appearanceToggleOption.isActive {
 }
 
 .hero {
+  align-items: flex-start;
   background: linear-gradient(135deg, var(--color-hero-gradient-start) 0%, var(--color-hero-gradient-mid) 55%, var(--color-hero-gradient-end) 100%);
   color: var(--color-hero-text);
+  display: flex;
+  min-height: var(--app-hero-min-height);
   padding: 42px 0 64px;
 }
 
@@ -486,6 +491,7 @@ h1 {
 }
 
 .wizard {
+  animation: toolContentEnter 150ms ease-out;
   display: grid;
   gap: 16px;
   margin: -42px auto 48px;
@@ -495,9 +501,41 @@ h1 {
   width: 100%;
 }
 
+.wizard > .panel:first-child {
+  min-height: var(--app-first-card-min-height);
+}
+
+@keyframes toolContentEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wizardSectionEnter {
+  animation: wizardSectionEnter 150ms ease-out;
+}
+
+@keyframes wizardSectionEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .toolLoadingWizard {
-  margin-top: 0;
-  padding-top: 96px;
+  margin-top: -42px;
+  padding-top: 0;
 }
 
 .toolLoadingPanel {
@@ -505,7 +543,7 @@ h1 {
   display: flex;
   gap: 10px;
   justify-content: center;
-  min-height: 220px;
+  min-height: var(--app-first-card-min-height);
 }
 
 .toolLoadingPanel p {
@@ -515,6 +553,7 @@ h1 {
 }
 
 .toolSelectorPanel {
+  min-height: var(--app-first-card-min-height);
   padding: 20px;
 }
 
@@ -534,7 +573,7 @@ h1 {
   display: grid;
   gap: 14px;
   grid-template-columns: auto minmax(0, 1fr);
-  min-height: 132px;
+  min-height: 152px;
   padding: 20px;
   text-align: left;
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -726,17 +765,9 @@ h3 {
   padding-inline: 11px;
 }
 
-.combineHero {
-  padding: 32px 0 56px;
-}
-
 .combineHero h1 {
   font-size: clamp(2.25rem, 3.5vw, 3.35rem);
   max-width: 880px;
-}
-
-.combineHero p:last-child {
-  margin-top: 12px;
 }
 
 .combineWizard .wizard {
@@ -2441,6 +2472,7 @@ tbody tr:hover {
 }
 
 .modalDialog[open] {
+  animation: modalDialogEnter 160ms ease-out;
   display: flex;
   flex-direction: column;
 }
@@ -2453,7 +2485,30 @@ tbody tr:hover {
 }
 
 .modalDialog::backdrop {
+  animation: modalDialogBackdropEnter 160ms ease-out;
   background: var(--color-overlay-modal);
+}
+
+@keyframes modalDialogEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalDialogBackdropEnter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .modalHeader {
@@ -2576,6 +2631,10 @@ tbody tr:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .wizard,
+  .wizardSectionEnter,
+  .modalDialog[open],
+  .modalDialog::backdrop,
   .confirmDialogModal[open],
   .confirmDialogModal::backdrop {
     animation: none;
@@ -3461,7 +3520,7 @@ tbody tr:hover {
   text-align: left;
   top: calc(100% + 4px);
   transform: translateY(-2px);
-  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  transition: opacity 140ms ease-out, transform 140ms ease-out, visibility 140ms ease-out;
   visibility: hidden;
   white-space: normal;
   z-index: 10020;
@@ -3477,6 +3536,13 @@ tbody tr:hover {
   pointer-events: auto;
   transform: translateY(0);
   visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manualRangeMoreExamplesTooltip {
+    transform: none;
+    transition: none;
+  }
 }
 
 .manualRangeList {
@@ -4570,6 +4636,8 @@ tbody tr:hover {
   }
 
   .appShell {
+    --app-first-card-min-height: 220px;
+    --app-hero-min-height: 260px;
     --app-layout-gutter: 8px;
     --app-panel-padding: 12px;
   }

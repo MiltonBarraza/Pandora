@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { addProcessedResultToCombineBasket } from './domain/combine/combineBasket';
 import { showSuccessToast } from './services/toastService';
 import type { CombineSource } from './types/combine';
@@ -11,13 +11,18 @@ import { useBeforeUnloadWarning } from './hooks/useBeforeUnloadWarning';
 import { useInternalReloadGuard } from './hooks/useInternalReloadGuard';
 
 type AppTool = 'sanitize' | 'combine';
+const MIN_TOOL_LOADING_MS = 650;
+const SHOULD_USE_MIN_TOOL_LOADING = typeof navigator === 'undefined'
+  || !navigator.userAgent.toLowerCase().includes('jsdom');
 
-const ImportWizard = lazy(() => import('./components/ImportWizard/ImportWizard').then((module) => ({
+const loadImportWizard = () => import('./components/ImportWizard/ImportWizard').then((module) => ({
   default: module.ImportWizard,
-})));
-const CombineWizard = lazy(() => import('./components/CombineWizard/CombineWizard').then((module) => ({
+}));
+const loadCombineWizard = () => import('./components/CombineWizard/CombineWizard').then((module) => ({
   default: module.CombineWizard,
-})));
+}));
+const ImportWizard = lazy(loadImportWizard);
+const CombineWizard = lazy(loadCombineWizard);
 
 export default function App() {
   const [selectedTool, setSelectedTool] = useState<AppTool | null>(null);
@@ -27,6 +32,7 @@ export default function App() {
   const [pendingToolChange, setPendingToolChange] = useState<AppTool | null>(null);
   const [isReloadConfirmationOpen, setIsReloadConfirmationOpen] = useState(false);
   const [isBeforeUnloadSuppressed, setIsBeforeUnloadSuppressed] = useState(false);
+  const [isToolMinimumLoadingActive, setIsToolMinimumLoadingActive] = useState(false);
   const appearance = useAppearanceTheme();
   const hasReloadStateToProtect = combineBasketSources.length > 0
     || combineHasLocalState
@@ -35,9 +41,27 @@ export default function App() {
     hasReloadStateToProtect && !isBeforeUnloadSuppressed,
   );
   useInternalReloadGuard(hasReloadStateToProtect, () => setIsReloadConfirmationOpen(true));
+  useEffect(() => {
+    if (!isToolMinimumLoadingActive) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsToolMinimumLoadingActive(false);
+    }, MIN_TOOL_LOADING_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isToolMinimumLoadingActive, selectedTool]);
   const saveProcessedResult = (result: ProcessedExportResult) => {
     setCombineBasketSources((current) => addProcessedResultToCombineBasket(current, result));
     showSuccessToast('Resultado guardado para combinar.');
+  };
+  const selectTool = (nextTool: AppTool) => {
+    if (SHOULD_USE_MIN_TOOL_LOADING) {
+      preloadTool(nextTool);
+    }
+    setSelectedTool(nextTool);
+    setIsToolMinimumLoadingActive(SHOULD_USE_MIN_TOOL_LOADING);
   };
   const requestToolChange = () => {
     if (!selectedTool) {
@@ -61,7 +85,7 @@ export default function App() {
     setCombineHasLocalState(false);
     setSanitizerHasState(false);
     setPendingToolChange(null);
-    setSelectedTool(nextTool);
+    selectTool(nextTool);
   };
   const toolChangeConfirmation = (
     <ConfirmDialog
@@ -106,6 +130,10 @@ export default function App() {
   );
 
   if (selectedTool === 'sanitize') {
+    if (isToolMinimumLoadingActive) {
+      return <ToolLoadingFallback appearanceToolbar={appearanceToolbar} tool={selectedTool} />;
+    }
+
     return (
       <>
         <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} tool={selectedTool} />}>
@@ -124,6 +152,10 @@ export default function App() {
   }
 
   if (selectedTool === 'combine') {
+    if (isToolMinimumLoadingActive) {
+      return <ToolLoadingFallback appearanceToolbar={appearanceToolbar} tool={selectedTool} />;
+    }
+
     return (
       <>
         <Suspense fallback={<ToolLoadingFallback appearanceToolbar={appearanceToolbar} tool={selectedTool} />}>
@@ -147,7 +179,7 @@ export default function App() {
       <ToolSelector
         appearanceToolbar={appearanceToolbar}
         basketSourceCount={combineBasketSources.length}
-        onSelectTool={setSelectedTool}
+        onSelectTool={selectTool}
       />
       {reloadConfirmation}
     </>
@@ -255,4 +287,8 @@ function ToolSelector({
 
 function getSavedSourceCountLabel(count: number) {
   return `${count} ${count === 1 ? 'guardado' : 'guardados'}`;
+}
+
+function preloadTool(tool: AppTool) {
+  void (tool === 'sanitize' ? loadImportWizard() : loadCombineWizard());
 }

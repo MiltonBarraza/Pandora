@@ -111,7 +111,7 @@ button.infoTooltipTrigger .infoTooltipIcon {
   pointer-events: none;
   position: fixed;
   text-align: left;
-  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  transition: opacity 140ms ease-out, transform 140ms ease-out, visibility 140ms ease-out;
   visibility: hidden;
   white-space: normal;
   width: fit-content;
@@ -185,4 +185,17 @@ button.infoTooltipTrigger .infoTooltipIcon {
 .dropdownLabel.labelWithInfo > .infoTooltip,
 .field > .labelWithInfo > .infoTooltip {
   transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .infoTooltipBubble {
+    transition: none;
+  }
+
+  .infoTooltipBubble.infoTooltip-top,
+  .infoTooltipBubble.infoTooltip-bottom,
+  .infoTooltipBubble.infoTooltip-right,
+  .infoTooltipBubble.infoTooltip-left {
+    transform: none;
+  }
 }

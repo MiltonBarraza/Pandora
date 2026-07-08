@@ -664,7 +664,7 @@ export function ImportWizard({
 
         {hasLoadedFile ? (
           <>
-        <Step title="2. Hoja y configuración">
+        <Step title="2. Hoja y configuración" className="wizardSectionEnter">
           {fileType === 'csv' ? (
             <p className="muted">El archivo CSV se procesa como una única hoja.</p>
           ) : (
@@ -700,7 +700,7 @@ export function ImportWizard({
           </div>
         </Step>
 
-        <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta.">
+        <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta." className="wizardSectionEnter">
           <div className="rowColumnConfig">
             <Dropdown
               label="Fila de encabezados"
@@ -732,6 +732,7 @@ export function ImportWizard({
           title="4. Vista previa de datos"
           info="Elegí desde qué fila empieza la vista previa y revisá la selección actual con columnas activas, encabezados y alias."
           warning={getSheetRangeWarning(sheetRangeMetadata)}
+          className="wizardSectionEnter"
         >
           <div className="rowColumnConfig">
             <div className="field startRowField">
@@ -787,7 +788,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="5. Filtrar filas de entrada" info="Estas reglas se aplican sobre los datos originales antes de construir las columnas de salida.">
+        <Step title="5. Filtrar filas de entrada" info="Estas reglas se aplican sobre los datos originales antes de construir las columnas de salida." className="wizardSectionEnter">
           <IgnoreRules
             mode="input"
             inputColumns={processedPipeline.inputColumns}
@@ -800,7 +801,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="6. Columnas de salida" info="Define las columnas finales del archivo y como se llena cada una.">
+        <Step title="6. Columnas de salida" info="Define las columnas finales del archivo y como se llena cada una." className="wizardSectionEnter">
           <OutputColumnsManager
             inputColumns={processedPipeline.inputColumns}
             inputColumnsForGeneration={inputColumnsForGeneration}
@@ -811,7 +812,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="7. Filtrar filas de salida" info="Estas reglas se aplican sobre las columnas de salida ya transformadas.">
+        <Step title="7. Filtrar filas de salida" info="Estas reglas se aplican sobre las columnas de salida ya transformadas." className="wizardSectionEnter">
           <IgnoreRules
             mode="output"
             inputColumns={processedPipeline.inputColumns}
@@ -824,7 +825,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="8. Vista final" info="Muestra una vista previa del resultado ya procesado.">
+        <Step title="8. Vista final" info="Muestra una vista previa del resultado ya procesado." className="wizardSectionEnter">
           <ProcessedRowsPreview
             rows={processedRowsWithStatus}
             outputColumns={processedPipeline.outputColumns}
@@ -839,7 +840,7 @@ export function ImportWizard({
           ) : null}
         </Step>
 
-        <Step title="9. Nombre del archivo de salida" info="Configurá cómo se va a llamar el archivo final.">
+        <Step title="9. Nombre del archivo de salida" info="Configurá cómo se va a llamar el archivo final." className="wizardSectionEnter">
           <FileNameSettings
             settings={fileNameSettings}
             sourceFileName={fileName}
@@ -851,7 +852,7 @@ export function ImportWizard({
           />
         </Step>
 
-        <Step title="10. Qué hacer con este resultado" info="Descargá el archivo final, guardalo para combinar o generá un archivo de auditoría.">
+        <Step title="10. Qué hacer con este resultado" info="Descargá el archivo final, guardalo para combinar o generá un archivo de auditoría." className="wizardSectionEnter">
           <ExportActions
             rows={processedRowsWithStatus}
             auditRows={auditRows}
@@ -993,15 +994,17 @@ export function Step({
   title,
   info,
   warning,
+  className,
   children,
 }: {
   title: string;
   info?: string;
   warning?: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="panel">
+    <section className={className ? `panel ${className}` : 'panel'}>
       <h2 className={info || warning ? 'headingWithInfo' : undefined}>
         <span>{title}</span>
         {info ? <InfoTooltip content={info} ariaLabel={`Ayuda: ${title}`} placement="right" /> : null}

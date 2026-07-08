@@ -48,7 +48,7 @@ export function CombineMappingsEditor({
   }, [sources]);
 
   return (
-    <section className="panel combineFlowPanel combineMappingsPanel">
+    <section className="panel combineFlowPanel combineMappingsPanel wizardSectionEnter">
       <ConfirmDialog
         open={isReapplyConfirmationOpen}
         title="Reasignar columnas"
