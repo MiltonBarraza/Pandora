@@ -418,11 +418,199 @@ button.danger:hover:not(:disabled) {
   z-index: 9000;
 }
 
-.appTopToolbarLabel {
-  color: var(--color-text-muted);
+.appToolbarGroup {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.appToolbarToolsGroup {
+  border-right: 1px solid var(--color-toolbar-border);
+  gap: 6px;
+  padding-right: 8px;
+  position: relative;
+}
+
+.appToolMenu {
+  position: relative;
+}
+
+button.appToolMenuTrigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
   font-size: 0.78rem;
   font-weight: 800;
-  padding-left: 8px;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+button.appToolMenuTrigger:hover:not(:disabled),
+button.appToolMenuTrigger.isOpen {
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
+  color: var(--color-text-primary);
+}
+
+button.appToolMenuTrigger:focus-visible,
+button.appearanceIconButton:focus-visible,
+button.appToolBasketButton:focus-visible {
+  border-color: var(--color-focus-border);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  outline: none;
+}
+
+.appToolMenuPopover {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  box-shadow: var(--shadow-dropdown);
+  display: grid;
+  gap: 4px;
+  min-width: min(260px, calc(100vw - 24px));
+  padding: 5px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 9100;
+}
+
+button.appToolMenuOption {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-primary);
+  display: flex;
+  font-size: 0.88rem;
+  font-weight: 600;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 7px 9px;
+  text-align: left;
+  width: 100%;
+}
+
+button.appToolMenuOption > span:first-child {
+  white-space: nowrap;
+}
+
+button.appToolMenuOption:hover:not(:disabled),
+button.appToolMenuOption:focus-visible {
+  background: var(--color-accent-bg-soft);
+  outline: none;
+}
+
+button.appToolMenuOption.isActive {
+  background: var(--color-selected-bg);
+  color: var(--color-selected-text);
+}
+
+.appToolMenuOptionMeta {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  font-weight: 800;
+  gap: 6px;
+}
+
+button.appToolMenuOption.isActive .appToolMenuOptionMeta {
+  color: currentColor;
+}
+
+.appToolBasketBadge {
+  align-items: center;
+  background: var(--color-selected-bg);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-selected-text);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 900;
+  justify-content: center;
+  line-height: 1;
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0 6px;
+}
+
+button.appToolBasketButton {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  height: 30px;
+  min-height: 30px;
+  width: 30px;
+}
+
+button.appToolBasketButton:hover:not(:disabled),
+button.appToolBasketButton.isActive {
+  background: var(--color-accent-bg-soft);
+  border-color: var(--color-accent-border);
+  color: var(--color-text-primary);
+}
+
+.appToolBasketPopover {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  box-shadow: var(--shadow-dropdown);
+  color: var(--color-text-primary);
+  display: grid;
+  gap: 10px;
+  max-width: min(360px, calc(100vw - 24px));
+  min-width: min(320px, calc(100vw - 24px));
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 9100;
+}
+
+.appToolBasketPopover h2 {
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.appToolBasketPopover ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.appToolBasketPopover li {
+  border-top: 1px solid var(--color-border-subtle);
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.appToolBasketPopover li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.appToolBasketPopover strong,
+.appToolBasketPopover span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appToolBasketPopover span {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .appearanceToggle {
@@ -430,23 +618,20 @@ button.danger:hover:not(:disabled) {
   gap: 4px;
 }
 
-button.appearanceToggleOption {
-  background: transparent;
+button.appearanceIconButton {
   border: 1px solid transparent;
   border-radius: 999px;
-  color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  font-weight: 700;
-  min-height: 28px;
-  padding: 0 9px;
+  height: 30px;
+  min-height: 30px;
+  width: 30px;
 }
 
-button.appearanceToggleOption:hover:not(:disabled) {
+button.appearanceIconButton:hover:not(:disabled) {
   background: var(--color-accent-bg-soft);
   border-color: var(--color-accent-border);
 }
 
-button.appearanceToggleOption.isActive {
+button.appearanceIconButton.isActive {
   background: var(--color-accent-bg);
   border-color: var(--color-accent-border);
   color: var(--color-text-primary);
@@ -1139,18 +1324,6 @@ h3 {
 
 .combineMappingsToolbar p {
   margin: 0;
-}
-
-.appToolSwitchOption {
-  background: transparent !important;
-  border-color: var(--color-toolbar-border) !important;
-  color: var(--color-text-secondary) !important;
-  margin-left: 3px;
-}
-
-.appToolSwitchOption:hover:not(:disabled) {
-  background: var(--color-accent-bg-soft) !important;
-  color: var(--color-text-primary) !important;
 }
 
 .combineMappingNotice {
