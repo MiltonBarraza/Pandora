@@ -63,12 +63,16 @@ export default function App() {
     setSelectedTool(nextTool);
     setIsToolMinimumLoadingActive(SHOULD_USE_MIN_TOOL_LOADING);
   };
-  const requestToolChange = () => {
+  const requestToolChange = (nextTool: AppTool) => {
     if (!selectedTool) {
+      selectTool(nextTool);
       return;
     }
 
-    const nextTool = selectedTool === 'combine' ? 'sanitize' : 'combine';
+    if (nextTool === selectedTool) {
+      return;
+    }
+
     if (selectedTool === 'sanitize' && sanitizerHasState) {
       setPendingToolChange(nextTool);
       return;
@@ -119,13 +123,9 @@ export default function App() {
       preference={appearance.preference}
       resolvedTheme={appearance.resolvedTheme}
       onPreferenceChange={appearance.setPreference}
-      extraActions={selectedTool ? (
-        <button type="button" className="appearanceToggleOption appToolSwitchOption" onClick={requestToolChange}>
-          {selectedTool === 'combine'
-            ? 'Ir a Preparar archivo'
-            : `Ir a Combinar${combineBasketSources.length > 0 ? ` (${getSavedSourceCountLabel(combineBasketSources.length)})` : ''}`}
-        </button>
-      ) : null}
+      activeTool={selectedTool}
+      combineBasketSources={combineBasketSources}
+      onToolSelect={requestToolChange}
     />
   );
 
