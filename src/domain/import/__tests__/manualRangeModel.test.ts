@@ -12,6 +12,8 @@ import {
   manualRangesOverlap,
   updateManualRangeFixedTextValue,
   updateManualRangeInputValue,
+  updateManualRangePrimarySource,
+  updateManualRangePrimarySourceAndSteps,
   updateManualRangeRangeTextValue,
   updateManualRangeValueSourceType,
 } from '../manualRangeModel';
@@ -250,6 +252,105 @@ describe('manualRangeModel range value source compatibility', () => {
     expect(fixedTextRecipe.ranges[0]).toMatchObject({
       valueRecipe: { source: { type: 'fixedText', value: '' }, steps: [{ id: 'trim', type: 'trim' }] },
       valueSource: { type: 'fixedText', value: '' },
+    });
+  });
+
+  it('applies primary range input sources with current valueSource cleanup behavior', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      condition: { inputColumnId: 'input-name', operator: 'isNotEmpty' },
+      ranges: [{
+        id: 'range',
+        startRowNumber: 1,
+        endRowNumber: 2,
+        valueRecipe: { source: { type: 'fixedText', value: 'Current' }, steps: [{ id: 'trim', type: 'trim' }] },
+        valueSource: { type: 'fixedText', value: 'Current' },
+        value: 'Legacy value',
+      }],
+    };
+
+    const updated = updateManualRangePrimarySource(recipe, 'range', { type: 'input', inputColumnId: 'input-name' });
+
+    expect(updated.condition).toEqual(recipe.condition);
+    expect(updated.ranges[0]).toEqual({
+      id: 'range',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: { source: { type: 'input', inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' }] },
+    });
+  });
+
+  it('applies primary rangeText sources with current legacy valueSource behavior and reconciliation', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range',
+        startRowNumber: 1,
+        endRowNumber: 2,
+        valueRecipe: { source: { type: 'input', inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' }] },
+      }],
+    };
+    const manualRangeRows: InputRow[] = [
+      { rowNumber: 1, values: { 'input-name': 'Found' } },
+      { rowNumber: 2, values: { 'input-name': 'Other' } },
+    ];
+
+    const updated = updateManualRangePrimarySource(recipe, 'range', {
+      type: 'rangeText',
+      inputColumnId: 'input-name',
+      selectedText: 'Missing',
+    }, manualRangeRows);
+
+    expect(updated.ranges[0]).toMatchObject({
+      valueRecipe: { source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' }, steps: [{ id: 'trim', type: 'trim' }] },
+      valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: '' },
+    });
+  });
+
+  it('applies primary fixed text sources used by column text picker with current legacy valueSource behavior', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range',
+        startRowNumber: 1,
+        endRowNumber: 2,
+        valueRecipe: { source: { type: 'input', inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' }] },
+        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Found' },
+      }],
+    };
+
+    const updated = updateManualRangePrimarySource(recipe, 'range', { type: 'fixedText', value: 'Picked cell text' });
+
+    expect(updated.ranges[0]).toMatchObject({
+      valueRecipe: { source: { type: 'fixedText', value: 'Picked cell text' }, steps: [{ id: 'trim', type: 'trim' }] },
+      valueSource: { type: 'fixedText', value: 'Picked cell text' },
+    });
+  });
+
+  it('applies primary range source and steps together without changing legacy rules', () => {
+    const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
+      type: 'manualRange',
+      ranges: [{
+        id: 'range',
+        startRowNumber: 1,
+        endRowNumber: 2,
+        valueRecipe: { source: { type: 'fixedText', value: 'Current' }, steps: [] },
+        valueSource: { type: 'fixedText', value: 'Current' },
+      }],
+    };
+
+    const updated = updateManualRangePrimarySourceAndSteps(
+      recipe,
+      'range',
+      { type: 'input', inputColumnId: 'input-name' },
+      [{ id: 'upper', type: 'uppercase' }],
+    );
+
+    expect(updated.ranges[0]).toEqual({
+      id: 'range',
+      startRowNumber: 1,
+      endRowNumber: 2,
+      valueRecipe: { source: { type: 'input', inputColumnId: 'input-name' }, steps: [{ id: 'upper', type: 'uppercase' }] },
     });
   });
 });

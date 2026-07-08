@@ -2,13 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   findOverlappingManualRange,
   parseManualRangeRowInput,
-  reconcileManualRangeTextSelections,
-  updateManualRangeFixedTextValue,
-  updateManualRangeInputValue,
-  updateManualRangeRangeTextValue,
+  updateManualRangePrimarySourceAndSteps,
   updateManualRangeValueRecipeSteps,
 } from '../../domain/import/manualRangeModel';
-import type { InputColumn, InputRow, ManualRangeValue, StepSource, TransformStep } from '../../types/import';
+import type { InputColumn, InputRow, ManualRangeValue, TransformStep } from '../../types/import';
 import { Modal } from '../Modal/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
@@ -188,28 +185,6 @@ export function ManualRangeAdvancedRangeModal({
       return updater(currentRecipe, current.id).ranges[0] ?? current;
     });
   };
-  const updateDraftSource = (currentRecipe: ManualRangeRecipe, rangeId: string, source: StepSource) => {
-    if (source.type === 'input') {
-      return updateManualRangeInputValue(currentRecipe, rangeId, source.inputColumnId);
-    }
-
-    if (source.type === 'rangeText') {
-      return reconcileManualRangeTextSelections(
-        updateManualRangeRangeTextValue(currentRecipe, rangeId, {
-          inputColumnId: source.inputColumnId,
-          selectedText: source.selectedText,
-        }),
-        rangeId,
-        manualRangeRows,
-      );
-    }
-
-    if (source.type === 'fixedText') {
-      return updateManualRangeFixedTextValue(currentRecipe, rangeId, source.value);
-    }
-
-    return currentRecipe;
-  };
   const updateRowNumber = (field: 'startRowNumber' | 'endRowNumber', value: string) => {
     if (field === 'startRowNumber') {
       setStartRowInput(value);
@@ -324,8 +299,7 @@ export function ManualRangeAdvancedRangeModal({
               inputColumns={inputColumns}
               manualRangeRows={manualRangeRows}
               onSourceAndStepsChange={(source, steps) => updateDraftRecipe((currentRecipe, rangeId) => {
-                const nextRecipe = updateDraftSource(currentRecipe, rangeId, source);
-                return updateManualRangeValueRecipeSteps(nextRecipe, rangeId, steps);
+                return updateManualRangePrimarySourceAndSteps(currentRecipe, rangeId, source, steps, manualRangeRows);
               })}
               onStepsChange={(steps: TransformStep[]) => updateDraftRecipe((currentRecipe, rangeId) => updateManualRangeValueRecipeSteps(currentRecipe, rangeId, steps))}
             />

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { describeManualRangeCondition, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
+import { describeManualRangeCondition, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangePrimarySourceAndSteps, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { DateInputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
@@ -1036,31 +1036,8 @@ export function ManualRangeTableRow({
     const nextRecipe = updateManualRangeValue(recipe, range.id, { endRowNumber: endRowNumber ?? 0 });
     onChange(reconcileManualRangeTextSelections(nextRecipe, range.id, manualRangeRows));
   };
-  const updateRangeSource = (source: StepSource) => {
-    if (source.type === 'input') {
-      return updateManualRangeInputValue(recipe, range.id, source.inputColumnId);
-    }
-
-    if (source.type === 'rangeText') {
-      return reconcileManualRangeTextSelections(
-        updateManualRangeRangeTextValue(recipe, range.id, {
-          inputColumnId: source.inputColumnId,
-          selectedText: source.selectedText,
-        }),
-        range.id,
-        manualRangeRows,
-      );
-    }
-
-    if (source.type === 'fixedText') {
-      return updateManualRangeFixedTextValue(recipe, range.id, source.value);
-    }
-
-    return recipe;
-  };
   const updateRangeSourceAndSteps = (source: StepSource, steps: TransformStep[]) => {
-    const nextRecipe = updateRangeSource(source);
-    return updateManualRangeValueRecipeSteps(nextRecipe, range.id, steps);
+    return updateManualRangePrimarySourceAndSteps(recipe, range.id, source, steps, manualRangeRows);
   };
 
   return (
