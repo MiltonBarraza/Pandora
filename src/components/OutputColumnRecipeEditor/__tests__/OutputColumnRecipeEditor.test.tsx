@@ -12,6 +12,7 @@ import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, g
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
+import { applyComposeRecipePartsUpdate, getComposeRecipePartsStorageMode } from '../OutputColumnRecipeEditor.composePartsStorage';
 import { getConcatPartFromRecipePart, getConcatPartsFromRecipeParts, getRecipePartFromConcatPart } from '../OutputColumnRecipeEditor.recipeHelpers';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, updateRangeConcatPartPrimarySource } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
@@ -800,6 +801,122 @@ describe('constructor helpers', () => {
       type: 'input',
       inputColumnId: '',
     }]);
+  });
+
+  it('characterizes compose part storage mode for legacy and step concat recipes', () => {
+    const legacyRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [{ id: 'part-name', type: 'input', inputColumnId: 'input-name' }],
+      separator: ' - ',
+    };
+    const stepConcatRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [{ id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } }],
+      }],
+    };
+
+    expect(getComposeRecipePartsStorageMode(legacyRecipe)).toBe('recipeParts');
+    expect(getComposeRecipePartsStorageMode(stepConcatRecipe)).toBe('concatStepParts');
+    expect(getComposeRecipePartsStorageMode({ ...stepConcatRecipe, steps: [{ ...stepConcatRecipe.steps![0], parts: [] }] })).toBe('recipeParts');
+  });
+
+  it('updates legacy compose recipe parts without migrating storage', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [
+        { id: 'part-name', type: 'input', inputColumnId: 'input-name', separatorAfter: ' - ' },
+        { id: 'part-text', type: 'text', value: 'Manual' },
+      ],
+      separator: '',
+    };
+    const nextParts = [
+      { id: 'part-text', type: 'text' as const, value: 'Manual', steps: [{ id: 'upper', type: 'uppercase' as const }] },
+      { id: 'part-name', type: 'input' as const, inputColumnId: 'input-name' },
+    ];
+
+    const updated = applyComposeRecipePartsUpdate(recipe, nextParts);
+
+    expect(updated.parts).toEqual(nextParts);
+    expect(updated.steps).toBeUndefined();
+    expect(updated.separator).toBe('');
+    expect(updated.customMode).toBe('concat');
+    expect(buildCombinePreview(updated, { 'input-name': 'Pincel' })).toBe('MANUALPincel');
+  });
+
+  it('updates step concat recipe parts without migrating storage', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+          { id: 'part-text', source: { type: 'fixedText', value: 'Manual' }, separatorBefore: ' - ' },
+        ],
+      }],
+    };
+    const nextParts = [
+      { id: 'part-text', type: 'text' as const, value: 'Manual', steps: [{ id: 'upper', type: 'uppercase' as const }] },
+      { id: 'part-name', type: 'input' as const, inputColumnId: 'input-name', separatorAfter: ' / ' },
+    ];
+
+    const updated = applyComposeRecipePartsUpdate(recipe, nextParts);
+
+    expect(updated.parts).toEqual([]);
+    expect(updated.steps?.[0]).toMatchObject({
+      id: 'concat-step',
+      type: 'concat',
+      parts: [
+        { id: 'part-text', source: { type: 'fixedText', value: 'Manual' }, steps: [{ id: 'upper', type: 'uppercase' }] },
+        { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+      ],
+    });
+    expect(updated.customMode).toBe('concat');
+    expect(buildCustomValuePreview(updated, { 'input-name': 'Pincel' })).toBe('MANUALPincel');
+  });
+
+  it('keeps step concat storage when adding and reordering compose parts', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{
+        id: 'concat-step',
+        type: 'concat',
+        mode: 'text',
+        parts: [
+          { id: 'part-name', source: { type: 'input', inputColumnId: 'input-name' } },
+          { id: 'part-fixed', source: { type: 'fixedText', value: 'Manual' }, separatorBefore: ' - ' },
+        ],
+      }],
+    };
+
+    const added = addComposeRecipePart(recipe, inputColumns);
+    expect(added.recipe.parts).toEqual([]);
+    expect(added.recipe.steps?.[0].parts).toHaveLength(3);
+    expect(added.recipe.steps?.[0].parts?.[2]).toMatchObject({
+      id: added.selectedPartId,
+      source: { type: 'input', inputColumnId: '' },
+    });
+
+    const reordered = reorderComposeRecipeParts(recipe, ['part-fixed', 'part-name']);
+    expect(reordered.parts).toEqual([]);
+    expect(reordered.steps?.[0].parts?.map((part) => part.id)).toEqual(['part-fixed', 'part-name']);
+    expect(buildCustomValuePreview(reordered, { 'input-name': 'Pincel' })).toBe('ManualPincel');
   });
 
   it('renders a text compose part with fixed text input by default', () => {
