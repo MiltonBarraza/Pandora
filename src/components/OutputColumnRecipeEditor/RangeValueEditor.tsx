@@ -312,6 +312,51 @@ function RangeValueStepsEditor({
   ).message;
   const getPreviousStepPreviewValue = (stepIndex: number) => getRangeValuePreviousStepPreviewValue(range, manualRangeRows ?? [], sourceForPrimary, safeSteps, stepIndex);
   const getPreviousStepDisplay = (stepIndex: number) => getRangeValuePreviousResultDisplay(range, manualRangeRows ?? [], sourceForPrimary, safeSteps, stepIndex);
+  const renderPrimaryStepBlock = () => (
+    <StepEditorBlock
+      step={primaryPolicyStep}
+      context={primaryContext}
+      uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
+      inputColumns={inputColumns}
+      manualRangeRows={manualRangeRows}
+      inputCompatibilityRows={rangeRows}
+      title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext, inputColumns)}`}
+      fixedTextInputLabel={fixedTextInputLabel}
+      showCondition={!isPrimaryConcat}
+      showAddStep={!isPrimaryConcat && additionalSteps.length === 0}
+      renderFields={renderFields}
+      onAddStep={addStep}
+      onChange={(patch) => updatePrimaryStep({ ...primaryPolicyStep, ...patch })}
+      onReplace={updatePrimaryStep}
+    />
+  );
+  const renderAdditionalSteps = () => (
+    additionalSteps.length > 0 ? (
+      <div className="concatPartTransformList">
+        {additionalSteps.map((step, index) => (
+          <div key={step.id} className={showAdditionalStepsHeader ? undefined : 'concatPartStepDivider'}>
+            <RangeValueStepEditor
+              step={step}
+              index={index}
+              stepNumber={showAdditionalStepsHeader ? undefined : index + 2}
+              inputColumns={inputColumns}
+              manualRangeRows={manualRangeRows}
+              inputCompatibilityRows={rangeRows}
+              context={createRangeValueStepContext(contextKind, index + 1 + primaryStepIndex, inputColumns)}
+              uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${index + 1 + primaryStepIndex}` : undefined}
+              previousResultPreviewValue={getPreviousStepPreviewValue(index + 1 + primaryStepIndex)}
+              previousResultDisplay={getPreviousStepDisplay(index + 1 + primaryStepIndex)}
+              showAddStep={!showAdditionalStepsHeader && index === additionalSteps.length - 1}
+              onChange={(patch) => updateStep(step.id, patch)}
+              onReplace={(nextStep) => replaceStep(step.id, nextStep)}
+              onDelete={() => deleteStep(step.id)}
+              onAddStep={addStep}
+            />
+          </div>
+        ))}
+      </div>
+    ) : null
+  );
 
   return (
     <div className="rangeValueTransforms">
@@ -333,22 +378,10 @@ function RangeValueStepsEditor({
           />
         </div>
       ) : (
-        <StepEditorBlock
-          step={primaryPolicyStep}
-          context={primaryContext}
-          uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${primaryStepIndex}` : undefined}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          inputCompatibilityRows={rangeRows}
-          title={`Paso 1 · ${getRangeValueStepTitle(primaryPolicyStep, primaryContext, inputColumns)}`}
-          fixedTextInputLabel={fixedTextInputLabel}
-          showCondition={!isPrimaryConcat}
-          showAddStep={!isPrimaryConcat}
-          renderFields={renderFields}
-          onAddStep={addStep}
-          onChange={(patch) => updatePrimaryStep({ ...primaryPolicyStep, ...patch })}
-          onReplace={updatePrimaryStep}
-        />
+        <div className="rangeValueOperationPanel rangeValueFlatSteps">
+          {renderPrimaryStepBlock()}
+          {renderAdditionalSteps()}
+        </div>
       )}
 
       {shouldShowAdditionalStepControls ? (
@@ -361,29 +394,7 @@ function RangeValueStepsEditor({
         </div>
       ) : null}
 
-      {additionalSteps.length > 0 ? (
-        <div className="concatPartTransformList">
-          {additionalSteps.map((step, index) => (
-            <div key={step.id} className={showAdditionalStepsHeader ? undefined : 'concatPartStepDivider'}>
-              <RangeValueStepEditor
-                step={step}
-                index={index}
-                stepNumber={showAdditionalStepsHeader ? undefined : index + 2}
-                inputColumns={inputColumns}
-                manualRangeRows={manualRangeRows}
-                inputCompatibilityRows={rangeRows}
-                context={createRangeValueStepContext(contextKind, index + 1 + primaryStepIndex, inputColumns)}
-                uiStateKey={uiStateKeyPrefix ? `${uiStateKeyPrefix}:${index + 1 + primaryStepIndex}` : undefined}
-                previousResultPreviewValue={getPreviousStepPreviewValue(index + 1 + primaryStepIndex)}
-                previousResultDisplay={getPreviousStepDisplay(index + 1 + primaryStepIndex)}
-                onChange={(patch) => updateStep(step.id, patch)}
-                onReplace={(nextStep) => replaceStep(step.id, nextStep)}
-                onDelete={() => deleteStep(step.id)}
-              />
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {showAdditionalStepsHeader ? renderAdditionalSteps() : null}
       {numericPreviewMessage ? <p className="manualRangeValueHelp">{numericPreviewMessage}</p> : null}
     </div>
   );
@@ -448,9 +459,11 @@ function RangeValueStepEditor({
   uiStateKey,
   previousResultPreviewValue,
   previousResultDisplay,
+  showAddStep,
   onChange,
   onReplace,
   onDelete,
+  onAddStep,
 }: {
   step: TransformStep;
   index: number;
@@ -462,9 +475,11 @@ function RangeValueStepEditor({
   uiStateKey?: string;
   previousResultPreviewValue?: string | null;
   previousResultDisplay?: PreviousResultDisplay | null;
+  showAddStep?: boolean;
   onChange: (patch: Partial<TransformStep>) => void;
   onReplace: (step: TransformStep) => void;
   onDelete: () => void;
+  onAddStep?: () => void;
 }) {
   const title = stepNumber
     ? `Paso ${stepNumber} · ${getRangeValueStepTitle(step, context, inputColumns)}`
@@ -482,9 +497,11 @@ function RangeValueStepEditor({
       canDelete
       previousResultPreviewValue={previousResultPreviewValue}
       previousResultDisplay={previousResultDisplay}
+      showAddStep={showAddStep}
       onChange={onChange}
       onReplace={onReplace}
       onDelete={onDelete}
+      onAddStep={onAddStep}
     />
   );
 }

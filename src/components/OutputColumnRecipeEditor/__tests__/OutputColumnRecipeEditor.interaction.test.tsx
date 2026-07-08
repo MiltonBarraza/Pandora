@@ -1241,7 +1241,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getAllByText('abc-x').length).toBeGreaterThan(0);
   });
 
-  it('keeps the suffix to the right of its source selector before previous-result value field', async () => {
+  it('keeps the suffix to the right of the previous-result value field in follow-up steps', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={createFixedTextStepColumn('output-second-suffix-layout')}
@@ -1259,7 +1259,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     expect(suffixField?.parentElement).toBe(sourceField?.parentElement);
     expect(sourceField?.parentElement).toBe(previousResultField?.parentElement);
-    expect(suffixField && sourceField ? sourceField.compareDocumentPosition(suffixField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
-    expect(previousResultField && suffixField ? suffixField.compareDocumentPosition(previousResultField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
+    expect(previousResultField && sourceField ? sourceField.compareDocumentPosition(previousResultField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
+    expect(suffixField && previousResultField ? previousResultField.compareDocumentPosition(suffixField) & Node.DOCUMENT_POSITION_FOLLOWING : 0).not.toBe(0);
   });
 });
