@@ -29,6 +29,11 @@ import {
   recipeStepModeLabels,
   recipeStepTypeLabels,
 } from './OutputColumnRecipeEditor.actionDefinitions';
+export {
+  getStepSourceDropdownValue,
+  getStepSourceFromDropdownValue,
+  shouldShowPreviousResultSourceHelp,
+} from './OutputColumnRecipeEditor.sourceMapping';
 
 export const stepModeOptions: Array<{ value: TransformStepMode; label: string }> = [
   { value: 'text', label: recipeStepModeLabels.text },
@@ -52,44 +57,12 @@ export function getDatePickerValue(value: string, inputFormat: DateInputFormat =
   return parsedWithInputFormat ? formatDateValue(parsedWithInputFormat, 'YYYY-MM-DD') : '';
 }
 
-export function getStepSourceDropdownValue(source: StepSource) {
-  if (source.type === 'previousResult') {
-    return 'previousResult';
-  }
-
-  if (source.type === 'fixedText') {
-    return 'fixedText';
-  }
-
-  return source.inputColumnId ? `input:${source.inputColumnId}` : '';
-}
-
 export function getStepSourceDropdownOptions(inputColumns: InputColumn[], allowPreviousResult: boolean, allowColumnTextPicker = true): DropdownOption[] {
   return [
     ...(allowPreviousResult ? [{ value: 'previousResult', label: previousResultSourceLabel }] : []),
     ...(allowColumnTextPicker ? [{ value: 'columnTextPicker', label: cellValuePickerActionLabels.text }] : []),
     ...inputColumns.map((inputColumn) => ({ value: `input:${inputColumn.id}`, label: getInputColumnLabel(inputColumn) })),
   ];
-}
-
-export function getStepSourceFromDropdownValue(value: string, currentSource: StepSource): StepSource {
-  if (value === 'previousResult') {
-    return { type: 'previousResult' };
-  }
-
-  if (value === 'fixedText') {
-    return { type: 'fixedText', value: currentSource.type === 'fixedText' ? currentSource.value : '' };
-  }
-
-  if (value.startsWith('input:')) {
-    return { type: 'input', inputColumnId: value.slice('input:'.length) };
-  }
-
-  return currentSource;
-}
-
-export function shouldShowPreviousResultSourceHelp(source: StepSource) {
-  return source.type === 'previousResult';
 }
 
 const stepTypes: Array<{ value: TransformStepType; label: string }> = [
