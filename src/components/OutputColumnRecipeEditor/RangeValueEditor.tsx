@@ -29,6 +29,7 @@ import { createPreviousResultDisplay, isDeterministicStepChain } from './OutputC
 import { getManualRangePreviewValueForRow } from './ManualRangeSpreadsheetEditor.helpers';
 import {
   createCanonicalStepForMode,
+  createStepEditorContext,
   getVisibleStepAction,
   isStepSourceAction,
   normalizeStepForContext,
@@ -64,12 +65,12 @@ function createRangeValueStepContext(
   inputColumns: InputColumn[],
   sourceActionOverride?: StepSourceAction,
 ): StepEditorContext {
-  return {
+  return createStepEditorContext({
     kind,
     stepIndex,
     defaultInputColumnId: inputColumns[0]?.id ?? '',
     sourceActionOverride,
-  };
+  });
 }
 
 function getStepWithRangeValueSource(step: TransformStep, source?: StepSource, context?: StepEditorContext, forceConfiguredSource = false): TransformStep {
@@ -872,7 +873,7 @@ function getRangeValueCompositionTokenKind(part: ConcatPart) {
 
 function createRangeValueStep(
   mode: Exclude<TransformStepMode, 'manualRange'> = 'text',
-  context: StepEditorContext = { kind: 'range', stepIndex: 0 },
+  context: StepEditorContext = createStepEditorContext({ kind: 'range', stepIndex: 0 }),
 ): TransformStep {
   return normalizeRangeValueStep(createCanonicalStepForMode(mode, context), context);
 }
@@ -893,7 +894,7 @@ export function createDefaultRangeValueConcatParts(): ConcatPart[] {
   ];
 }
 
-export function appendRangeValueStep(steps: TransformStep[], context: StepEditorContext = { kind: 'range', stepIndex: steps.length }): TransformStep[] {
+export function appendRangeValueStep(steps: TransformStep[], context: StepEditorContext = createStepEditorContext({ kind: 'range', stepIndex: steps.length })): TransformStep[] {
   return steps.length === 0
     ? [createRangeValueStep('text', { ...context, stepIndex: 0 }), createRangeValueStep('text', context)]
     : [...steps, createRangeValueStep('text', context)];

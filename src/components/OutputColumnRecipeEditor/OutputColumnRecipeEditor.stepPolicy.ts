@@ -3,7 +3,7 @@ import {
   defaultDateInvalidFallback,
   defaultDateOutputFormat,
 } from '../../domain/import/dateOperations';
-import type { ConcatPart, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, InputRow, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 
 export type StepEditorContextKind = 'normal' | 'concat' | 'range' | 'rangeConcat';
 export type StepSourceAction = 'useInputColumn' | 'useFixedText' | 'pickColumnText' | 'usePreviousResult' | 'useRangeText';
@@ -25,6 +25,8 @@ export type StepEditorContext = {
   idFactory?: () => string;
 };
 
+export type CreateStepEditorContextOptions = StepEditorContext;
+
 export type StepEditorPolicy = {
   allowManualRange: boolean;
   allowConcat: boolean;
@@ -34,6 +36,22 @@ export type StepEditorPolicy = {
   isConcatPart: boolean;
   isRangeValueEditor: boolean;
   stepIndex: number;
+};
+
+export type StepEditorContextFacts = StepEditorPolicy & {
+  contextKind: StepEditorContextKind;
+  isFirstStep: boolean;
+  isFollowUpStep: boolean;
+  isRangeContext: boolean;
+  isConcatContext: boolean;
+  isRangeConcatContext: boolean;
+  allowsResultOverwriteActions: boolean;
+  cellPickerScope: 'global' | 'range';
+};
+
+export type StepEditorRowsInput = {
+  manualRangeRows?: InputRow[];
+  inputCompatibilityRows?: InputRow[];
 };
 
 const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRange' | 'numericOperation' | 'formatDate' | 'extractNumber' | 'toNumber' | 'toText'>> = [
@@ -50,6 +68,31 @@ const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRan
 const conversionActions: Array<Extract<VisibleStepAction, 'extractNumber' | 'toNumber' | 'toText'>> = ['extractNumber', 'toNumber', 'toText'];
 const textTransformerActions = textTransformActions.filter((action) => action !== 'concat');
 
+export function createStepEditorContext(options: CreateStepEditorContextOptions): StepEditorContext {
+  const context: StepEditorContext = {
+    kind: options.kind,
+    stepIndex: options.stepIndex ?? 0,
+  };
+
+  if (typeof options.partIndex === 'number') {
+    context.partIndex = options.partIndex;
+  }
+
+  if (typeof options.defaultInputColumnId === 'string') {
+    context.defaultInputColumnId = options.defaultInputColumnId;
+  }
+
+  if (options.sourceActionOverride) {
+    context.sourceActionOverride = options.sourceActionOverride;
+  }
+
+  if (options.idFactory) {
+    context.idFactory = options.idFactory;
+  }
+
+  return context;
+}
+
 export function stepEditorPolicy(context: StepEditorContext): StepEditorPolicy {
   const stepIndex = context.stepIndex ?? 0;
   const isConcatPart = context.kind === 'concat' || context.kind === 'rangeConcat';
@@ -64,6 +107,44 @@ export function stepEditorPolicy(context: StepEditorContext): StepEditorPolicy {
     isConcatPart,
     isRangeValueEditor,
     stepIndex,
+  };
+}
+
+export function getStepEditorContextFacts(context: StepEditorContext): StepEditorContextFacts {
+  const policy = stepEditorPolicy(context);
+  const isRangeContext = context.kind === 'range' || context.kind === 'rangeConcat';
+  const isConcatContext = context.kind === 'concat' || context.kind === 'rangeConcat';
+  const isRangeConcatContext = context.kind === 'rangeConcat';
+
+  return {
+    ...policy,
+    contextKind: context.kind,
+    isFirstStep: policy.stepIndex === 0,
+    isFollowUpStep: policy.stepIndex > 0,
+    isRangeContext,
+    isConcatContext,
+    isRangeConcatContext,
+    allowsResultOverwriteActions: policy.allowPreviousResult,
+    cellPickerScope: isRangeContext ? 'range' : 'global',
+  };
+}
+
+export function getStepRowsForCellPicker({ manualRangeRows = [] }: StepEditorRowsInput): InputRow[] {
+  return manualRangeRows;
+}
+
+export function getStepRowsForSourceCompatibility({ inputCompatibilityRows }: StepEditorRowsInput): InputRow[] | undefined {
+  return inputCompatibilityRows;
+}
+
+export function getStepRowsForTypedActionCompatibility({ manualRangeRows = [], inputCompatibilityRows }: StepEditorRowsInput): InputRow[] {
+  return inputCompatibilityRows ?? manualRangeRows;
+}
+
+export function getStepRowsForNumericOperandCompatibility({ manualRangeRows = [], inputCompatibilityRows }: StepEditorRowsInput): { rows: InputRow[]; includeSampleValues: boolean } {
+  return {
+    rows: inputCompatibilityRows ?? manualRangeRows,
+    includeSampleValues: !inputCompatibilityRows,
   };
 }
 
@@ -614,12 +695,12 @@ function isSourceAllowedForContext(source: StepSource, mode: TransformStepMode, 
 }
 
 function normalizeConcatPartForContext(part: ConcatPart, context: StepEditorContext): ConcatPart {
-  const nestedContext: StepEditorContext = {
+  const nestedContext = createStepEditorContext({
     ...context,
     kind: context.kind === 'range' ? 'rangeConcat' : 'concat',
     stepIndex: 1,
     sourceActionOverride: undefined,
-  };
+  });
 
   return {
     ...part,

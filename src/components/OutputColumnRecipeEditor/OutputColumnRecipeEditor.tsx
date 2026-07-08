@@ -52,7 +52,7 @@ import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
 import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
-import { getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
+import { createStepEditorContext, getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
 import { createPreviousResultDisplay, isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
@@ -1536,11 +1536,11 @@ function SimpleStepBlock({
   onReplace: (step: TransformStep) => void;
   onDelete: () => void;
 }) {
-  const context: StepEditorContext = {
+  const context = createStepEditorContext({
     kind: 'normal',
     stepIndex: index,
     defaultInputColumnId: baseInputColumnId,
-  };
+  });
   const isManualRangeStep = step.type === 'manualRange';
   const summarySource = step.source;
   const summary = isManualRangeStep ? getStepSummary(step, inputColumns) : getSimpleStepBlockTitle(step, index, inputColumns, summarySource);
@@ -1877,12 +1877,12 @@ function createPreviewPartFromSource(source: StepSource, previousResultPreviewVa
 }
 
 function getConcatPartStepContext(stepIndex: number, sourceActionOverride?: StepSourceAction): StepEditorContext {
-  return {
+  return createStepEditorContext({
     kind: 'concat',
     stepIndex,
     defaultInputColumnId: '',
-    ...(sourceActionOverride ? { sourceActionOverride } : {}),
-  };
+    sourceActionOverride,
+  });
 }
 function getConcatPrimarySourceActionOverride(step: TransformStep, source: StepSource, hasStoredPrimaryStep: boolean): StepSourceAction | undefined {
   if (!hasStoredPrimaryStep || step.type !== 'noop') {
