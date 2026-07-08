@@ -40,7 +40,7 @@ export const valueConstructionOptions: Array<{ value: Exclude<ValueConstructionM
 
 export function getOutputRecipeTypeOptions(recipe: OutputRecipe) {
   return recipe.type === 'empty'
-    ? [{ value: 'empty' as const, label: 'Mantener configuración actual' }, ...outputRecipeTypeOptions]
+    ? [{ value: 'empty' as const, label: 'Sin valor' }, ...outputRecipeTypeOptions]
     : outputRecipeTypeOptions;
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { InputColumn, InputRow, StepSource } from '../../types/import';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown/Dropdown';
@@ -10,6 +10,7 @@ type ColumnTextPickerProps = {
   rows: InputRow[];
   value: string;
   columnLabel?: string;
+  columnLabelInfo?: ReactNode;
   valueLabel?: string;
   emptyLabel?: string;
   searchPlaceholder?: string;
@@ -28,6 +29,7 @@ export function ColumnTextPicker({
   rows,
   value,
   columnLabel = 'Buscar textos en',
+  columnLabelInfo,
   valueLabel = 'Texto encontrado',
   emptyLabel = 'Sin textos disponibles',
   searchPlaceholder = 'Buscar texto',
@@ -49,12 +51,22 @@ export function ColumnTextPicker({
   const hasInvalidCurrentValue = Boolean(value.trim() && isValueAllowed && !isValueAllowed(value.trim()));
   const selectedValue = textOptions.some((option) => option.value === value) ? value : '';
   const fieldClasses = `compact ${fieldClassName}`;
+  const valueLabelWarning = noValidOptionsWarning || (omittedInvalidValues && filteredValuesHelp ? filteredValuesHelp : '');
+
+  useEffect(() => {
+    if (inputColumnId && inputColumns.some((inputColumn) => inputColumn.id === inputColumnId)) {
+      return;
+    }
+
+    setInputColumnId(inputColumns[0]?.id ?? '');
+  }, [inputColumnId, inputColumns]);
 
   return (
     <>
       <Dropdown
         className={fieldClasses}
         label={columnLabel}
+        labelInfo={columnLabelInfo}
         value={inputColumnId}
         options={inputColumns.length === 0
           ? [{ value: '', label: noActiveColumnsLabel, disabled: true }]
@@ -66,7 +78,7 @@ export function ColumnTextPicker({
       <Dropdown
         className={fieldClasses}
         label={valueLabel}
-        labelInfo={noValidOptionsWarning ? <WarningTooltip content={noValidOptionsWarning} /> : undefined}
+        labelInfo={valueLabelWarning ? <WarningTooltip content={valueLabelWarning} ariaLabel="Aviso de compatibilidad" /> : undefined}
         value={selectedValue}
         options={textOptions.length > 0
           ? textOptions
@@ -79,7 +91,6 @@ export function ColumnTextPicker({
         onChange={onSelect}
       />
       {hasInvalidCurrentValue && invalidCurrentValueHelp ? <p className="columnValuePickerWarning">{invalidCurrentValueHelp}</p> : null}
-      {omittedInvalidValues && !hasNoValidOptions && filteredValuesHelp ? <p className="columnValuePickerHelp">{filteredValuesHelp}</p> : null}
     </>
   );
 }

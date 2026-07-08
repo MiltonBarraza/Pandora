@@ -523,7 +523,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
     expect(sourceButtons[sourceButtons.length - 1].textContent).toContain('Usar resultado anterior');
-    expect(getComposePartEditor().querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('Resultado del paso anterior');
+    expect(getComposePartEditor().querySelector('.previousResultValueField input')?.getAttribute('value')).toBe('asd');
     expect(screen.getAllByText('ASD').length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
@@ -601,7 +601,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByText('ASD')).toBeNull();
   });
 
-  it('does not offer previous result as a dead-end main concat action', async () => {
+  it('offers previous result as the neutral follow-up action in main concat steps', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={createMainConcatColumn('output-compose-previous-result-action')}
@@ -617,7 +617,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
     const actionButtons = within(getComposePartEditor()).getAllByRole('button', { name: /Acci.n/ });
     await user.click(actionButtons[actionButtons.length - 1]);
-    expect(screen.queryByRole('option', { name: 'Usar resultado anterior' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Usar resultado anterior' })).not.toBeNull();
     await user.click(screen.getByRole('option', { name: /Convertir a may.sculas/ }));
 
     const sourceButtons = screen.getAllByRole('button', { name: /Valor base/ });
@@ -658,9 +658,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
 
     await selectComposePartDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectComposePartDropdownOption(user, /Acción/, 'Usar valor tal cual');
-    expect(screen.getByText('Qué fecha usar')).not.toBeNull();
-    await selectComposePartDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
+    await selectComposePartDropdownOption(user, /Acción/, 'Usar fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Operación numérica')).toBeNull();
   });
@@ -685,7 +683,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
     await selectLastDropdownOption(user, /Acción/, 'Formatear fecha');
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde columna');
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde celda');
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con texto');
     await selectLastDropdownOption(user, /Acción/, 'Usar texto fijo');
 
@@ -741,7 +739,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const headerPreview = document.querySelector('.constructorModalHeaderPreview span') as HTMLElement;
     expect(headerPreview.textContent).toBe('2026-07-01');
 
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde columna');
+    await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde celda');
     expect(headerPreview.textContent).not.toContain('2026-07-01');
 
     await selectLastDropdownOption(user, /Formato de salida/, 'DD/MM/AAAA');
@@ -824,7 +822,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     await selectLastDropdownOption(user, /Acción/, 'Restar valor');
 
-    expect(screen.getByRole('button', { name: 'Valor base' }).textContent).toContain('Resultado del paso anterior');
+    expect(screen.queryByRole('button', { name: 'Valor base' })).toBeNull();
     expect((getInputByLabelText('Valor a restar: valor fijo') as HTMLInputElement).value).toBe('');
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
@@ -993,19 +991,20 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
-    expect(screen.getByText('Qué fecha usar')).not.toBeNull();
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
+    await selectLastDropdownOption(user, /Acción/, 'Usar fecha fija');
     expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
 
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
     expect(screen.queryByText('Qué valor usar')).toBeNull();
-    await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
-    expect(screen.getByText('Qué valor usar')).not.toBeNull();
-    await selectLastDropdownOption(user, /Qué valor usar/, 'Valor fijo');
+    await selectLastDropdownOption(user, /Acción/, 'Usar número fijo');
     expect(screen.getByLabelText('Valor fijo')).not.toBeNull();
     expect(screen.queryByText('Formato de salida')).toBeNull();
+
+    await selectLastDropdownOption(user, /Acción/, 'Usar número desde columna');
+    const actionButtons = screen.getAllByRole('button', { name: 'Acción' });
+    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Usar número desde columna');
+    expect(screen.getByRole('button', { name: 'Columna de entrada' })).not.toBeNull();
   });
 
   it('can choose fixed text after several clean mode changes', async () => {
@@ -1025,7 +1024,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByRole('button', { name: 'Fecha encontrada' })).toBeNull();
   });
 
-  it('renders useful fields when using value as-is in a second step', async () => {
+  it('renders useful fields when formatting previous result in a second step', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor initialColumn={{
       id: 'output-second-direct',
@@ -1046,16 +1045,15 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
-    await selectLastDropdownOption(user, /Acción/, 'Usar valor tal cual');
+    await selectLastDropdownOption(user, /Acción/, 'Formatear fecha');
 
-    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar valor tal cual');
-    expect(screen.getByRole('button', { name: 'Qué fecha usar' })).not.toBeNull();
-    await selectLastDropdownOption(user, /Qué fecha usar/, 'Fecha fija');
-    expect(screen.getByLabelText('Fecha fija')).not.toBeNull();
+    expect(screen.getByText(/Paso 2/).textContent).toContain('Formatear fecha');
+    expect(screen.getByRole('button', { name: 'Qué fecha usar' }).textContent).toContain('Usar resultado anterior');
+    expect(screen.queryByText('Fecha fija')).toBeNull();
     expect(screen.queryByText('Sólo se agregan pasos cuando elegís una acción útil.')).toBeNull();
   });
 
-  it('applies input-column action on the first click in a normal second step', async () => {
+  it('hides source-replacing actions in a normal second step', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor initialColumn={{
       ...createFixedTextStepColumn('output-second-input-column'),
@@ -1070,21 +1068,40 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
-    await selectLastDropdownOption(user, /Acci.n/, 'Usar columna de entrada');
-
     const actionButtons = screen.getAllByRole('button', { name: /Acci.n/ });
-    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Usar columna de entrada');
-    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar columna de entrada');
+    await user.click(actionButtons[actionButtons.length - 1]);
+
+    expect(screen.queryByRole('option', { name: 'Usar columna de entrada' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Usar texto fijo' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Elegir texto desde celda' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Usar resultado anterior' })).not.toBeNull();
+    expect(actionButtons[actionButtons.length - 1].textContent).toContain('Usar resultado anterior');
+    expect(screen.getByText(/Paso 2/).textContent).toContain('Usar resultado anterior');
     expect(screen.getByText(/Paso 2/).textContent).not.toContain('Sin configurar');
-    expect(screen.getByRole('button', { name: 'Columna de entrada' })).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
     expect(persistedRecipe.steps[1]).toMatchObject({
       mode: 'text',
       type: 'noop',
-      source: { type: 'input', inputColumnId: '' },
+      source: { type: 'previousResult' },
     });
+  });
+
+  it('uses generic action copy for second-step conversions', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createFixedTextStepColumn('output-second-conversion-copy')} />);
+
+    await openRecipeEditor(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
+    await selectLastDropdownOption(user, /Tipo de operación/, 'Conversión');
+    const actionButtons = screen.getAllByRole('button', { name: /Acción/ });
+    await user.click(actionButtons[actionButtons.length - 1]);
+
+    expect(screen.getByRole('option', { name: 'Usar número del texto' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Convertir a número' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Convertir a texto' })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: /resultado anterior/i })).toBeNull();
   });
 
   it('keeps previous result available for a useful second-step transformation', async () => {

@@ -72,7 +72,13 @@ describe('step editor policy', () => {
       mode: 'number',
       type: 'noop',
       source: { type: 'input', inputColumnId },
-    }, context('normal'))).toBe('useValueAsIs');
+    }, context('normal'))).toBe('useNumberInputColumn');
+    expect(getVisibleStepAction({
+      id: 'd',
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'input', inputColumnId },
+    }, context('normal'))).toBe('useDateInputColumn');
   });
 
   it('creates canonical text source steps', () => {
@@ -108,7 +114,7 @@ describe('step editor policy', () => {
     expect(lower).toMatchObject({ mode: 'text', type: 'lowercase', source: { type: 'previousResult' } });
   });
 
-  it('offers only input and available previous result for new text transformers', () => {
+  it('uses previous result by default for follow-up text transformers while preserving legacy sources', () => {
     expect(getAllowedTextTransformerSourceActions({
       type: 'uppercase',
       source: { type: 'input', inputColumnId },
@@ -116,8 +122,13 @@ describe('step editor policy', () => {
 
     expect(getAllowedTextTransformerSourceActions({
       type: 'uppercase',
+      source: { type: 'previousResult' },
+    }, context('normal', 1))).toEqual(['usePreviousResult']);
+
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
       source: { type: 'input', inputColumnId },
-    }, context('normal', 1))).toEqual(['useInputColumn', 'usePreviousResult']);
+    }, context('normal', 1))).toEqual(['usePreviousResult', 'useInputColumn']);
   });
 
   it('preserves fixed text sources for existing text transformer recipes', () => {
@@ -132,6 +143,10 @@ describe('step editor policy', () => {
       type: 'uppercase',
       source: { type: 'fixedText', value: 'manual' },
     }, context('normal'))).toEqual(['useInputColumn', 'useFixedText']);
+    expect(getAllowedTextTransformerSourceActions({
+      type: 'uppercase',
+      source: { type: 'fixedText', value: 'manual' },
+    }, context('normal', 1))).toEqual(['usePreviousResult', 'useFixedText']);
   });
 
   it('creates numeric operations without stale text props', () => {
@@ -160,6 +175,31 @@ describe('step editor policy', () => {
   });
 
   it('creates useful value-as-is sources for number and date', () => {
+    expect(getAllowedStepActions('number', context('normal'))).toEqual([
+      'useNumberInputColumn',
+      'useFixedNumber',
+      'pickNumberCell',
+      'numericOperation',
+    ]);
+    expect(getAllowedStepActions('date', context('normal'))).toEqual([
+      'useDateInputColumn',
+      'useFixedDate',
+      'pickDateCell',
+      'formatDate',
+    ]);
+    expect(getAllowedStepActions('text', context('normal', 1))).toEqual([
+      'usePreviousResult',
+      'trim',
+      'uppercase',
+      'lowercase',
+      'addPrefix',
+      'addSuffix',
+      'removeText',
+      'replaceText',
+      'concat',
+    ]);
+    expect(getAllowedStepActions('number', context('normal', 1))).toEqual(['usePreviousResult', 'numericOperation']);
+    expect(getAllowedStepActions('date', context('normal', 1))).toEqual(['usePreviousResult', 'formatDate']);
     expect(createCanonicalStepForAction('number', 'useValueAsIs', context('normal'))).toMatchObject({
       mode: 'number',
       type: 'noop',
@@ -169,6 +209,26 @@ describe('step editor policy', () => {
       mode: 'date',
       type: 'noop',
       source: { type: 'input', inputColumnId },
+    });
+    expect(createCanonicalStepForAction('number', 'useFixedNumber', context('normal'))).toMatchObject({
+      mode: 'number',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(createCanonicalStepForAction('number', 'pickNumberCell', context('normal'))).toMatchObject({
+      mode: 'number',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(createCanonicalStepForAction('date', 'useFixedDate', context('normal'))).toMatchObject({
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
+    });
+    expect(createCanonicalStepForAction('date', 'pickDateCell', context('normal'))).toMatchObject({
+      mode: 'date',
+      type: 'noop',
+      source: { type: 'fixedText', value: '' },
     });
   });
 

@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
-import App from './App';
+import App, { ToolLoadingFallback } from './App';
 
 const { showSuccessToast } = vi.hoisted(() => ({
   showSuccessToast: vi.fn(),
@@ -71,6 +71,15 @@ afterEach(() => {
 });
 
 describe('App combine basket wiring', () => {
+  it('renders the tool loading fallback inside the tool content area', () => {
+    const { container } = render(<ToolLoadingFallback appearanceToolbar={<div>Toolbar</div>} />);
+
+    expect(screen.getByRole('status').textContent).toContain('Cargando herramienta');
+    expect(container.querySelector('.toolLoadingWizard')).not.toBeNull();
+    expect(container.querySelector('.toolLoadingPanel')).not.toBeNull();
+    expect(screen.getByText('Toolbar')).not.toBeNull();
+  });
+
   it('shows two accessible tool cards with explanatory copy', async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -82,7 +91,7 @@ describe('App combine basket wiring', () => {
     expect(screen.getByRole('heading', { name: '¿Qué querés hacer?' })).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Combinar archivos' }));
-    expect(screen.getByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
+    expect(await screen.findByRole('button', { name: 'Marcar estado local' })).not.toBeNull();
   });
 
   it('leaves an empty sanitizer without confirmation', async () => {

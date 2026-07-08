@@ -154,12 +154,13 @@ export default function App() {
   );
 }
 
-function ToolLoadingFallback({ appearanceToolbar }: { appearanceToolbar: ReactNode }) {
+export function ToolLoadingFallback({ appearanceToolbar }: { appearanceToolbar: ReactNode }) {
   return (
     <main className="appShell">
       {appearanceToolbar}
-      <div className="wizard">
-        <section className="panel">
+      <div className="wizard toolLoadingWizard">
+        <section className="panel toolLoadingPanel">
+          <span className="processingSpinner" aria-hidden="true" />
           <p role="status">Cargando herramienta…</p>
         </section>
       </div>
