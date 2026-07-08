@@ -84,6 +84,7 @@ export type DateOutputFormat =
   | 'YYYY/MM/DD';
 
 export type DateInvalidFallback = 'empty' | 'original' | 'fixedText';
+export type ConversionInvalidFallback = 'empty' | 'original' | 'fixedText';
 
 export type StepSource =
   | {
@@ -132,6 +133,8 @@ export type TransformStep = {
   dateOutputFormat?: DateOutputFormat;
   dateInvalidFallback?: DateInvalidFallback;
   dateInvalidFallbackText?: string;
+  conversionInvalidFallback?: ConversionInvalidFallback;
+  conversionInvalidFallbackText?: string;
   ranges?: ManualRangeValue[];
   manualRangeCondition?: ManualRangeCondition;
   condition?: TransformCondition;

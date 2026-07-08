@@ -7,7 +7,14 @@ import type { ConcatPart, StepSource, TransformStep, TransformStepMode, Transfor
 
 export type StepEditorContextKind = 'normal' | 'concat' | 'range' | 'rangeConcat';
 export type StepSourceAction = 'useInputColumn' | 'useFixedText' | 'pickColumnText' | 'usePreviousResult' | 'useRangeText';
-export type VisibleStepAction = 'unconfigured' | 'useValueAsIs' | StepSourceAction | Exclude<TransformStepType, 'noop'>;
+export type TypedStepSourceAction =
+  | 'useNumberInputColumn'
+  | 'useFixedNumber'
+  | 'pickNumberCell'
+  | 'useDateInputColumn'
+  | 'useFixedDate'
+  | 'pickDateCell';
+export type VisibleStepAction = 'unconfigured' | 'useValueAsIs' | StepSourceAction | TypedStepSourceAction | Exclude<TransformStepType, 'noop'>;
 
 export type StepEditorContext = {
   kind: StepEditorContextKind;
@@ -73,21 +80,49 @@ export function getAllowedStepModes(context: StepEditorContext): TransformStepMo
 
 export function getAllowedStepActions(mode: TransformStepMode, context: StepEditorContext): VisibleStepAction[] {
   const policy = stepEditorPolicy(context);
+  const isFollowUpStep = policy.allowPreviousResult;
 
   if (mode === 'manualRange') {
     return policy.allowManualRange ? ['manualRange'] : [];
   }
 
   if (mode === 'number') {
-    return ['useValueAsIs', 'numericOperation'];
+    if (isFollowUpStep) {
+      return ['usePreviousResult', 'numericOperation'];
+    }
+
+    return [
+      'useNumberInputColumn',
+      'useFixedNumber',
+      'pickNumberCell',
+      ...(policy.allowPreviousResult ? ['usePreviousResult' as const] : []),
+      'numericOperation',
+    ];
   }
 
   if (mode === 'date') {
-    return ['useValueAsIs', 'formatDate'];
+    if (isFollowUpStep) {
+      return ['usePreviousResult', 'formatDate'];
+    }
+
+    return [
+      'useDateInputColumn',
+      'useFixedDate',
+      'pickDateCell',
+      ...(policy.allowPreviousResult ? ['usePreviousResult' as const] : []),
+      'formatDate',
+    ];
   }
 
   if (mode === 'conversion') {
     return conversionActions;
+  }
+
+  if (isFollowUpStep && mode === 'text') {
+    return [
+      'usePreviousResult',
+      ...textTransformActions.filter((action) => action !== 'concat' || policy.allowConcat),
+    ];
   }
 
   return [
@@ -118,6 +153,14 @@ export function getAllowedTextTransformerSourceActions(step: Pick<TransformStep,
   }
 
   const policy = stepEditorPolicy(context);
+  if (policy.allowPreviousResult) {
+    return [
+      'usePreviousResult',
+      ...(step.source?.type === 'input' ? ['useInputColumn' as const] : []),
+      ...(step.source?.type === 'fixedText' ? ['useFixedText' as const] : []),
+    ];
+  }
+
   return [
     'useInputColumn',
     ...(policy.allowPreviousResult ? ['usePreviousResult' as const] : []),
@@ -148,6 +191,10 @@ export function getVisibleStepAction(step: TransformStep, context: StepEditorCon
 
     if (mode === 'text') {
       return getSourceAction(step.source, context) ?? 'unconfigured';
+    }
+
+    if (mode === 'number' || mode === 'date') {
+      return getTypedSourceAction(mode, step.source, context) ?? 'unconfigured';
     }
 
     return 'useValueAsIs';
@@ -191,6 +238,7 @@ export function createCanonicalStepForMode(mode: TransformStepMode, context: Ste
     id: createStepId(context),
     mode,
     type: 'noop',
+    ...(stepEditorPolicy(context).allowPreviousResult ? { source: { type: 'previousResult' as const } } : {}),
     applyToEmptyValues: false,
   };
 }
@@ -213,7 +261,7 @@ export function replaceStepActionWithSource(
     : action === 'numericOperation' ? 'number'
       : action === 'formatDate' ? 'date'
         : isConversionAction(action) ? 'conversion'
-          : getStepModeForPolicy(step);
+          : getModeForTypedSourceAction(action) ?? getStepModeForPolicy(step);
   const nextStep = buildCanonicalStep(mode, action, { ...context, sourceActionOverride: undefined }, step.id);
 
   return {
@@ -232,7 +280,7 @@ export function normalizeStepForContext(step: TransformStep, context: StepEditor
     });
   }
 
-  if (visibleAction === 'useValueAsIs' && step.type === 'noop') {
+  if (step.type === 'noop') {
     const mode = getStepModeForPolicy(step);
     const policy = stepEditorPolicy(context);
     return {
@@ -276,6 +324,14 @@ export function normalizeStepForContext(step: TransformStep, context: StepEditor
     };
   }
 
+  if (step.type === 'extractNumber' || step.type === 'toNumber') {
+    return {
+      ...nextStep,
+      ...(step.conversionInvalidFallback ? { conversionInvalidFallback: step.conversionInvalidFallback } : {}),
+      ...(typeof step.conversionInvalidFallbackText === 'string' ? { conversionInvalidFallbackText: step.conversionInvalidFallbackText } : {}),
+    };
+  }
+
   if (step.type === 'concat') {
     return {
       ...nextStep,
@@ -315,6 +371,29 @@ export function isStepSourceAction(action: VisibleStepAction | 'noop'): action i
   return ['useInputColumn', 'useFixedText', 'pickColumnText', 'usePreviousResult', 'useRangeText'].includes(action);
 }
 
+export function isTypedStepSourceAction(action: VisibleStepAction | 'noop'): action is TypedStepSourceAction {
+  return [
+    'useNumberInputColumn',
+    'useFixedNumber',
+    'pickNumberCell',
+    'useDateInputColumn',
+    'useFixedDate',
+    'pickDateCell',
+  ].includes(action);
+}
+
+export function getSourceActionForTypedStepSourceAction(action: TypedStepSourceAction): StepSourceAction {
+  if (action === 'useNumberInputColumn' || action === 'useDateInputColumn') {
+    return 'useInputColumn';
+  }
+
+  if (action === 'pickNumberCell' || action === 'pickDateCell') {
+    return 'pickColumnText';
+  }
+
+  return 'useFixedText';
+}
+
 function buildCanonicalStep(
   mode: TransformStepMode,
   action: VisibleStepAction | 'noop',
@@ -326,9 +405,21 @@ function buildCanonicalStep(
     return { ...createCanonicalStepForMode(getFirstAllowedMode(mode, context), { ...context, idFactory: () => id }), id };
   }
 
+  if (isTypedStepSourceAction(action)) {
+    const source = createCanonicalSourceForAction(getSourceActionForTypedStepSourceAction(action), context);
+    return {
+      id,
+      mode: getModeForTypedSourceAction(action) ?? mode,
+      type: 'noop',
+      source,
+      applyToEmptyValues: false,
+    };
+  }
+
   if (isStepSourceAction(action)) {
     const source = createCanonicalSourceForAction(action, context);
-    return { id, mode: 'text', type: 'noop', source, applyToEmptyValues: false };
+    const sourceMode = action === 'usePreviousResult' && (mode === 'number' || mode === 'date') ? mode : 'text';
+    return { id, mode: sourceMode, type: 'noop', source, applyToEmptyValues: false };
   }
 
   if (action === 'useValueAsIs' || action === 'noop') {
@@ -460,6 +551,39 @@ function getSourceAction(source: StepSource, context: StepEditorContext): StepSo
   }
 
   return 'useInputColumn';
+}
+
+function getTypedSourceAction(mode: 'number' | 'date', source: StepSource, context: StepEditorContext): TypedStepSourceAction | 'usePreviousResult' | undefined {
+  const policy = stepEditorPolicy(context);
+  if (context.sourceActionOverride === 'pickColumnText' && source.type === 'fixedText') {
+    return mode === 'number' ? 'pickNumberCell' : 'pickDateCell';
+  }
+
+  if (source.type === 'previousResult') {
+    return policy.allowPreviousResult ? 'usePreviousResult' : undefined;
+  }
+
+  if (source.type === 'fixedText') {
+    return mode === 'number' ? 'useFixedNumber' : 'useFixedDate';
+  }
+
+  if (source.type === 'input' && source.inputColumnId) {
+    return mode === 'number' ? 'useNumberInputColumn' : 'useDateInputColumn';
+  }
+
+  return undefined;
+}
+
+function getModeForTypedSourceAction(action: VisibleStepAction | 'noop'): 'number' | 'date' | undefined {
+  if (action === 'useNumberInputColumn' || action === 'useFixedNumber' || action === 'pickNumberCell') {
+    return 'number';
+  }
+
+  if (action === 'useDateInputColumn' || action === 'useFixedDate' || action === 'pickDateCell') {
+    return 'date';
+  }
+
+  return undefined;
 }
 
 function normalizeSourceForContext<TSource extends StepSource>(source: TSource, mode: TransformStepMode, policy: StepEditorPolicy): TSource | StepSource {

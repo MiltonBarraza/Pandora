@@ -154,12 +154,12 @@ export default function App() {
   );
 }
 
-function ToolLoadingFallback({
+export function ToolLoadingFallback({
   appearanceToolbar,
-  tool,
+  tool = 'sanitize',
 }: {
   appearanceToolbar: ReactNode;
-  tool: AppTool;
+  tool?: AppTool;
 }) {
   const hero = getToolHeroContent(tool);
 
@@ -174,8 +174,9 @@ function ToolLoadingFallback({
         </div>
       </header>
 
-      <div className="wizard">
+      <div className="wizard toolLoadingWizard">
         <section className="panel toolLoadingPanel">
+          <span className="processingSpinner" aria-hidden="true" />
           <p role="status">Cargando herramienta…</p>
         </section>
       </div>

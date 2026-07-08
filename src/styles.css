@@ -495,6 +495,25 @@ h1 {
   width: 100%;
 }
 
+.toolLoadingWizard {
+  margin-top: 0;
+  padding-top: 96px;
+}
+
+.toolLoadingPanel {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.toolLoadingPanel p {
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  margin: 0;
+}
+
 .toolSelectorPanel {
   padding: 20px;
 }
@@ -608,32 +627,6 @@ h3 {
   border-top-color: var(--color-primary-bg);
   border-radius: 999px;
   display: inline-block;
-  flex: 0 0 auto;
-  height: 16px;
-  width: 16px;
-}
-
-.toolLoadingPanel {
-  align-items: center;
-  display: flex;
-  min-height: 112px;
-}
-
-.toolLoadingPanel [role='status'] {
-  align-items: center;
-  color: var(--color-text-secondary);
-  display: inline-flex;
-  font-weight: 700;
-  gap: 8px;
-  margin: 0;
-}
-
-.toolLoadingPanel [role='status']::before {
-  animation: processingSpinnerRotate 800ms linear infinite;
-  border: 2px solid var(--color-border-muted);
-  border-top-color: var(--color-primary-bg);
-  border-radius: 999px;
-  content: '';
   flex: 0 0 auto;
   height: 16px;
   width: 16px;
@@ -2069,7 +2062,8 @@ tbody tr:hover {
 }
 
 .outputColumnsAddForm {
-  grid-template-columns: minmax(140px, 220px) auto;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .outputColumnsHeaderActions {
@@ -2592,13 +2586,8 @@ tbody tr:hover {
   align-items: center;
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: flex-end;
   min-width: 0;
-}
-
-.constructorModalFooterContent p {
-  color: var(--color-text-muted);
-  margin: 0;
 }
 
 .constructorModalFooterActions {

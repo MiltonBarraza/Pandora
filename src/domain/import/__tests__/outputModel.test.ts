@@ -1167,6 +1167,47 @@ describe('outputModel numeric transformations', () => {
     expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
   });
 
+  it('uses an empty fallback when converting invalid text to number', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { invalid: 'ABC' } },
+    ], [
+      outputColumn({
+        id: 'invalid',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'invalid',
+          steps: [{ id: 'to-number', type: 'toNumber', conversionInvalidFallback: 'empty' }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.invalid).toBe('');
+    expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
+  });
+
+  it('uses a fixed fallback when converting invalid text to number', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { invalid: 'ABC' } },
+    ], [
+      outputColumn({
+        id: 'invalid',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'invalid',
+          steps: [{
+            id: 'to-number',
+            type: 'toNumber',
+            conversionInvalidFallback: 'fixedText',
+            conversionInvalidFallbackText: '0',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.invalid).toBe('0');
+    expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
+  });
+
   it('treats values as text for later steps when converting to text', () => {
     const [row] = buildProcessedRows([
       { rowNumber: 1, values: { value: '123' } },
@@ -1217,6 +1258,47 @@ describe('outputModel numeric transformations', () => {
     ]);
 
     expect(row.outputValues.text).toBe('Sin número');
+    expect(row.warnings).toContain('No se pudo extraer número del texto');
+  });
+
+  it('uses an empty fallback when no number can be extracted', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { text: 'Sin número' } },
+    ], [
+      outputColumn({
+        id: 'text',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'text',
+          steps: [{ id: 'extract', type: 'extractNumber', conversionInvalidFallback: 'empty' }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.text).toBe('');
+    expect(row.warnings).toContain('No se pudo extraer número del texto');
+  });
+
+  it('uses a fixed fallback when no number can be extracted', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { text: 'Sin número' } },
+    ], [
+      outputColumn({
+        id: 'text',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'text',
+          steps: [{
+            id: 'extract',
+            type: 'extractNumber',
+            conversionInvalidFallback: 'fixedText',
+            conversionInvalidFallbackText: 'SIN_NUMERO',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.text).toBe('SIN_NUMERO');
     expect(row.warnings).toContain('No se pudo extraer número del texto');
   });
 });

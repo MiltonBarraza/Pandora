@@ -8,6 +8,7 @@ import {
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import type {
   ConditionOperator,
+  ConversionInvalidFallback,
   DateInputFormat,
   DateInvalidFallback,
   DateOutputFormat,
@@ -208,8 +209,8 @@ export const conditionOperators: Array<{ value: ConditionOperator; label: string
 const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
   add: 'Sumar valor',
   subtract: 'Restar valor',
-  multiply: 'Multiplicar por',
-  divide: 'Dividir por',
+  multiply: 'Multiplicar por valor',
+  divide: 'Dividir por valor',
   addPercentage: 'Sumar %',
   subtractPercentage: 'Restar %',
   removeIncludedPercentage: 'Quitar % incluido',
@@ -250,6 +251,12 @@ export const dateInvalidFallbackOptions: Array<{ value: DateInvalidFallback; lab
   { value: 'empty', label: 'Dejar vacío' },
   { value: 'original', label: 'Mantener valor original' },
   { value: 'fixedText', label: 'Usar texto fijo' },
+];
+
+export const conversionInvalidFallbackOptions: Array<{ value: ConversionInvalidFallback; label: string }> = [
+  { value: 'original', label: 'Conservar valor original' },
+  { value: 'empty', label: 'Dejar vacío' },
+  { value: 'fixedText', label: 'Usar valor fijo' },
 ];
 
 function getDateInputFormatLabel(format: DateInputFormat) {

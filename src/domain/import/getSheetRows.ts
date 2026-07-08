@@ -94,7 +94,7 @@ function isSignificantRangeTrim({
   ignoredTrailingColumns: number;
   ignoredTrailingRows: number;
 }) {
-  if (ignoredTrailingColumns >= 50 || ignoredTrailingRows >= 500) {
+  if (ignoredTrailingColumns >= 100 || ignoredTrailingRows >= 500) {
     return true;
   }
 
