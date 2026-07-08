@@ -103,6 +103,7 @@ export {
   getCustomValuePartsDisplaySummary,
 } from './OutputColumnRecipeEditor.displayHelpers';
 export {
+  addConcatPartToList,
   appendConcatPartAdditionalStep,
   applyRecipeEditorDraft,
   buildRecipeForSelectedType,
@@ -130,10 +131,13 @@ export {
   normalizeConcatPartsAfterReorder,
   normalizeStepsForMode,
   outputRecipeTypeOptions,
+  removeConcatPartFromList,
+  reorderConcatParts,
   replaceWholeStep,
   replaceWholeStepForAction,
   replaceWholeStepForMode,
   shouldShowTextSourceFields,
+  updateConcatPartInList,
   updateConcatPartPrimarySource,
   updateConcatPartPrimaryStep,
   updateConcatPartSteps,

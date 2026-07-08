@@ -337,6 +337,33 @@ export function updateConcatPartSteps(parts: ConcatPart[], partId: string, steps
   return parts.map((part) => (part.id === partId ? { ...part, steps } : part));
 }
 
+export function updateConcatPartInList(parts: ConcatPart[], partId: string, patch: Partial<ConcatPart>): ConcatPart[] {
+  return parts.map((part) => (part.id === partId ? { ...part, ...patch } : part));
+}
+
+export function addConcatPartToList(parts: ConcatPart[], part: ConcatPart): ConcatPart[] {
+  return [...parts, part];
+}
+
+export function removeConcatPartFromList(
+  parts: ConcatPart[],
+  partId: string,
+  { keepAtLeastOne = false }: { keepAtLeastOne?: boolean } = {},
+): ConcatPart[] {
+  if (keepAtLeastOne && parts.length <= 1) {
+    return parts;
+  }
+
+  return parts.filter((part) => part.id !== partId);
+}
+
+export function reorderConcatParts(parts: ConcatPart[], orderedPartIds: string[]): ConcatPart[] {
+  const partsById = new Map(parts.map((part) => [part.id, part]));
+  const movedParts = orderedPartIds.map((id) => partsById.get(id)).filter((part): part is ConcatPart => Boolean(part));
+  const remainingParts = parts.filter((part) => !orderedPartIds.includes(part.id));
+  return [...movedParts, ...remainingParts];
+}
+
 export function updateConcatPartPrimarySource(part: ConcatPart, source: StepSource, steps?: TransformStep[]): ConcatPart {
   return {
     ...part,

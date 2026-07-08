@@ -21,7 +21,13 @@ import {
 import { StepSourceFields, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { getNumericOperationPreview, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { createPreviousResultDisplay, isDeterministicStepChain } from './OutputColumnRecipeEditor.previousResultHelpers';
-import { updateConcatPartPrimarySource } from './OutputColumnRecipeEditor.recipeHelpers';
+import {
+  addConcatPartToList,
+  removeConcatPartFromList,
+  reorderConcatParts,
+  updateConcatPartInList,
+  updateConcatPartPrimarySource,
+} from './OutputColumnRecipeEditor.recipeHelpers';
 import { getManualRangePreviewValueForRow } from './ManualRangeSpreadsheetEditor.helpers';
 import {
   createCanonicalStepForMode,
@@ -502,22 +508,19 @@ function RangeValueConcatEditor({
   const selectedPart = safeParts.find((part) => part.id === safeSelectedPartId);
   const selectedPartIndex = selectedPart ? safeParts.findIndex((part) => part.id === selectedPart.id) : -1;
   const updatePart = (partId: string, patch: Partial<ConcatPart>) => {
-    onChange(safeParts.map((part) => (part.id === partId ? { ...part, ...patch } : part)));
+    onChange(updateConcatPartInList(safeParts, partId, patch));
   };
   const addPart = () => {
     const nextPart = { id: crypto.randomUUID(), source: { type: 'input' as const, inputColumnId: '' } };
     setSelectedPartId(nextPart.id);
-    onChange([
-      ...safeParts,
-      nextPart,
-    ]);
+    onChange(addConcatPartToList(safeParts, nextPart));
   };
   const deletePart = (partId: string) => {
     if (safeParts.length <= 1) {
       return;
     }
 
-    const nextParts = safeParts.filter((part) => part.id !== partId);
+    const nextParts = removeConcatPartFromList(safeParts, partId, { keepAtLeastOne: true });
     setSelectedPartId(nextParts[Math.max(0, safeParts.findIndex((part) => part.id === partId) - 1)]?.id ?? nextParts[0]?.id ?? '');
     onChange(nextParts);
   };
@@ -544,7 +547,7 @@ function RangeValueConcatEditor({
             items={safeParts}
             axis="horizontal"
             handleLabel="Arrastrar parte"
-            onChange={onChange}
+            onChange={(nextParts) => onChange(reorderConcatParts(safeParts, nextParts.map((part) => part.id)))}
             renderItem={(part, handle) => {
               const index = safeParts.findIndex((item) => item.id === part.id);
               const kind = getRangeValueCompositionTokenKind(part);
