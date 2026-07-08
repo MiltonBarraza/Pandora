@@ -12,7 +12,7 @@ import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, g
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
-import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection } from '../RangeValueEditor';
+import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, updateRangeConcatPartPrimarySource } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
 import { RecipeStudioShell, addComposeRecipePart, getComposePreviewCountText, getPreviewRowsFromStart, getPreviewStartRowNumber } from '../RecipeStudio';
 
@@ -3655,6 +3655,48 @@ describe('constructor helpers', () => {
       'AN - Precio',
     ]);
     expect(getRangeValueConcatPartSourceDropdownOptions(inputColumns).map((option) => option.label)).not.toContain('Texto fijo');
+  });
+
+  it('updates range concat part sources without changing unrelated part fields', () => {
+    const part = {
+      id: 'range-part',
+      source: { type: 'input' as const, inputColumnId: 'input-name' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'upper', type: 'uppercase' as const }],
+    };
+
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'previousResult' })).toEqual({
+      ...part,
+      source: { type: 'previousResult' },
+    });
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' })).toEqual({
+      ...part,
+      source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+    });
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'fixedText', value: 'Texto elegido desde celda' })).toEqual({
+      ...part,
+      source: { type: 'fixedText', value: 'Texto elegido desde celda' },
+    });
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'input', inputColumnId: 'input-pack' })).toEqual({
+      ...part,
+      source: { type: 'input', inputColumnId: 'input-pack' },
+    });
+  });
+
+  it('updates range concat part source and steps together without changing separators', () => {
+    const part = {
+      id: 'range-part',
+      source: { type: 'rangeText' as const, inputColumnId: 'input-name', selectedText: 'PINCELES SERIE 304' },
+      separatorBefore: ' / ',
+      steps: [{ id: 'trim', type: 'trim' as const }],
+    };
+
+    expect(updateRangeConcatPartPrimarySource(part, { type: 'input', inputColumnId: 'input-pack' }, [{ id: 'upper', type: 'uppercase' }])).toEqual({
+      id: 'range-part',
+      source: { type: 'input', inputColumnId: 'input-pack' },
+      separatorBefore: ' / ',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
   });
 
   it('renders range text configuration inside concat range value parts', () => {

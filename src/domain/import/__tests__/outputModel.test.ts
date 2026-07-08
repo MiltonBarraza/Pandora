@@ -553,6 +553,39 @@ describe('outputModel manual range recipes', () => {
     expect(rows[0].outputValues.comment).toBe('PINCELES SERIE 304 - Marca');
   });
 
+  it('keeps previous result, fixed text and part steps working inside range concat values', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'a8', 'input-brand': 'Marca' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'fixedText', value: 'Base' },
+              steps: [{
+                id: 'concat',
+                type: 'concat',
+                mode: 'text',
+                parts: [
+                  { id: 'previous', source: { type: 'previousResult' } },
+                  { id: 'picked', source: { type: 'fixedText', value: 'Picked' }, separatorBefore: ' - ' },
+                  { id: 'input', source: { type: 'input', inputColumnId: 'input-code' }, separatorBefore: ' - ', steps: [{ id: 'upper', type: 'uppercase' }] },
+                ],
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Base - Picked - A8');
+  });
+
   it('assigns selected text from rangeText value sources', () => {
     const rows = buildProcessedRows([
       { rowNumber: 8, values: { 'input-code': 'A8' } },

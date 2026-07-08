@@ -21,6 +21,7 @@ import {
 import { StepSourceFields, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { getNumericOperationPreview, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { createPreviousResultDisplay, isDeterministicStepChain } from './OutputColumnRecipeEditor.previousResultHelpers';
+import { updateConcatPartPrimarySource } from './OutputColumnRecipeEditor.recipeHelpers';
 import { getManualRangePreviewValueForRow } from './ManualRangeSpreadsheetEditor.helpers';
 import {
   createCanonicalStepForMode,
@@ -221,6 +222,10 @@ function getRangeValuePrimaryStep(steps: TransformStep[]) {
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
   return getAdapterRangeValueSourceDropdownOptions(inputColumns);
+}
+
+export function updateRangeConcatPartPrimarySource(part: ConcatPart, source: StepSource, steps?: TransformStep[]): ConcatPart {
+  return updateConcatPartPrimarySource(part, source, steps);
 }
 
 function RangeValueStepsEditor({
@@ -601,7 +606,7 @@ function RangeValueConcatEditor({
                       />
                     );
                   }}
-                  onPrimarySourceAndStepsChange={(source, steps) => updatePart(selectedPart.id, { source, steps })}
+                  onPrimarySourceAndStepsChange={(source, steps) => updatePart(selectedPart.id, updateRangeConcatPartPrimarySource(selectedPart, source, steps))}
                   allowConcat={false}
                   showAdditionalStepsHeader={false}
                   onChange={(steps) => updatePart(selectedPart.id, normalizeRangeValueConcatPartPatch(selectedPart, steps))}
