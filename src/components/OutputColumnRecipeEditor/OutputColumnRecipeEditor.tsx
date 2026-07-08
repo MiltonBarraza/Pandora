@@ -44,6 +44,7 @@ import {
   replaceWholeStep,
   replaceWholeStepForAction,
   replaceWholeStepForMode,
+  updateConcatPartPrimarySource,
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
@@ -133,6 +134,7 @@ export {
   replaceWholeStepForAction,
   replaceWholeStepForMode,
   shouldShowTextSourceFields,
+  updateConcatPartPrimarySource,
   updateConcatPartPrimaryStep,
   updateConcatPartSteps,
   valueConstructionOptions,
@@ -1617,7 +1619,7 @@ export function ComposePartEditor({
   onChange,
 }: ComposePartEditorRenderProps) {
   const updateBaseSource = (source: StepSource, nextSteps?: TransformStep[]) => {
-    onChange({ ...part, source, ...(nextSteps ? { steps: nextSteps } : {}) });
+    onChange(updateConcatPartPrimarySource(part, source, nextSteps));
   };
 
   return (

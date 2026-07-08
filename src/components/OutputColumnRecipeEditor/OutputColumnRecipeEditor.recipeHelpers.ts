@@ -337,6 +337,14 @@ export function updateConcatPartSteps(parts: ConcatPart[], partId: string, steps
   return parts.map((part) => (part.id === partId ? { ...part, steps } : part));
 }
 
+export function updateConcatPartPrimarySource(part: ConcatPart, source: StepSource, steps?: TransformStep[]): ConcatPart {
+  return {
+    ...part,
+    source,
+    ...(steps ? { steps } : {}),
+  };
+}
+
 function omitSeparatorBefore(part: ConcatPart): ConcatPart {
   const { separatorBefore: _separatorBefore, ...nextPart } = part;
   return nextPart;

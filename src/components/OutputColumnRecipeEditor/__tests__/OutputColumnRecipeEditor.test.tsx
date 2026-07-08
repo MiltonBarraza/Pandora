@@ -6,7 +6,7 @@ import { buildInputRows, buildProcessedRows } from '../../../domain/import/outpu
 import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
-import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
+import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, ManualRangeTextGenerator, OutputColumnRecipeEditor, StepConditionFields, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeGeneratorSummary, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangeGeneratorIntervalSummary, getManualRangeGeneratorWarnings, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeDetectionModeOptions, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorPreviousResultHelpText, reorderComposeRecipeParts, replaceWholeStepForAction, replaceWholeStepForMode, resolveManualRangeGeneratorRowBounds, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartPrimarySource, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
@@ -6348,14 +6348,65 @@ describe('constructor helpers', () => {
       steps: [{ id: 'upper', type: 'uppercase' as const }],
     };
 
-    expect({ ...part, source: { type: 'fixedText' as const, value: 'Nombre' } }).toMatchObject({
+    expect(updateConcatPartPrimarySource(part, { type: 'fixedText', value: 'Nombre' })).toMatchObject({
       separatorBefore: ' - ',
+      source: { type: 'fixedText', value: 'Nombre' },
       steps: [{ id: 'upper', type: 'uppercase' }],
     });
     expect({ ...part, separatorBefore: ' / ' }).toMatchObject({
       source: { type: 'input', inputColumnId: 'input-name' },
       steps: [{ id: 'upper', type: 'uppercase' }],
     });
+  });
+
+  it('updates concat part primary source and optional steps without changing other part fields', () => {
+    const part = {
+      id: 'name',
+      source: { type: 'fixedText' as const, value: 'Manual' },
+      separatorBefore: ' / ',
+      steps: [{ id: 'upper', type: 'uppercase' as const }],
+    };
+
+    expect(updateConcatPartPrimarySource(part, { type: 'input', inputColumnId: 'input-name' })).toEqual({
+      ...part,
+      source: { type: 'input', inputColumnId: 'input-name' },
+    });
+    expect(updateConcatPartPrimarySource(part, { type: 'fixedText', value: 'Celda elegida' }, [{ id: 'trim', type: 'trim' }])).toEqual({
+      ...part,
+      source: { type: 'fixedText', value: 'Celda elegida' },
+      steps: [{ id: 'trim', type: 'trim' }],
+    });
+  });
+
+  it('keeps concat part source previews stable for column, fixed text and picked cell text', () => {
+    const recipeForPart = (part: ReturnType<typeof updateConcatPartPrimarySource>): Extract<OutputRecipe, { type: 'combine' }> => ({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{ id: 'concat', mode: 'text', type: 'concat', parts: [part] }],
+    });
+    const basePart = { id: 'part', source: { type: 'input' as const, inputColumnId: 'input-name' } };
+
+    expect(buildCustomValuePreview(recipeForPart(updateConcatPartPrimarySource(basePart, { type: 'input', inputColumnId: 'input-name' })), { 'input-name': 'Pincel' })).toBe('Pincel');
+    expect(buildCustomValuePreview(recipeForPart(updateConcatPartPrimarySource(basePart, { type: 'fixedText', value: 'Manual' })), { 'input-name': 'Pincel' })).toBe('Manual');
+    expect(buildCustomValuePreview(recipeForPart(updateConcatPartPrimarySource(basePart, { type: 'fixedText', value: 'Celda elegida' })), { 'input-name': 'Pincel' })).toBe('Celda elegida');
+  });
+
+  it('keeps concat part internal steps evaluation when source changes', () => {
+    const part = updateConcatPartPrimarySource(
+      { id: 'part', source: { type: 'fixedText' as const, value: '' } },
+      { type: 'input', inputColumnId: 'input-name' },
+      [{ id: 'upper', type: 'uppercase' }],
+    );
+
+    expect(buildCustomValuePreview({
+      type: 'combine',
+      customMode: 'concat',
+      parts: [],
+      separator: '',
+      steps: [{ id: 'concat', mode: 'text', type: 'concat', parts: [part] }],
+    }, { 'input-name': 'pincel' })).toBe('PINCEL');
   });
 
   it('does not invent a transformation for a neutral first step', () => {
