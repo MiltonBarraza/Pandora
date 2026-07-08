@@ -473,6 +473,60 @@ describe('settingsRemap', () => {
     expect(result.unresolvedReferences).toEqual([]);
   });
 
+  it('remaps legacy valueSource and valueRecipe source when both exist', () => {
+    const currentSettings = buildSettings();
+    currentSettings.config.outputColumns = [
+      {
+        id: 'output-comment',
+        label: 'Comentario',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-legacy', selectedText: 'Legacy' },
+              valueRecipe: {
+                source: { type: 'input', inputColumnId: 'input-recipe' },
+              },
+            },
+          ],
+        },
+      },
+    ];
+    currentSettings.config.inputIgnoreRules = [];
+
+    const result = applyInputColumnRemapToSettings(currentSettings, {
+      'input-legacy': 'input-201',
+      'input-recipe': 'input-202',
+    });
+    const recipe = result.settings.config.outputColumns[0].recipe;
+
+    if (recipe.type !== 'manualRange') {
+      throw new Error('Expected manual range recipe');
+    }
+
+    expect(recipe.ranges[0].valueSource).toEqual({ type: 'rangeText', inputColumnId: 'input-201', selectedText: 'Legacy' });
+    expect(recipe.ranges[0].valueRecipe?.source).toEqual({ type: 'input', inputColumnId: 'input-202' });
+    expect(result.changedReferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-legacy',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueSource.inputColumnId',
+      }),
+      expect.objectContaining({
+        columnId: 'input-recipe',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.source.inputColumnId',
+      }),
+    ]));
+    expect(result.changedReferences).toHaveLength(2);
+    expect(result.unresolvedReferences).toEqual([]);
+  });
+
   it('remaps manual range value recipe transform steps', () => {
     const currentSettings = buildSettings();
     currentSettings.config.outputColumns = [

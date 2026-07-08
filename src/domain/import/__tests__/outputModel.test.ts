@@ -180,6 +180,29 @@ describe('outputModel manual range recipes', () => {
     expect(rows.map((row) => row.outputValues.comment)).toEqual(['Promo', '']);
   });
 
+  it('uses valueRecipe before legacy valueSource and value fallbacks', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: { source: { type: 'fixedText', value: 'Recipe value' } },
+            valueSource: { type: 'fixedText', value: 'Legacy source' },
+            value: 'Legacy value',
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Recipe value');
+  });
+
   it('does not use suggested manual range reference text as the output value', () => {
     const rows = buildProcessedRows([
       { rowNumber: 8, values: { 'input-code': 'A8' } },
@@ -369,6 +392,27 @@ describe('outputModel manual range recipes', () => {
       'Cerda china mango amarillo',
       '',
     ]);
+  });
+
+  it('assigns selected text from legacy rangeText valueSource', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-code': 'A8' } },
+    ], [
+      outputColumn({
+        id: 'comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueSource: { type: 'rangeText', inputColumnId: 'input-code', selectedText: 'Legacy selected' },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows[0].outputValues.comment).toBe('Legacy selected');
   });
 
   it('keeps legacy manual range values working', () => {

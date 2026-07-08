@@ -365,6 +365,46 @@ describe('settingsReferences', () => {
     expect(summary.inputColumnIds).toEqual(['input-brand', 'input-filter']);
   });
 
+  it('collects legacy valueSource and valueRecipe source references when both exist', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-comment',
+        recipe: {
+          type: 'manualRange',
+          ranges: [
+            {
+              id: 'range-8-13',
+              startRowNumber: 8,
+              endRowNumber: 13,
+              valueSource: { type: 'rangeText', inputColumnId: 'input-legacy', selectedText: 'Legacy' },
+              valueRecipe: {
+                source: { type: 'input', inputColumnId: 'input-recipe' },
+              },
+            },
+          ],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-legacy',
+        target: 'input',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueSource.inputColumnId',
+        outputColumnId: 'output-comment',
+      }),
+      expect.objectContaining({
+        columnId: 'input-recipe',
+        target: 'input',
+        kind: 'manualRangeValueSource',
+        path: 'config.outputColumns[0].recipe.ranges[0].valueRecipe.source.inputColumnId',
+        outputColumnId: 'output-comment',
+      }),
+    ]));
+    expect(summary.inputColumnIds).toEqual(['input-filter', 'input-legacy', 'input-recipe']);
+  });
+
   it('collects manual range value recipe transform step references', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({

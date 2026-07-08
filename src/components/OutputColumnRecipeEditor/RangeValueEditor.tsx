@@ -1,11 +1,8 @@
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import {
-  getManualRangeFixedTextValue,
-  getManualRangeInputSource,
   getManualRangeRangeTextHelpText,
-  getManualRangeRangeTextSource,
   getManualRangeSelectedTextOptions,
-  getManualRangeValueSourceType,
+  getManualRangeValueRecipeSource,
   type ManualRangeValueSourceType,
 } from '../../domain/import/manualRangeModel';
 import { useState } from 'react';
@@ -118,23 +115,6 @@ function stripPrimarySource(step: TransformStep): TransformStep {
   return stepWithoutSource;
 }
 
-function getRangeValueFallbackSource(
-  range: ManualRangeValue,
-  valueSourceType: ManualRangeValueSourceType,
-  inputSource: Extract<StepSource, { type: 'input' }>,
-  rangeTextSource: Extract<StepSource, { type: 'rangeText' }>,
-): StepSource {
-  if (valueSourceType === 'input') {
-    return inputSource;
-  }
-
-  if (valueSourceType === 'rangeText') {
-    return rangeTextSource;
-  }
-
-  return { type: 'fixedText', value: getManualRangeFixedTextValue(range) };
-}
-
 export function RangeValueEditor({
   range,
   inputColumns,
@@ -142,15 +122,12 @@ export function RangeValueEditor({
   onSourceAndStepsChange,
   onStepsChange,
 }: RangeValueEditorProps) {
-  const valueSourceType = getManualRangeValueSourceType(range);
-  const inputSource = getManualRangeInputSource(range);
-  const rangeTextSource = getManualRangeRangeTextSource(range);
   const inputColumnOptions = getInputColumnOptions(inputColumns, noActiveColumnsLabel, { includeBlankOption: true, blankLabel: 'Seleccionar' });
   const hasSourceDetails = true;
 
   const steps = range.valueRecipe?.steps ?? [];
   const primaryStep = getRangeValuePrimaryStep(steps);
-  const valueRecipeSource = range.valueRecipe?.source ?? getRangeValueFallbackSource(range, valueSourceType, inputSource, rangeTextSource);
+  const valueRecipeSource = getManualRangeValueRecipeSource(range);
   const primaryContext = createRangeValueStepContext('range', 0, inputColumns);
   const primaryPolicyStep = getStepWithRangeValueSource(primaryStep, valueRecipeSource, primaryContext, steps.length > 0);
 
