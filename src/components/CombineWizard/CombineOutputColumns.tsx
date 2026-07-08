@@ -70,7 +70,7 @@ export function CombineOutputColumns({
   };
 
   return (
-    <section className="panel combineFlowPanel combineOutputColumnsPanel">
+    <section className="panel combineFlowPanel combineOutputColumnsPanel wizardSectionEnter">
       <h2 className="headingWithInfo">
         <span>2. Columnas de salida</span>
         <InfoTooltip
