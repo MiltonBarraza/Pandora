@@ -12,6 +12,7 @@ import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, g
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
+import { getConcatPartFromRecipePart, getConcatPartsFromRecipeParts, getRecipePartFromConcatPart } from '../OutputColumnRecipeEditor.recipeHelpers';
 import { RangeValueEditor, appendRangeValueStep, createDefaultRangeValueConcatParts, getRangeValueConcatPartSourceDropdownOptions, getRangeValueSourceDropdownOptions, getRangeValueSourceSelection, updateRangeConcatPartPrimarySource } from '../RangeValueEditor';
 import { getAllowedSourceActions, getAllowedStepActions, getAllowedStepModes } from '../OutputColumnRecipeEditor.stepPolicy';
 import { RecipeStudioShell, addComposeRecipePart, getComposePreviewCountText, getPreviewRowsFromStart, getPreviewStartRowNumber } from '../RecipeStudio';
@@ -6388,6 +6389,62 @@ describe('constructor helpers', () => {
     ];
 
     expect(reorderConcatParts(parts, ['third', 'first'])).toEqual([parts[2], parts[0], parts[1]]);
+  });
+
+  it('converts legacy recipe parts to concat parts preserving source, separators and steps', () => {
+    expect(getConcatPartsFromRecipeParts([
+      { id: 'name', type: 'input', inputColumnId: 'input-name', steps: [{ id: 'trim', type: 'trim' }], separatorAfter: ' - ' },
+      { id: 'fixed', type: 'text', value: 'OK' },
+      { id: 'pack', type: 'input', inputColumnId: 'input-pack' },
+    ], ' / ')).toEqual([
+      { id: 'name', source: { type: 'input', inputColumnId: 'input-name' }, steps: [{ id: 'trim', type: 'trim' }] },
+      { id: 'fixed', source: { type: 'fixedText', value: 'OK' }, separatorBefore: ' - ' },
+      { id: 'pack', source: { type: 'input', inputColumnId: 'input-pack' }, separatorBefore: ' / ' },
+    ]);
+  });
+
+  it('converts concat parts back to recipe parts using current legacy fallback behavior', () => {
+    expect(getRecipePartFromConcatPart({
+      id: 'name',
+      source: { type: 'input', inputColumnId: 'input-name' },
+      separatorBefore: ' - ',
+      steps: [{ id: 'trim', type: 'trim' }],
+    })).toEqual({
+      id: 'name',
+      type: 'input',
+      inputColumnId: 'input-name',
+      steps: [{ id: 'trim', type: 'trim' }],
+    });
+    expect(getRecipePartFromConcatPart({ id: 'fixed', source: { type: 'fixedText', value: 'OK' } })).toEqual({
+      id: 'fixed',
+      type: 'text',
+      value: 'OK',
+    });
+    expect(getRecipePartFromConcatPart({ id: 'range', source: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'Found' } })).toMatchObject({
+      id: 'range',
+      type: 'text',
+      value: 'Found',
+      steps: [{ type: 'noop' }],
+    });
+    expect(getRecipePartFromConcatPart({ id: 'previous', source: { type: 'previousResult' } })).toMatchObject({
+      id: 'previous',
+      type: 'text',
+      value: '',
+      steps: [{ type: 'noop' }],
+    });
+  });
+
+  it('converts one legacy recipe part to a concat part without separator context', () => {
+    expect(getConcatPartFromRecipePart({
+      id: 'fixed',
+      type: 'text',
+      value: 'OK',
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    })).toEqual({
+      id: 'fixed',
+      source: { type: 'fixedText', value: 'OK' },
+      steps: [{ id: 'upper', type: 'uppercase' }],
+    });
   });
 
   it('summarizes concat parts for the lateral list', () => {

@@ -10,7 +10,7 @@ import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { previousResultSourceLabel, recipeStepActionLabels } from './OutputColumnRecipeEditor.actionDefinitions';
 import { getConfiguredConcatStep, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { conditionOperators } from './OutputColumnRecipeEditor.optionHelpers';
-import { buildSimpleCustomValueRecipeWithSteps, createNoopStep, getFirstStepSource, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
+import { buildSimpleCustomValueRecipeWithSteps, createNoopStep, getConcatPartFromRecipePart, getFirstStepSource, getRecipePartFromConcatPart, getRecipeStudioMode, getSimpleInputPart, type CustomValueMode, type EditableCustomRecipe, type RecipeStudioMode } from './OutputColumnRecipeEditor.recipeHelpers';
 import './OutputColumnRecipeEditor.recipeStudio.css';
 
 type CombineRecipe = Extract<OutputRecipe, { type: 'combine' }>;
@@ -765,7 +765,7 @@ function getComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine' }
     return recipe.parts;
   }
 
-  return concatStep.parts.map((part) => concatPartToRecipePart(part));
+  return concatStep.parts.map((part) => getRecipePartFromConcatPart(part));
 }
 
 function getComposeConcatPart(recipe: Extract<OutputRecipe, { type: 'combine' }>, index: number): ConcatPart | undefined {
@@ -775,7 +775,7 @@ function getComposeConcatPart(recipe: Extract<OutputRecipe, { type: 'combine' }>
   }
 
   const part = recipe.parts[index];
-  return part ? recipePartToConcatPart(part) : undefined;
+  return part ? getConcatPartFromRecipePart(part) : undefined;
 }
 
 function updateComposeConcatPart(
@@ -798,7 +798,7 @@ function updateComposeConcatPart(
     return recipe;
   }
 
-  const nextRecipePart = concatPartToRecipePart(nextPart);
+  const nextRecipePart = getRecipePartFromConcatPart(nextPart);
   return updateComposeRecipeParts(recipe, recipe.parts.map((part, partIndex) => partIndex === index
     ? { ...nextRecipePart, ...(currentPart.separatorAfter !== undefined ? { separatorAfter: currentPart.separatorAfter } : {}) }
     : part));
@@ -811,7 +811,7 @@ function updateComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 'combine
       ...recipe,
       customMode: 'concat',
       steps: (recipe.steps ?? []).map((step) => step.id === concatStep.id
-        ? { ...step, parts: parts.map(recipePartToConcatPart) }
+        ? { ...step, parts: parts.map(getConcatPartFromRecipePart) }
         : step),
     };
   }
@@ -841,43 +841,6 @@ export function reorderComposeRecipeParts(recipe: Extract<OutputRecipe, { type: 
   const movedParts = orderedPartIds.map((id) => partsById.get(id)).filter((part): part is RecipePart => Boolean(part));
   const remainingParts = parts.filter((part) => !orderedPartIds.includes(part.id));
   return updateComposeRecipeParts(recipe, [...movedParts, ...remainingParts]);
-}
-
-function concatPartToRecipePart(part: ConcatPart): RecipePart {
-  if (part.source.type === 'input') {
-    return {
-      id: part.id,
-      type: 'input',
-      inputColumnId: part.source.inputColumnId,
-      ...(part.steps ? { steps: part.steps } : {}),
-    };
-  }
-
-  if (part.source.type === 'fixedText') {
-    return {
-      id: part.id,
-      type: 'text',
-      value: part.source.value,
-      ...(part.steps ? { steps: part.steps } : {}),
-    };
-  }
-
-  return {
-    id: part.id,
-    type: 'text',
-    value: part.source.type === 'rangeText' ? part.source.selectedText : '',
-    steps: part.steps ?? [createNoopStep('text')],
-  };
-}
-
-function recipePartToConcatPart(part: RecipePart): ConcatPart {
-  return {
-    id: part.id,
-    source: part.type === 'input'
-      ? { type: 'input', inputColumnId: part.inputColumnId }
-      : { type: 'fixedText', value: part.value },
-    ...(part.steps ? { steps: part.steps } : {}),
-  };
 }
 
 function createComposeInputPart(inputColumnId: string, id: string = crypto.randomUUID()): RecipePart {
