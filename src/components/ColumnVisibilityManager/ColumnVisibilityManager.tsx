@@ -488,7 +488,7 @@ export function getActiveColumnDragId(columnIndex: number) {
   return `active-column-${columnIndex}`;
 }
 
-export function sameNumberOrder(left: number[], right: number[]) {
+function sameNumberOrder(left: number[], right: number[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
@@ -527,11 +527,11 @@ export function filterColumnsBySearch(columns: ColumnAnalysis[], search: string)
   return columns.filter((column) => columnMatchesSearch(column, query));
 }
 
-export function columnMatchesSearch(column: ColumnAnalysis, normalizedQuery: string) {
+function columnMatchesSearch(column: ColumnAnalysis, normalizedQuery: string) {
   return getColumnSearchTerms(column).some((term) => term.includes(normalizedQuery));
 }
 
-export function getColumnSearchTerms(column: ColumnAnalysis) {
+function getColumnSearchTerms(column: ColumnAnalysis) {
   const alias = column.alias?.trim();
   const header = column.header?.trim();
   const visibleIdentifier = alias || header || column.columnLetter;
@@ -541,7 +541,7 @@ export function getColumnSearchTerms(column: ColumnAnalysis) {
     .filter((term) => term !== '');
 }
 
-export function normalizeColumnSearch(value: string) {
+function normalizeColumnSearch(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
@@ -579,7 +579,7 @@ export function hasActiveColumns(columns: ColumnAnalysis[]) {
   return columns.some((column) => !column.ignored);
 }
 
-export function setColumnVisibility(column: ColumnAnalysis, ignored: boolean) {
+function setColumnVisibility(column: ColumnAnalysis, ignored: boolean) {
   if (!ignored) {
     return { ...column, ignored: false, ignoredReason: undefined, ignoredReasons: undefined };
   }
@@ -661,7 +661,7 @@ export function getAppliedFilterState(columns: ColumnAnalysis[]): AppliedFilterS
   return { empty, hidden, customLabel };
 }
 
-export function getSuggestedColumnIndexes(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
+function getSuggestedColumnIndexes(columns: ColumnAnalysis[], reasons: IgnoredReason[]) {
   return columns
     .filter((column) => getColumnAutomaticReasons(column).some((reason) => reasons.includes(reason)))
     .map((column) => column.columnIndex);

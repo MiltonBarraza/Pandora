@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 export type AppearancePreference = 'light' | 'dark' | 'system';
 export type ResolvedAppearanceTheme = 'light' | 'dark';
 
-export const appearanceStorageKey = 'excel-sanitizer:appearance';
+const appearanceStorageKey = 'excel-sanitizer:appearance';
 
 const appearancePreferences: AppearancePreference[] = ['light', 'system', 'dark'];
 

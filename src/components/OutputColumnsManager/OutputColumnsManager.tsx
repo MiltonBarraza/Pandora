@@ -277,7 +277,7 @@ function OutputColumnSelectButton({
   );
 }
 
-export function getOutputColumnRecipeListSummary(column: OutputColumn) {
+function getOutputColumnRecipeListSummary(column: OutputColumn) {
   const { recipe } = column;
 
   if (recipe.type === 'direct') {
