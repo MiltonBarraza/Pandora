@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
-import { describeManualRangeCondition, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, getManualRangeTextOptions, getManualRangeValueSourceType, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangeCondition, updateManualRangePrimarySourceAndSteps, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType, type ManualRangeInitialValueMode, type ManualRangeStartFilter, type ManualRangeValueSourceType } from '../../domain/import/manualRangeModel';
+import { describeManualRangeCondition, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeFixedTextValue, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCountFromInputs, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, updateManualRangePrimarySourceAndSteps, updateManualRangeValue, updateManualRangeValueRecipeSteps, type ManualRangeInitialValueMode, type ManualRangeStartFilter } from '../../domain/import/manualRangeModel';
 import { buildProcessedRows } from '../../domain/import/outputModel';
 import type { DateInputFormat, InputColumn, InputRow, ManualRangeValue, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep, TransformStepMode } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { Modal } from '../Modal/Modal';
-import { SortableList } from '../SortableList/SortableList';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
@@ -27,20 +26,16 @@ import {
   buildRecipeForSelectedType,
   buildSimpleCustomValueRecipeWithSteps,
   buildStepBasedCustomValueRecipe,
-  canPreviewNumericValue,
-  clearManualRangeValues,
   createNoopStep,
   getCustomValueMode,
   getDefaultStepModeForRecipe,
   getFirstStepSource,
-  getInputColumnSummary,
   getRecipeEditorModalRecipe,
   getSimpleInputPart,
   getStepMode,
   getVisibleConcatPartPrimaryStep,
   getVisibleRecipeSteps,
   hasRecipeEditorDraftChanges,
-  isCustomValueConfigured,
   replaceWholeStep,
   replaceWholeStepForAction,
   replaceWholeStepForMode,
@@ -61,7 +56,6 @@ import {
   buildCustomValuePreview,
   buildManualRangeRecipePreview,
   getConstructorAdjustmentLabels,
-  getCustomValuePartsDisplayLabel,
   getCustomValuePartsDisplaySummary,
   getConfiguredConcatStep,
   getRecipeStepTitle,
@@ -415,7 +409,6 @@ export function OutputColumnRecipeEditor({ column, inputColumns, manualRangeRows
 
 function ManualRangeSummary({
   recipe,
-  inputColumns,
   onEdit,
 }: {
   recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
@@ -1491,14 +1484,12 @@ function SimpleStepBlock({
   index,
   inputColumns,
   manualRangeRows,
-  defaultStepMode,
   baseInputColumnId,
   canDelete,
   previousResultPreviewValue,
   previousResultDisplay,
   studioLayout = false,
   studioActionContent,
-  onBaseInputColumnChange,
   onChange,
   onReplace,
   onDelete,
@@ -1694,7 +1685,6 @@ function ConcatPartStepsEditor({
   baseSource,
   separatorFields,
   previousResultPreviewValue,
-  allowPreviousResultSource = true,
   showPrimarySourceFields = true,
   onBaseSourceChange,
   onChange,

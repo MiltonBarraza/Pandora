@@ -174,12 +174,6 @@ async function selectDropdownOptionAt(user: ReturnType<typeof userEvent.setup>, 
   await user.click(screen.getByRole('option', { name: optionName }));
 }
 
-async function selectLastSearchableDropdownOption(user: ReturnType<typeof userEvent.setup>, buttonName: RegExp, optionName: string | RegExp) {
-  const buttons = screen.getAllByRole('combobox', { name: buttonName });
-  await user.click(buttons[buttons.length - 1]);
-  await user.click(screen.getByRole('option', { name: optionName }));
-}
-
 function getComposePartEditor() {
   const editor = document.querySelector('.composePartTechnicalEditor') as HTMLElement | null;
   if (!editor) {

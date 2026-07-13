@@ -156,7 +156,6 @@ export function StepTypeSelect({
   mode,
   allowConcat = true,
   textSourceAction,
-  allowPreviousResultSource = false,
   onTextSourceAction,
   action,
   onChange,
