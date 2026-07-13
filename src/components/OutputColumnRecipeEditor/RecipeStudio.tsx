@@ -71,14 +71,12 @@ export function RecipeStudioShell({
   inputColumns,
   manualRangeRows,
   sampleInputValues,
-  preview,
   customValueMode,
   onChange,
   renderCustomValueEditor,
   renderComposePartEditor,
   renderComposeStepHeader,
   renderManualRangeRecipeEditor,
-  renderManualRangeTextGenerator,
 } : {
   recipe: EditableCustomRecipe;
   inputColumns: InputColumn[];
@@ -863,15 +861,6 @@ export function updateComposeColumnTextSelection(
       }
       : part
   )));
-}
-
-function getComposeTokenConditionSummary(part: RecipePart, inputColumns: InputColumn[]) {
-  const condition = (part.steps ?? []).find((step) => step.condition)?.condition;
-  if (!condition) {
-    return 'Aplicar siempre';
-  }
-
-  return getComposeStepConditionSummary(condition, inputColumns);
 }
 
 function getComposeTokenConditionRows(part: RecipePart, inputColumns: InputColumn[]) {

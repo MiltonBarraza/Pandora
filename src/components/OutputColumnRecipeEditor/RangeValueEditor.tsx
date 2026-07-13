@@ -18,7 +18,7 @@ import {
   previousResultFieldLabel,
   recipeStepActionLabels,
 } from './OutputColumnRecipeEditor.actionDefinitions';
-import { StepSourceFields, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
+import type { PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { getNumericOperationPreview, getRecipeStepTitle } from './OutputColumnRecipeEditor.displayHelpers';
 import { createPreviousResultDisplay, isDeterministicStepChain } from './OutputColumnRecipeEditor.previousResultHelpers';
 import {
@@ -134,13 +134,9 @@ export function RangeValueEditor({
   onStepsChange,
 }: RangeValueEditorProps) {
   const inputColumnOptions = getInputColumnOptions(inputColumns, noActiveColumnsLabel, { includeBlankOption: true, blankLabel: 'Seleccionar' });
-  const hasSourceDetails = true;
 
   const steps = range.valueRecipe?.steps ?? [];
-  const primaryStep = getRangeValuePrimaryStep(steps);
   const valueRecipeSource = getManualRangeValueRecipeSource(range);
-  const primaryContext = createRangeValueStepContext('range', 0, inputColumns);
-  const primaryPolicyStep = getStepWithRangeValueSource(primaryStep, valueRecipeSource, primaryContext, steps.length > 0);
 
   const renderRangeTextFields = (source: StepSource, onChange: (source: StepSource) => void) => {
     const currentSource = source.type === 'rangeText'
@@ -220,10 +216,6 @@ export function RangeValueEditor({
       />
     </div>
   );
-}
-
-function getRangeValuePrimaryStep(steps: TransformStep[]) {
-  return steps.find((step) => step.type !== 'manualRange') ?? { id: rangeValuePrimaryStepId, mode: 'text' as const, type: 'noop' as const };
 }
 
 export function getRangeValueSourceDropdownOptions(inputColumns: InputColumn[]) {
@@ -636,52 +628,6 @@ function RangeValueConcatEditor({
         </section>
       ) : null}
     </div>
-  );
-}
-
-function getRangeValueConcatPartSourceFields({
-  part,
-  inputColumns,
-  manualRangeRows,
-  range,
-  columnTextPickerOpen,
-  onChange,
-}: {
-  part: ConcatPart;
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  range?: Pick<ManualRangeValue, 'id' | 'startRowNumber' | 'endRowNumber'>;
-  columnTextPickerOpen: boolean;
-  onChange: (source: StepSource) => void;
-}) {
-  const primaryStep = part.steps?.[0] ?? { id: rangeValuePrimaryStepId, mode: 'text' as const, type: 'noop' as const };
-  const mode = getRangeValueStepMode(primaryStep);
-  if (mode === 'number' || mode === 'date') {
-    return (
-      <StepSourceFields
-        label={mode === 'number' ? 'Qué valor usar' : 'Qué fecha usar'}
-        source={part.source}
-        inputColumns={inputColumns}
-        inputRows={manualRangeRows}
-        allowPreviousResult={false}
-        fixedTextInputType={mode === 'number' ? 'number' : 'date'}
-        fixedTextInputLabel={mode === 'number' ? 'Valor fijo' : 'Fecha fija'}
-        valueKind={mode}
-        onChange={onChange}
-      />
-    );
-  }
-
-  return (
-    <RangeValueConcatPartSourceFields
-      source={part.source}
-      inputColumns={inputColumns}
-      manualRangeRows={manualRangeRows}
-      range={range}
-      hideSourceSelector
-      columnTextPickerOpen={columnTextPickerOpen}
-      onChange={onChange}
-    />
   );
 }
 
