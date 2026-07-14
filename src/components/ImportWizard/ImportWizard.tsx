@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as XLSX from 'xlsx';
 import { applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../../domain/import/applyIgnoreRules';
 import { analyzeSheetColumns } from '../../domain/import/columnAnalysis';
@@ -744,6 +744,7 @@ export function ImportWizard({
               <div className="startRowControls">
                 <input
                   type="number"
+                  aria-label="Primera fila de datos"
                   min="1"
                   value={startRowInputValue}
                   onChange={(event) => {
@@ -1004,9 +1005,11 @@ export function Step({
   className?: string;
   children: ReactNode;
 }) {
+  const headingId = useId();
+
   return (
-    <section className={className ? `panel ${className}` : 'panel'}>
-      <h2 className={info || warning ? 'headingWithInfo' : undefined}>
+    <section className={className ? `panel ${className}` : 'panel'} aria-labelledby={headingId}>
+      <h2 id={headingId} className={info || warning ? 'headingWithInfo' : undefined}>
         <span>{title}</span>
         {info ? <InfoTooltip content={info} ariaLabel={`Ayuda: ${title}`} placement="right" /> : null}
         {warning ? <WarningTooltip content={warning} ariaLabel={`Advertencia: ${title}`} /> : null}

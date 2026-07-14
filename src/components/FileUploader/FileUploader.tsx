@@ -105,6 +105,7 @@ export function FileUploader({
           <input
             ref={fileInputRef}
             type="file"
+            aria-label="Archivo para preparar"
             accept=".xlsx,.xls,.xlsm,.csv"
             tabIndex={-1}
             disabled={disabled || isProcessing}
