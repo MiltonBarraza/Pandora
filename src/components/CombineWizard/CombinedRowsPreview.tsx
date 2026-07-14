@@ -89,6 +89,7 @@ export const CombinedRowsPreview = memo(function CombinedRowsPreview({
           <div className="tableWrap combinePreviewTableWrap">
             <table
               className="combinePreviewTable"
+              aria-label="Vista previa combinada"
               style={{ '--combine-preview-column-count': String(outputColumns.length) } as CombinedPreviewTableStyle}
             >
               <colgroup>

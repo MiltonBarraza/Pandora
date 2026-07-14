@@ -7,9 +7,33 @@ export const productosMinimoRows = [
 ] as const;
 
 export function writeProductosMinimoWorkbook(filePath: string) {
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.aoa_to_sheet(productosMinimoRows.map((row) => [...row]));
+  writeWorkbook(filePath, 'Productos', productosMinimoRows);
+}
 
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Productos');
+export const productosACombineRows = [
+  ['Código', 'Producto', 'Precio'],
+  ['A1', 'Pincel', 10],
+  ['A2', 'Rodillo', 20],
+] as const;
+
+export const productosBCombineRows = [
+  ['Producto', 'Código', 'Stock'],
+  ['Lija', 'B1', 5],
+  ['Cinta', 'B2', 8],
+] as const;
+
+export function writeProductosACombineWorkbook(filePath: string) {
+  writeWorkbook(filePath, 'Productos A', productosACombineRows);
+}
+
+export function writeProductosBCombineWorkbook(filePath: string) {
+  writeWorkbook(filePath, 'Productos B', productosBCombineRows);
+}
+
+function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));
+
+  XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   XLSX.writeFile(workbook, filePath, { bookType: 'xlsx' });
 }
