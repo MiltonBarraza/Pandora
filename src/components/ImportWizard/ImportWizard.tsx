@@ -659,7 +659,7 @@ export function ImportWizard({
             onFileSelected={loadFile}
             onFileRemoved={removeFile}
           />
-          {readError ? <p className="errorText">{readError}</p> : null}
+          {readError ? <p className="errorText" role="alert">{readError}</p> : null}
         </Step>
 
         {hasLoadedFile ? (
