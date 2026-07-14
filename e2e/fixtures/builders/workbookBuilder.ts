@@ -30,6 +30,28 @@ export function writeProductosBCombineWorkbook(filePath: string) {
   writeWorkbook(filePath, 'Productos B', productosBCombineRows);
 }
 
+export const resumenMultiSheetRows = [
+  ['Métrica', 'Valor'],
+  ['Total', 2],
+  ['Estado', 'Activo'],
+] as const;
+
+export const productosMultiSheetRows = [
+  ['Código', 'Producto', 'Precio'],
+  ['P1', 'Brocha', 15],
+  ['P2', 'Espátula', 25],
+] as const;
+
+export function writeMultiSheetWorkbook(filePath: string) {
+  const workbook = XLSX.utils.book_new();
+  const resumenSheet = XLSX.utils.aoa_to_sheet(resumenMultiSheetRows.map((row) => [...row]));
+  const productosSheet = XLSX.utils.aoa_to_sheet(productosMultiSheetRows.map((row) => [...row]));
+
+  XLSX.utils.book_append_sheet(workbook, resumenSheet, 'Resumen');
+  XLSX.utils.book_append_sheet(workbook, productosSheet, 'Productos');
+  XLSX.writeFile(workbook, filePath, { bookType: 'xlsx' });
+}
+
 function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));
