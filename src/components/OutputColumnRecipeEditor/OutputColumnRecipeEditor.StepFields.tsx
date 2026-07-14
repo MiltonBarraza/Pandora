@@ -95,14 +95,6 @@ export function getVisibleStepAction(
   return allowedTypes.includes(step.type) ? step.type : '';
 }
 
-export function isVisibleStepActionConfigured(
-  step: TransformStep,
-  mode: TransformStepMode = step.mode ?? 'text',
-  textSourceAction?: StepTextSourceAction,
-) {
-  return getVisibleStepAction(step, mode, textSourceAction) !== '';
-}
-
 export function getColumnCompatibilityHint(valueKind: StepValueKind, totalColumns: number, compatibleColumns: number) {
   if (valueKind === 'text' || totalColumns === 0 || compatibleColumns === totalColumns) {
     return '';
