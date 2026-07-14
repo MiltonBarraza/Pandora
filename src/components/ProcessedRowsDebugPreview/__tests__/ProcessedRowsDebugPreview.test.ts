@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProcessedRow } from '../../../types/import';
-import { getNormalizedPreviewLimitText, getNormalizedPreviewRowCountLabel, getNormalizedPreviewRows, getNormalizedPreviewSummary, getVisibleNormalizedPreviewRows, normalizedPreviewRowLimit } from '../ProcessedRowsDebugPreview';
+import { getNormalizedPreviewLimitText, getNormalizedPreviewRowCountLabel, getNormalizedPreviewRows, getNormalizedPreviewSummaryItems, getVisibleNormalizedPreviewRows, normalizedPreviewRowLimit } from '../ProcessedRowsDebugPreview';
 
 function row(rowNumber: number, status: ProcessedRow['status'] = 'included'): ProcessedRow {
   return {
@@ -28,12 +28,17 @@ describe('ProcessedRowsPreview helpers', () => {
   });
 
   it('summarizes processed row statuses', () => {
-    expect(getNormalizedPreviewSummary([
+    expect(getNormalizedPreviewSummaryItems([
       row(1, 'included'),
       row(2, 'ignored'),
       row(3, 'error'),
       row(4, 'included'),
-    ])).toBe('4 procesadas · 2 incluidas · 1 excluidas por filtros · 1 con errores');
+    ])).toEqual([
+      { label: 'Procesadas', value: 4 },
+      { label: 'Incluidas', value: 2 },
+      { label: 'Excluidas por filtros', value: 1 },
+      { label: 'Con errores', value: 1 },
+    ]);
   });
 
   it('removes output-filtered rows from normalized preview and counts visible rows', () => {

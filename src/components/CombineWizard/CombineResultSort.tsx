@@ -13,6 +13,7 @@ export function CombineResultSort({ outputColumns, resultSort, onChange }: Combi
       <h3 id="combine-result-sort-title">Orden del resultado</h3>
       <div className="combineResultSortControls">
         <Dropdown
+          className="mainControlWidth"
           label="Columna"
           value={resultSort.columnId ?? ''}
           placeholder="Sin ordenar"

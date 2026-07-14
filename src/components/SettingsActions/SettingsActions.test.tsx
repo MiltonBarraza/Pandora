@@ -14,7 +14,8 @@ describe('SettingsCompatibilitySummary', () => {
     expect(screen.getByText('Compatible')).not.toBeNull();
     expect(screen.getByText('Hoja esperada: CREMAR')).not.toBeNull();
     expect(screen.getByText('Hoja actual: CREMAR')).not.toBeNull();
-    expect(screen.getByLabelText('Resumen de compatibilidad').children).toHaveLength(7);
+    expect(screen.getByText('Columnas:')).not.toBeNull();
+    expect(screen.getByLabelText('Resumen de compatibilidad').children).toHaveLength(8);
     expect(container.querySelectorAll('.settingsCompatibilityChip')).toHaveLength(7);
     expect(container.querySelector('.settingsCompatibilitySummary')?.classList).toContain('compatible');
     expect(container.querySelector('.settingsCompatibilityGrid')).toBeNull();

@@ -47,12 +47,20 @@ export const CombinedRowsPreview = memo(function CombinedRowsPreview({
   return (
     <section className="panel combineFlowPanel combinePreviewPanel wizardSectionEnter">
       <h2>4. Vista previa</h2>
-      <div className="combinePreviewSummary">
-        <p className="combinePreviewOverview">
-          <strong>{sources.length}</strong> {sources.length === 1 ? 'archivo' : 'archivos'} ·{' '}
-          <strong>{rows.length}</strong> {rows.length === 1 ? 'fila' : 'filas'} ·{' '}
-          <strong>{outputColumns.length}</strong> {outputColumns.length === 1 ? 'columna' : 'columnas'}
-        </p>
+      <div className="combinePreviewSummary summaryMetricList" aria-label="Resumen de vista previa">
+        <span className="summaryMetricGroupLabel">Resumen:</span>
+        <span className="combinePreviewSummaryChip summaryMetricChip">
+          <span>Archivos</span>
+          <strong>{sources.length}</strong>
+        </span>
+        <span className="combinePreviewSummaryChip summaryMetricChip">
+          <span>Filas</span>
+          <strong>{rows.length}</strong>
+        </span>
+        <span className="combinePreviewSummaryChip summaryMetricChip">
+          <span>Columnas</span>
+          <strong>{outputColumns.length}</strong>
+        </span>
         {unmappedMappingCount > 0 ? (
           <InfoTooltip content={buildUnmappedTooltip(unmappedColumnCount, affectedCellCount)} placement="top">
             <span className="combineUnmappedChip">Sin asignar</span>

@@ -178,6 +178,11 @@ button.infoTooltipTrigger .infoTooltipIcon {
   gap: 6px;
 }
 
+h2.headingWithInfo,
+h3.headingWithInfo {
+  line-height: normal;
+}
+
 .headingWithInfo > .infoTooltip {
   transform: translateY(0.08em);
 }

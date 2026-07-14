@@ -228,11 +228,14 @@ export function SettingsActions({
       />
 
       {error ? <p className="errorText">{error}</p> : null}
-      {visibleSuccessMessage ? <p className="successText">{visibleSuccessMessage}</p> : null}
       {importResult ? (
         <>
           <SettingsCompatibilitySummary result={importResult.compatibility} />
-          <SettingsApplyActions status={importResult.compatibility.status} onApply={applyImportedSettings} />
+          <SettingsApplyActions
+            status={importResult.compatibility.status}
+            successMessage={visibleSuccessMessage}
+            onApply={applyImportedSettings}
+          />
         </>
       ) : null}
     </div>
@@ -271,7 +274,8 @@ export function SettingsCompatibilitySummary({ result }: { result: SettingsCompa
         <span>Hoja actual: {result.sheet.currentSheet || '-'}</span>
       </div>
 
-      <div className="settingsCompatibilityChips" aria-label="Resumen de compatibilidad">
+      <div className="settingsCompatibilityChips summaryMetricList" aria-label="Resumen de compatibilidad">
+        <span className="summaryMetricGroupLabel">Columnas:</span>
         <SummaryItem label="Exactas" value={result.summary.exactMatches} />
         <SummaryItem label="Fuertes" value={result.summary.strongMatches} />
         <SummaryItem label="Medias" value={result.summary.mediumMatches} />
@@ -294,10 +298,19 @@ export function SettingsCompatibilitySummary({ result }: { result: SettingsCompa
   );
 }
 
-function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibilityResult['status']; onApply: () => void }) {
+function SettingsApplyActions({
+  status,
+  successMessage,
+  onApply,
+}: {
+  status: SettingsCompatibilityResult['status'];
+  successMessage: string;
+  onApply: () => void;
+}) {
   if (status === 'compatible') {
     return (
       <div className="actions settingsApplyActions">
+        {successMessage ? <p className="successText">{successMessage}</p> : null}
         <ActionButton action="done" onClick={onApply}>Aplicar configuración</ActionButton>
       </div>
     );
@@ -306,6 +319,7 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
   if (status === 'warning') {
     return (
       <div className="actions settingsApplyActions">
+        {successMessage ? <p className="successText">{successMessage}</p> : null}
         <ActionButton action="warning" onClick={onApply}>Aplicar configuración con advertencias</ActionButton>
       </div>
     );
@@ -320,7 +334,7 @@ function SettingsApplyActions({ status, onApply }: { status: SettingsCompatibili
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
   return (
-    <span className="settingsCompatibilityChip">
+    <span className="settingsCompatibilityChip summaryMetricChip">
       <span>{label}</span>
       <strong>{value}</strong>
     </span>

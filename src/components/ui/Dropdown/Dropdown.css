@@ -85,6 +85,7 @@ button.dropdownTrigger:focus-visible {
 button.dropdownOption {
   align-items: center;
   background: transparent;
+  border-radius: 0;
   color: var(--color-text-primary);
   display: flex;
   font-weight: 400;
@@ -94,6 +95,18 @@ button.dropdownOption {
   padding: 7px 9px;
   text-align: left;
   width: 100%;
+}
+
+button.dropdownOption:first-of-type {
+  border-radius: 6px 6px 0 0;
+}
+
+button.dropdownOption:last-of-type {
+  border-radius: 0 0 6px 6px;
+}
+
+button.dropdownOption:only-of-type {
+  border-radius: 6px;
 }
 
 button.dropdownOption span:first-child {

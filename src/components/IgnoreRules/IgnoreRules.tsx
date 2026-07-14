@@ -58,7 +58,13 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
         </p>
         <div className="rulesActions">
           <InfoTooltip content="Agregá una nueva regla para excluir filas.">
-            <ActionButton action="add" onClick={addRule}>Agregar regla</ActionButton>
+            <ActionButton
+              action="add"
+              aria-label={mode === 'input' ? 'Agregar regla de entrada' : 'Agregar regla de salida'}
+              onClick={addRule}
+            >
+              Agregar
+            </ActionButton>
           </InfoTooltip>
         </div>
       </div>

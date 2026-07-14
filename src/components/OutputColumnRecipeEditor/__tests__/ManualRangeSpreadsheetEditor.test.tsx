@@ -152,7 +152,7 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('disabled="">Limpiar selección');
     expect(markup).toContain('Rangos sugeridos');
     expect(markup).toContain('Armar columnas');
-    expect(markup).toContain('manualRangeSpreadsheetToolbarDivider');
+    expect(markup).not.toContain('manualRangeSpreadsheetToolbarDivider');
     expect(markup).not.toContain('Crear rango de esta fila');
   });
 
