@@ -52,6 +52,30 @@ export function writeMultiSheetWorkbook(filePath: string) {
   XLSX.writeFile(workbook, filePath, { bookType: 'xlsx' });
 }
 
+export const ventasConMetadataRows = [
+  ['Reporte de ventas trimestral'],
+  ['Sucursal Centro'],
+  ['Período 2026-Q2'],
+  ['Generado automáticamente'],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  ['Código', 'Cliente', 'Importe'],
+  ['V1', 'Comercio Uno', 100.5],
+  ['V2', 'Comercio Dos', 200],
+] as const;
+
+export function writeWorkbookWithShiftedHeaders(filePath: string) {
+  writeWorkbook(filePath, 'Ventas', ventasConMetadataRows);
+}
+
 function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));
