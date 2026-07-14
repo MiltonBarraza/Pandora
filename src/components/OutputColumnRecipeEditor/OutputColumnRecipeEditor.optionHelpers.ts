@@ -1,6 +1,7 @@
 import {
   defaultDateInputFormat,
   formatDateValue,
+  type KnownDateOutputFormat,
   parseDateValue,
   supportedDateInputFormats,
   supportedDateOutputFormats,
@@ -248,8 +249,8 @@ function getDateInputFormatLabel(format: DateInputFormat) {
   return labels[format];
 }
 
-function getDateOutputFormatLabel(format: DateOutputFormat) {
-  const labels: Record<DateOutputFormat, string> = {
+function getDateOutputFormatLabel(format: KnownDateOutputFormat) {
+  const labels: Record<KnownDateOutputFormat, string> = {
     'DD/MM/YYYY': 'DD/MM/AAAA',
     'YYYY-MM-DD': 'AAAA-MM-DD',
     'MM/DD/YYYY': 'MM/DD/AAAA',

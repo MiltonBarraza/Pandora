@@ -17,6 +17,7 @@ import type {
   TransformStepMode,
   TransformStepType,
 } from '../types/import';
+import { isValidDateOutputFormat } from '../domain/import/dateOperations';
 
 const outputColumnsKey = 'excel-sanitizer:v2-output-columns';
 
@@ -339,15 +340,7 @@ function normalizeDateFormat(format?: string): DateInputFormat | undefined {
 }
 
 function normalizeDateOutputFormat(format?: string): DateOutputFormat | undefined {
-  return [
-    'DD/MM/YYYY',
-    'YYYY-MM-DD',
-    'MM/DD/YYYY',
-    'DD-MM-YYYY',
-    'YYYY/MM/DD',
-  ].includes(format ?? '')
-    ? format as DateOutputFormat
-    : undefined;
+  return format && isValidDateOutputFormat(format) ? format as DateOutputFormat : undefined;
 }
 
 function normalizeDateInvalidFallback(fallback?: string): DateInvalidFallback | undefined {

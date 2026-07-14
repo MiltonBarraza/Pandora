@@ -741,6 +741,93 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(headerPreview.textContent).not.toContain('2026-07-01');
   });
 
+  it('lets users switch date output to a custom format and reorder it with the builder', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={{
+        id: 'output-custom-date-format',
+        label: 'Fecha',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [{
+            id: 'format-date',
+            mode: 'date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-12-31' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'YYYY-MM-DD',
+          }],
+        },
+      }}
+      sampleInputValues={{ 'input-code': 'sin fecha' }}
+    />);
+
+    await openRecipeEditor(user);
+    const headerPreview = document.querySelector('.constructorModalHeaderPreview span') as HTMLElement;
+
+    await selectLastDropdownOption(user, /Formato de salida/, 'Personalizado');
+    expect(screen.getByText('Formato personalizado')).not.toBeNull();
+    expect(screen.queryByDisplayValue('MM-DD-YYYY')).toBeNull();
+    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('MM');
+    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('DD');
+    expect(screen.getByRole('button', { name: /Bloque 3/ }).textContent).toContain('AAAA');
+    expect(headerPreview.textContent).toBe('12-31-2025');
+
+    await selectLastDropdownOption(user, /Bloque 1/, 'DD');
+    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('DD');
+    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('MM');
+    await selectLastDropdownOption(user, /Separador 1/, '.');
+    await selectLastDropdownOption(user, /Separador 2/, '.');
+    expect(headerPreview.textContent).toBe('31.12.2025');
+
+    await selectLastDropdownOption(user, /Separador 1/, 'Espacio');
+    await selectLastDropdownOption(user, /Separador 2/, 'Espacio');
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0].dateOutputFormat).toBe('DD MM AAAA');
+  });
+
+  it('shows loaded custom date output formats as Personalizado', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={{
+        id: 'output-loaded-custom-date-format',
+        label: 'Fecha',
+        order: 0,
+        enabled: true,
+        recipe: {
+          type: 'combine',
+          customMode: 'text',
+          parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+          separator: '',
+          steps: [{
+            id: 'format-date',
+            mode: 'date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-12-31' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'DD.MM.YYYY',
+          }],
+        },
+      }}
+    />);
+
+    await openRecipeEditor(user);
+    const outputFormatButtons = screen.getAllByRole('button', { name: /Formato de salida/ });
+    expect(outputFormatButtons[outputFormatButtons.length - 1].textContent).toContain('Personalizado');
+    expect(screen.queryByDisplayValue('DD.MM.YYYY')).toBeNull();
+    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('DD');
+    expect(screen.getByRole('button', { name: /Separador 1/ }).textContent).toContain('.');
+    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('MM');
+    expect(screen.getByRole('button', { name: /Separador 2/ }).textContent).toContain('.');
+    expect(screen.getByRole('button', { name: /Bloque 3/ }).textContent).toContain('AAAA');
+  });
+
   it('applies the first normal text action selection immediately', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-normal-first-text')} />);

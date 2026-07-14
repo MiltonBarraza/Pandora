@@ -460,10 +460,52 @@
 .stepExtraFieldsRow > .numericOperationFields,
 .stepExtraFieldsRow > .manualRangeStepFields,
 .stepExtraFieldsRow > .concatStepFields,
+.stepExtraFieldsRow > .dateOutputCustomRow,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericOperationFields,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .manualRangeStepFields,
-.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields {
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .dateOutputCustomRow {
   grid-column: 1 / -1;
+}
+
+.dateOutputCustomRow {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 520px) repeat(2, minmax(180px, 240px));
+  justify-content: start;
+  min-width: 0;
+}
+
+.dateOutputFormatBuilder {
+  display: grid;
+  gap: var(--recipe-field-gap, 5px);
+  min-width: 0;
+}
+
+.constructorModalContent.recipeStudio .dateOutputFormatBuilder.recipeField > .labelWithInfo {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  gap: 4px;
+  height: var(--recipe-field-label-height);
+  line-height: var(--recipe-field-label-height);
+  margin: 0;
+  min-height: var(--recipe-field-label-height);
+  padding: 0;
+}
+
+.dateOutputFormatBuilderControls {
+  align-items: end;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(70px, 1fr) minmax(76px, 0.8fr) minmax(70px, 1fr) minmax(76px, 0.8fr) minmax(70px, 1fr);
+  min-width: 0;
+}
+
+.dateOutputPartField,
+.dateOutputSeparatorField {
+  min-width: 0;
 }
 
 @media (max-width: 720px) {
@@ -483,6 +525,11 @@
   .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow,
   .constructorModalContent.recipeStudio .stepEditorBlock .conditionFieldsRow,
   .constructorModalContent.recipeStudio .stepEditorBlock .numericOperationFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dateOutputCustomRow,
+  .dateOutputFormatBuilderControls {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -81,7 +81,8 @@ export type DateOutputFormat =
   | 'YYYY-MM-DD'
   | 'MM/DD/YYYY'
   | 'DD-MM-YYYY'
-  | 'YYYY/MM/DD';
+  | 'YYYY/MM/DD'
+  | (string & {});
 
 export type DateInvalidFallback = 'empty' | 'original' | 'fixedText';
 export type ConversionInvalidFallback = 'empty' | 'original' | 'fixedText';

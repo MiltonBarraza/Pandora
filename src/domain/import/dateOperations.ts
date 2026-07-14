@@ -1,5 +1,20 @@
 import type { DateInputFormat, DateInvalidFallback, DateOutputFormat, TransformStep } from '../../types/import';
 
+export type KnownDateOutputFormat =
+  | 'DD/MM/YYYY'
+  | 'YYYY-MM-DD'
+  | 'MM/DD/YYYY'
+  | 'DD-MM-YYYY'
+  | 'YYYY/MM/DD';
+
+export type DateOutputFormatPart = 'DD' | 'MM' | 'AAAA';
+export type DateOutputFormatSeparator = '/' | '-' | '.' | ' ';
+
+export type DateOutputFormatPattern = {
+  parts: [DateOutputFormatPart, DateOutputFormatPart, DateOutputFormatPart];
+  separators: [DateOutputFormatSeparator, DateOutputFormatSeparator];
+};
+
 export type DateParts = {
   year: number;
   month: number;
@@ -24,7 +39,7 @@ export const supportedDateInputFormats: DateInputFormat[] = [
   'M/D/YY',
 ];
 
-export const supportedDateOutputFormats: DateOutputFormat[] = [
+export const supportedDateOutputFormats: KnownDateOutputFormat[] = [
   'DD/MM/YYYY',
   'YYYY-MM-DD',
   'MM/DD/YYYY',
@@ -54,26 +69,75 @@ export function parseDateValue(value: unknown, inputFormat: DateInputFormat = de
 
 export function formatDateValue(dateParts: DateParts, outputFormat: DateOutputFormat = defaultDateOutputFormat) {
   const year = String(dateParts.year).padStart(4, '0');
+  const shortYear = year.slice(-2);
   const month = String(dateParts.month).padStart(2, '0');
   const day = String(dateParts.day).padStart(2, '0');
+  const safeOutputFormat = isValidDateOutputFormat(outputFormat) ? outputFormat : defaultDateOutputFormat;
 
-  if (outputFormat === 'DD/MM/YYYY') {
-    return `${day}/${month}/${year}`;
+  return safeOutputFormat.replace(/AAAA|YYYY|YY|MM|DD/g, (token) => {
+    if (token === 'AAAA' || token === 'YYYY') return year;
+    if (token === 'YY') return shortYear;
+    if (token === 'MM') return month;
+    return day;
+  });
+}
+
+export function isKnownDateOutputFormat(format: string): format is KnownDateOutputFormat {
+  return supportedDateOutputFormats.includes(format as KnownDateOutputFormat);
+}
+
+export function isValidDateOutputFormat(format: string): format is DateOutputFormat {
+  return getDateOutputFormatError(format) === '';
+}
+
+export function getDateOutputFormatError(format: string) {
+  const raw = String(format ?? '');
+  const value = raw.trim();
+
+  if (!value) {
+    return 'Usá DD para día, MM para mes y AAAA para año.';
   }
 
-  if (outputFormat === 'MM/DD/YYYY') {
-    return `${month}/${day}/${year}`;
+  if (/[dmy]/.test(value)) {
+    return value.includes('m')
+      ? 'Usá MM en mayúscula para mes.'
+      : 'Usá DD, MM y AAAA en mayúsculas.';
   }
 
-  if (outputFormat === 'DD-MM-YYYY') {
-    return `${day}-${month}-${year}`;
+  if (!/^[ADMyY/\-. ]+$/.test(value)) {
+    return 'Usá sólo DD, MM, AAAA y separadores /, -, . o espacio.';
   }
 
-  if (outputFormat === 'YYYY/MM/DD') {
-    return `${year}/${month}/${day}`;
+  const parsedPattern = parseDateOutputFormatPattern(value);
+  if (!parsedPattern) {
+    return 'Usá sólo tokens completos: DD, MM y AAAA.';
   }
 
-  return `${year}-${month}-${day}`;
+  if (new Set(parsedPattern.parts).size !== 3) {
+    return 'Usá DD, MM y AAAA una sola vez cada uno.';
+  }
+
+  return '';
+}
+
+export function parseDateOutputFormatPattern(format: string): DateOutputFormatPattern | null {
+  const match = String(format ?? '').trim().match(/^(DD|MM|AAAA|YYYY)([\/\-. ])(DD|MM|AAAA|YYYY)([\/\-. ])(DD|MM|AAAA|YYYY)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    parts: [
+      normalizeDateOutputFormatPart(match[1]),
+      normalizeDateOutputFormatPart(match[3]),
+      normalizeDateOutputFormatPart(match[5]),
+    ],
+    separators: [match[2] as DateOutputFormatSeparator, match[4] as DateOutputFormatSeparator],
+  };
+}
+
+export function buildDateOutputFormatFromPattern(pattern: DateOutputFormatPattern): DateOutputFormat {
+  return `${pattern.parts[0]}${pattern.separators[0]}${pattern.parts[1]}${pattern.separators[1]}${pattern.parts[2]}`;
 }
 
 export function applyFormatDateStep(value: string, step: TransformStep) {
@@ -162,6 +226,10 @@ function getDaysInMonth(year: number, month: number) {
   }
 
   return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
+function normalizeDateOutputFormatPart(part: string): DateOutputFormatPart {
+  return part === 'YYYY' || part === 'AAAA' ? 'AAAA' : part as DateOutputFormatPart;
 }
 
 function isLeapYear(year: number) {
