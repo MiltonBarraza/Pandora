@@ -53,6 +53,7 @@ export function MultipleFileUploader({
         <input
           ref={inputRef}
           type="file"
+          aria-label="Archivos para combinar"
           accept=".xlsx,.xls,.xlsm,.csv"
           multiple
           tabIndex={-1}
