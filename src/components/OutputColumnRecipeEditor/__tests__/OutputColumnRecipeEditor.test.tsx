@@ -1189,6 +1189,101 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Texto fallback');
   });
 
+  it('renders custom date output format controls for loaded custom recipes', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'text',
+      parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+      separator: '',
+      steps: [{
+        id: 'date',
+        mode: 'date',
+        type: 'formatDate',
+        source: { type: 'input', inputColumnId: 'input-code' },
+        dateOutputFormat: 'MM-DD-YYYY',
+      }],
+    };
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-custom-date',
+      label: 'Fecha custom',
+      order: 0,
+      enabled: true,
+      recipe,
+    });
+
+    expect(markup).toContain('Personalizado');
+    expect(markup).toContain('Formato personalizado');
+    expect(markup).toContain('Bloque 1');
+    expect(markup).toContain('Bloque 2');
+    expect(markup).toContain('Bloque 3');
+    expect(markup).toContain('Separador 1');
+    expect(markup).toContain('Separador 2');
+    expect(markup).toContain('MM');
+    expect(markup).toContain('DD');
+    expect(markup).toContain('AAAA');
+    expect(markup).not.toContain('value="MM-DD-YYYY"');
+    expect(markup).not.toContain('Ejemplo: MM-DD-YYYY.');
+    expect(buildCustomValuePreview(recipe, { 'input-code': '31/12/2025' }, true, 'text')).toBe('12-31-2025');
+  });
+
+  it('shows a clear custom date output format error', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-invalid-custom-date',
+      label: 'Fecha custom',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-code' }],
+        separator: '',
+        steps: [{
+          id: 'date',
+          mode: 'date',
+          type: 'formatDate',
+          source: { type: 'input', inputColumnId: 'input-code' },
+          dateOutputFormat: 'mm-dd-yyyy',
+        }],
+      },
+    });
+
+    expect(markup).toContain('Personalizado');
+    expect(markup).toContain('Formato personalizado');
+    expect(markup).toContain('infoTooltipTrigger');
+    expect(markup).toContain('warningTooltipTrigger');
+    expect(markup).toContain('Advertencia: formato personalizado inválido');
+    expect(markup.indexOf('infoTooltipTrigger')).toBeLessThan(markup.indexOf('warningTooltipTrigger'));
+    expect(markup).not.toContain('aria-invalid="true"');
+    expect(markup).not.toContain('errorText');
+  });
+
+  it('renders custom date output controls inside range value recipes', () => {
+    const markup = renderRangeValueEditor({
+      id: 'range-custom-date',
+      startRowNumber: 8,
+      endRowNumber: 10,
+      valueRecipe: {
+        source: { type: 'input', inputColumnId: 'input-code' },
+        steps: [{
+          id: 'date',
+          mode: 'date',
+          type: 'formatDate',
+          dateInputFormat: 'DD/MM/YYYY',
+          dateOutputFormat: 'DD.MM.YYYY',
+        }],
+      },
+    }, {
+      manualRangeRows: [{ rowNumber: 8, values: { 'input-code': '31/12/2025' } }],
+    });
+
+    expect(markup).toContain('Personalizado');
+    expect(markup).toContain('Formato personalizado');
+    expect(markup).toContain('Bloque 1');
+    expect(markup).toContain('Separador 1');
+    expect(markup).toContain('AAAA');
+    expect(markup).not.toContain('value="DD.MM.YYYY"');
+  });
+
   it('renders conversion fallback controls only when a fixed fallback is selected', () => {
     const fixedFallbackMarkup = renderRecipeEditorMarkup({
       id: 'output-conversion-fallback',

@@ -335,6 +335,107 @@ describe('localOutputColumnsService', () => {
     });
   });
 
+  it('preserves custom date output formats when loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'date',
+          label: 'Fecha',
+          recipe: {
+            type: 'combine',
+            customMode: 'text',
+            parts: [{ id: 'date-part', type: 'input', inputColumnId: 'input-date' }],
+            steps: [{
+              id: 'format-date',
+              mode: 'date',
+              type: 'formatDate',
+              dateInputFormat: 'DD/MM/YYYY',
+              dateOutputFormat: 'MM-DD-YYYY',
+            }],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+
+    expect(column.recipe).toMatchObject({
+      type: 'combine',
+      steps: [{
+        id: 'format-date',
+        type: 'formatDate',
+        dateOutputFormat: 'MM-DD-YYYY',
+      }],
+    });
+  });
+
+  it('keeps preset date output formats while loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'date',
+          label: 'Fecha',
+          recipe: {
+            type: 'combine',
+            customMode: 'text',
+            parts: [],
+            steps: [{
+              id: 'format-date',
+              mode: 'date',
+              type: 'formatDate',
+              dateOutputFormat: 'DD/MM/YYYY',
+            }],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+
+    expect(column.recipe).toMatchObject({
+      type: 'combine',
+      steps: [{ id: 'format-date', dateOutputFormat: 'DD/MM/YYYY' }],
+    });
+  });
+
+  it('falls back to the safe date output format when loading invalid saved formats', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'date',
+          label: 'Fecha',
+          recipe: {
+            type: 'combine',
+            customMode: 'text',
+            parts: [],
+            steps: [{
+              id: 'format-date',
+              mode: 'date',
+              type: 'formatDate',
+              dateOutputFormat: 'mm-dd-yyyy',
+            }],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+
+    expect(column.recipe).toMatchObject({
+      type: 'combine',
+      steps: [{ id: 'format-date', dateOutputFormat: 'YYYY-MM-DD' }],
+    });
+  });
+
   it('preserves manual range value recipes in top-level recipes and manual range steps', async () => {
     const { loadOutputColumns } = await import('../localOutputColumnsService');
 

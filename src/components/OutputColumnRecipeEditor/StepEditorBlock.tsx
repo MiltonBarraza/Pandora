@@ -1,8 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
+  buildDateOutputFormatFromPattern,
   defaultDateInputFormat,
   defaultDateInvalidFallback,
   defaultDateOutputFormat,
+  type DateOutputFormatPart,
+  type DateOutputFormatPattern,
+  type DateOutputFormatSeparator,
+  getDateOutputFormatError,
+  isKnownDateOutputFormat,
+  parseDateOutputFormatPattern,
 } from '../../domain/import/dateOperations';
 import { extractNumericValue, parseNumericValue } from '../../domain/import/numericOperations';
 import type {
@@ -98,6 +105,28 @@ type StepEditorBlockProps = {
 };
 
 type BlockAction = StepEditorActionOptionValue;
+const customDateOutputFormatSelection = '__custom__';
+const suggestedCustomDateOutputFormat = 'MM-DD-AAAA';
+const defaultCustomDateOutputPattern: DateOutputFormatPattern = {
+  parts: ['MM', 'DD', 'AAAA'],
+  separators: ['-', '-'],
+};
+const dateOutputFormatSelectOptions: Array<{ value: string; label: string }> = [
+  ...dateOutputFormatOptions,
+  { value: customDateOutputFormatSelection, label: 'Personalizado' },
+];
+const dateOutputPartOptions: Array<{ value: DateOutputFormatPart; label: string }> = [
+  { value: 'DD', label: 'DD' },
+  { value: 'MM', label: 'MM' },
+  { value: 'AAAA', label: 'AAAA' },
+];
+const dateOutputSeparatorOptions: Array<{ value: DateOutputFormatSeparator; label: string }> = [
+  { value: '/', label: '/' },
+  { value: '-', label: '-' },
+  { value: '.', label: '.' },
+  { value: ' ', label: 'Espacio' },
+];
+const dateOutputFormatHelpText = 'DD = día, MM = mes, AAAA = año.';
 type SourceActionOverrideState = {
   action: StepSourceAction;
   identity: string;
@@ -541,6 +570,28 @@ function renderDefaultFields({
   }
 
   if (step.type === 'formatDate') {
+    const outputFormat = step.dateOutputFormat ?? defaultDateOutputFormat;
+    const outputFormatSelectValue = isKnownDateOutputFormat(outputFormat) ? outputFormat : customDateOutputFormatSelection;
+    const isCustomOutputFormat = outputFormatSelectValue === customDateOutputFormatSelection;
+    const customOutputFormatError = isCustomOutputFormat ? getDateOutputFormatError(outputFormat) : '';
+    const invalidFallback = step.dateInvalidFallback ?? defaultDateInvalidFallback;
+    const invalidFallbackField = (
+      <Dropdown<DateInvalidFallback>
+        className="compact recipeField"
+        label="Si no es una fecha válida"
+        value={invalidFallback}
+        options={dateInvalidFallbackOptions}
+        scrollStrategy="close"
+        onChange={(dateInvalidFallback) => onChange({ dateInvalidFallback })}
+      />
+    );
+    const fixedFallbackField = invalidFallback === 'fixedText' ? (
+      <label className="field compact recipeField">
+        <span>Texto si no es fecha válida</span>
+        <input value={step.dateInvalidFallbackText ?? ''} onChange={(event) => onChange({ dateInvalidFallbackText: event.target.value })} />
+      </label>
+    ) : null;
+
     return (
       <>
         {sourceFields}
@@ -554,28 +605,41 @@ function renderDefaultFields({
             onChange={(dateInputFormat) => onChange({ dateInputFormat })}
           />
         )}
-        <Dropdown<DateOutputFormat>
+        <Dropdown<string>
           className="compact recipeField"
           label="Formato de salida"
-          value={step.dateOutputFormat ?? defaultDateOutputFormat}
-          options={dateOutputFormatOptions}
+          value={outputFormatSelectValue}
+          options={dateOutputFormatSelectOptions}
           scrollStrategy="close"
-          onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
+          onChange={(dateOutputFormatSelection) => {
+            if (dateOutputFormatSelection === customDateOutputFormatSelection) {
+              onChange({
+                dateOutputFormat: isKnownDateOutputFormat(outputFormat)
+                  ? suggestedCustomDateOutputFormat
+                  : outputFormat,
+              });
+              return;
+            }
+
+            onChange({ dateOutputFormat: dateOutputFormatSelection as DateOutputFormat });
+          }}
         />
-        <Dropdown<DateInvalidFallback>
-          className="compact recipeField"
-          label="Si no es una fecha válida"
-          value={step.dateInvalidFallback ?? defaultDateInvalidFallback}
-          options={dateInvalidFallbackOptions}
-          scrollStrategy="close"
-          onChange={(dateInvalidFallback) => onChange({ dateInvalidFallback })}
-        />
-        {(step.dateInvalidFallback ?? defaultDateInvalidFallback) === 'fixedText' ? (
-          <label className="field compact recipeField">
-            <span>Texto si no es fecha válida</span>
-            <input value={step.dateInvalidFallbackText ?? ''} onChange={(event) => onChange({ dateInvalidFallbackText: event.target.value })} />
-          </label>
-        ) : null}
+        {isCustomOutputFormat ? (
+          <div className="dateOutputCustomRow">
+            <DateOutputFormatBuilder
+              outputFormat={outputFormat}
+              error={customOutputFormatError}
+              onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
+            />
+            {invalidFallbackField}
+            {fixedFallbackField}
+          </div>
+        ) : (
+          <>
+            {invalidFallbackField}
+            {fixedFallbackField}
+          </>
+        )}
       </>
     );
   }
@@ -611,6 +675,94 @@ function renderDefaultFields({
   }
 
   return sourceFields;
+}
+
+function DateOutputFormatBuilder({
+  outputFormat,
+  error,
+  onChange,
+}: {
+  outputFormat: DateOutputFormat;
+  error: string;
+  onChange: (dateOutputFormat: DateOutputFormat) => void;
+}) {
+  const pattern = parseDateOutputFormatPattern(outputFormat) ?? defaultCustomDateOutputPattern;
+  const updatePattern = (nextPattern: DateOutputFormatPattern) => {
+    onChange(buildDateOutputFormatFromPattern(nextPattern));
+  };
+  const updatePart = (index: 0 | 1 | 2, part: DateOutputFormatPart) => {
+    const nextParts = [...pattern.parts] as DateOutputFormatPattern['parts'];
+    const existingIndex = nextParts.findIndex((candidate, candidateIndex) => candidateIndex !== index && candidate === part);
+    if (existingIndex >= 0) {
+      nextParts[existingIndex] = pattern.parts[index];
+    }
+    nextParts[index] = part;
+    updatePattern({ ...pattern, parts: nextParts });
+  };
+  const updateSeparator = (index: 0 | 1, separator: DateOutputFormatSeparator) => {
+    const nextSeparators = [...pattern.separators] as DateOutputFormatPattern['separators'];
+    nextSeparators[index] = separator;
+    updatePattern({ ...pattern, separators: nextSeparators });
+  };
+
+  return (
+    <div className="dateOutputFormatBuilder recipeField">
+      <span className="labelWithInfo">
+        <span>Formato personalizado</span>
+        <InfoTooltip content={dateOutputFormatHelpText} />
+        {error ? <WarningTooltip content={error} ariaLabel="Advertencia: formato personalizado inválido" /> : null}
+      </span>
+      <div className="dateOutputFormatBuilderControls">
+        <DateOutputPartDropdown index={0} value={pattern.parts[0]} onChange={updatePart} />
+        <DateOutputSeparatorDropdown index={0} value={pattern.separators[0]} onChange={updateSeparator} />
+        <DateOutputPartDropdown index={1} value={pattern.parts[1]} onChange={updatePart} />
+        <DateOutputSeparatorDropdown index={1} value={pattern.separators[1]} onChange={updateSeparator} />
+        <DateOutputPartDropdown index={2} value={pattern.parts[2]} onChange={updatePart} />
+      </div>
+    </div>
+  );
+}
+
+function DateOutputPartDropdown({
+  index,
+  value,
+  onChange,
+}: {
+  index: 0 | 1 | 2;
+  value: DateOutputFormatPart;
+  onChange: (index: 0 | 1 | 2, part: DateOutputFormatPart) => void;
+}) {
+  return (
+    <Dropdown<DateOutputFormatPart>
+      className="compact dateOutputPartField"
+      label={`Bloque ${index + 1}`}
+      value={value}
+      options={dateOutputPartOptions}
+      scrollStrategy="close"
+      onChange={(part) => onChange(index, part)}
+    />
+  );
+}
+
+function DateOutputSeparatorDropdown({
+  index,
+  value,
+  onChange,
+}: {
+  index: 0 | 1;
+  value: DateOutputFormatSeparator;
+  onChange: (index: 0 | 1, separator: DateOutputFormatSeparator) => void;
+}) {
+  return (
+    <Dropdown<DateOutputFormatSeparator>
+      className="compact dateOutputSeparatorField"
+      label={`Separador ${index + 1}`}
+      value={value}
+      options={dateOutputSeparatorOptions}
+      scrollStrategy="close"
+      onChange={(separator) => onChange(index, separator)}
+    />
+  );
 }
 
 function getStepSourceFieldLabel(type: TransformStep['type']) {

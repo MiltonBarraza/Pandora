@@ -1919,6 +1919,29 @@ describe('outputModel date steps', () => {
     expect(row.outputValues.date).toBe('2024-06-01');
   });
 
+  it('formats a date from an input column using a custom output format', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { 'input-date': '31/12/2025' } },
+    ], [
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'MM-DD-YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('12-31-2025');
+  });
+
   it('formats dates with two digit years from real spreadsheet display values', () => {
     const row = buildRow([
       outputColumn({
@@ -2065,6 +2088,27 @@ describe('outputModel date steps', () => {
     expect(row.outputValues.date).toBe('01/06/2024');
   });
 
+  it('formats an ISO fixed text date source using a custom output format', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'fixedText',
+          value: 'ignored',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            source: { type: 'fixedText', value: '2025-12-31' },
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'DD.MM.YYYY',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('31.12.2025');
+  });
+
   it('formats an ISO fixed date picker source even when the hidden input format is stale', () => {
     const row = buildRow([
       outputColumn({
@@ -2180,6 +2224,35 @@ describe('outputModel date steps', () => {
     ]);
 
     expect(row.outputValues['concat-date']).toBe('2024-06-01 OK');
+  });
+
+  it('formats dates inside manual range value recipes with a custom output format', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 8, values: { 'input-date': '31/12/2025' } },
+    ], [
+      outputColumn({
+        id: 'range-date',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-13',
+            startRowNumber: 8,
+            endRowNumber: 13,
+            valueRecipe: {
+              source: { type: 'input', inputColumnId: 'input-date' },
+              steps: [{
+                id: 'format-date',
+                type: 'formatDate',
+                dateInputFormat: 'DD/MM/YYYY',
+                dateOutputFormat: 'MM-DD-YYYY',
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['range-date']).toBe('12-31-2025');
   });
 
   it('keeps existing text steps unchanged', () => {

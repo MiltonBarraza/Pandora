@@ -546,8 +546,8 @@ export function InputColumnSelect({
 function renderLabelInfo(helpText: ReactNode, compatibilityHint = '') {
   return (
     <>
-      {compatibilityHint ? <WarningTooltip content={compatibilityHint} ariaLabel="Aviso de compatibilidad" /> : null}
       <InfoTooltip content={helpText} />
+      {compatibilityHint ? <WarningTooltip content={compatibilityHint} ariaLabel="Aviso de compatibilidad" /> : null}
     </>
   );
 }
