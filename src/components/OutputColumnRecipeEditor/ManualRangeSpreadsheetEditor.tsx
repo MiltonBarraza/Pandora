@@ -277,8 +277,6 @@ export function ManualRangeSpreadsheetEditor({
           </button>
         </div>
       </div>
-      <div className="manualRangeSpreadsheetToolbarDivider" aria-hidden="true" />
-
       <div className="manualRangeSpreadsheetLayout">
         <div className="manualRangeSpreadsheetTablePane">
           {manualRangeRows.length === 0 ? (

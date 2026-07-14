@@ -92,7 +92,7 @@ export function CombineOutputColumns({
               content="Por nombre compara encabezados equivalentes. Por posición empareja cada fuente según el orden de sus columnas."
             />
           </legend>
-          <div className="combineAssignmentModeOptions">
+          <div className="segmentedControl combineAssignmentModeOptions">
             <label className={assignmentMode === 'name' ? 'isSelected' : undefined}>
               <input
                 type="radio"

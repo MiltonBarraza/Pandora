@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { Modal } from '../Modal/Modal';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 import type { CombineSource } from '../../types/combine';
 import type { AppearancePreference, ResolvedAppearanceTheme } from './useAppearanceTheme';
 
@@ -40,15 +42,14 @@ export function AppearanceToolbar({
   onToolSelect,
 }: AppearanceToolbarProps) {
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
-  const [isBasketPopoverOpen, setIsBasketPopoverOpen] = useState(false);
+  const [isBasketModalOpen, setIsBasketModalOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const toolMenuId = useId();
-  const basketPopoverId = useId();
   const basketSourceCount = combineBasketSources.length;
   const hasBasketSources = basketSourceCount > 0;
 
   useEffect(() => {
-    if (!isToolMenuOpen && !isBasketPopoverOpen) {
+    if (!isToolMenuOpen) {
       return;
     }
 
@@ -56,14 +57,12 @@ export function AppearanceToolbar({
       const target = event.target;
       if (target instanceof Node && !toolbarRef.current?.contains(target)) {
         setIsToolMenuOpen(false);
-        setIsBasketPopoverOpen(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsToolMenuOpen(false);
-        setIsBasketPopoverOpen(false);
       }
     };
 
@@ -73,7 +72,21 @@ export function AppearanceToolbar({
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isBasketPopoverOpen, isToolMenuOpen]);
+  }, [isToolMenuOpen]);
+
+  const closeBasketModal = () => {
+    setIsBasketModalOpen(false);
+    const restoreFocus = () => {
+      toolbarRef.current?.querySelector<HTMLButtonElement>('.appToolBasketButton')?.focus();
+    };
+
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(restoreFocus);
+      return;
+    }
+
+    setTimeout(restoreFocus, 0);
+  };
 
   return (
     <div ref={toolbarRef} className="appTopToolbar" aria-label="Herramientas y apariencia">
@@ -86,7 +99,6 @@ export function AppearanceToolbar({
             aria-expanded={isToolMenuOpen}
             aria-controls={isToolMenuOpen ? toolMenuId : undefined}
             onClick={() => {
-              setIsBasketPopoverOpen(false);
               setIsToolMenuOpen((current) => !current);
             }}
           >
@@ -136,35 +148,21 @@ export function AppearanceToolbar({
                 variant="icon"
                 size="sm"
                 action="preview"
-                className={`appToolBasketButton${isBasketPopoverOpen ? ' isActive' : ''}`}
+                className={`appToolBasketButton${isBasketModalOpen ? ' isActive' : ''}`}
                 aria-label="Ver archivos disponibles para combinar"
-                aria-expanded={isBasketPopoverOpen}
-                aria-controls={isBasketPopoverOpen ? basketPopoverId : undefined}
+                aria-expanded={isBasketModalOpen}
                 onClick={() => {
                   setIsToolMenuOpen(false);
-                  setIsBasketPopoverOpen((current) => !current);
+                  setIsBasketModalOpen(true);
                 }}
               />
             </InfoTooltip>
-            {isBasketPopoverOpen ? (
-              <section
-                id={basketPopoverId}
-                className="appToolBasketPopover"
-                role="dialog"
-                aria-label="Archivos disponibles para combinar"
-              >
-                <h2>Archivos disponibles para combinar</h2>
-                <ul>
-                  {combineBasketSources.map((source) => (
-                    <li key={source.id}>
-                      <strong>{source.fileName || 'Archivo preparado'}</strong>
-                      <span>
-                        Hoja: {source.sheetName?.trim() || 'Sin hoja'} · {getRowCountLabel(source.rows.length)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+            {isBasketModalOpen ? (
+              <SavedCombineSourcesModal
+                open={isBasketModalOpen}
+                sources={combineBasketSources}
+                onClose={closeBasketModal}
+              />
             ) : null}
           </>
         ) : null}
@@ -193,6 +191,60 @@ export function AppearanceToolbar({
   );
 }
 
+export function SavedCombineSourcesModal({
+  open,
+  sources,
+  onClose,
+}: {
+  open: boolean;
+  sources: CombineSource[];
+  onClose: () => void;
+}) {
+  const sourceCount = sources.length;
+
+  return (
+    <Modal
+      open={open}
+      title="Archivos disponibles para combinar"
+      className="appToolBasketModal"
+      onClose={onClose}
+      headerDetails={<span className="appToolBasketModalCount">{getAvailableShortLabel(sourceCount)}</span>}
+      footer={<ActionButton variant="secondary" onClick={onClose}>Cerrar</ActionButton>}
+    >
+      {sourceCount > 0 ? (
+        <div className="appToolBasketModalTableWrap">
+          <table className="appToolBasketModalTable">
+            <thead>
+              <tr>
+                <th>Archivo</th>
+                <th>Hoja</th>
+                <th>Filas</th>
+                <th>Columnas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map((source) => (
+                <tr key={source.id}>
+                  <td data-label="Archivo">
+                    <TruncatedText text={source.fileName || 'Archivo preparado'} tooltipStrategy="overflow" />
+                  </td>
+                  <td data-label="Hoja">
+                    <TruncatedText text={source.sheetName?.trim() || 'Sin hoja'} tooltipStrategy="overflow" />
+                  </td>
+                  <td data-label="Filas">{getRowCountLabel(source.rows.length)}</td>
+                  <td data-label="Columnas">{getColumnCountLabel(source.columns.length)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="emptyState appToolBasketModalEmpty">No hay archivos disponibles para combinar.</p>
+      )}
+    </Modal>
+  );
+}
+
 function getAppearanceLabel(preference: AppearancePreference, resolvedTheme: ResolvedAppearanceTheme) {
   if (preference === 'system') {
     return `Sistema (${resolvedTheme === 'dark' ? 'oscuro' : 'claro'})`;
@@ -211,4 +263,8 @@ function getAvailableAriaLabel(count: number) {
 
 function getRowCountLabel(count: number) {
   return `${count} ${count === 1 ? 'fila' : 'filas'}`;
+}
+
+function getColumnCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'columna' : 'columnas'}`;
 }

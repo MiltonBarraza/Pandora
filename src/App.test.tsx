@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CombineSource } from './types/combine';
 import type { ProcessedExportResult } from './types/processedExport';
 import App, { ToolLoadingFallback } from './App';
+import { SavedCombineSourcesModal } from './components/AppearanceToolbar/AppearanceToolbar';
 
 const { showSuccessToast } = vi.hoisted(() => ({
   showSuccessToast: vi.fn(),
@@ -115,7 +116,7 @@ describe('App combine basket wiring', () => {
     expect(screen.getByRole('button', { name: 'Activar modo oscuro' })).not.toBeNull();
   });
 
-  it('shows available combine files in the toolbar badge, menu, and detail popover', async () => {
+  it('shows available combine files in the toolbar badge, menu, and detail modal', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -131,9 +132,61 @@ describe('App combine basket wiring', () => {
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('button', { name: 'Ver archivos disponibles para combinar' }));
-    expect(screen.getByRole('heading', { name: 'Archivos disponibles para combinar' })).not.toBeNull();
-    expect(screen.getByText('resultado.xlsx')).not.toBeNull();
-    expect(screen.getByText('Hoja: Productos · 1 fila')).not.toBeNull();
+    const dialog = screen.getByRole('dialog', { name: 'Archivos disponibles para combinar' });
+    expect(within(dialog).getByText('resultado.xlsx')).not.toBeNull();
+    expect(within(dialog).getByText('Productos')).not.toBeNull();
+    expect(within(dialog).getByText('1 fila')).not.toBeNull();
+    expect(within(dialog).getByText('1 columna')).not.toBeNull();
+
+    await user.click(within(dialog).getAllByRole('button', { name: 'Cerrar' })[0]);
+    expect(screen.queryByRole('dialog', { name: 'Archivos disponibles para combinar' })).toBeNull();
+  });
+
+  it('closes the combine files modal with Escape', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Preparar archivo' }));
+    await screen.findByRole('button', { name: 'Emitir resultado' });
+    await user.click(screen.getByRole('button', { name: 'Emitir resultado' }));
+    await user.click(screen.getByRole('button', { name: 'Ver archivos disponibles para combinar' }));
+    expect(screen.getByRole('dialog', { name: 'Archivos disponibles para combinar' })).not.toBeNull();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Archivos disponibles para combinar' })).toBeNull();
+  });
+
+  it('renders empty and long-name states in the combine files modal', () => {
+    const onClose = vi.fn();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(80);
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(160);
+    const longSource: CombineSource = {
+      id: 'long-source',
+      fileName: 'archivo-preparado-con-un-nombre-muy-largo-para-validar-truncado.xlsx',
+      sheetName: 'Hoja con nombre muy largo para validar truncado visual',
+      columns: [
+        { id: 'code', name: 'Código', index: 0 },
+        { id: 'price', name: 'Precio', index: 1 },
+      ],
+      rows: [
+        { id: 'row-1', values: { code: 'A1', price: '10' } },
+        { id: 'row-2', values: { code: 'A2', price: '20' } },
+      ],
+    };
+    const { container, rerender } = render(<SavedCombineSourcesModal open sources={[]} onClose={onClose} />);
+
+    expect(screen.getByRole('dialog', { name: 'Archivos disponibles para combinar' })).not.toBeNull();
+    expect(screen.getByText('No hay archivos disponibles para combinar.')).not.toBeNull();
+
+    rerender(<SavedCombineSourcesModal open sources={[longSource]} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Archivos disponibles para combinar' });
+    expect(within(dialog).getByText(longSource.fileName)).not.toBeNull();
+    expect(within(dialog).getByText(longSource.sheetName!)).not.toBeNull();
+    expect(within(dialog).getByText('2 filas')).not.toBeNull();
+    expect(within(dialog).getByText('2 columnas')).not.toBeNull();
+    return waitFor(() => {
+      expect(container.querySelectorAll('.truncatedTextTooltip')).toHaveLength(2);
+    });
   });
 
   it('changes tool from the toolbar menu', async () => {

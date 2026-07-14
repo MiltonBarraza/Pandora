@@ -96,7 +96,7 @@ export function CombineExportActions({
           </div>
 
           {nameMode === 'custom' ? (
-            <label className="field combineExportBaseName">
+            <label className="field combineExportBaseName mainControlWidth">
               <span>Nombre base</span>
               <input
                 value={outputFileName}

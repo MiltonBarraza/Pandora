@@ -210,31 +210,9 @@
 
 .compositionTokenCard .dragHandle {
   align-self: center;
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
-  color: var(--color-text-secondary);
   height: 40px;
   min-height: 40px;
   width: 40px;
-}
-
-.compositionTokenCard .dragHandle:hover:not(:disabled) {
-  background: var(--color-border-subtle);
-  border-color: var(--color-border-default);
-  color: var(--color-text-primary);
-}
-
-.compositionTokenCard.selected .dragHandle {
-  background: var(--color-bg-surface);
-  border-color: var(--color-border-muted);
-  color: var(--color-text-secondary);
-}
-
-.compositionTokenCard.selected .dragHandle:hover:not(:disabled) {
-  background: var(--color-border-subtle);
-  border-color: var(--color-border-default);
-  color: var(--color-text-primary);
 }
 
 .compositionToken {

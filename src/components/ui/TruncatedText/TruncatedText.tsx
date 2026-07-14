@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { InfoTooltip } from '../InfoTooltip/InfoTooltip';
 import './TruncatedText.css';
 
@@ -5,12 +6,41 @@ type TruncatedTextProps = {
   text: string;
   className?: string;
   tooltipThreshold?: number;
+  tooltipStrategy?: 'threshold' | 'overflow';
 };
 
-export function TruncatedText({ text, className = '', tooltipThreshold = 18 }: TruncatedTextProps) {
-  const content = <span className={`truncatedText${className ? ` ${className}` : ''}`}>{text}</span>;
+export function TruncatedText({
+  text,
+  className = '',
+  tooltipThreshold = 18,
+  tooltipStrategy = 'threshold',
+}: TruncatedTextProps) {
+  const textRef = useRef<HTMLSpanElement | null>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const content = <span ref={textRef} className={`truncatedText${className ? ` ${className}` : ''}`}>{text}</span>;
 
-  if (!shouldShowTruncatedTextTooltip(text, tooltipThreshold)) {
+  useEffect(() => {
+    if (tooltipStrategy !== 'overflow') {
+      return;
+    }
+
+    const updateOverflow = () => {
+      const element = textRef.current;
+      setIsOverflowing(Boolean(element && element.scrollWidth > element.clientWidth));
+    };
+
+    updateOverflow();
+    window.addEventListener('resize', updateOverflow);
+    return () => {
+      window.removeEventListener('resize', updateOverflow);
+    };
+  }, [text, tooltipStrategy]);
+
+  const shouldShowTooltip = tooltipStrategy === 'overflow'
+    ? isOverflowing
+    : shouldShowTruncatedTextTooltip(text, tooltipThreshold);
+
+  if (!shouldShowTooltip) {
     return content;
   }
 

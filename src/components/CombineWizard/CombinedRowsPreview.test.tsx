@@ -37,6 +37,10 @@ describe('CombinedRowsPreview limits', () => {
     const summary = container.querySelector('.combinePreviewSummary');
     const sortPanel = container.querySelector('.combineResultSortPanel');
     const limit = container.querySelector('.combinePreviewLimit');
+    expect(screen.getByText('Resumen:')).not.toBeNull();
+    expect(screen.getByText('Archivos').parentElement?.textContent).toBe('Archivos1');
+    expect(screen.getByText('Filas').parentElement?.textContent).toBe('Filas45');
+    expect(screen.getByText('Columnas').parentElement?.textContent).toBe('Columnas1');
     expect(summary?.compareDocumentPosition(sortPanel as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(sortPanel?.compareDocumentPosition(limit as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
@@ -81,7 +85,7 @@ describe('CombinedRowsPreview limits', () => {
     );
 
     expect(container.querySelector('.combineMappingNotice')).toBeNull();
-    expect(container.querySelector('.combinePreviewSummary')?.firstElementChild?.classList).toContain('combinePreviewOverview');
+    expect(container.querySelector('.combinePreviewSummary')?.firstElementChild?.classList).toContain('summaryMetricGroupLabel');
     expect(screen.queryByText('Las columnas sin asignar generarán celdas vacías.')).toBeNull();
 
     await userEvent.setup().hover(screen.getByText('Sin asignar'));

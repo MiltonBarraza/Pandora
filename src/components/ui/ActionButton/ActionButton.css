@@ -6,12 +6,21 @@
 }
 
 .actionButton-primary {
-  background: var(--color-primary-bg);
-  color: var(--color-primary-text);
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-text);
 }
 
 .actionButton-primary:hover:not(:disabled) {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary-bg-hover);
+  color: var(--color-primary-text);
+}
+
+.actionButton-primary:active:not(:disabled) {
   background: var(--color-primary-bg-hover);
+  border-color: var(--color-primary-bg-hover);
+  color: var(--color-primary-text);
 }
 
 .actionButton-secondary,

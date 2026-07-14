@@ -27,6 +27,7 @@ export function SheetSelector({
   return (
     <div className="sheetSelectorWithStatus">
       <Dropdown
+        className="mainControlWidth"
         label="Hoja"
         labelInfo={(
           <>

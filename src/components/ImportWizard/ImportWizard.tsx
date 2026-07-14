@@ -703,6 +703,7 @@ export function ImportWizard({
         <Step title="3. Configuración de columnas" info="Elegí la fila de encabezados y qué columnas entran en la receta." className="wizardSectionEnter">
           <div className="rowColumnConfig">
             <Dropdown
+              className="mainControlWidth"
               label="Fila de encabezados"
               labelInfo={<InfoTooltip content={headerRowOptionsHelpText} />}
               value={headerRowIndex === null ? 'none' : String(getExcelRowNumberForInternalIndex(rowMetadata, headerRowIndex))}
@@ -735,7 +736,7 @@ export function ImportWizard({
           className="wizardSectionEnter"
         >
           <div className="rowColumnConfig">
-            <div className="field startRowField">
+            <div className="field startRowField mainControlWidth">
               <span className="labelWithInfo">
                 <span>Primera fila de datos</span>
                 <InfoTooltip content="Desde esta fila se empiezan a mostrar y procesar los registros." />

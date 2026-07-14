@@ -30,7 +30,7 @@ export function ProcessedRowsPreview({
   const columns = getEnabledOutputColumns(outputColumns);
   const visibleRows = getVisibleNormalizedPreviewRows(rows);
   const previewRows = getNormalizedPreviewRows(rows);
-  const previewSummary = getNormalizedPreviewSummary(rows);
+  const previewSummaryItems = getNormalizedPreviewSummaryItems(rows);
   const previewLimitText = getNormalizedPreviewLimitText(visibleRows.length, previewRows.length);
 
   return (
@@ -41,7 +41,15 @@ export function ProcessedRowsPreview({
           {note ? <InfoTooltip content={note} /> : null}
         </h3>
       </div>
-      <p className="muted normalizedPreviewSummary">{previewSummary}</p>
+      <div className="normalizedPreviewSummary summaryMetricList" aria-label="Resumen de filas">
+        <span className="summaryMetricGroupLabel">Filas:</span>
+        {previewSummaryItems.map((item) => (
+          <span className="normalizedPreviewSummaryChip summaryMetricChip" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </span>
+        ))}
+      </div>
       <p className="muted normalizedPreviewLimit">{previewLimitText}</p>
       {columns.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
       {columns.length > 0 ? (
@@ -108,16 +116,14 @@ export function getNormalizedPreviewLimitText(totalRows: number, shownRows: numb
   return `Vista previa: ${shownRows} ${shownRows === 1 ? 'fila mostrada' : 'filas mostradas'}.`;
 }
 
-export function getNormalizedPreviewSummary(rows: ProcessedRow[]) {
+export function getNormalizedPreviewSummaryItems(rows: ProcessedRow[]) {
   const includedCount = rows.filter((row) => row.status === 'included').length;
   const ignoredCount = rows.filter((row) => row.status === 'ignored').length;
   const errorCount = rows.filter((row) => row.status === 'error').length;
-  const parts = [
-    `${rows.length} procesadas`,
-    `${includedCount} incluidas`,
-    `${ignoredCount} excluidas por filtros`,
-    `${errorCount} con errores`,
+  return [
+    { label: 'Procesadas', value: rows.length },
+    { label: 'Incluidas', value: includedCount },
+    { label: 'Excluidas por filtros', value: ignoredCount },
+    { label: 'Con errores', value: errorCount },
   ];
-
-  return parts.join(' · ');
 }

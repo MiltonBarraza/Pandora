@@ -53,7 +53,7 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
         </label>
       ) : (
         <>
-          <label className="field">
+          <label className="field mainControlWidth">
             <span className="labelWithInfo">
               <span>Texto base</span>
               <InfoTooltip content="Texto fijo que puede sumarse al nombre final." />
