@@ -56,7 +56,6 @@ describe('manualRangeModel text-start generation', () => {
       inputColumnId: 'input-code',
       startRowNumber: 1,
       endRowNumber: 20,
-      mode: 'untilNextText',
       idFactory: createIdFactory(),
     });
 
@@ -73,7 +72,6 @@ describe('manualRangeModel text-start generation', () => {
       inputColumnId: 'input-code',
       startRowNumber: 1,
       endRowNumber: 10,
-      mode: 'untilNextText',
       idFactory: createIdFactory(),
     });
 
@@ -89,7 +87,6 @@ describe('manualRangeModel text-start generation', () => {
       inputColumnId: 'input-code',
       startRowNumber: 1,
       endRowNumber: 10,
-      mode: 'untilNextText',
       idFactory: createIdFactory(),
     });
 

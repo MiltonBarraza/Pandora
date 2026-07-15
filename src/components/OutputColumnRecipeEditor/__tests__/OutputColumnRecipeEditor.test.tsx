@@ -2475,7 +2475,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 42,
       endRowNumber: 44,
-      mode: 'untilNextText',
       initialValueMode: 'detectedText',
       idFactory: () => `generated-${nextId++}`,
     });
@@ -3818,7 +3817,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 42,
       endRowNumber: 50,
-      mode: 'untilNextText',
       idFactory: () => `generated-${nextId++}`,
     })).toEqual([
       {
@@ -3848,40 +3846,6 @@ describe('constructor helpers', () => {
     ]);
   });
 
-  it('generates manual ranges in single row mode', () => {
-    let nextId = 1;
-    const rows: InputRow[] = [
-      { rowNumber: 42, values: { 'input-name': 'RODILLO SIMIL LANA' } },
-      { rowNumber: 44, values: { 'input-name': 'RODILLO ANTIGOTA' } },
-    ];
-
-    expect(generateManualRangesFromTexts(rows, {
-      inputColumnId: 'input-name',
-      startRowNumber: 40,
-      endRowNumber: 50,
-      mode: 'singleRow',
-      initialValueMode: 'detectedText',
-      idFactory: () => `generated-${nextId++}`,
-    })).toEqual([
-      {
-        id: 'generated-1',
-        startRowNumber: 42,
-        endRowNumber: 42,
-        suggestedFromText: 'RODILLO SIMIL LANA',
-        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO SIMIL LANA'),
-        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO SIMIL LANA' },
-      },
-      {
-        id: 'generated-2',
-        startRowNumber: 44,
-        endRowNumber: 44,
-        suggestedFromText: 'RODILLO ANTIGOTA',
-        valueRecipe: expectedRangeTextValueRecipe('input-name', 'RODILLO ANTIGOTA'),
-        valueSource: { type: 'rangeText', inputColumnId: 'input-name', selectedText: 'RODILLO ANTIGOTA' },
-      },
-    ]);
-  });
-
   it('adjusts generated manual range ends to the last non-empty row in the selected helper column', () => {
     let nextId = 1;
     const rows: InputRow[] = [
@@ -3898,7 +3862,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       validRowsColumnId: 'input-pack',
       idFactory: () => `generated-${nextId++}`,
     })).toEqual([
@@ -3936,7 +3899,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-pack',
       startRowNumber: 10,
       endRowNumber: 15,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
       validRowsColumnId: 'input-code',
       trailingRowCount: 1,
@@ -3963,7 +3925,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-pack',
       startRowNumber: 10,
       endRowNumber: 20,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
       validRowsColumnId: 'input-code',
       trailingRowCount: 5,
@@ -3983,7 +3944,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-pack',
       startRowNumber: 10,
       endRowNumber: 12,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
       validRowsColumnId: 'input-code',
       trailingRowCount: 1,
@@ -4004,7 +3964,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-pack',
       startRowNumber: 10,
       endRowNumber: 14,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
       validRowsColumnId: 'input-code',
       trailingRowCount: 1,
@@ -4046,7 +4005,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       validRowsColumnId: 'input-pack',
       idFactory: () => `generated-${nextId++}`,
     })[0]).toEqual({
@@ -4073,7 +4031,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       initialValueMode: 'detectedText',
       validRowsColumnId: 'input-pack',
       idFactory: () => `generated-${nextId++}`,
@@ -4101,7 +4058,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 12,
       endRowNumber: 21,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-code', operator: 'isEmpty' },
       validRowsColumnId: 'input-code',
       initialValueMode: 'firstValueInColumn',
@@ -4126,7 +4082,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 12,
       endRowNumber: 16,
-      mode: 'untilNextText',
       validRowsColumnId: 'input-code',
       initialValueMode: 'firstValueInColumn',
       initialValueColumnId: 'input-price',
@@ -4152,7 +4107,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       validRowsColumnId: 'input-pack',
       idFactory: () => `generated-${nextId++}`,
     });
@@ -4179,7 +4133,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
       idFactory: () => `generated-${nextId++}`,
     })).toEqual([
@@ -4214,7 +4167,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-pack', operator: 'isNotEmpty' },
       idFactory: () => `generated-${nextId++}`,
     })).toEqual([
@@ -4248,7 +4200,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: '', operator: 'isEmpty' },
       idFactory: () => `generated-${nextId++}`,
     })).toEqual([
@@ -4286,7 +4237,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
       validRowsColumnId: 'input-price',
       idFactory: () => `generated-${nextId++}`,
@@ -4311,7 +4261,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       initialValueMode: 'detectedText',
       startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
       idFactory: () => `generated-${nextId++}`,
@@ -4337,7 +4286,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 8,
       endRowNumber: 20,
-      mode: 'untilNextText',
       startFilter: { inputColumnId: 'input-pack', operator: 'isEmpty' },
     })).toEqual([]);
   });
@@ -4664,7 +4612,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 42,
       endRowNumber: 43,
-      mode: 'untilNextText',
     })).toEqual([]);
   });
 
@@ -4683,7 +4630,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 40,
       endRowNumber: 50,
-      mode: 'untilNextText',
       idFactory: () => `generated-${nextId++}`,
     });
     const nextRecipe = { ...recipe, ranges: [...recipe.ranges, ...generatedRanges] };
@@ -4718,7 +4664,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-name',
       startRowNumber: 40,
       endRowNumber: 50,
-      mode: 'singleRow',
       initialValueMode: 'detectedText',
       idFactory: () => `generated-${nextId++}`,
     });
@@ -4752,7 +4697,6 @@ describe('constructor helpers', () => {
       inputColumnId: 'input-11',
       startRowNumber: 1,
       endRowNumber: 200,
-      mode: 'singleRow',
       idFactory: () => 'range-l',
     })[0]).toMatchObject({
       id: 'range-l',
