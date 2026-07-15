@@ -86,6 +86,18 @@ export function writeConcatRecipeWorkbook(filePath: string) {
   writeWorkbook(filePath, 'Productos', productosConEtiquetaRows);
 }
 
+export const fechasParaNormalizarRows = [
+  ['Código', 'Fecha'],
+  ['F1', '05/01/2026'],
+  ['F2', '17/11/2025'],
+  ['F3'],
+  ['F4', 'fecha inválida'],
+] as const;
+
+export function writeDateRecipeWorkbook(filePath: string) {
+  writeWorkbook(filePath, 'Fechas', fechasParaNormalizarRows);
+}
+
 function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));

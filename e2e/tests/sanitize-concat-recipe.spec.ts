@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 import * as XLSX from 'xlsx';
 import { test, expect } from '../support/test';
+import { selectDropdownOption } from '../support/dropdown';
 import { writeConcatRecipeWorkbook } from '../fixtures/builders/workbookBuilder';
 
 const expectedRows = [
@@ -136,23 +137,4 @@ async function addUppercaseStep(page: Page, dialog: Locator) {
 
   await selectDropdownOption(page, uppercaseStep, 'Acción', 'Convertir a mayúsculas');
   await expect(uppercaseStep.getByRole('button', { name: 'Acción' })).toContainText('Convertir a mayúsculas');
-}
-
-async function selectDropdownOption(page: Page, scope: Locator, name: string | RegExp, option: string) {
-  await scope.getByRole('button', { name }).evaluate((element) => {
-    if (!(element instanceof HTMLElement)) {
-      throw new Error('El selector no es un HTMLElement');
-    }
-    element.click();
-  });
-  await page.waitForFunction((optionName) => {
-    const optionElement = Array.from(document.querySelectorAll('[role="option"]'))
-      .find((element) => element.textContent?.trim() === optionName);
-
-    if (!(optionElement instanceof HTMLElement)) {
-      return false;
-    }
-    optionElement.click();
-    return true;
-  }, option);
 }
