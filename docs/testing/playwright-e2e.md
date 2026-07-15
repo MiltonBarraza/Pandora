@@ -9,8 +9,8 @@ Esta suite prueba flujos reales de Pandora en navegador Chromium: carga de archi
 - Runner: `@playwright/test`.
 - Configuracion: `playwright.config.ts`.
 - Directorio de tests: `e2e/tests`.
-- Specs actuales: 9.
-- Tests actuales: 9.
+- Specs actuales: 10.
+- Tests actuales: 10.
 - Navegador: Chromium.
 - Workers: `1`.
 - Paralelismo: `fullyParallel: false`.
@@ -59,6 +59,7 @@ Ejecucion individual de escenarios complejos:
 npx.cmd playwright test e2e/tests/sanitize-concat-recipe.spec.ts --headed
 npx.cmd playwright test e2e/tests/sanitize-date-recipe.spec.ts --headed
 npx.cmd playwright test e2e/tests/sanitize-manual-range-recipe.spec.ts --headed
+npx.cmd playwright test e2e/tests/sanitize-suggested-ranges.spec.ts --headed
 ```
 
 ## Estructura
@@ -83,6 +84,7 @@ e2e/
     sanitize-multi-sheet.spec.ts
     sanitize-shifted-headers.spec.ts
     sanitize-smoke.spec.ts
+    sanitize-suggested-ranges.spec.ts
 ```
 
 ## Aislamiento
@@ -104,6 +106,7 @@ Entradas y descargas se escriben con `testInfo.outputPath(...)`, bajo `test-resu
 | `sanitize-concat-recipe.spec.ts` | `crea una etiqueta concatenada y exporta el resultado esperado` | Receta concat | partes, texto fijo, mayúsculas, preview, descarga |
 | `sanitize-date-recipe.spec.ts` | `normaliza fechas y aplica el fallback esperado` | Receta fechas | texto DD/MM/AAAA, fallback, vacíos, descarga |
 | `sanitize-manual-range-recipe.spec.ts` | `asigna valores mediante rangos manuales y exporta el resultado esperado` | Rangos manuales | selección visual de filas, valores fijos, descarga |
+| `sanitize-suggested-ranges.spec.ts` | `aplica los dos criterios de rangos sugeridos y exporta el resultado esperado` | Rangos sugeridos | criterios activos, sugerencias, aplicación, descarga |
 
 ### Sanitizador XLSX simple
 
@@ -330,6 +333,81 @@ En este flujo, `Cantidad` se exporta/lee como texto con `xlsx` usando `raw: fals
 
 Mejora accesible agregada para este flujo: botones de edición de rango tienen nombre único, por ejemplo `Editar rango 2 - 3` y `Editar rango 4 - 5`.
 
+### Rangos sugeridos
+
+Archivo: `e2e/tests/sanitize-suggested-ranges.spec.ts`
+
+Genera `productos-rangos-sugeridos.xlsx`, hoja `Productos`:
+
+```ts
+[
+  ['Producto', 'Inicio categoría', 'Bloque'],
+  ['Pincel', 'Pintura', 'Grupo A'],
+  ['Rodillo', '', 'Grupo A'],
+  ['Brocha', '', ''],
+  ['Martillo', 'Herramientas', 'Grupo B'],
+  ['Lija', '', 'Grupo B'],
+  ['Espátula', '', 'Grupo B'],
+]
+```
+
+Columnas de salida:
+
+- `Producto`, directa desde `A - Producto`;
+- `Categoría sugerida`, con `Trabajar con rangos`;
+- `Bloque sugerido`, con `Trabajar con rangos`.
+
+Flujo `Cada dato inicia un rango`:
+
+- abrir `Rangos sugeridos`;
+- criterio `Cada dato inicia un rango`;
+- columna `Inicio categoría`;
+- `Guardar como valor`: `Valor detectado`;
+- filas configuradas: desde `2` hasta `7`.
+
+Sugerencias verificadas antes de aplicar:
+
+- `2 - 4` -> `Pintura`;
+- `5 - 7` -> `Herramientas`.
+
+Contrato actual: cada dato no vacío inicia un rango, el rango termina antes del siguiente dato y el último llega hasta el límite configurado. El modo legacy `singleRow` ya no existe.
+
+Flujo `Bloques consecutivos con datos`:
+
+- abrir `Rangos sugeridos`;
+- criterio `Bloques consecutivos con datos`;
+- columna `Bloque`;
+- `Guardar como valor`: `Primer valor de columna`;
+- `Columna para valor`: `Bloque`;
+- filas configuradas: desde `2` hasta `7`.
+
+Sugerencias verificadas antes de aplicar:
+
+- `2 - 3` -> `Grupo A`;
+- `5 - 7` -> `Grupo B`.
+
+Contrato actual: una fila vacía corta el bloque. La fila de `Brocha` no pertenece a ningún bloque y los bloques no se propagan a través de filas vacías.
+
+Vista final y descarga:
+
+```ts
+[
+  ['Producto', 'Categoría sugerida', 'Bloque sugerido'],
+  ['Pincel', 'Pintura', 'Grupo A'],
+  ['Rodillo', 'Pintura', 'Grupo A'],
+  ['Brocha', 'Pintura', ''],
+  ['Martillo', 'Herramientas', 'Grupo B'],
+  ['Lija', 'Herramientas', 'Grupo B'],
+  ['Espátula', 'Herramientas', 'Grupo B'],
+]
+```
+
+Hoja exportada: `Archivo preparado`.
+
+Diferencia comprobada: `Brocha` queda dentro del rango propagado iniciado por `Pintura`, pero queda vacía en `Bloque sugerido` porque su fila vacía corta los bloques consecutivos.
+
+Estado legacy: `ManualRangeTextGenerator` fue eliminado, `singleRow` fue eliminado del dominio, `Cada dato inicia un rango` usa el comportamiento actual hasta antes del siguiente dato y `Bloques consecutivos con datos` usa su generador específico. Ambas opciones son reales y activas del modal actual.
+
 ## Builders de fixtures
 
 - `e2e/fixtures/builders/workbookBuilder.ts`: XLSX deterministas con `xlsx`.
@@ -454,14 +532,17 @@ No usar `page.waitForTimeout(...)`. Preferir assertions web-first, roles visible
 | Concatenación compleja | Cubierto | Partes, texto fijo, mayúsculas, preview y XLSX |
 | Fechas de texto con fallback | Cubierto | `DD/MM/AAAA` -> `AAAA-MM-DD`, vacío preservado |
 | Rangos manuales | Cubierto | Seleccion visual de filas y valores fijos |
+| Rangos sugeridos: cada dato inicia un rango | Cubierto | `Inicio categoría`, valor detectado, rangos hasta antes del siguiente dato |
+| Rangos sugeridos: bloques consecutivos con datos | Cubierto | `Bloque`, primer valor de columna, fila vacía corta bloque |
 | Seriales reales de Excel | Pendiente | Requiere contrato estable sin riesgo timezone |
 | Formatos regionales reales | Pendiente | Ampliar cuando haya casos manuales frecuentes |
 | `.xls` | Pendiente | Puede requerir fixture real/golden |
 | `.xlsm` | Pendiente | Puede requerir fixture real/golden |
 | Fixture golden anonimizado | Pendiente | Util para archivos de usuario con estructura dificil de sintetizar |
-| Rangos sugeridos | No recomendado aún | Contrato ambiguo: una sola fila vs hasta antes del siguiente dato |
 | Rangos con valores vacíos | Pendiente | Ya hay cobertura de dominio; E2E solo si aparece regresión UI |
 | Filtros complejos | Pendiente | Mantener en Vitest salvo regresión de flujo visible |
+| Archivos grandes | Pendiente | Agregar solo con umbral y caso real de performance |
+| Errores de exportación | Pendiente | Cubrir si aparece contrato visible recuperable |
 | Firefox/WebKit | Pendiente | Agregar después de estabilizar Chromium |
 
 ## Cuando agregar otro E2E
@@ -500,7 +581,7 @@ Antes de sumar escenario:
 
 ## Resumen final
 
-- Suite actual: 9 specs / 9 tests.
+- Suite actual: 10 specs / 10 tests.
 - Navegador: Chromium.
 - Ejecucion local: `npm.cmd run test:e2e`.
 - Visualizacion local: `npm.cmd run test:e2e:ui` o `npm.cmd run test:e2e:headed`.
