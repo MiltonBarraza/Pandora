@@ -35,14 +35,6 @@ type ManualRangeRecipeEditorRenderProps = {
   onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
 };
 
-type ManualRangeTextGeneratorRenderProps = {
-  recipe: Extract<OutputRecipe, { type: 'manualRange' }>;
-  inputColumns: InputColumn[];
-  manualRangeRows: InputRow[];
-  onClose: () => void;
-  onChange: (recipe: Extract<OutputRecipe, { type: 'manualRange' }>) => void;
-};
-
 export type ComposePartEditorRenderProps = {
   part: ConcatPart;
   inputColumns: InputColumn[];
@@ -63,7 +55,6 @@ type RecipeStudioRenderers = {
   renderComposePartEditor: (props: ComposePartEditorRenderProps) => ReactNode;
   renderComposeStepHeader: (props: ComposeStepHeaderRenderProps) => ReactNode;
   renderManualRangeRecipeEditor: (props: ManualRangeRecipeEditorRenderProps) => ReactNode;
-  renderManualRangeTextGenerator: (props: ManualRangeTextGeneratorRenderProps) => ReactNode;
 };
 
 export function RecipeStudioShell({

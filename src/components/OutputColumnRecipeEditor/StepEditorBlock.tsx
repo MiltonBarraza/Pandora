@@ -309,7 +309,7 @@ export function StepEditorBlock({
   }
 
   return (
-    <div className={className}>
+    <div className={className} role="group" aria-label={title ?? `Paso ${(context.stepIndex ?? 0) + 1}`}>
       <div className="stepCardHeader">
         <strong>{title ?? `Paso ${(context.stepIndex ?? 0) + 1}`}</strong>
         {canDelete && onDelete ? (

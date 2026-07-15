@@ -159,8 +159,8 @@ export function ManualRangeSpreadsheetEditor({
       return;
     }
 
-    const singleRowBounds = { startRowNumber: selection.startRowNumber, endRowNumber: selection.startRowNumber };
-    if (findOverlappingManualRange(singleRowBounds, recipe.ranges)) {
+    const selectedRowBounds = { startRowNumber: selection.startRowNumber, endRowNumber: selection.startRowNumber };
+    if (findOverlappingManualRange(selectedRowBounds, recipe.ranges)) {
       return;
     }
 
@@ -1174,7 +1174,6 @@ export function getManualRangeSuggestedRanges({
     inputColumnId,
     startRowNumber,
     endRowNumber,
-    mode: 'untilNextText',
     initialValueMode,
     initialValueColumnId,
   });
@@ -1371,7 +1370,7 @@ function ManualRangeSpreadsheetRangesList({
                     variant="icon"
                     size="sm"
                     className="manualRangeSpreadsheetRangeEditButton"
-                    aria-label="Editar rango"
+                    aria-label={`Editar rango ${range.startRowNumber} - ${range.endRowNumber}`}
                     onClick={() => onEditRange(range.id)}
                   />
                 </InfoTooltip>

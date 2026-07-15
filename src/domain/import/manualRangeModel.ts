@@ -15,7 +15,6 @@ import type {
 } from '../../types/import';
 
 export type ManualRangeValueSourceType = ManualRangeValueSource['type'] | 'input';
-export type ManualRangeGenerationMode = 'untilNextText' | 'singleRow';
 export type ManualRangeInitialValueMode = 'empty' | 'detectedText' | 'firstValueInColumn' | 'lastValueInColumn';
 export type ManualRangeStartFilter = {
   inputColumnId: string;
@@ -26,7 +25,6 @@ export type ManualRangeGenerationConfig = {
   inputColumnId: string;
   startRowNumber: number;
   endRowNumber: number;
-  mode: ManualRangeGenerationMode;
   initialValueMode?: ManualRangeInitialValueMode;
   initialValueColumnId?: string;
   validRowsColumnId?: string;
@@ -532,7 +530,7 @@ export function getManualRangeTextOptions(rows: InputRow[], range: Pick<ManualRa
 }
 
 export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRangeGenerationConfig): ManualRangeValue[] {
-  const { inputColumnId, startRowNumber, endRowNumber, mode, initialValueMode = 'empty', initialValueColumnId, validRowsColumnId, trailingRowCount = 0, startFilter, idFactory = () => crypto.randomUUID() } = config;
+  const { inputColumnId, startRowNumber, endRowNumber, initialValueMode = 'empty', initialValueColumnId, validRowsColumnId, trailingRowCount = 0, startFilter, idFactory = () => crypto.randomUUID() } = config;
 
   if (!inputColumnId || !isValidManualRangeNumber(startRowNumber) || !isValidManualRangeNumber(endRowNumber) || endRowNumber < startRowNumber) {
     return [];
@@ -552,9 +550,7 @@ export function generateManualRangesFromTexts(rows: InputRow[], config: ManualRa
 
   return foundTexts.map((row, index) => {
     const nextTextRowNumber = foundTexts[index + 1]?.rowNumber;
-    const naturalEndRowNumber = mode === 'singleRow'
-      ? row.rowNumber
-      : Math.min(endRowNumber, nextTextRowNumber ? nextTextRowNumber - 1 : endRowNumber);
+    const naturalEndRowNumber = Math.min(endRowNumber, nextTextRowNumber ? nextTextRowNumber - 1 : endRowNumber);
     const rangeEndRowNumber = getAdjustedManualRangeEndRowNumber(rows, {
       startRowNumber: row.rowNumber,
       endRowNumber: naturalEndRowNumber,
