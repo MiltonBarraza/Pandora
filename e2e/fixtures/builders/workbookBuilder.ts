@@ -98,6 +98,18 @@ export function writeDateRecipeWorkbook(filePath: string) {
   writeWorkbook(filePath, 'Fechas', fechasParaNormalizarRows);
 }
 
+export const productosPorCategoriaRows = [
+  ['Producto', 'Cantidad'],
+  ['Pincel', 2],
+  ['Rodillo', 3],
+  ['Espátula', 1],
+  ['Lija', 5],
+] as const;
+
+export function writeManualRangeRecipeWorkbook(filePath: string) {
+  writeWorkbook(filePath, 'Productos', productosPorCategoriaRows);
+}
+
 function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));

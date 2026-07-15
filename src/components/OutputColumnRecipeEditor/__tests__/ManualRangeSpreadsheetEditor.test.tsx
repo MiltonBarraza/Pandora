@@ -323,7 +323,7 @@ describe('ManualRangeSpreadsheetEditor', () => {
     expect(markup).toContain('manualRangeSpreadsheetRangeItemMain');
     expect(markup).toContain('manualRangeSpreadsheetRangeItemActions');
     expect(markup).toContain('manualRangeSpreadsheetRangeItemActionsSeparated');
-    expect(markup).toContain('aria-label="Editar rango"');
+    expect(markup).toContain('aria-label="Editar rango 8 - 13"');
     expect(markup).toContain('aria-label="Eliminar rango"');
     expect(markup).toContain('manualRangeSpreadsheetRangeDeleteButton');
     expect(markup).not.toContain('title="Eliminar rango"');
