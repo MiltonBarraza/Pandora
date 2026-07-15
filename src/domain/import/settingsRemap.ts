@@ -3,6 +3,8 @@ import type {
   ExportedImportSettings,
   InputColumnRemap,
   ManualRangeValue,
+  NumericFormula,
+  NumericFormulaNode,
   OutputRecipe,
   RangeValueRecipe,
   RangeValueSource,
@@ -116,10 +118,37 @@ function remapTransformStep(step: TransformStep, remap: InputColumnRemap): Trans
     source: remapStepSource(step.source, remap),
     leftOperand: remapStepOperand(step.leftOperand, remap),
     rightOperand: remapStepOperand(step.rightOperand, remap),
+    formula: remapNumericFormula(step.formula, remap),
     condition: remapCondition(step.condition, remap),
     ranges: remapManualRanges(step.ranges, remap),
     manualRangeCondition: remapManualRangeCondition(step.manualRangeCondition, remap),
     parts: step.parts?.map((part) => remapConcatPart(part, remap)),
+  };
+}
+
+function remapNumericFormula<TFormula extends NumericFormula | undefined>(formula: TFormula, remap: InputColumnRemap): TFormula {
+  if (!formula) {
+    return formula;
+  }
+
+  return {
+    ...formula,
+    expression: remapNumericFormulaNode(formula.expression, remap),
+  } as TFormula;
+}
+
+function remapNumericFormulaNode(node: NumericFormulaNode, remap: InputColumnRemap): NumericFormulaNode {
+  if (node.kind === 'operand') {
+    return {
+      ...node,
+      operand: remapStepOperand(node.operand, remap) ?? node.operand,
+    };
+  }
+
+  return {
+    ...node,
+    left: remapNumericFormulaNode(node.left, remap),
+    right: remapNumericFormulaNode(node.right, remap),
   };
 }
 
@@ -206,7 +235,7 @@ function remapStepSource<TSource extends StepSource | undefined>(source: TSource
 }
 
 function remapStepOperand<TOperand extends StepOperand | undefined>(operand: TOperand, remap: InputColumnRemap): TOperand {
-  if (operand?.type !== 'input') {
+  if (operand?.type !== 'input' && operand?.type !== 'rangeText') {
     return operand;
   }
 

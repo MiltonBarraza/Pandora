@@ -6,6 +6,9 @@ import type {
   DateOutputFormat,
   ManualRangeCondition,
   ManualRangeValue,
+  NumericFormula,
+  NumericFormulaNode,
+  NumericFormulaOperator,
   OutputColumn,
   OutputRecipe,
   RangeValueRecipe,
@@ -262,6 +265,7 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     amount: Number(step.amount ?? 0),
     leftOperand: normalizeStepOperand(step.leftOperand),
     rightOperand: normalizeStepOperand(step.rightOperand),
+    ...(normalizeNumericFormula(step.formula) ? { formula: normalizeNumericFormula(step.formula) } : {}),
     parts: normalizeConcatParts(step.parts),
     rounding: normalizeRounding(step.rounding),
     dateInputFormat: normalizeDateFormat(step.dateInputFormat) ?? defaultDateInputFormat,
@@ -291,6 +295,7 @@ function normalizeStepType(type?: string): TransformStepType | null {
     'toText',
     'formatDate',
     'manualRange',
+    'numericFormula',
     'numericOperation',
   ].includes(type ?? '')
     ? type as TransformStepType
@@ -306,7 +311,7 @@ function inferStepModeFromType(type: TransformStepType): TransformStepMode {
     return 'manualRange';
   }
 
-  if (type === 'numericOperation') {
+  if (type === 'numericOperation' || type === 'numericFormula') {
     return 'number';
   }
 
@@ -366,6 +371,14 @@ function normalizeStepSource(source?: Partial<StepSource>): StepSource | undefin
     };
   }
 
+  if (source?.type === 'rangeText') {
+    return {
+      type: 'rangeText',
+      inputColumnId: source.inputColumnId ?? '',
+      selectedText: source.selectedText ?? '',
+    };
+  }
+
   return undefined;
 }
 
@@ -381,6 +394,37 @@ function normalizeStepOperand(operand?: Partial<StepOperand>): StepOperand | und
       ? { numericFallback: operand.numericFallback }
       : {}),
   };
+}
+
+function normalizeNumericFormula(formula?: Partial<NumericFormula>): NumericFormula | undefined {
+  if (formula?.version !== 1) {
+    return undefined;
+  }
+
+  const expression = normalizeNumericFormulaNode(formula.expression);
+  return expression ? { version: 1, expression } : undefined;
+}
+
+function normalizeNumericFormulaNode(node?: Partial<NumericFormulaNode>): NumericFormulaNode | undefined {
+  if (node?.kind === 'operand') {
+    const operand = normalizeStepOperand(node.operand);
+    return operand ? { kind: 'operand', operand } : undefined;
+  }
+
+  if (node?.kind === 'binary') {
+    const operator = normalizeNumericFormulaOperator(node.operator);
+    const left = normalizeNumericFormulaNode(node.left);
+    const right = normalizeNumericFormulaNode(node.right);
+    return operator && left && right ? { kind: 'binary', operator, left, right } : undefined;
+  }
+
+  return undefined;
+}
+
+function normalizeNumericFormulaOperator(operator?: string): NumericFormulaOperator | undefined {
+  return operator === 'add' || operator === 'subtract' || operator === 'multiply' || operator === 'divide'
+    ? operator
+    : undefined;
 }
 
 function normalizeConcatParts(parts?: Partial<ConcatPart>[]): ConcatPart[] | undefined {

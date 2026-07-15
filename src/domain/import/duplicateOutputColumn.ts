@@ -1,4 +1,4 @@
-import type { ConcatPart, OutputColumn, OutputRecipe, RangeValueRecipe, RecipePart, TransformStep } from '../../types/import';
+import type { ConcatPart, NumericFormula, NumericFormulaNode, OutputColumn, OutputRecipe, RangeValueRecipe, RecipePart, TransformStep } from '../../types/import';
 
 export function duplicateOutputColumn(column: OutputColumn): OutputColumn {
   return {
@@ -69,11 +69,38 @@ function cloneStepsWithNewIds(steps?: TransformStep[]): TransformStep[] | undefi
     source: step.source ? { ...step.source } : undefined,
     leftOperand: step.leftOperand ? { ...step.leftOperand } : undefined,
     rightOperand: step.rightOperand ? { ...step.rightOperand } : undefined,
+    formula: cloneNumericFormula(step.formula),
     parts: cloneConcatPartsWithNewIds(step.parts),
     ranges: step.ranges ? cloneManualRangesWithNewIds(step.ranges) : undefined,
     manualRangeCondition: step.manualRangeCondition ? { ...step.manualRangeCondition } : undefined,
     condition: step.condition ? { ...step.condition } : undefined,
   }));
+}
+
+function cloneNumericFormula(formula?: NumericFormula): NumericFormula | undefined {
+  if (!formula) {
+    return undefined;
+  }
+
+  return {
+    ...formula,
+    expression: cloneNumericFormulaNode(formula.expression),
+  };
+}
+
+function cloneNumericFormulaNode(node: NumericFormulaNode): NumericFormulaNode {
+  if (node.kind === 'operand') {
+    return {
+      ...node,
+      operand: { ...node.operand },
+    };
+  }
+
+  return {
+    ...node,
+    left: cloneNumericFormulaNode(node.left),
+    right: cloneNumericFormulaNode(node.right),
+  };
 }
 
 function cloneRangeValueRecipeWithNewIds(recipe?: RangeValueRecipe): RangeValueRecipe | undefined {

@@ -1,4 +1,4 @@
-import type { OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
+import type { NumericFormulaNode, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
 import { getVisibleRecipeSteps } from './OutputColumnRecipeEditor.recipeHelpers';
 
 type DeterministicValueState = { isDeterministic: boolean };
@@ -72,8 +72,26 @@ function getDeterministicStepState(step: TransformStep, currentState: Determinis
     const rightState = getDeterministicSourceState(step.rightOperand ?? { type: 'fixedText', value: String(step.amount ?? '') }, currentState, rangeTextIsDynamic);
     return leftState.isDeterministic && rightState.isDeterministic ? deterministicValueState : dynamicValueState;
   }
+  if (step.type === 'numericFormula') {
+    return getDeterministicFormulaState(step.formula?.expression, currentState, rangeTextIsDynamic);
+  }
   if (!isDeterministicStepType(step.type)) return dynamicValueState;
   return getDeterministicSourceState(step.source, currentState, rangeTextIsDynamic);
+}
+
+function getDeterministicFormulaState(
+  node: NumericFormulaNode | undefined,
+  currentState: DeterministicValueState,
+  rangeTextIsDynamic = false,
+): DeterministicValueState {
+  if (!node) return dynamicValueState;
+  if (node.kind === 'operand') {
+    return getDeterministicSourceState(node.operand, currentState, rangeTextIsDynamic);
+  }
+
+  const left = getDeterministicFormulaState(node.left, currentState, rangeTextIsDynamic);
+  const right = getDeterministicFormulaState(node.right, currentState, rangeTextIsDynamic);
+  return left.isDeterministic && right.isDeterministic ? deterministicValueState : dynamicValueState;
 }
 
 function getDeterministicSourceState(source: StepSource | undefined, previousState: DeterministicValueState, rangeTextIsDynamic = false): DeterministicValueState {

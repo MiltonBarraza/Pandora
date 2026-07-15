@@ -2,6 +2,7 @@ import type {
   ConcatPart,
   ExportedImportSettings,
   ManualRangeValue,
+  NumericFormulaNode,
   OutputColumn,
   OutputRecipe,
   RangeValueSource,
@@ -233,6 +234,10 @@ function collectTransformStepReferences(step: TransformStep, path: string, conte
     path: `${path}.rightOperand`,
     stepId: step.id,
   });
+  collectNumericFormulaReferences(step.formula?.expression, `${path}.formula.expression`, {
+    ...context,
+    stepId: step.id,
+  });
 
   collectConditionReference(step.condition, {
     ...context,
@@ -259,6 +264,28 @@ function collectTransformStepReferences(step: TransformStep, path: string, conte
       stepId: step.id,
     });
   });
+}
+
+function collectNumericFormulaReferences(
+  node: NumericFormulaNode | undefined,
+  path: string,
+  context: ReferenceCollectorContext & { stepId?: string },
+) {
+  if (!node) {
+    return;
+  }
+
+  if (node.kind === 'operand') {
+    collectStepOperandReference(node.operand, {
+      ...context,
+      kind: 'transformStepOperand',
+      path: `${path}.operand`,
+    });
+    return;
+  }
+
+  collectNumericFormulaReferences(node.left, `${path}.left`, context);
+  collectNumericFormulaReferences(node.right, `${path}.right`, context);
 }
 
 function collectConcatPartReferences(part: ConcatPart, path: string, context: ReferenceCollectorContext & { stepId?: string }) {
@@ -304,7 +331,7 @@ function collectStepOperandReference(
     stepId?: string;
   },
 ) {
-  if (operand?.type !== 'input') {
+  if (operand?.type !== 'input' && operand?.type !== 'rangeText') {
     return;
   }
 

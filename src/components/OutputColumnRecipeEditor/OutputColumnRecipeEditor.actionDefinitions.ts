@@ -35,6 +35,7 @@ export const recipeStepActionLabels: Record<Exclude<VisibleStepAction, 'unconfig
   removeText: 'Quitar texto',
   replaceText: 'Reemplazar texto',
   concat: 'Concatenar',
+  numericFormula: 'Calcular formula',
   numericOperation: 'Operación numérica',
   extractNumber: 'Usar número del texto',
   toNumber: 'Convertir a número',
@@ -58,6 +59,7 @@ export const recipeStepTypeLabels: Record<TransformStepType, string> = {
   toNumber: recipeStepActionLabels.toNumber,
   toText: recipeStepActionLabels.toText,
   formatDate: recipeStepActionLabels.formatDate,
+  numericFormula: recipeStepActionLabels.numericFormula,
   numericOperation: recipeStepActionLabels.numericOperation,
 };
 

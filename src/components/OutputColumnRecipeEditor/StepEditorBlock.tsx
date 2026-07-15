@@ -891,7 +891,7 @@ function getStepModeForBlock(step: TransformStep): TransformStepMode {
     return step.mode;
   }
 
-  if (step.type === 'numericOperation') return 'number';
+  if (step.type === 'numericOperation' || step.type === 'numericFormula') return 'number';
   if (step.type === 'formatDate') return 'date';
   if (step.type === 'extractNumber' || step.type === 'toNumber' || step.type === 'toText') return 'conversion';
   if (step.type === 'manualRange') return 'manualRange';

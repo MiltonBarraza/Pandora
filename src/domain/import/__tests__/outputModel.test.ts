@@ -586,6 +586,55 @@ describe('outputModel manual range recipes', () => {
     expect(rows[0].outputValues.comment).toBe('Base - Picked - A8');
   });
 
+  it('evaluates numeric formula steps inside manual range value recipes', () => {
+    const rows = buildProcessedRows([
+      { rowNumber: 8, values: { A: '100', B: '5', C: '4', D: '3' } },
+      { rowNumber: 9, values: { A: '50', B: '2', C: '10', D: '1' } },
+    ], [
+      outputColumn({
+        id: 'formula-range',
+        recipe: {
+          type: 'manualRange',
+          ranges: [{
+            id: 'range-8-9',
+            startRowNumber: 8,
+            endRowNumber: 9,
+            valueRecipe: {
+              source: { type: 'fixedText', value: '' },
+              steps: [{
+                id: 'formula',
+                type: 'numericFormula',
+                mode: 'number',
+                rounding: 'none',
+                formula: {
+                  version: 1,
+                  expression: {
+                    kind: 'binary',
+                    operator: 'add',
+                    left: {
+                      kind: 'binary',
+                      operator: 'subtract',
+                      left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'A' } },
+                      right: {
+                        kind: 'binary',
+                        operator: 'multiply',
+                        left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'B' } },
+                        right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'C' } },
+                      },
+                    },
+                    right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'D' } },
+                  },
+                },
+              }],
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.outputValues['formula-range'])).toEqual(['83', '31']);
+  });
+
   it('assigns selected text from rangeText value sources', () => {
     const rows = buildProcessedRows([
       { rowNumber: 8, values: { 'input-code': 'A8' } },
@@ -1449,6 +1498,128 @@ describe('outputModel step sources', () => {
 });
 
 describe('outputModel numeric operands', () => {
+  it('evaluates numeric formula steps with nested precedence', () => {
+    const [row] = buildProcessedRows([{
+      rowNumber: 1,
+      values: { A: '100', B: '5', C: '4', D: '3' },
+    }], [outputColumn({
+      id: 'formula-expression',
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [],
+        steps: [{
+          id: 'formula',
+          type: 'numericFormula',
+          mode: 'number',
+          rounding: 'none',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'add',
+              left: {
+                kind: 'binary',
+                operator: 'subtract',
+                left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'A' } },
+                right: {
+                  kind: 'binary',
+                  operator: 'multiply',
+                  left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'B' } },
+                  right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'C' } },
+                },
+              },
+              right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'D' } },
+            },
+          },
+        }],
+      },
+    })]);
+
+    expect(row.outputValues['formula-expression']).toBe('83');
+  });
+
+  it('rounds numeric formula results only after evaluating the full expression', () => {
+    const row = buildRow([outputColumn({
+      id: 'formula-rounding',
+      recipe: {
+        type: 'fixedText',
+        value: '',
+        steps: [{
+          id: 'formula',
+          type: 'numericFormula',
+          rounding: 'none',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'multiply',
+              left: {
+                kind: 'binary',
+                operator: 'multiply',
+                left: { kind: 'operand', operand: { type: 'fixedText', value: '10' } },
+                right: { kind: 'operand', operand: { type: 'fixedText', value: '0.66' } },
+              },
+              right: { kind: 'operand', operand: { type: 'fixedText', value: '3' } },
+            },
+          },
+        }],
+      },
+    })]);
+
+    expect(row.outputValues['formula-rounding']).toBe('19.8');
+  });
+
+  it('keeps current value and warns for invalid numeric formulas', () => {
+    const row = buildRow([
+      outputColumn({
+        id: 'zero-formula',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'formula',
+            type: 'numericFormula',
+            formula: {
+              version: 1,
+              expression: {
+                kind: 'binary',
+                operator: 'divide',
+                left: { kind: 'operand', operand: { type: 'previousResult' } },
+                right: { kind: 'operand', operand: { type: 'fixedText', value: '0' } },
+              },
+            },
+          }],
+        },
+      }),
+      outputColumn({
+        id: 'invalid-formula',
+        recipe: {
+          type: 'fixedText',
+          value: '200',
+          steps: [{
+            id: 'formula',
+            type: 'numericFormula',
+            formula: {
+              version: 1,
+              expression: {
+                kind: 'binary',
+                operator: 'add',
+                left: { kind: 'operand', operand: { type: 'previousResult' } },
+                right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-invalid' } },
+              },
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['zero-formula']).toBe('200');
+    expect(row.outputValues['invalid-formula']).toBe('200');
+    expect(row.warnings).toContain('No se puede dividir por cero');
+    expect(row.warnings?.some((warning) => warning.includes('operando'))).toBe(true);
+  });
+
   it('multiplies two explicit operands', () => {
     const row = buildRow([outputColumn({
       id: 'operand-multiply',

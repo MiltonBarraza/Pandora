@@ -55,7 +55,7 @@ export type StepEditorRowsInput = {
   inputCompatibilityRows?: InputRow[];
 };
 
-const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRange' | 'numericOperation' | 'formatDate' | 'extractNumber' | 'toNumber' | 'toText'>> = [
+const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRange' | 'numericFormula' | 'numericOperation' | 'formatDate' | 'extractNumber' | 'toNumber' | 'toText'>> = [
   'trim',
   'uppercase',
   'lowercase',

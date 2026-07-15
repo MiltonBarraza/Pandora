@@ -3,6 +3,7 @@ import type {
   IgnoreRule,
   InputColumn,
   InputRow,
+  NumericFormulaNode,
   OutputColumn,
   ProcessedRow,
   RangeValueRecipe,
@@ -425,6 +426,13 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
     });
   }
 
+  if (step.type === 'numericFormula') {
+    return applyNumericFormulaTransformStep(value, step, {
+      ...context,
+      currentValue,
+    });
+  }
+
   const searchValue = step.searchValue ?? '';
   return { value: searchValue ? value.split(searchValue).join(step.replaceValue ?? '') : value, warnings: [] };
 }
@@ -537,6 +545,62 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
   return {
     value: formatNumericResult(result, step.rounding ?? 2),
     warnings: [],
+  };
+}
+
+function applyNumericFormulaTransformStep(value: string, step: TransformStep, context: StepValueContext): TransformResult {
+  if (!step.formula?.expression) {
+    return {
+      value,
+      warnings: ['No se pudo aplicar fórmula numérica: fórmula inválida'],
+    };
+  }
+
+  const result = evaluateNumericFormulaNode(step.formula.expression, context);
+  if (result.value === null) {
+    return {
+      value,
+      warnings: result.warnings.length ? result.warnings : ['No se pudo aplicar fórmula numérica: fórmula inválida'],
+    };
+  }
+
+  return {
+    value: formatNumericResult(result.value, step.rounding ?? 2),
+    warnings: result.warnings,
+  };
+}
+
+function evaluateNumericFormulaNode(node: NumericFormulaNode, context: StepValueContext): { value: number | null; warnings: string[] } {
+  if (node.kind === 'operand') {
+    return resolveStepOperand(node.operand, context);
+  }
+
+  if (node.kind !== 'binary') {
+    return {
+      value: null,
+      warnings: ['No se pudo aplicar fórmula numérica: fórmula inválida'],
+    };
+  }
+
+  const left = evaluateNumericFormulaNode(node.left, context);
+  const right = evaluateNumericFormulaNode(node.right, context);
+  if (left.value === null || right.value === null) {
+    return {
+      value: null,
+      warnings: [...left.warnings, ...right.warnings],
+    };
+  }
+
+  if (node.operator === 'divide' && right.value === 0) {
+    return {
+      value: null,
+      warnings: ['No se puede dividir por cero'],
+    };
+  }
+
+  return {
+    value: applyNumericOperation(left.value, node.operator, right.value),
+    warnings: [...left.warnings, ...right.warnings],
   };
 }
 

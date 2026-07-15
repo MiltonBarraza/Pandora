@@ -630,4 +630,68 @@ describe('localOutputColumnsService', () => {
       ],
     });
   });
+
+  it('preserves numeric formula steps when loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'formula',
+          label: 'Formula',
+          recipe: {
+            type: 'combine',
+            parts: [],
+            steps: [{
+              id: 'formula-step',
+              type: 'numericFormula',
+              mode: 'number',
+              rounding: 'none',
+              formula: {
+                version: 1,
+                expression: {
+                  kind: 'binary',
+                  operator: 'subtract',
+                  left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-price' } },
+                  right: {
+                    kind: 'binary',
+                    operator: 'multiply',
+                    left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-discount' } },
+                    right: { kind: 'operand', operand: { type: 'fixedText', value: '2', numericFallback: 2 } },
+                  },
+                },
+              },
+            }],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+
+    expect(column.recipe).toMatchObject({
+      type: 'combine',
+      steps: [{
+        id: 'formula-step',
+        type: 'numericFormula',
+        mode: 'number',
+        rounding: 'none',
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'subtract',
+            left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-price' } },
+            right: {
+              kind: 'binary',
+              operator: 'multiply',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-discount' } },
+              right: { kind: 'operand', operand: { type: 'fixedText', value: '2', numericFallback: 2 } },
+            },
+          },
+        },
+      }],
+    });
+  });
 });

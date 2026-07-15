@@ -59,6 +59,7 @@ export type TransformStepType =
   | 'toText'
   | 'formatDate'
   | 'manualRange'
+  | 'numericFormula'
   | 'numericOperation';
 
 export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date' | 'manualRange';
@@ -128,6 +129,7 @@ export type TransformStep = {
   amount?: number;
   leftOperand?: StepOperand;
   rightOperand?: StepOperand;
+  formula?: NumericFormula;
   parts?: ConcatPart[];
   rounding?: 'none' | 0 | 2 | 4;
   dateInputFormat?: DateInputFormat;
@@ -257,6 +259,25 @@ export type NumericOperation =
   | 'addPercentage'
   | 'subtractPercentage'
   | 'removeIncludedPercentage';
+
+export type NumericFormulaOperator = 'add' | 'subtract' | 'multiply' | 'divide';
+
+export type NumericFormulaNode =
+  | {
+      kind: 'operand';
+      operand: StepOperand;
+    }
+  | {
+      kind: 'binary';
+      operator: NumericFormulaOperator;
+      left: NumericFormulaNode;
+      right: NumericFormulaNode;
+    };
+
+export type NumericFormula = {
+  version: 1;
+  expression: NumericFormulaNode;
+};
 
 export type ConditionOperator =
   | 'contains'
