@@ -211,6 +211,7 @@ export function OutputColumnsManager({
                       <InfoTooltip content="Este nombre se usara como encabezado final." />
                     </span>
                     <input
+                      aria-label="Nombre de salida"
                       value={selectedColumn.label}
                       onChange={(event) => updateOutputColumn(selectedColumn.id, { ...selectedColumn, label: event.target.value })}
                     />

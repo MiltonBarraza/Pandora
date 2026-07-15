@@ -76,6 +76,16 @@ export function writeWorkbookWithShiftedHeaders(filePath: string) {
   writeWorkbook(filePath, 'Ventas', ventasConMetadataRows);
 }
 
+export const productosConEtiquetaRows = [
+  ['Código', 'Nombre', 'Presentación'],
+  ['A1', 'Pincel', '20 mm'],
+  ['B2', 'Rodillo', '10 cm'],
+] as const;
+
+export function writeConcatRecipeWorkbook(filePath: string) {
+  writeWorkbook(filePath, 'Productos', productosConEtiquetaRows);
+}
+
 function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));
