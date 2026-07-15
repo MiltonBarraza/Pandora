@@ -110,6 +110,20 @@ export function writeManualRangeRecipeWorkbook(filePath: string) {
   writeWorkbook(filePath, 'Productos', productosPorCategoriaRows);
 }
 
+export const productosRangosSugeridosRows = [
+  ['Producto', 'Inicio categoría', 'Bloque'],
+  ['Pincel', 'Pintura', 'Grupo A'],
+  ['Rodillo', '', 'Grupo A'],
+  ['Brocha', '', ''],
+  ['Martillo', 'Herramientas', 'Grupo B'],
+  ['Lija', '', 'Grupo B'],
+  ['Espátula', '', 'Grupo B'],
+] as const;
+
+export function writeSuggestedRangesWorkbook(filePath: string) {
+  writeWorkbook(filePath, 'Productos', productosRangosSugeridosRows);
+}
+
 function writeWorkbook(filePath: string, sheetName: string, rows: readonly (readonly (string | number)[])[]) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows.map((row) => [...row]));
