@@ -502,26 +502,50 @@
   gap: 10px;
 }
 
+.numericFormulaBuilderIntro {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.numericFormulaFormulaActionsRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.numericFormulaFormulaActionsRow > .composeStudioActions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
 .numericFormulaHeader {
   align-items: center;
   display: flex;
+  flex: 1 1 220px;
   flex-wrap: wrap;
   gap: 8px 12px;
   min-width: 0;
 }
 
 .numericFormulaPreview {
-  background: var(--color-bg-surface-muted);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 6px;
-  color: var(--color-text-primary);
-  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
-  font-size: 0.88rem;
-  font-weight: 600;
-  line-height: 1.35;
+  align-items: center;
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 6px;
+  line-height: normal;
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: 7px 9px;
+  padding: 4px 9px;
+  white-space: nowrap;
 }
 
 .numericFormulaLinearBuilder {
@@ -551,8 +575,34 @@
 }
 
 .numericFormulaValueCard {
-  grid-template-columns: minmax(132px, 1fr);
+  grid-template-columns: minmax(132px, 1fr) auto;
   max-width: min(260px, calc(100vw - 72px));
+}
+
+.numericFormulaGroupShell {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-selected-bg) 48%, transparent);
+  border: 1px solid var(--color-selected-border);
+  border-radius: 8px;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  position: relative;
+}
+
+.numericFormulaGroupChip {
+  background: var(--color-selected-border);
+  border-radius: 999px;
+  color: var(--color-bg-surface);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 3px 7px;
+  position: absolute;
+  right: 8px;
+  top: -9px;
 }
 
 .numericFormulaInlineOperator {
@@ -575,11 +625,31 @@
   padding-right: 8px;
 }
 
+.numericFormulaGroupedOperator {
+  flex-basis: 56px;
+  min-width: 56px;
+  width: 56px;
+}
+
 .numericFormulaParen {
   color: var(--color-text-secondary);
   font-size: 1.55rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.numericFormulaStructureActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.numericFormulaStructureActionsLabel {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .numericFormulaInspector {
@@ -686,6 +756,10 @@
   }
 
   .numericFormulaTokenSlot {
+    flex-wrap: wrap;
+  }
+
+  .numericFormulaGroupShell {
     flex-wrap: wrap;
   }
 }

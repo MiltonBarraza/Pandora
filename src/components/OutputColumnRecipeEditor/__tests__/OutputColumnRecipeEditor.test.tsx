@@ -183,6 +183,22 @@ function renderRecipeEditorMarkup(
   );
 }
 
+function getSectionMarkup(markup: string, selectorStart: string, fromIndex = 0) {
+  const start = markup.indexOf(selectorStart, fromIndex);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = markup.indexOf('</section>', start);
+  expect(end).toBeGreaterThan(start);
+  return markup.slice(start, end + '</section>'.length);
+}
+
+function getEnclosingSectionMarkup(markup: string, selectorStart: string, contentIndex: number) {
+  const start = markup.lastIndexOf(selectorStart, contentIndex);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = markup.indexOf('</section>', start);
+  expect(end).toBeGreaterThan(contentIndex);
+  return markup.slice(start, end + '</section>'.length);
+}
+
 describe('buildRecipeForSelectedType', () => {
   it('drops hidden steps when switching from combine to direct', () => {
     expect(buildRecipeForSelectedType('direct', combineColumn, inputColumns)).toEqual({
@@ -704,7 +720,15 @@ describe('constructor helpers', () => {
     const selectedValueIndex = studioMarkup.indexOf('Valor seleccionado', editorIndex);
     const secondStepIndex = studioMarkup.indexOf('Paso 2', selectedValueIndex);
     const thirdStepIndex = studioMarkup.indexOf('Paso 3', secondStepIndex);
-    const firstAddStepIndex = studioMarkup.indexOf('Agregar paso', thirdStepIndex);
+    const formulaAddStepIndex = studioMarkup.indexOf('Agregar paso', selectedValueIndex);
+    const editorSectionMarkup = studioMarkup.slice(studioMarkup.indexOf('numericFormulaBuilderSection'), studioMarkup.indexOf('numericFormulaInspector'));
+    const inspectorMarkup = studioMarkup.slice(studioMarkup.indexOf('numericFormulaInspector'), secondStepIndex);
+    const secondStepGeneralMarkup = getEnclosingSectionMarkup(studioMarkup, '<section class="recipeStudioSection recipeStudioGeneralSection"', secondStepIndex);
+    const editorTitleIndex = editorSectionMarkup.indexOf('<strong>Editor de fórmula</strong>');
+    const helpIndex = editorSectionMarkup.indexOf('Agregá valores y ajustá el operador entre cada uno.', editorTitleIndex);
+    const formulaLabelIndex = editorSectionMarkup.indexOf('Fórmula', helpIndex);
+    const formulaPreviewIndex = editorSectionMarkup.indexOf('numericFormulaPreview', formulaLabelIndex);
+    const tokenListIndex = editorSectionMarkup.indexOf('numericFormulaTokenList', formulaPreviewIndex);
 
     expect(studioMarkup).toContain('recipeStudioSection recipeStudioGeneralSection');
     expect(studioMarkup).toContain('recipeStudioSection recipeStudioSectionLight composePartsBuilder numericFormulaBuilderSection');
@@ -714,12 +738,24 @@ describe('constructor helpers', () => {
     expect(selectedValueIndex).toBeGreaterThan(editorIndex);
     expect(secondStepIndex).toBeGreaterThan(selectedValueIndex);
     expect(thirdStepIndex).toBeGreaterThan(secondStepIndex);
-    expect(firstAddStepIndex).toBeGreaterThan(thirdStepIndex);
-    expect(studioMarkup.match(/Agregar paso/g)).toHaveLength(1);
-    expect(studioMarkup.match(/numericFormulaAfterStep/g)).toHaveLength(2);
+    expect(formulaAddStepIndex).toBeGreaterThan(selectedValueIndex);
+    expect(formulaAddStepIndex).toBeLessThan(secondStepIndex);
+    expect(studioMarkup.match(/Agregar paso/g)).toHaveLength(3);
+    expect(studioMarkup).not.toContain('numericFormulaAfterStep');
     expect(studioMarkup.indexOf('Condición', firstStepIndex)).toBeLessThan(editorIndex);
     expect(studioMarkup.indexOf('Define cuándo se aplica esta fórmula completa.', firstStepIndex)).toBeLessThan(editorIndex);
-    expect(studioMarkup.indexOf('Decimales / redondeo', editorIndex)).toBeLessThan(selectedValueIndex);
+    expect(studioMarkup.indexOf('Decimales / redondeo', firstStepIndex)).toBeLessThan(editorIndex);
+    expect(editorSectionMarkup).not.toContain('Decimales / redondeo');
+    expect(editorTitleIndex).toBeGreaterThanOrEqual(0);
+    expect(helpIndex).toBeGreaterThan(editorTitleIndex);
+    expect(formulaLabelIndex).toBeGreaterThan(helpIndex);
+    expect(formulaPreviewIndex).toBeGreaterThan(formulaLabelIndex);
+    expect(tokenListIndex).toBeGreaterThan(formulaPreviewIndex);
+    expect(inspectorMarkup).not.toContain('Agrupar con siguiente');
+    expect(inspectorMarkup).not.toContain('Quitar grupo');
+    expect(inspectorMarkup).not.toContain('Eliminar valor');
+    expect(secondStepGeneralMarkup).toContain('Agregar paso');
+    expect(secondStepGeneralMarkup).not.toContain('numericFormulaBuilderSection');
     expect(studioMarkup.indexOf('numericFormulaBuilderSection')).toBeLessThan(studioMarkup.indexOf('numericFormulaInspector'));
     expect(studioMarkup).not.toContain('numericFormulaPanel');
   });
@@ -755,11 +791,13 @@ describe('constructor helpers', () => {
 
     const selectedValueIndex = markup.indexOf('Valor seleccionado');
     const addStepIndex = markup.indexOf('Agregar paso', selectedValueIndex);
+    const generalMarkup = getSectionMarkup(markup, '<section class="recipeStudioSection recipeStudioGeneralSection"');
 
     expect(markup).toContain('numericFormulaStepFlow');
     expect(markup).toContain('numericFormulaAddStepActions');
     expect(selectedValueIndex).toBeGreaterThan(markup.indexOf('Editor de fórmula'));
     expect(addStepIndex).toBeGreaterThan(selectedValueIndex);
+    expect(generalMarkup).not.toContain('Agregar paso');
     expect(markup.match(/Agregar paso/g)).toHaveLength(1);
   });
 
@@ -827,7 +865,39 @@ describe('constructor helpers', () => {
     expect(markup).toContain('Paso 1 · Sin configurar');
     expect(markup).not.toContain('Paso 1 · Usar valor tal cual');
     expect(markup).toContain('Acción');
+    expect(getSectionMarkup(markup, '<section class="recipeStudioSection recipeStudioGeneralSection"')).toContain('Agregar paso');
     expect(markup).not.toContain('Qué valor usar');
+  });
+
+  it('keeps the add-step button inside the general block for concat steps', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-concat-step-action-placement',
+      label: 'Concatenado',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'text',
+        parts: [{ id: 'base', type: 'input', inputColumnId: 'input-name' }],
+        separator: '',
+        steps: [{
+          id: 'concat-step',
+          mode: 'text',
+          type: 'concat',
+          parts: [
+            { id: 'first', source: { type: 'input', inputColumnId: 'input-name' } },
+            { id: 'second', source: { type: 'fixedText', value: 'OK' } },
+          ],
+        }],
+      },
+    });
+
+    const concatStepsBlockIndex = markup.indexOf('concatPartStepsBlock');
+    const addStepIndex = markup.indexOf('Agregar paso', concatStepsBlockIndex);
+    expect(markup).toContain('Concatenar');
+    expect(concatStepsBlockIndex).toBeGreaterThanOrEqual(0);
+    expect(addStepIndex).toBeGreaterThan(concatStepsBlockIndex);
+    expect(markup).not.toContain('numericFormulaAddStepActions');
   });
 
   it('shows per-step conditions for the selected compose part', () => {
@@ -1472,10 +1542,14 @@ describe('constructor helpers', () => {
     expect(numericMarkup).not.toContain('Qué valor usar');
     expect(numericMarkup).toContain('Valor fijo');
     expect(numericMarkup).toContain('type="number"');
+    expect(getSectionMarkup(numericMarkup, '<section class="recipeStudioSection recipeStudioGeneralSection"')).toContain('Agregar paso');
+    expect(numericMarkup).not.toContain('numericFormulaAddStepActions');
     expect(dateMarkup).toContain('Usar fecha fija');
     expect(dateMarkup).not.toContain('Qué fecha usar');
     expect(dateMarkup).toContain('Fecha fija');
     expect(dateMarkup).toContain('type="date"');
+    expect(getSectionMarkup(dateMarkup, '<section class="recipeStudioSection recipeStudioGeneralSection"')).toContain('Agregar paso');
+    expect(dateMarkup).not.toContain('numericFormulaAddStepActions');
     expect(getStepValueSourceOptions(inputColumns, 'number', false).map((option) => option.label)).toEqual([
       'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Valor fijo', 'Elegir valor desde celda',
     ]);

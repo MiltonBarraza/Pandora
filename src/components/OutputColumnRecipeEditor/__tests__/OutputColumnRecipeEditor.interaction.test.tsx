@@ -942,6 +942,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByText('Valor A')).toBeNull();
     expect(screen.queryByText('Valor B')).toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Eliminar valor' })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
@@ -978,6 +979,9 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.click(screen.getByRole('button', { name: 'Agrupar con siguiente' }));
 
     expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B × C)');
+    const groupShell = screen.getByLabelText('Grupo de fórmula');
+    expect(groupShell).not.toBeNull();
+    expect(within(groupShell).getByText('Grupo')).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
@@ -990,6 +994,28 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
         right: { operand: { inputColumnId: 'C' } },
       },
     });
+  });
+
+  it('removes a numeric formula group from the visual editor', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankNumberColumn('output-formula-remove-group')}
+      editorInputColumns={formulaInputColumns}
+      rows={formulaRows}
+      sampleInputValues={formulaRows[0].values}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
+    await selectFormulaOption(user, /Operador 1/, '-');
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await selectFormulaOption(user, /Operador 2/, '×');
+    await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
+    await user.click(screen.getByRole('button', { name: 'Agrupar con siguiente' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar grupo' }));
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - B × C');
+    expect(screen.queryByLabelText('Grupo de fórmula')).toBeNull();
   });
 
   it('builds a grouped numeric formula divided by a value', async () => {
@@ -1067,9 +1093,8 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
     await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
-    await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
-    const deleteButtons = screen.getAllByRole('button', { name: 'Eliminar valor' });
-    await user.click(deleteButtons[deleteButtons.length - 1]);
+    const secondValueCard = screen.getByRole('button', { name: /Segundo valor/ }).closest('.numericFormulaValueCard') as HTMLElement;
+    await user.click(within(secondValueCard).getByRole('button', { name: 'Eliminar valor' }));
 
     expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A + C');
     expect(screen.queryByRole('button', { name: /Tercer valor/ })).toBeNull();

@@ -15,6 +15,7 @@ import { previousResultFieldLabel, recipeStepModeLabels } from './OutputColumnRe
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
   getDatePickerValue,
+  parseRounding,
   getStepSourceForTextAction,
   getStepTextSourceAction,
   updateStep,
@@ -1363,10 +1364,9 @@ function StepBlocksEditor({
   };
 
   if (studioLayout && steps.length > 0) {
-    const hasNumericFormulaStep = steps.some((step) => step.type === 'numericFormula');
     const lastStepIndex = steps.length - 1;
-    const renderAddStepAction = () => (
-      <div className={`stepsBlockActions${hasNumericFormulaStep ? ' numericFormulaAddStepActions' : ''}`}>
+    const renderAddStepAction = (numericFormulaStep = false) => (
+      <div className={`stepsBlockActions${numericFormulaStep ? ' numericFormulaAddStepActions' : ''}`}>
         <InfoTooltip content="Agrega una transformacion nueva al valor.">
           <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
         </InfoTooltip>
@@ -1376,12 +1376,12 @@ function StepBlocksEditor({
     return (
       <div className="simpleStepsEditor nonConcatStepsEditor">
         {steps.map((step, index) => {
-          const renderStepAddAction = hasNumericFormulaStep ? index === lastStepIndex : true;
+          const isNumericFormulaStep = step.type === 'numericFormula';
           const wrapperClassName = [
             index > 0 ? 'concatPartStepDivider' : '',
-            hasNumericFormulaStep && index > 0 ? 'numericFormulaAfterStep' : '',
-            step.type === 'numericFormula' ? 'numericFormulaStepFlow' : '',
-            hasNumericFormulaStep && index === lastStepIndex ? 'numericFormulaFinalStepFlow' : '',
+            isNumericFormulaStep && index > 0 ? 'numericFormulaAfterStep' : '',
+            isNumericFormulaStep ? 'numericFormulaStepFlow' : '',
+            isNumericFormulaStep && index === lastStepIndex ? 'numericFormulaFinalStepFlow' : '',
           ].filter(Boolean).join(' ') || undefined;
 
           return (
@@ -1397,7 +1397,7 @@ function StepBlocksEditor({
                 previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
                 previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
                 studioLayout
-                studioActionContent={renderStepAddAction ? renderAddStepAction() : null}
+                studioActionContent={renderAddStepAction(isNumericFormulaStep)}
                 onBaseInputColumnChange={onBaseInputColumnChange}
                 onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
                 onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
@@ -1532,7 +1532,21 @@ function SimpleStepBlock({
   };
   const renderStudioGeneralFields: StepEditorBlockFieldRenderer = (props) => {
     if (props.step.type === 'numericFormula') {
-      return false;
+      return (
+        <Dropdown
+          className="compact recipeField numericFormulaGeneralRounding"
+          label="Decimales / redondeo"
+          value={String(props.step.rounding ?? 2)}
+          options={[
+            { value: 'none', label: 'Sin redondeo' },
+            { value: '0', label: '0 decimales' },
+            { value: '2', label: '2 decimales' },
+            { value: '4', label: '4 decimales' },
+          ]}
+          scrollStrategy="close"
+          onChange={(value) => props.onChange({ rounding: parseRounding(value) })}
+        />
+      );
     }
 
     return renderManualRangeFields(props);
@@ -1566,9 +1580,9 @@ function SimpleStepBlock({
         inputColumns={numericInputColumns}
         allowPreviousResult={allowPreviousResult}
         compatibilityHint={numericCompatibilityHint}
+        showRoundingControl={false}
         warning={getNumericFormulaUiWarning(step.formula)}
         onFormulaChange={(formula) => handleChange({ formula })}
-        onRoundingChange={(rounding) => handleChange({ rounding })}
       />
     );
   };
@@ -1602,9 +1616,10 @@ function SimpleStepBlock({
             onReplace={handleReplace}
           />
           {renderStepCondition(step, handleChange)}
+          {step.type !== 'numericFormula' ? studioActionContent : null}
         </section>
         {renderNumericFormulaStudioSections()}
-        {studioActionContent}
+        {step.type === 'numericFormula' ? studioActionContent : null}
       </>
     );
   }
