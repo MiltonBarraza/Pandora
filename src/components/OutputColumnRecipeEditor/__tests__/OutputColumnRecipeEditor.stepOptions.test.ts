@@ -104,6 +104,7 @@ describe('step options adapter', () => {
       'useNumberInputColumn',
       'useFixedNumber',
       'pickNumberCell',
+      'numericFormula',
       'add',
       'subtract',
       'multiply',

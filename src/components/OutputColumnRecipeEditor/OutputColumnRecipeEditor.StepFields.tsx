@@ -65,6 +65,10 @@ export function getVisibleStepAction(
   const allowedTypes = getStepTypesForMode(mode).map((option) => option.value);
 
   if (mode === 'number') {
+    if (step.type === 'numericFormula') {
+      return 'numericFormula';
+    }
+
     if (step.type === 'numericOperation') {
       return step.operation ?? 'add';
     }
@@ -556,11 +560,13 @@ export function StepConditionFields({
   step,
   inputColumns,
   variant = 'default',
+  conditionHelpText,
   onChange,
 }: {
   step: TransformStep;
   inputColumns: InputColumn[];
   variant?: 'default' | 'manualRange';
+  conditionHelpText?: string;
   onChange: (patch: Partial<TransformStep>) => void;
 }) {
   const condition = step.condition;
@@ -576,7 +582,7 @@ export function StepConditionFields({
         label={isManualRangeCondition ? 'Aplicar el valor' : 'Condición'}
         labelInfo={<InfoTooltip content={isManualRangeCondition
           ? 'El rango puede incluir filas de título o separación. Esta condición define en qué filas se escribe realmente el valor.'
-          : 'Elige si este paso se aplica siempre o solo en algunos casos.'} />}
+          : conditionHelpText ?? 'Elige si este paso se aplica siempre o solo en algunos casos.'} />}
         value={condition ? 'conditional' : 'always'}
         options={[
           { value: 'always', label: isManualRangeCondition ? 'Aplicar a todas sus filas' : 'Aplicar siempre' },

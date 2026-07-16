@@ -81,6 +81,7 @@ const stepTypes: Array<{ value: TransformStepType; label: string }> = [
   { value: 'toNumber', label: recipeStepTypeLabels.toNumber },
   { value: 'toText', label: recipeStepTypeLabels.toText },
   { value: 'formatDate', label: recipeStepTypeLabels.formatDate },
+  { value: 'numericFormula', label: recipeStepTypeLabels.numericFormula },
   { value: 'numericOperation', label: recipeStepTypeLabels.numericOperation },
 ];
 
@@ -137,6 +138,7 @@ const dateStepTypes = stepTypes.filter((stepType) => [
 
 const numberStepTypes = stepTypes.filter((stepType) => [
   'noop',
+  'numericFormula',
   'numericOperation',
 ].includes(stepType.value));
 

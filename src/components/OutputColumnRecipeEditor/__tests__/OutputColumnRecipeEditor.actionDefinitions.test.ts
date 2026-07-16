@@ -68,6 +68,7 @@ describe('recipe editor action label contracts', () => {
     expect(numericOperationOptions).toEqual(Object.entries(numericOperationLabels).map(([value, label]) => ({ value, label })));
     expect(getStepTypesForMode('number').map((option) => [option.value, option.label])).toEqual([
       ['noop', recipeStepTypeLabels.noop],
+      ['numericFormula', recipeStepTypeLabels.numericFormula],
       ['numericOperation', recipeStepTypeLabels.numericOperation],
     ]);
     expect(getStepTypesForMode('date').map((option) => [option.value, option.label])).toEqual([

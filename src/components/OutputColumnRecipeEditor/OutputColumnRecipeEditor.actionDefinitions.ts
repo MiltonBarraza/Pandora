@@ -35,7 +35,7 @@ export const recipeStepActionLabels: Record<Exclude<VisibleStepAction, 'unconfig
   removeText: 'Quitar texto',
   replaceText: 'Reemplazar texto',
   concat: 'Concatenar',
-  numericFormula: 'Calcular formula',
+  numericFormula: 'Calcular fórmula',
   numericOperation: 'Operación numérica',
   extractNumber: 'Usar número del texto',
   toNumber: 'Convertir a número',

@@ -10,6 +10,7 @@ import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRa
 import { CustomValueEditor } from '../OutputColumnRecipeEditor';
 import { StepSourceFields, StepTypeSelect, getCompatibleStepValueInputColumns, getConversionStepActionOptions, getNumericStepTypeFromSelection, getStepActionHelpText, getStepValueSourceOptions, getTextStepActionOptions } from '../OutputColumnRecipeEditor.StepFields';
 import { StepEditorBlock, getNumericOperandInputColumns, getNumericOperationUiWarning } from '../StepEditorBlock';
+import { getNumericFormulaUiWarning } from '../NumericFormulaEditor';
 import { getNumericOperandLabels } from '../OutputColumnRecipeEditor.optionHelpers';
 import { getRecipeStepTitle } from '../OutputColumnRecipeEditor.displayHelpers';
 import { applyComposeConcatPartUpdate, applyComposeRecipePartsUpdate, getComposeConcatPartFromStorage, getComposeRecipePartsFromStorage, getComposeRecipePartsStorageMode, hasComposePreviousResultSource } from '../OutputColumnRecipeEditor.composePartsStorage';
@@ -658,6 +659,110 @@ describe('constructor helpers', () => {
     expect(markup.toLowerCase()).not.toContain('pieza');
   });
 
+  it('renders numeric formula studio as separate general, formula editor and selected value sections', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-formula-studio-layout',
+      label: 'Total',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+        separator: '',
+        steps: [{
+          id: 'formula-step',
+          mode: 'number',
+          type: 'numericFormula',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'add',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-price' } },
+              right: { kind: 'operand', operand: { type: 'fixedText', value: '10' } },
+            },
+          },
+          rounding: 2,
+        }, {
+          id: 'follow-up',
+          mode: 'number',
+          type: 'noop',
+          source: { type: 'previousResult' },
+        }, {
+          id: 'third-step',
+          mode: 'number',
+          type: 'noop',
+          source: { type: 'previousResult' },
+        }],
+      },
+    });
+
+    const studioMarkup = markup;
+    const firstStepIndex = studioMarkup.indexOf('Paso 1');
+    const editorIndex = studioMarkup.indexOf('Editor de fórmula', firstStepIndex);
+    const selectedValueIndex = studioMarkup.indexOf('Valor seleccionado', editorIndex);
+    const secondStepIndex = studioMarkup.indexOf('Paso 2', selectedValueIndex);
+    const thirdStepIndex = studioMarkup.indexOf('Paso 3', secondStepIndex);
+    const firstAddStepIndex = studioMarkup.indexOf('Agregar paso', thirdStepIndex);
+
+    expect(studioMarkup).toContain('recipeStudioSection recipeStudioGeneralSection');
+    expect(studioMarkup).toContain('recipeStudioSection recipeStudioSectionLight composePartsBuilder numericFormulaBuilderSection');
+    expect(studioMarkup).toContain('recipeStudioSection composeTokenInspector composeTokenInspectorFlat numericFormulaInspector');
+    expect(firstStepIndex).toBeGreaterThanOrEqual(0);
+    expect(editorIndex).toBeGreaterThan(firstStepIndex);
+    expect(selectedValueIndex).toBeGreaterThan(editorIndex);
+    expect(secondStepIndex).toBeGreaterThan(selectedValueIndex);
+    expect(thirdStepIndex).toBeGreaterThan(secondStepIndex);
+    expect(firstAddStepIndex).toBeGreaterThan(thirdStepIndex);
+    expect(studioMarkup.match(/Agregar paso/g)).toHaveLength(1);
+    expect(studioMarkup.match(/numericFormulaAfterStep/g)).toHaveLength(2);
+    expect(studioMarkup.indexOf('Condición', firstStepIndex)).toBeLessThan(editorIndex);
+    expect(studioMarkup.indexOf('Define cuándo se aplica esta fórmula completa.', firstStepIndex)).toBeLessThan(editorIndex);
+    expect(studioMarkup.indexOf('Decimales / redondeo', editorIndex)).toBeLessThan(selectedValueIndex);
+    expect(studioMarkup.indexOf('numericFormulaBuilderSection')).toBeLessThan(studioMarkup.indexOf('numericFormulaInspector'));
+    expect(studioMarkup).not.toContain('numericFormulaPanel');
+  });
+
+  it('places the numeric formula add-step action after the selected value block when there is a single step', () => {
+    const markup = renderRecipeEditorMarkup({
+      id: 'output-formula-single-step-layout',
+      label: 'Total',
+      order: 0,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        customMode: 'number',
+        parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+        separator: '',
+        steps: [{
+          id: 'formula-step',
+          mode: 'number',
+          type: 'numericFormula',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'add',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-price' } },
+              right: { kind: 'operand', operand: { type: 'fixedText', value: '10' } },
+            },
+          },
+          rounding: 2,
+        }],
+      },
+    });
+
+    const selectedValueIndex = markup.indexOf('Valor seleccionado');
+    const addStepIndex = markup.indexOf('Agregar paso', selectedValueIndex);
+
+    expect(markup).toContain('numericFormulaStepFlow');
+    expect(markup).toContain('numericFormulaAddStepActions');
+    expect(selectedValueIndex).toBeGreaterThan(markup.indexOf('Editor de fórmula'));
+    expect(addStepIndex).toBeGreaterThan(selectedValueIndex);
+    expect(markup.match(/Agregar paso/g)).toHaveLength(1);
+  });
+
   it('shows ten compact rows and the available total in compose preview', () => {
     const previewRows: InputRow[] = Array.from({ length: 20 }, (_, index) => ({
       rowNumber: index + 1,
@@ -1101,12 +1206,14 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('nonConcatAdditionalSteps');
     expect(markup).toContain('concatPartStepDivider');
     expect(markup).toContain('Paso 2');
     expect(markup).toContain('Convertir a mayúsculas');
     expect(markup).toContain('Usar resultado anterior');
     expect(markup).toContain('Eliminar paso');
+    expect(markup.match(/Agregar paso/g)).toHaveLength(2);
+    expect(markup.indexOf('Paso 1')).toBeLessThan(markup.indexOf('Agregar paso'));
+    expect(markup.indexOf('Agregar paso')).toBeLessThan(markup.indexOf('Paso 2'));
     expect(getTextStepActionOptions(true).map((option) => option.label)).not.toContain('Usar resultado anterior');
     expect(getStepValueSourceOptions(inputColumns, 'text', true, true).map((option) => option.label)).toContain('Usar resultado anterior');
   });
@@ -6387,6 +6494,49 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('No se muestran algunas columnas porque no contienen valores numéricos compatibles.');
   });
 
+  it('renders the numeric formula constructor inside manual range value recipes', () => {
+    const columns: InputColumn[] = [
+      { id: 'price', columnIndex: 0, columnLetter: 'A', label: 'A', header: 'Precio', active: true, sampleValues: ['100'], nonEmptyCount: 1 },
+      { id: 'tax', columnIndex: 1, columnLetter: 'B', label: 'B', header: 'IVA', active: true, sampleValues: ['21'], nonEmptyCount: 1 },
+    ];
+    const markup = renderRangeValueEditor({
+      id: 'range-formula',
+      startRowNumber: 1,
+      endRowNumber: 1,
+      valueRecipe: {
+        source: { type: 'fixedText', value: '' },
+        steps: [{
+          id: 'formula',
+          mode: 'number',
+          type: 'numericFormula',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'add',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'price' } },
+              right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'tax' } },
+            },
+          },
+          rounding: 2,
+        }],
+      },
+    }, {
+      inputColumns: columns,
+      manualRangeRows: [{ rowNumber: 1, values: { price: '100', tax: '21' } }],
+    });
+
+    expect(markup).toContain('numericFormulaFields');
+    expect(markup).toContain('Calcular fórmula');
+    expect(markup).toContain('Editor de fórmula');
+    expect(markup).toContain('Agregar valor');
+    expect(markup).toContain('A - Precio + B - IVA');
+    expect(markup).not.toContain('Convertir en grupo');
+    expect(markup).not.toContain('Agregar operacion al resultado');
+    expect(markup).not.toContain('Tipo de fórmula');
+    expect(markup).not.toContain('Formula izquierda');
+  });
+
   it('shows a clear state when numeric operands have no available columns', () => {
     const markup = renderToStaticMarkup(
       <StepEditorBlock
@@ -6438,6 +6588,161 @@ describe('constructor helpers', () => {
       ...recipe,
       steps: [{ ...recipe.steps![0], rightOperand: { type: 'fixedText', value: '10' } }],
     }, {}, true, 'number')).toBe('110');
+  });
+
+  it('previews simple and grouped numeric formulas through the real motor', () => {
+    const baseRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'number',
+      parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+      separator: '',
+      steps: [{
+        id: 'formula',
+        mode: 'number',
+        type: 'numericFormula',
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'add',
+            left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'a' } },
+            right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'b' } },
+          },
+        },
+        rounding: 0,
+      }],
+    };
+
+    expect(buildCustomValuePreview(baseRecipe, { a: '10', b: '4' }, true, 'number')).toBe('14');
+    expect(buildCustomValuePreview({
+      ...baseRecipe,
+      steps: [{
+        ...baseRecipe.steps![0],
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'subtract',
+            left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'a' } },
+            right: {
+              kind: 'binary',
+              operator: 'multiply',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'b' } },
+              right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'c' } },
+            },
+          },
+        },
+      }],
+    }, { a: '100', b: '5', c: '4' }, true, 'number')).toBe('80');
+  });
+
+  it('previews numeric formulas after adding an operation to the result', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'number',
+      parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+      separator: '',
+      steps: [{
+        id: 'formula',
+        mode: 'number',
+        type: 'numericFormula',
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'add',
+            left: {
+              kind: 'binary',
+              operator: 'subtract',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'a' } },
+              right: {
+                kind: 'binary',
+                operator: 'multiply',
+                left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'b' } },
+                right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'c' } },
+              },
+            },
+            right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'd' } },
+          },
+        },
+        rounding: 0,
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, { a: '100', b: '5', c: '4', d: '3' }, true, 'number')).toBe('83');
+  });
+
+  it('keeps numeric formula preview errors consistent for zero division and text values', () => {
+    const divideByZeroRecipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'number',
+      parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+      separator: '',
+      steps: [{
+        id: 'formula',
+        mode: 'number',
+        type: 'numericFormula',
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'divide',
+            left: { kind: 'operand', operand: { type: 'fixedText', value: '100' } },
+            right: { kind: 'operand', operand: { type: 'fixedText', value: '0' } },
+          },
+        },
+        rounding: 2,
+      }],
+    };
+
+    expect(buildCustomValuePreview(divideByZeroRecipe, {}, true, 'number')).toBe('');
+    expect(getNumericFormulaUiWarning(divideByZeroRecipe.steps![0].formula)).toBe('No se puede dividir por cero.');
+    expect(buildCustomValuePreview({
+      ...divideByZeroRecipe,
+      steps: [{
+        ...divideByZeroRecipe.steps![0],
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'add',
+            left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'text' } },
+            right: { kind: 'operand', operand: { type: 'fixedText', value: '10' } },
+          },
+        },
+      }],
+    }, { text: 'ABC' }, true, 'number', [{ rowNumber: 1, values: { text: 'ABC' } }])).toBe('No se encontraron valores numéricos para calcular la vista previa.');
+  });
+
+  it('applies numeric formula rounding only to the final result', () => {
+    const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
+      type: 'combine',
+      customMode: 'number',
+      parts: [{ id: 'base', type: 'input', inputColumnId: '' }],
+      separator: '',
+      steps: [{
+        id: 'formula',
+        mode: 'number',
+        type: 'numericFormula',
+        formula: {
+          version: 1,
+          expression: {
+            kind: 'binary',
+            operator: 'multiply',
+            left: {
+              kind: 'binary',
+              operator: 'divide',
+              left: { kind: 'operand', operand: { type: 'fixedText', value: '10' } },
+              right: { kind: 'operand', operand: { type: 'fixedText', value: '3' } },
+            },
+            right: { kind: 'operand', operand: { type: 'fixedText', value: '3' } },
+          },
+        },
+        rounding: 2,
+      }],
+    };
+
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('10.00');
   });
 
   it('uses percent labels in incomplete previews and omits unconfigured zero from titles', () => {
