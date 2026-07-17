@@ -190,9 +190,15 @@ export const conditionOperators: Array<{ value: ConditionOperator; label: string
   { value: 'numericNotEquals', label: 'Distinto numérico' },
 ];
 
-export const numericOperationOptions = Object.entries(numericOperationLabels).map(([value, label]) => ({
+const visibleNumericOperationValues: Array<NonNullable<TransformStep['operation']>> = [
+  'addPercentage',
+  'subtractPercentage',
+  'removeIncludedPercentage',
+];
+
+export const numericOperationOptions = visibleNumericOperationValues.map((value) => ({
   value: value as NonNullable<TransformStep['operation']>,
-  label,
+  label: numericOperationLabels[value],
 }));
 
 export function getNumericOperandLabels(operation: NonNullable<TransformStep['operation']> = 'add') {

@@ -85,6 +85,7 @@ function cloneNumericFormula(formula?: NumericFormula): NumericFormula | undefin
   return {
     ...formula,
     expression: cloneNumericFormulaNode(formula.expression),
+    displayGroups: formula.displayGroups?.map((group) => ({ ...group })),
   };
 }
 

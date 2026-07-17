@@ -65,7 +65,11 @@ describe('recipe editor action label contracts', () => {
   });
 
   it('keeps number, date, and conversion labels centralized', () => {
-    expect(numericOperationOptions).toEqual(Object.entries(numericOperationLabels).map(([value, label]) => ({ value, label })));
+    expect(numericOperationOptions).toEqual([
+      { value: 'addPercentage', label: numericOperationLabels.addPercentage },
+      { value: 'subtractPercentage', label: numericOperationLabels.subtractPercentage },
+      { value: 'removeIncludedPercentage', label: numericOperationLabels.removeIncludedPercentage },
+    ]);
     expect(getStepTypesForMode('number').map((option) => [option.value, option.label])).toEqual([
       ['noop', recipeStepTypeLabels.noop],
       ['numericFormula', recipeStepTypeLabels.numericFormula],

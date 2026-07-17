@@ -416,12 +416,16 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     const actionButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Acci.n/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: /Operaci.n num.rica/ })).toBeNull();
-    await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
+    expect(screen.queryByRole('option', { name: 'Sumar valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Restar valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Multiplicar por valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Dividir por valor' })).toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Sumar %' }));
 
     expect(screen.queryByLabelText('Texto')).toBeNull();
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
     expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Valor a sumar' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: '%' })).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Primer valor' })).toBeNull();
     expect(screen.getByText('Completá Valor base para ver la vista previa.')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' })).not.toBeNull();
@@ -459,7 +463,7 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     );
 
     await selectModalDropdownOption(user, /Tipo de operaci.n/, /Trabajar con n.meros/);
-    await selectModalDropdownOption(user, /Acci.n/, 'Sumar valor');
+    await selectModalDropdownOption(user, /Acci.n/, 'Sumar %');
     await selectModalDropdownOption(user, /Valor base/, 'Columna de entrada');
     await user.click(screen.getByRole('button', { name: 'Valor base: columna' }));
 

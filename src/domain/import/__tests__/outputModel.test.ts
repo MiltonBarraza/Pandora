@@ -1539,6 +1539,83 @@ describe('outputModel numeric operands', () => {
     expect(row.outputValues['formula-expression']).toBe('83');
   });
 
+  it('evaluates parentheses when they change the numeric formula result', () => {
+    const [row] = buildProcessedRows([{
+      rowNumber: 1,
+      values: { D: '100', E: '10', F: '2', M: '5' },
+    }], [
+      outputColumn({
+        id: 'without-parentheses',
+        recipe: {
+          type: 'combine',
+          customMode: 'number',
+          parts: [],
+          steps: [{
+            id: 'formula',
+            type: 'numericFormula',
+            mode: 'number',
+            rounding: 'none',
+            formula: {
+              version: 1,
+              expression: {
+                kind: 'binary',
+                operator: 'add',
+                left: {
+                  kind: 'binary',
+                  operator: 'subtract',
+                  left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'D' } },
+                  right: {
+                    kind: 'binary',
+                    operator: 'multiply',
+                    left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'E' } },
+                    right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'F' } },
+                  },
+                },
+                right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'M' } },
+              },
+            },
+          }],
+        },
+      }),
+      outputColumn({
+        id: 'with-parentheses',
+        recipe: {
+          type: 'combine',
+          customMode: 'number',
+          parts: [],
+          steps: [{
+            id: 'formula',
+            type: 'numericFormula',
+            mode: 'number',
+            rounding: 'none',
+            formula: {
+              version: 1,
+              expression: {
+                kind: 'binary',
+                operator: 'add',
+                left: {
+                  kind: 'binary',
+                  operator: 'multiply',
+                  left: {
+                    kind: 'binary',
+                    operator: 'subtract',
+                    left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'D' } },
+                    right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'E' } },
+                  },
+                  right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'F' } },
+                },
+                right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'M' } },
+              },
+            },
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues['without-parentheses']).toBe('85');
+    expect(row.outputValues['with-parentheses']).toBe('185');
+  });
+
   it('rounds numeric formula results only after evaluating the full expression', () => {
     const row = buildRow([outputColumn({
       id: 'formula-rounding',

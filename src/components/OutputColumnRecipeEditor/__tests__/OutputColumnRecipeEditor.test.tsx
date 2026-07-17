@@ -746,13 +746,15 @@ describe('constructor helpers', () => {
     expect(studioMarkup.indexOf('Define cuándo se aplica esta fórmula completa.', firstStepIndex)).toBeLessThan(editorIndex);
     expect(studioMarkup.indexOf('Decimales / redondeo', firstStepIndex)).toBeLessThan(editorIndex);
     expect(editorSectionMarkup).not.toContain('Decimales / redondeo');
+    expect(editorSectionMarkup).not.toContain('Estructura');
     expect(editorTitleIndex).toBeGreaterThanOrEqual(0);
     expect(helpIndex).toBeGreaterThan(editorTitleIndex);
     expect(formulaLabelIndex).toBeGreaterThan(helpIndex);
     expect(formulaPreviewIndex).toBeGreaterThan(formulaLabelIndex);
     expect(tokenListIndex).toBeGreaterThan(formulaPreviewIndex);
-    expect(inspectorMarkup).not.toContain('Agrupar con siguiente');
-    expect(inspectorMarkup).not.toContain('Quitar grupo');
+    expect(inspectorMarkup).not.toContain('Agregar paréntesis');
+    expect(inspectorMarkup).not.toContain('Quitar paréntesis');
+    expect(inspectorMarkup).not.toContain('Mover apertura');
     expect(inspectorMarkup).not.toContain('Eliminar valor');
     expect(secondStepGeneralMarkup).toContain('Agregar paso');
     expect(secondStepGeneralMarkup).not.toContain('numericFormulaBuilderSection');
@@ -6495,17 +6497,17 @@ describe('constructor helpers', () => {
     ]);
   });
 
-  it('exposes real numeric operations without the numericOperation label for the number UI', () => {
+  it('exposes only percentage numeric operations for the number UI', () => {
     expect(numericOperationOptions.map((option) => option.label)).toEqual([
-      'Sumar valor',
-      'Restar valor',
-      'Multiplicar por valor',
-      'Dividir por valor',
       'Sumar %',
       'Restar %',
       'Quitar % incluido',
     ]);
     expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operación numérica');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Sumar valor');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Restar valor');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Multiplicar por valor');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Dividir por valor');
   });
 
   it('uses plural number mode copy and contextual numeric operand labels', () => {

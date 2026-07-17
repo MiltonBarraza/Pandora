@@ -277,6 +277,12 @@ export type NumericFormulaNode =
 export type NumericFormula = {
   version: 1;
   expression: NumericFormulaNode;
+  displayGroups?: NumericFormulaDisplayGroup[];
+};
+
+export type NumericFormulaDisplayGroup = {
+  startValueIndex: number;
+  endValueIndex: number;
 };
 
 export type ConditionOperator =

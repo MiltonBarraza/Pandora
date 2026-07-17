@@ -682,10 +682,11 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const actionButtons = within(getComposePartEditor()).getAllByRole('button', { name: /Acción/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
-    expect(screen.getByRole('option', { name: 'Sumar valor' })).not.toBeNull();
-    await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
+    expect(screen.queryByRole('option', { name: 'Sumar valor' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Sumar %' })).not.toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Sumar %' }));
     expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Valor a sumar' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: '%' })).not.toBeNull();
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
 
     await selectComposePartDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
@@ -907,14 +908,20 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const actionButtons = screen.getAllByRole('button', { name: /Acción/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
-    expect(screen.getByRole('option', { name: 'Sumar valor' })).not.toBeNull();
-    expect(screen.getByRole('option', { name: 'Restar valor' })).not.toBeNull();
-    await user.click(screen.getByRole('option', { name: 'Sumar valor' }));
+    expect(screen.queryByRole('option', { name: 'Sumar valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Restar valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Multiplicar por valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Dividir por valor' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Calcular fórmula' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Sumar %' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Restar %' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Quitar % incluido' })).not.toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Sumar %' }));
 
     expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Valor a sumar' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: '%' })).not.toBeNull();
     expect((getInputByLabelText('Valor base: valor fijo') as HTMLInputElement).value).toBe('');
-    expect((getInputByLabelText('Valor a sumar: valor fijo') as HTMLInputElement).value).toBe('');
+    expect((getInputByLabelText('%: valor fijo') as HTMLInputElement).value).toBe('');
     expect(screen.queryByText('Resultado anterior')).toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
   });
@@ -974,25 +981,40 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
     await selectFormulaOption(user, /Operador 1/, '-');
     await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
-    await selectFormulaOption(user, /Operador 2/, '×');
     await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
-    await user.click(screen.getByRole('button', { name: 'Agrupar con siguiente' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
 
-    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B × C)');
-    const groupShell = screen.getByLabelText('Grupo de fórmula');
-    expect(groupShell).not.toBeNull();
-    expect(within(groupShell).getByText('Grupo')).not.toBeNull();
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B + C)');
+    expect(screen.getByLabelText('Paréntesis de apertura')).not.toBeNull();
+    expect(screen.getByLabelText('Paréntesis de cierre')).not.toBeNull();
+    expect(screen.getByLabelText('Paréntesis de apertura').textContent?.trim().startsWith('(')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Arrastrar valor 2' })).not.toBeNull();
+    const openParenthesisHandle = screen.getByRole('button', { name: 'Arrastrar paréntesis de apertura' });
+    expect(openParenthesisHandle).not.toBeNull();
+    expect(openParenthesisHandle.querySelector('svg')).not.toBeNull();
+    expect(openParenthesisHandle.textContent).not.toContain('::');
+    expect(screen.getAllByRole('button', { name: 'Eliminar paréntesis' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Arrastrar paréntesis de cierre' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Agregar paréntesis' })).toBeNull();
+    const inlineGroup = screen.getByLabelText('Grupo de fórmula');
+    expect(inlineGroup).not.toBeNull();
+    expect(within(inlineGroup).queryByRole('button', { name: /Primer valor/ })).toBeNull();
+    expect(within(inlineGroup).getByRole('button', { name: /Segundo valor/ })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /Mover apertura/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Mover cierre/ })).toBeNull();
+    expect(screen.queryByText('Estructura')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0].formula.displayGroups).toEqual([{ startValueIndex: 1, endValueIndex: 2 }]);
     expect(persistedRecipe.steps[0].formula.expression).toMatchObject({
-      operator: 'subtract',
-      left: { operand: { inputColumnId: 'A' } },
-      right: {
-        operator: 'multiply',
-        left: { operand: { inputColumnId: 'B' } },
-        right: { operand: { inputColumnId: 'C' } },
-      },
+        operator: 'subtract',
+        left: { operand: { inputColumnId: 'A' } },
+        right: {
+          operator: 'add',
+          left: { operand: { inputColumnId: 'B' } },
+          right: { operand: { inputColumnId: 'C' } },
+        },
     });
   });
 
@@ -1009,13 +1031,133 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
     await selectFormulaOption(user, /Operador 1/, '-');
     await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
-    await selectFormulaOption(user, /Operador 2/, '×');
     await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
-    await user.click(screen.getByRole('button', { name: 'Agrupar con siguiente' }));
-    await user.click(screen.getByRole('button', { name: 'Quitar grupo' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
+    await user.click(screen.getAllByRole('button', { name: 'Eliminar paréntesis' })[0]);
 
-    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - B × C');
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - B + C');
+    expect(screen.queryByLabelText('Paréntesis de apertura')).toBeNull();
+    expect(screen.queryByLabelText('Paréntesis de cierre')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aviso de fórmula' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B + C)');
+    await user.click(screen.getAllByRole('button', { name: 'Eliminar paréntesis' })[1]);
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - B + C');
+    expect(screen.queryByLabelText('Paréntesis de apertura')).toBeNull();
+    expect(screen.queryByLabelText('Paréntesis de cierre')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aviso de fórmula' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
+    expect(persistedRecipe.steps[0].formula.displayGroups).toBeUndefined();
+
+    await openRecipeEditor(user);
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - B + C');
+    expect(screen.queryByLabelText('Paréntesis de apertura')).toBeNull();
+    expect(screen.queryByLabelText('Paréntesis de cierre')).toBeNull();
+  });
+
+  it('keeps a visual numeric formula group even when operator precedence would otherwise hide it', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankNumberColumn('output-formula-visual-group')}
+      editorInputColumns={formulaInputColumns}
+      rows={formulaRows}
+      sampleInputValues={formulaRows[0].values}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await selectFormulaOption(user, /Operador 2/, '×');
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A + B × C');
+
+    await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A + (B × C)');
+    expect(screen.getByLabelText('Paréntesis de apertura')).not.toBeNull();
+    expect(screen.getByLabelText('Paréntesis de cierre')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /Mover apertura/ })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+    await openRecipeEditor(user);
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A + (B × C)');
+    expect(screen.getByLabelText('Paréntesis de apertura')).not.toBeNull();
+    expect(screen.getByLabelText('Paréntesis de cierre')).not.toBeNull();
+    expect(screen.getByLabelText('Grupo de fórmula')).not.toBeNull();
+  });
+
+  it('does not allow grouping the last numeric formula value', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankNumberColumn('output-formula-last-value-group')}
+      editorInputColumns={formulaInputColumns}
+      rows={formulaRows}
+      sampleInputValues={formulaRows[0].values}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await user.click(screen.getByRole('button', { name: /Tercer valor/ }));
+
+    expect((screen.getByRole('button', { name: 'Agregar paréntesis' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByLabelText('Grupo de fórmula')).toBeNull();
+  });
+
+  it('renders numeric formula parentheses as compact inline tokens', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankNumberColumn('output-formula-extend-right')}
+      editorInputColumns={formulaInputColumns}
+      rows={formulaRows}
+      sampleInputValues={formulaRows[0].values}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
+    await selectFormulaOption(user, /Operador 1/, '-');
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B + C) + D');
+
+    expect(screen.getByLabelText('Paréntesis de apertura')).not.toBeNull();
+    expect(screen.getByLabelText('Paréntesis de cierre')).not.toBeNull();
+    expect(screen.getByLabelText('Grupo de fórmula')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /Mover cierre/ })).toBeNull();
+  });
+
+  it('keeps numeric formula group actions inside parenthesis tokens', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor
+      initialColumn={createBlankNumberColumn('output-formula-extend-left')}
+      editorInputColumns={formulaInputColumns}
+      rows={formulaRows}
+      sampleInputValues={formulaRows[0].values}
+    />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
+    await selectFormulaOption(user, /Operador 1/, '-');
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
+    await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
+
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B + C) + D');
+
+    expect(screen.getByRole('button', { name: 'Arrastrar paréntesis de apertura' })).not.toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Eliminar paréntesis' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Arrastrar paréntesis de cierre' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /Mover apertura/ })).toBeNull();
   });
 
   it('builds a grouped numeric formula divided by a value', async () => {
@@ -1032,7 +1174,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
     await selectFormulaOption(user, /Operador 2/, '÷');
     await user.click(screen.getByRole('button', { name: /Primer valor/ }));
-    await user.click(screen.getByRole('button', { name: 'Agrupar con siguiente' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
 
     expect(screen.getByLabelText('Fórmula construida').textContent).toBe('(A + B) ÷ C');
 
@@ -1062,12 +1204,11 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Acci.n/, /Calcular f.rmula/);
     await selectFormulaOption(user, /Operador 1/, '-');
     await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
-    await selectFormulaOption(user, /Operador 2/, '×');
     await user.click(screen.getByRole('button', { name: /Segundo valor/ }));
-    await user.click(screen.getByRole('button', { name: 'Agrupar con siguiente' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar paréntesis' }));
     await user.click(screen.getByRole('button', { name: 'Agregar valor' }));
 
-    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B × C) + D');
+    expect(screen.getByLabelText('Fórmula construida').textContent).toBe('A - (B + C) + D');
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
@@ -1075,7 +1216,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
       operator: 'add',
       left: {
         operator: 'subtract',
-        right: { operator: 'multiply' },
+        right: { operator: 'add' },
       },
       right: { operand: { inputColumnId: 'D' } },
     });
@@ -1119,16 +1260,16 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await openRecipeEditor(user);
     await user.click(screen.getByRole('button', { name: 'Agregar paso' }));
     await selectLastDropdownOption(user, /Tipo de operación/, 'Trabajar con números');
-    await selectLastDropdownOption(user, /Acción/, 'Restar valor');
+    await selectLastDropdownOption(user, /Acción/, 'Restar %');
 
     expect(screen.queryByRole('button', { name: 'Valor base' })).toBeNull();
-    expect((getInputByLabelText('Valor a restar: valor fijo') as HTMLInputElement).value).toBe('');
+    expect((getInputByLabelText('%: valor fijo') as HTMLInputElement).value).toBe('');
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
     expect(persistedRecipe.steps[1]).toMatchObject({
       type: 'numericOperation',
-      operation: 'subtract',
+      operation: 'subtractPercentage',
       leftOperand: { type: 'previousResult' },
       rightOperand: { type: 'fixedText', value: '' },
     });
@@ -1211,7 +1352,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const actionLabels = screen.getAllByText('Acción');
     const actionField = actionLabels[actionLabels.length - 1]?.closest('.dropdownField') as HTMLElement;
     await user.hover(within(actionField).getByRole('button', { name: 'Ver ayuda' }));
-    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe('Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.'));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toMatch(/Busca el primer número dentro del texto.*Serie 304.*304/));
 
     await selectLastDropdownOption(user, /Qué valor usar/, 'Elegir texto desde celda');
     await user.click(screen.getByRole('combobox', { name: /Texto encontrado/ }));

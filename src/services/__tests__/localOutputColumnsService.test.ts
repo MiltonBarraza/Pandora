@@ -661,6 +661,7 @@ describe('localOutputColumnsService', () => {
                     right: { kind: 'operand', operand: { type: 'fixedText', value: '2', numericFallback: 2 } },
                   },
                 },
+                displayGroups: [{ startValueIndex: 1, endValueIndex: 2 }],
               },
             }],
           },
@@ -679,6 +680,7 @@ describe('localOutputColumnsService', () => {
         rounding: 'none',
         formula: {
           version: 1,
+          displayGroups: [{ startValueIndex: 1, endValueIndex: 2 }],
           expression: {
             kind: 'binary',
             operator: 'subtract',
@@ -693,5 +695,47 @@ describe('localOutputColumnsService', () => {
         },
       }],
     });
+  });
+
+  it('drops invalid numeric formula display metadata when loading saved columns', async () => {
+    const { loadOutputColumns } = await import('../localOutputColumnsService');
+
+    storage.set(
+      'excel-sanitizer:v2-output-columns',
+      JSON.stringify([
+        {
+          id: 'formula-invalid-display',
+          label: 'Formula',
+          recipe: {
+            type: 'combine',
+            parts: [],
+            steps: [{
+              id: 'formula-step',
+              type: 'numericFormula',
+              formula: {
+                version: 1,
+                expression: {
+                  kind: 'binary',
+                  operator: 'add',
+                  left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-a' } },
+                  right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-b' } },
+                },
+                displayGroups: [
+                  { startValueIndex: 1, endValueIndex: 1 },
+                  { startValueIndex: 0, endValueIndex: 10 },
+                ],
+              },
+            }],
+          },
+        },
+      ]),
+    );
+
+    const [column] = loadOutputColumns();
+    if (column.recipe.type !== 'combine') {
+      throw new Error('Expected combine recipe');
+    }
+
+    expect(column.recipe.steps?.[0].formula?.displayGroups).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import type { NumericFormula, NumericFormulaNode, NumericFormulaOperator, StepOperand } from '../../types/import';
+import type { NumericFormula, NumericFormulaDisplayGroup, NumericFormulaNode, NumericFormulaOperator, StepOperand } from '../../types/import';
 
 export type FormulaValueToken = {
   id: string;
@@ -184,6 +184,169 @@ export function groupFormulaValueWithNext(state: FormulaTokenState, valueId: str
   };
 }
 
+export function extendFormulaGroupLeft(state: FormulaTokenState): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const values = getFormulaValueTokens(normalized);
+  const group = normalized.groups[0];
+  if (!group) {
+    return normalized;
+  }
+
+  const startIndex = getValueTokenIndex(group.startValueId);
+  if (startIndex <= 0) {
+    return normalized;
+  }
+
+  return normalizeFormulaTokenState({
+    ...normalized,
+    groups: [{
+      ...group,
+      startValueId: values[startIndex - 1]?.id ?? group.startValueId,
+    }],
+  });
+}
+
+export function extendFormulaGroupRight(state: FormulaTokenState): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const values = getFormulaValueTokens(normalized);
+  const group = normalized.groups[0];
+  if (!group) {
+    return normalized;
+  }
+
+  const endIndex = getValueTokenIndex(group.endValueId);
+  if (endIndex >= values.length - 1) {
+    return normalized;
+  }
+
+  return normalizeFormulaTokenState({
+    ...normalized,
+    groups: [{
+      ...group,
+      endValueId: values[endIndex + 1]?.id ?? group.endValueId,
+    }],
+  });
+}
+
+export function moveFormulaGroupStartRight(state: FormulaTokenState): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const values = getFormulaValueTokens(normalized);
+  const group = normalized.groups[0];
+  if (!group) {
+    return normalized;
+  }
+
+  const startIndex = getValueTokenIndex(group.startValueId);
+  const endIndex = getValueTokenIndex(group.endValueId);
+  if (startIndex + 1 >= endIndex) {
+    return normalized;
+  }
+
+  return normalizeFormulaTokenState({
+    ...normalized,
+    groups: [{
+      ...group,
+      startValueId: values[startIndex + 1]?.id ?? group.startValueId,
+    }],
+  });
+}
+
+export function moveFormulaGroupEndLeft(state: FormulaTokenState): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const values = getFormulaValueTokens(normalized);
+  const group = normalized.groups[0];
+  if (!group) {
+    return normalized;
+  }
+
+  const startIndex = getValueTokenIndex(group.startValueId);
+  const endIndex = getValueTokenIndex(group.endValueId);
+  if (endIndex - 1 <= startIndex) {
+    return normalized;
+  }
+
+  return normalizeFormulaTokenState({
+    ...normalized,
+    groups: [{
+      ...group,
+      endValueId: values[endIndex - 1]?.id ?? group.endValueId,
+    }],
+  });
+}
+
+export function moveFormulaGroupStartToValue(state: FormulaTokenState, valueId: string): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const group = normalized.groups[0];
+  if (!group) {
+    return normalized;
+  }
+
+  const startIndex = getValueTokenIndex(valueId);
+  const endIndex = getValueTokenIndex(group.endValueId);
+  if (startIndex < 0 || startIndex >= endIndex) {
+    return normalized;
+  }
+
+  return normalizeFormulaTokenState({
+    ...normalized,
+    groups: [{
+      ...group,
+      startValueId: valueId,
+    }],
+  });
+}
+
+export function moveFormulaGroupEndToValue(state: FormulaTokenState, valueId: string): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const group = normalized.groups[0];
+  if (!group) {
+    return normalized;
+  }
+
+  const startIndex = getValueTokenIndex(group.startValueId);
+  const endIndex = getValueTokenIndex(valueId);
+  if (endIndex <= startIndex) {
+    return normalized;
+  }
+
+  return normalizeFormulaTokenState({
+    ...normalized,
+    groups: [{
+      ...group,
+      endValueId: valueId,
+    }],
+  });
+}
+
+export function reorderFormulaValueToken(state: FormulaTokenState, fromValueId: string, toValueId: string): FormulaTokenState {
+  const normalized = normalizeFormulaTokenState(state);
+  const values = getFormulaValueTokens(normalized);
+  const operators = getFormulaOperatorTokens(normalized);
+  const fromIndex = values.findIndex((value) => value.id === fromValueId);
+  const toIndex = values.findIndex((value) => value.id === toValueId);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+    return normalized;
+  }
+
+  const nextValues = [...values];
+  const [movedValue] = nextValues.splice(fromIndex, 1);
+  nextValues.splice(toIndex, 0, movedValue);
+  const nextGroups = normalized.groups.map((group) => ({
+    ...group,
+    startValueId: getValueTokenId(Math.min(getValueTokenIndex(group.startValueId), nextValues.length - 1)),
+    endValueId: getValueTokenId(Math.min(getValueTokenIndex(group.endValueId), nextValues.length - 1)),
+  }));
+
+  return normalizeFormulaTokenState({
+    tokens: nextValues.flatMap((value, index) => (
+      index < nextValues.length - 1
+        ? [value, operators[index] ?? createOperatorToken(index, 'add')]
+        : [value]
+    )),
+    groups: nextGroups,
+  });
+}
+
 export function clearFormulaGroup(state: FormulaTokenState): FormulaTokenState {
   return {
     ...state,
@@ -196,7 +359,11 @@ export function numericFormulaToTokenState(formula: NumericFormula | undefined, 
     return normalizeFormulaTokenState(fallback);
   }
 
-  return numericFormulaNodeToTokens(formula.expression, fallback).state;
+  const conversion = numericFormulaNodeToTokens(formula.expression, fallback);
+  const displayGroups = numericFormulaDisplayGroupsToFormulaGroups(formula.displayGroups, conversion.state);
+  return displayGroups.length > 0
+    ? normalizeFormulaTokenState({ ...conversion.state, groups: displayGroups })
+    : conversion.state;
 }
 
 export function numericFormulaNodeToTokens(expression: NumericFormulaNode, fallback?: FormulaTokenState): NumericFormulaTokenConversion {
@@ -252,9 +419,12 @@ export function numericFormulaTokensToNode(tokens: FormulaToken[], groups: Formu
 }
 
 export function tokenStateToNumericFormula(state: FormulaTokenState): NumericFormula {
+  const normalized = normalizeFormulaTokenState(state);
+  const displayGroups = formulaGroupsToNumericFormulaDisplayGroups(normalized.groups);
   return {
     version: 1,
-    expression: tokenStateToExpression(state),
+    expression: tokenStateToExpression(normalized),
+    ...(displayGroups.length > 0 ? { displayGroups } : {}),
   };
 }
 
@@ -332,7 +502,7 @@ export function validateNumericFormulaTokens(tokens: FormulaToken[], groups: For
 
   const invalidGroup = normalized.groups.find((group) => getValueTokenIndex(group.endValueId) <= getValueTokenIndex(group.startValueId));
   if (invalidGroup) {
-    return 'El grupo de paréntesis no es válido.';
+    return 'Los paréntesis no forman un grupo válido. Ajustalos para ver la vista previa.';
   }
 
   return '';
@@ -394,6 +564,42 @@ function shouldCreateVisualGroup(
   return side === 'right'
     && parentOperator === 'subtract'
     && operatorPrecedence[operator] > operatorPrecedence[parentOperator];
+}
+
+export function formulaGroupsToNumericFormulaDisplayGroups(groups: FormulaGroup[]): NumericFormulaDisplayGroup[] {
+  return groups
+    .map((group) => ({
+      startValueIndex: getValueTokenIndex(group.startValueId),
+      endValueIndex: getValueTokenIndex(group.endValueId),
+    }))
+    .filter((group) => group.startValueIndex >= 0 && group.endValueIndex > group.startValueIndex)
+    .slice(0, 1);
+}
+
+export function numericFormulaDisplayGroupsToFormulaGroups(
+  displayGroups: NumericFormulaDisplayGroup[] | undefined,
+  state: FormulaTokenState,
+): FormulaGroup[] {
+  if (!Array.isArray(displayGroups)) {
+    return [];
+  }
+
+  const values = getFormulaValueTokens(state);
+  return displayGroups
+    .map((group, index) => ({
+      id: `group-${index}`,
+      startValueId: getValueTokenId(group.startValueIndex),
+      endValueId: getValueTokenId(group.endValueIndex),
+    }))
+    .filter((group) => {
+      const startIndex = getValueTokenIndex(group.startValueId);
+      const endIndex = getValueTokenIndex(group.endValueId);
+      return startIndex >= 0
+        && endIndex > startIndex
+        && startIndex < values.length
+        && endIndex < values.length;
+    })
+    .slice(0, 1);
 }
 
 function normalizeValueId(valueId: string, valueCount: number) {

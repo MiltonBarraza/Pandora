@@ -669,6 +669,7 @@ function normalizeNumericFormulaForContext(formula: NumericFormula | undefined, 
   return {
     version: 1,
     expression: normalizeNumericFormulaNodeForContext(formula.expression, stepEditorPolicy(context)),
+    ...(formula.displayGroups?.length ? { displayGroups: formula.displayGroups.map((group) => ({ ...group })) } : {}),
   };
 }
 

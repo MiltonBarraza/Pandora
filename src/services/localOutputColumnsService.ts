@@ -7,6 +7,7 @@ import type {
   ManualRangeCondition,
   ManualRangeValue,
   NumericFormula,
+  NumericFormulaDisplayGroup,
   NumericFormulaNode,
   NumericFormulaOperator,
   OutputColumn,
@@ -402,7 +403,16 @@ function normalizeNumericFormula(formula?: Partial<NumericFormula>): NumericForm
   }
 
   const expression = normalizeNumericFormulaNode(formula.expression);
-  return expression ? { version: 1, expression } : undefined;
+  if (!expression) {
+    return undefined;
+  }
+
+  const displayGroups = normalizeNumericFormulaDisplayGroups(formula.displayGroups, countNumericFormulaOperands(expression));
+  return {
+    version: 1,
+    expression,
+    ...(displayGroups.length > 0 ? { displayGroups } : {}),
+  };
 }
 
 function normalizeNumericFormulaNode(node?: Partial<NumericFormulaNode>): NumericFormulaNode | undefined {
@@ -425,6 +435,37 @@ function normalizeNumericFormulaOperator(operator?: string): NumericFormulaOpera
   return operator === 'add' || operator === 'subtract' || operator === 'multiply' || operator === 'divide'
     ? operator
     : undefined;
+}
+
+function normalizeNumericFormulaDisplayGroups(
+  displayGroups: Partial<NumericFormula>['displayGroups'],
+  valueCount: number,
+): NumericFormulaDisplayGroup[] {
+  if (!Array.isArray(displayGroups)) {
+    return [];
+  }
+
+  return displayGroups
+    .map((group) => ({
+      startValueIndex: Number(group?.startValueIndex),
+      endValueIndex: Number(group?.endValueIndex),
+    }))
+    .filter((group) => (
+      Number.isInteger(group.startValueIndex)
+      && Number.isInteger(group.endValueIndex)
+      && group.startValueIndex >= 0
+      && group.endValueIndex > group.startValueIndex
+      && group.endValueIndex < valueCount
+    ))
+    .slice(0, 1);
+}
+
+function countNumericFormulaOperands(node: NumericFormulaNode): number {
+  if (node.kind === 'operand') {
+    return 1;
+  }
+
+  return countNumericFormulaOperands(node.left) + countNumericFormulaOperands(node.right);
 }
 
 function normalizeConcatParts(parts?: Partial<ConcatPart>[]): ConcatPart[] | undefined {

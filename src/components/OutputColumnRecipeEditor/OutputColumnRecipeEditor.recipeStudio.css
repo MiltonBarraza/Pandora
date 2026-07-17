@@ -579,30 +579,78 @@
   max-width: min(260px, calc(100vw - 72px));
 }
 
+.numericFormulaValueCard .numericFormulaDragHandle {
+  cursor: grab;
+}
+
+.numericFormulaValueCard.sortableDragging {
+  opacity: 0.72;
+}
+
+.numericFormulaParenthesisToken {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 6px;
+  grid-template-columns: auto auto;
+  min-height: 44px;
+  padding: 4px;
+}
+
+.numericFormulaParenthesisToken:hover,
+.numericFormulaParenthesisToken:focus-within {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
+}
+
+.numericFormulaParenthesisHandle {
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
+}
+
+.numericFormulaParenthesisActions {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.numericFormulaParenthesisSymbol {
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 18px;
+  text-align: center;
+}
+
 .numericFormulaGroupShell {
   align-items: center;
-  background: color-mix(in srgb, var(--color-selected-bg) 48%, transparent);
-  border: 1px solid var(--color-selected-border);
+  background: color-mix(in srgb, var(--color-selected-bg) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-selected-border) 72%, var(--color-border-muted));
   border-radius: 8px;
   display: inline-flex;
-  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
-  padding: 8px;
+  padding: 8px 6px 6px;
   position: relative;
 }
 
 .numericFormulaGroupChip {
-  background: var(--color-selected-border);
+  background: color-mix(in srgb, var(--color-selected-border) 78%, var(--color-bg-surface));
   border-radius: 999px;
   color: var(--color-bg-surface);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 800;
   line-height: 1;
-  padding: 3px 7px;
+  padding: 2px 6px;
   position: absolute;
-  right: 8px;
-  top: -9px;
+  right: 6px;
+  top: -8px;
 }
 
 .numericFormulaInlineOperator {
@@ -623,33 +671,6 @@
   min-width: 54px;
   padding-left: 10px;
   padding-right: 8px;
-}
-
-.numericFormulaGroupedOperator {
-  flex-basis: 56px;
-  min-width: 56px;
-  width: 56px;
-}
-
-.numericFormulaParen {
-  color: var(--color-text-secondary);
-  font-size: 1.55rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.numericFormulaStructureActions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.numericFormulaStructureActionsLabel {
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .numericFormulaInspector {
@@ -759,9 +780,6 @@
     flex-wrap: wrap;
   }
 
-  .numericFormulaGroupShell {
-    flex-wrap: wrap;
-  }
 }
 
 .composeTokenRules {

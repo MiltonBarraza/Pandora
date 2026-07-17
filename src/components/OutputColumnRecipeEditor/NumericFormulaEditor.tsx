@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import type { InputColumn, NumericFormula, NumericFormulaNode, NumericFormulaOperator, StepOperand, TransformStep } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
@@ -16,9 +17,13 @@ import {
   getFormulaOperatorTokens,
   getFormulaValueTokens,
   groupFormulaValueWithNext,
+  moveFormulaGroupEndToValue,
+  moveFormulaGroupStartToValue,
   numericFormulaNodeToTokens,
   numericFormulaToTokenState,
+  normalizeFormulaTokenState,
   removeFormulaValueToken,
+  reorderFormulaValueToken,
   tokenStateToExpression,
   tokenStateToNumericFormula,
   updateFormulaOperator,
@@ -55,6 +60,12 @@ const formulaDisplayOperatorLabels: Record<NumericFormulaOperator, string> = {
   divide: '÷',
 };
 
+type FormulaParenthesisSide = 'open' | 'close';
+
+const openParenthesisDragId = 'parenthesis-open';
+const closeParenthesisDragId = 'parenthesis-close';
+const invalidParenthesesWarning = 'Los paréntesis no forman un grupo válido. Ajustalos para ver la vista previa.';
+
 export function NumericFormulaEditor({
   formula,
   rounding,
@@ -80,15 +91,20 @@ export function NumericFormulaEditor({
   const values = getFormulaValueTokens(tokenState);
   const operators = getFormulaOperatorTokens(tokenState);
   const [selectedValueId, setSelectedValueId] = useState(values[0]?.id ?? '');
+  const [forcedGroup, setForcedGroup] = useState<FormulaGroup | undefined>(undefined);
   const [hiddenGroupKey, setHiddenGroupKey] = useState('');
+  const [draggedPieceId, setDraggedPieceId] = useState('');
+  const [hiddenParenthesisSide, setHiddenParenthesisSide] = useState<FormulaParenthesisSide | ''>('');
   const inferredGroup = tokenState.groups[0];
-  const visibleGroup = inferredGroup && getFormulaGroupSignature(inferredGroup) !== hiddenGroupKey
+  const visibleForcedGroup = forcedGroup ? normalizeFormulaTokenState({ ...tokenState, groups: [forcedGroup] }).groups[0] : undefined;
+  const visibleInferredGroup = inferredGroup && getFormulaGroupSignature(inferredGroup) !== hiddenGroupKey
     ? inferredGroup
     : undefined;
+  const visibleGroup = visibleForcedGroup ?? visibleInferredGroup;
   const visibleTokenState = visibleGroup ? { ...tokenState, groups: [visibleGroup] } : { ...tokenState, groups: [] };
   const safeSelectedValue = values.find((value) => value.id === selectedValueId) ?? values[0];
-  const formulaText = describeFormulaTokenState(visibleTokenState, inputColumns);
-  const tokenWarning = validateFormulaTokenState(tokenState);
+  const formulaText = describeFormulaTokenState(visibleTokenState, inputColumns, hiddenParenthesisSide);
+  const tokenWarning = hiddenParenthesisSide ? invalidParenthesesWarning : validateFormulaTokenState(visibleTokenState);
   const visibleWarning = warning || tokenWarning || conversionWarning;
 
   const commitState = (nextState: FormulaTokenState, nextSelectedValueId = selectedValueId, options: { keepHiddenGroup?: boolean } = {}) => {
@@ -99,23 +115,65 @@ export function NumericFormulaEditor({
     if (!options.keepHiddenGroup) {
       setHiddenGroupKey('');
     }
+    setHiddenParenthesisSide('');
     setSelectedValueId(safeNextSelectedValueId);
     onFormulaChange(tokenStateToNumericFormula(nextState));
   };
 
   const selectedValueIndex = safeSelectedValue ? values.findIndex((value) => value.id === safeSelectedValue.id) : -1;
-  const canGroupWithNext = safeSelectedValue && selectedValueIndex >= 0 && selectedValueIndex < values.length - 1;
-  const activeGroup = getGroupForValue(visibleTokenState.groups, safeSelectedValue?.id ?? '');
+  const hasCompleteParentheses = Boolean(visibleGroup && !hiddenParenthesisSide);
+  const canGroupWithNext = safeSelectedValue && !hasCompleteParentheses && selectedValueIndex >= 0 && selectedValueIndex < values.length - 1;
   const handleDeleteValue = (valueId: string) => {
+    setForcedGroup(undefined);
     commitState(removeFormulaValueToken(tokenState, valueId), selectedValueId === valueId ? '' : selectedValueId);
   };
-  const handleClearGroup = () => {
-    if (!activeGroup) {
+  const handleAddParentheses = () => {
+    if (!safeSelectedValue || !canGroupWithNext) {
       return;
     }
 
-    setHiddenGroupKey(getFormulaGroupSignature(activeGroup));
-    commitState(clearFormulaGroup(tokenState), safeSelectedValue?.id ?? '', { keepHiddenGroup: true });
+    if (visibleGroup && hiddenParenthesisSide) {
+      setHiddenParenthesisSide('');
+      commitState(visibleTokenState, safeSelectedValue.id);
+      return;
+    }
+
+    const nextState = groupFormulaValueWithNext(tokenState, safeSelectedValue.id);
+    setForcedGroup(nextState.groups[0]);
+    commitState(nextState, safeSelectedValue.id);
+  };
+  const handleRemoveParenthesis = () => {
+    if (!visibleGroup) {
+      return;
+    }
+
+    setForcedGroup(undefined);
+    setHiddenGroupKey(getFormulaGroupSignature(visibleGroup));
+    commitState(clearFormulaGroup(visibleTokenState), safeSelectedValue?.id ?? '', { keepHiddenGroup: true });
+  };
+  const handleDropOnValue = (toValueId: string) => {
+    if (!draggedPieceId || draggedPieceId === toValueId) {
+      setDraggedPieceId('');
+      return;
+    }
+
+    let nextState: FormulaTokenState | undefined;
+    if (draggedPieceId === openParenthesisDragId) {
+      nextState = moveFormulaGroupStartToValue(visibleTokenState, toValueId);
+    } else if (draggedPieceId === closeParenthesisDragId) {
+      nextState = moveFormulaGroupEndToValue(visibleTokenState, toValueId);
+    } else {
+      nextState = reorderFormulaValueToken(visibleTokenState, draggedPieceId, toValueId);
+    }
+
+    if (nextState === visibleTokenState) {
+      setDraggedPieceId('');
+      return;
+    }
+
+    setForcedGroup(nextState.groups[0]);
+    commitState(nextState, draggedPieceId.startsWith('value-') ? `value-${getFormulaValueIndex(toValueId)}` : safeSelectedValue?.id);
+    setDraggedPieceId('');
   };
 
   return (
@@ -137,14 +195,27 @@ export function NumericFormulaEditor({
               <strong className="numericFormulaPreview" aria-label="Fórmula construida">{formulaText}</strong>
             </div>
             <div className="composeStudioActions">
+              {!hasCompleteParentheses ? (
+                <ActionButton
+                  variant="secondary"
+                  size="sm"
+                  className="composeStudioActionButton"
+                  disabled={!canGroupWithNext}
+                  title={!canGroupWithNext ? 'Seleccioná un valor con otro valor a la derecha.' : undefined}
+                  onClick={handleAddParentheses}
+                >
+                  Agregar paréntesis
+                </ActionButton>
+              ) : null}
               <ActionButton
                 action="add"
                 variant="secondary"
                 className="composeStudioActionButton"
                 onClick={() => {
-                  const nextState = addFormulaValueToken(tokenState, createDefaultOperand(inputColumns, false, values.length));
+                  const nextState = addFormulaValueToken(visibleTokenState, createDefaultOperand(inputColumns, false, values.length));
                   const nextValues = getFormulaValueTokens(nextState);
                   const nextValue = nextValues[nextValues.length - 1];
+                  setForcedGroup(nextState.groups[0]);
                   commitState(nextState, nextValue?.id);
                 }}
               >
@@ -161,29 +232,16 @@ export function NumericFormulaEditor({
               safeSelectedValueId: safeSelectedValue?.id,
               inputColumns,
               canDeleteValue: values.length > 2,
+              hiddenParenthesisSide,
+              draggedPieceId,
               onSelectValue: setSelectedValueId,
               onDeleteValue: handleDeleteValue,
-              onOperatorChange: (operatorId, nextOperator) => commitState(updateFormulaOperator(tokenState, operatorId, nextOperator)),
+              onDragStartPiece: setDraggedPieceId,
+              onDragEndPiece: () => setDraggedPieceId(''),
+              onDropValue: handleDropOnValue,
+              onRemoveParenthesis: handleRemoveParenthesis,
+              onOperatorChange: (operatorId, nextOperator) => commitState(updateFormulaOperator(visibleTokenState, operatorId, nextOperator)),
             })}
-          </div>
-          <div className="numericFormulaStructureActions">
-            <span className="numericFormulaStructureActionsLabel">Estructura</span>
-            <ActionButton
-              variant="secondary"
-              size="sm"
-              disabled={!canGroupWithNext}
-              onClick={() => safeSelectedValue && commitState(groupFormulaValueWithNext(tokenState, safeSelectedValue.id), safeSelectedValue.id)}
-            >
-              Agrupar con siguiente
-            </ActionButton>
-            <ActionButton
-              variant="secondary"
-              size="sm"
-              disabled={!activeGroup}
-              onClick={handleClearGroup}
-            >
-              Quitar grupo
-            </ActionButton>
           </div>
         </div>
 
@@ -232,30 +290,121 @@ function FormulaValueCard({
   value,
   index,
   selected,
+  dragging,
   inputColumns,
   onSelect,
   onDelete,
+  onDragStart,
+  onDragEnd,
+  onDrop,
 }: {
   value: FormulaValueToken;
   index: number;
   selected: boolean;
+  dragging: boolean;
   inputColumns: InputColumn[];
   onSelect: () => void;
   onDelete?: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDrop: () => void;
 }) {
   const kind = getFormulaValueKind(value.operand);
+  const handleDragStart = (event: DragEvent<HTMLDivElement | HTMLButtonElement>) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', value.id);
+    onDragStart();
+  };
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  };
   return (
-    <div className={`numericFormulaValueCard compositionTokenCard compositionToken-${kind}${selected ? ' selected' : ' unselected'}`}>
+    <div
+      className={`numericFormulaValueCard compositionTokenCard compositionToken-${kind}${selected ? ' selected' : ' unselected'}${dragging ? ' sortableDragging' : ''}`}
+      draggable
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={onDragEnd}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDrop();
+      }}
+    >
       <button type="button" className={`compositionToken compositionToken-${kind}${selected ? ' selected' : ''}`} aria-pressed={selected} onClick={onSelect}>
         <span>{getFormulaValueLabel(index)}</span>
         <small>{describeOperand(value.operand, inputColumns)}</small>
       </button>
       <div className="compositionTokenActions">
+        <button
+          type="button"
+          className="dragHandle numericFormulaDragHandle"
+          aria-label={`Arrastrar valor ${index + 1}`}
+          title="Arrastrar valor"
+          draggable
+          onClick={(event) => event.preventDefault()}
+          onDragStart={handleDragStart}
+          onDragEnd={onDragEnd}
+        >
+          <span aria-hidden="true">::</span>
+        </button>
         {onDelete ? (
           <InfoTooltip content="Eliminar valor">
             <DeleteButton title="Eliminar valor" onClick={onDelete} />
           </InfoTooltip>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function FormulaParenthesisToken({
+  side,
+  dragging,
+  onDragStart,
+  onDragEnd,
+  onRemove,
+}: {
+  side: FormulaParenthesisSide;
+  dragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onRemove: () => void;
+}) {
+  const symbol = side === 'open' ? '(' : ')';
+  const label = side === 'open' ? 'apertura' : 'cierre';
+  const dragId = side === 'open' ? openParenthesisDragId : closeParenthesisDragId;
+  const handleDragStart = (event: DragEvent<HTMLDivElement | HTMLButtonElement>) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', dragId);
+    onDragStart();
+  };
+
+  return (
+    <div
+      className={`numericFormulaParenthesisToken${dragging ? ' sortableDragging' : ''}`}
+      aria-label={`Paréntesis de ${label}`}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={onDragEnd}
+    >
+      <span className="numericFormulaParenthesisSymbol" aria-hidden="true">{symbol}</span>
+      <div className="numericFormulaParenthesisActions">
+        <button
+          type="button"
+          className="dragHandle numericFormulaDragHandle numericFormulaParenthesisHandle"
+          aria-label={`Arrastrar paréntesis de ${label}`}
+          title={`Arrastrar paréntesis de ${label}`}
+          draggable
+          onClick={(event) => event.preventDefault()}
+          onDragStart={handleDragStart}
+          onDragEnd={onDragEnd}
+        >
+          <AppIcon name="reorder" aria-hidden="true" focusable="false" />
+        </button>
+        <InfoTooltip content="Eliminar paréntesis">
+          <DeleteButton title="Eliminar paréntesis" onClick={onRemove} />
+        </InfoTooltip>
       </div>
     </div>
   );
@@ -268,8 +417,14 @@ function renderFormulaTokenSequence({
   safeSelectedValueId,
   inputColumns,
   canDeleteValue,
+  hiddenParenthesisSide,
+  draggedPieceId,
   onSelectValue,
   onDeleteValue,
+  onDragStartPiece,
+  onDragEndPiece,
+  onDropValue,
+  onRemoveParenthesis,
   onOperatorChange,
 }: {
   values: FormulaValueToken[];
@@ -278,8 +433,14 @@ function renderFormulaTokenSequence({
   safeSelectedValueId: string | undefined;
   inputColumns: InputColumn[];
   canDeleteValue: boolean;
+  hiddenParenthesisSide: FormulaParenthesisSide | '';
+  draggedPieceId: string;
   onSelectValue: (valueId: string) => void;
   onDeleteValue: (valueId: string) => void;
+  onDragStartPiece: (pieceId: string) => void;
+  onDragEndPiece: () => void;
+  onDropValue: (valueId: string) => void;
+  onRemoveParenthesis: (side: FormulaParenthesisSide) => void;
   onOperatorChange: (operatorId: string, operator: NumericFormulaOperator) => void;
 }) {
   const items: ReactNode[] = [];
@@ -292,12 +453,26 @@ function renderFormulaTokenSequence({
       value={value}
       index={index}
       selected={value.id === safeSelectedValueId}
+      dragging={value.id === draggedPieceId}
       inputColumns={inputColumns}
       onSelect={() => onSelectValue(value.id)}
       onDelete={canDeleteValue ? () => onDeleteValue(value.id) : undefined}
+      onDragStart={() => onDragStartPiece(value.id)}
+      onDragEnd={onDragEndPiece}
+      onDrop={() => onDropValue(value.id)}
     />
   );
-  const renderOperator = (operatorIndex: number, className = '') => {
+  const renderParenthesis = (side: FormulaParenthesisSide) => (
+    <FormulaParenthesisToken
+      key={`parenthesis-${side}`}
+      side={side}
+      dragging={draggedPieceId === (side === 'open' ? openParenthesisDragId : closeParenthesisDragId)}
+      onDragStart={() => onDragStartPiece(side === 'open' ? openParenthesisDragId : closeParenthesisDragId)}
+      onDragEnd={onDragEndPiece}
+      onRemove={() => onRemoveParenthesis(side)}
+    />
+  );
+  const renderOperator = (operatorIndex: number) => {
     const operator = operators[operatorIndex];
     if (!operator) {
       return null;
@@ -306,7 +481,7 @@ function renderFormulaTokenSequence({
     return (
       <Dropdown<NumericFormulaOperator>
         key={operator.id}
-        className={`compact numericFormulaInlineOperator${className ? ` ${className}` : ''}`}
+        className="compact numericFormulaInlineOperator"
         label={`Operador ${operatorIndex + 1}`}
         value={operator.operator}
         options={operatorOptions}
@@ -316,48 +491,63 @@ function renderFormulaTokenSequence({
     );
   };
 
-  for (let index = 0; index < values.length; index += 1) {
-    if (group && index === groupStartIndex && groupEndIndex === groupStartIndex + 1) {
+  values.forEach((value, index) => {
+    if (group && !hiddenParenthesisSide && index === groupStartIndex && groupEndIndex > groupStartIndex) {
+      const groupedItems: ReactNode[] = [renderParenthesis('open')];
+      for (let groupIndex = groupStartIndex; groupIndex <= groupEndIndex; groupIndex += 1) {
+        groupedItems.push(
+          <div key={values[groupIndex].id} className="numericFormulaTokenSlot">
+            {renderCard(values[groupIndex], groupIndex)}
+          </div>,
+        );
+        if (groupIndex < groupEndIndex) {
+          groupedItems.push(renderOperator(groupIndex));
+        }
+      }
+      groupedItems.push(renderParenthesis('close'));
       items.push(
         <div key={group.id} className="numericFormulaGroupShell" aria-label="Grupo de fórmula">
           <span className="numericFormulaGroupChip">Grupo</span>
-          <span className="numericFormulaParen" aria-hidden="true">(</span>
-          {renderCard(values[index], index)}
-          {renderOperator(index, 'numericFormulaGroupedOperator')}
-          {renderCard(values[index + 1], index + 1)}
-          <span className="numericFormulaParen" aria-hidden="true">)</span>
+          {groupedItems}
         </div>,
       );
       if (operators[groupEndIndex]) {
         items.push(renderOperator(groupEndIndex));
       }
-      index = groupEndIndex;
-      continue;
+      return;
     }
-
+    if (group && !hiddenParenthesisSide && index > groupStartIndex && index <= groupEndIndex) {
+      return;
+    }
+    if (group && index === groupStartIndex && groupEndIndex > groupStartIndex && hiddenParenthesisSide !== 'open') {
+      items.push(renderParenthesis('open'));
+    }
     items.push(
-      <div key={values[index].id} className="numericFormulaTokenSlot">
-        {renderCard(values[index], index)}
+      <div key={value.id} className="numericFormulaTokenSlot">
+        {renderCard(value, index)}
       </div>,
     );
+    if (group && index === groupEndIndex && groupEndIndex > groupStartIndex && hiddenParenthesisSide !== 'close') {
+      items.push(renderParenthesis('close'));
+    }
     if (operators[index]) {
       items.push(renderOperator(index));
     }
-  }
+  });
 
   return items;
 }
 
-function describeFormulaTokenState(state: FormulaTokenState, inputColumns: InputColumn[]) {
+function describeFormulaTokenState(state: FormulaTokenState, inputColumns: InputColumn[], hiddenParenthesisSide: FormulaParenthesisSide | '' = '') {
   const values = getFormulaValueTokens(state);
   const operators = getFormulaOperatorTokens(state);
   const group = state.groups[0];
 
   return values.map((value, index) => {
     const parts = [
-      group?.startValueId === value.id ? '(' : '',
+      group?.startValueId === value.id && hiddenParenthesisSide !== 'open' ? '(' : '',
       describeOperand(value.operand, inputColumns),
-      group?.endValueId === value.id ? ')' : '',
+      group?.endValueId === value.id && hiddenParenthesisSide !== 'close' ? ')' : '',
       operators[index] ? ` ${formulaDisplayOperatorLabels[operators[index].operator]} ` : '',
     ];
     return parts.join('');
@@ -457,10 +647,6 @@ function getFormulaValueLabel(index: number) {
     'Noveno valor',
     'Décimo valor',
   ][index] ?? `Valor ${index + 1}`;
-}
-
-function getGroupForValue(groups: FormulaGroup[], valueId: string) {
-  return groups.find((group) => group.startValueId === valueId || group.endValueId === valueId);
 }
 
 function getFormulaGroupSignature(group: FormulaGroup) {
