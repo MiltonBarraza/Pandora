@@ -428,15 +428,36 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
 
     await selectModalDropdownOption(user, /Acci.n/, 'Quitar % incluido');
     expect(screen.getByRole('button', { name: 'Valor con % incluido' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: '% incluido' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Porcentaje incluido (%)' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Valor que incluye el %' })).toBeNull();
     expect(screen.getByText(/Paso 1/).textContent).toContain('Quitar % incluido');
     expect(screen.getByText(/Paso 1/).textContent).not.toContain('0%');
     const actionField = within(screen.getByRole('dialog')).getByText('Acción').closest('.dropdownField');
     await user.hover(within(actionField as HTMLElement).getByRole('button', { name: 'Ver ayuda' }));
-    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('120 con 20% incluido → 100'));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('121 con 21% incluido = 100'));
+    await user.unhover(within(actionField as HTMLElement).getByRole('button', { name: 'Ver ayuda' }));
 
-    await selectModalDropdownOption(user, /Valor con % incluido/, 'Columna de entrada');
-    expect(screen.getByRole('button', { name: 'Valor con % incluido: columna' }).textContent).toContain('Sin columnas numéricas disponibles');
+    const dialog = screen.getByRole('dialog');
+    const getFieldWithText = (text: string) => Array.from(dialog.querySelectorAll('.dropdownField'))
+      .find((field) => field.textContent?.includes(text)) as HTMLElement | undefined;
+    const valueField = getFieldWithText('Valor con % incluido');
+    expect(valueField).not.toBeUndefined();
+    const valueInfo = valueField?.querySelector('.infoTooltipTrigger') as HTMLElement | null;
+    expect(valueInfo).not.toBeNull();
+    await user.hover(valueInfo!);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el valor final que ya tiene el porcentaje incorporado.'));
+    await user.unhover(valueInfo!);
+
+    const percentageField = getFieldWithText('Porcentaje incluido (%)');
+    expect(percentageField).not.toBeUndefined();
+    const percentageInfo = percentageField?.querySelector('.infoTooltipTrigger') as HTMLElement | null;
+    expect(percentageInfo).not.toBeNull();
+    await user.hover(percentageInfo!);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el porcentaje que ya está incluido dentro del valor final y que se quiere quitar.'));
+    await user.unhover(percentageInfo!);
+
+    await selectModalDropdownOption(user, /^Valor con % incluido$/, 'Columna de entrada');
+    expect(screen.getByRole('button', { name: 'Columna' }).textContent).toContain('Sin columnas numéricas disponibles');
   });
 
   it('filters range numeric operand columns with the engine parser and keeps mixed columns', async () => {

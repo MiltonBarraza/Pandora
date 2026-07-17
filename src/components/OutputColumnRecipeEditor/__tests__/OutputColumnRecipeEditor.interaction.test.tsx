@@ -800,7 +800,11 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await user.clear(outputFormatInput);
     await user.type(outputFormatInput, 'MMMMM DD AAAA');
-    expect(screen.getByRole('button', { name: 'Advertencia: formato de salida inválido' })).not.toBeNull();
+    const invalidFormatWarning = screen.getByRole('button', { name: 'Advertencia: formato de salida inválido' });
+    expect(invalidFormatWarning).not.toBeNull();
+    await user.hover(invalidFormatWarning);
+    expect(await screen.findByText(/Mientras haya errores, este formato no se aplicará\./)).not.toBeNull();
+    await user.unhover(invalidFormatWarning);
 
     await user.clear(outputFormatInput);
     await user.type(outputFormatInput, 'DD.MM.AAAA');
@@ -931,6 +935,55 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect((getInputByLabelText('Valor a sumar: valor fijo') as HTMLInputElement).value).toBe('');
     expect(screen.queryByText('Resultado anterior')).toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
+  });
+
+  it('uses compact dynamic detail labels and focused help for percentage operations', async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecipeEditor initialColumn={createBlankCustomColumn('output-percentage-labels')} />);
+
+    await openRecipeEditor(user);
+    await selectLastDropdownOption(user, /Tipo de operación/, /Trabajar con números/);
+    await selectLastDropdownOption(user, /Acción/, 'Sumar %');
+
+    expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Porcentaje (%)' })).not.toBeNull();
+    expect(screen.getAllByLabelText('Valor fijo')).toHaveLength(2);
+    expect(screen.queryByLabelText('Valor base: valor fijo')).toBeNull();
+    expect(screen.queryByLabelText('Porcentaje (%): valor fijo')).toBeNull();
+
+    const dialog = screen.getByRole('dialog');
+    const getFieldWithText = (text: string) => Array.from(dialog.querySelectorAll('.dropdownField'))
+      .find((field) => field.textContent?.includes(text)) as HTMLElement | undefined;
+
+    const valueBaseField = getFieldWithText('Valor base');
+    expect(valueBaseField).not.toBeUndefined();
+    const valueBaseInfo = valueBaseField?.querySelector('.infoTooltipTrigger') as HTMLElement | null;
+    expect(valueBaseInfo).not.toBeNull();
+    await user.hover(valueBaseInfo!);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el valor sobre el que se va a sumar o restar el porcentaje.'));
+    await user.unhover(valueBaseInfo!);
+
+    const percentageField = getFieldWithText('Porcentaje (%)');
+    expect(percentageField).not.toBeUndefined();
+    const percentageInfo = percentageField?.querySelector('.infoTooltipTrigger') as HTMLElement | null;
+    expect(percentageInfo).not.toBeNull();
+    await user.hover(percentageInfo!);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el porcentaje que se va a aplicar sobre el valor base.'));
+    await user.unhover(percentageInfo!);
+
+    await selectLastDropdownOption(user, /Porcentaje \(%\)/, 'Columna de entrada');
+    expect(screen.getByRole('button', { name: 'Columna' }).textContent).toContain('Sin columnas numéricas disponibles');
+
+    await selectLastDropdownOption(user, /Acción/, 'Restar %');
+    expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Porcentaje (%)' })).not.toBeNull();
+    const subtractPercentageField = getFieldWithText('Porcentaje (%)');
+    expect(subtractPercentageField).not.toBeUndefined();
+    const subtractPercentageInfo = subtractPercentageField?.querySelector('.infoTooltipTrigger') as HTMLElement | null;
+    expect(subtractPercentageInfo).not.toBeNull();
+    await user.hover(subtractPercentageInfo!);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el porcentaje que se va a aplicar sobre el valor base.'));
+    await user.unhover(subtractPercentageInfo!);
   });
 
   it('defaults a new later numeric operation to the previous result', async () => {

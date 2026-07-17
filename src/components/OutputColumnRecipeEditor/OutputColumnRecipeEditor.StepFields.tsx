@@ -136,8 +136,16 @@ export function getStepActionHelpText(action: string, _mode?: TransformStepMode)
     return 'Trata el valor como texto para los siguientes pasos.';
   }
 
+  if (action === 'addPercentage') {
+    return 'Aumenta el valor usando el porcentaje indicado. Ejemplo: 100 + 10% = 110.';
+  }
+
+  if (action === 'subtractPercentage') {
+    return 'Reduce el valor usando el porcentaje indicado. Ejemplo: 100 - 10% = 90.';
+  }
+
   if (action === 'removeIncludedPercentage') {
-    return 'Calcula el valor antes de un porcentaje ya incluido. Ejemplo: 120 con 20% incluido → 100.';
+    return 'Obtiene el valor base cuando el valor ya incluye ese porcentaje. Ejemplo: 121 con 21% incluido = 100.';
   }
 
   return 'Elegí cómo se va a transformar esta información.';
@@ -430,6 +438,10 @@ export function StepOperandFields({
   allowedTypes,
   emptyInputColumnsLabel = 'Sin columnas numéricas disponibles',
   compatibilityHint = '',
+  helpText = 'Elige si el valor viene de una columna, un numero fijo o un paso previo.',
+  fixedTextHelpText = 'Numero manual para usar en la operacion.',
+  inputColumnLabel,
+  fixedTextLabel,
   onChange,
 }: {
   label: string;
@@ -439,6 +451,10 @@ export function StepOperandFields({
   allowedTypes?: StepOperand['type'][];
   emptyInputColumnsLabel?: string;
   compatibilityHint?: string;
+  helpText?: string;
+  fixedTextHelpText?: string;
+  inputColumnLabel?: string;
+  fixedTextLabel?: string;
   onChange: (operand: StepOperand) => void;
 }) {
   const safeOperand = !allowPreviousResult && operand.type === 'previousResult'
@@ -450,7 +466,7 @@ export function StepOperandFields({
       <Dropdown<StepOperand['type']>
         className="compact recipeField"
         label={label}
-        labelInfo={renderLabelInfo('Elige si el valor viene de una columna, un numero fijo o un paso previo.', compatibilityHint)}
+        labelInfo={renderLabelInfo(helpText, compatibilityHint)}
         value={safeOperand.type}
         options={getStepOperandTypeOptions(allowPreviousResult, allowedTypes)}
         scrollStrategy="close"
@@ -471,7 +487,7 @@ export function StepOperandFields({
 
       {safeOperand.type === 'input' ? (
         <InputColumnSelect
-          label={`${label}: columna`}
+          label={inputColumnLabel ?? `${label}: columna`}
           value={safeOperand.inputColumnId}
           inputColumns={inputColumns}
           emptyLabel={emptyInputColumnsLabel}
@@ -484,8 +500,8 @@ export function StepOperandFields({
       {safeOperand.type === 'fixedText' ? (
         <label className="field compact recipeField">
           <span className="labelWithInfo">
-            <span>{label}: valor fijo</span>
-            <InfoTooltip content="Numero manual para usar en la operacion." />
+            <span>{fixedTextLabel ?? `${label}: valor fijo`}</span>
+            <InfoTooltip content={fixedTextHelpText} />
           </span>
           <input
             type="number"

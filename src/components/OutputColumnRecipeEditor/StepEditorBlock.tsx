@@ -536,6 +536,10 @@ function renderDefaultFields({
             allowPreviousResult={allowPreviousResult}
             allowedTypes={getAllowedNumericBaseOperandTypes(leftOperand, context)}
             compatibilityHint={numericCompatibilityHint}
+            helpText={getNumericOperandHelpText(step.operation, 'left')}
+            fixedTextHelpText={getNumericOperandFixedTextHelpText(step.operation, 'left')}
+            inputColumnLabel={getNumericOperandInputColumnLabel(step.operation, 'left')}
+            fixedTextLabel={getNumericOperandFixedTextLabel(step.operation, 'left')}
             onChange={(leftOperand) => onChange({ leftOperand })}
           />
         )}
@@ -545,6 +549,10 @@ function renderDefaultFields({
           inputColumns={numericInputColumns}
           allowPreviousResult={allowPreviousResult}
           compatibilityHint={numericCompatibilityHint}
+          helpText={getNumericOperandHelpText(step.operation, 'right')}
+          fixedTextHelpText={getNumericOperandFixedTextHelpText(step.operation, 'right')}
+          inputColumnLabel={getNumericOperandInputColumnLabel(step.operation, 'right')}
+          fixedTextLabel={getNumericOperandFixedTextLabel(step.operation, 'right')}
           onChange={(rightOperand) => onChange({ rightOperand })}
         />
         <Dropdown
@@ -831,6 +839,56 @@ export function getNumericOperationUiWarning(
   }
 
   return '';
+}
+
+function getNumericOperandHelpText(operation: NumericOperation | undefined, side: 'left' | 'right') {
+  if ((operation === 'addPercentage' || operation === 'subtractPercentage') && side === 'left') {
+    return 'Es el valor sobre el que se va a sumar o restar el porcentaje.';
+  }
+
+  if (operation === 'addPercentage' && side === 'right') {
+    return 'Es el porcentaje que se va a aplicar sobre el valor base.';
+  }
+
+  if (operation === 'subtractPercentage' && side === 'right') {
+    return 'Es el porcentaje que se va a aplicar sobre el valor base.';
+  }
+
+  if (operation === 'removeIncludedPercentage' && side === 'left') {
+    return 'Es el valor final que ya tiene el porcentaje incorporado.';
+  }
+
+  if (operation === 'removeIncludedPercentage' && side === 'right') {
+    return 'Es el porcentaje que ya está incluido dentro del valor final y que se quiere quitar.';
+  }
+
+  return undefined;
+}
+
+function getNumericOperandFixedTextHelpText(operation: NumericOperation | undefined, side: 'left' | 'right') {
+  return getNumericOperandHelpText(operation, side);
+}
+
+function getNumericOperandInputColumnLabel(operation: NumericOperation | undefined, _side: 'left' | 'right') {
+  if (isPercentageNumericOperation(operation)) {
+    return 'Columna';
+  }
+
+  return undefined;
+}
+
+function getNumericOperandFixedTextLabel(operation: NumericOperation | undefined, _side: 'left' | 'right') {
+  if (isPercentageNumericOperation(operation)) {
+    return 'Valor fijo';
+  }
+
+  return undefined;
+}
+
+function isPercentageNumericOperation(operation: NumericOperation | undefined) {
+  return operation === 'addPercentage'
+    || operation === 'subtractPercentage'
+    || operation === 'removeIncludedPercentage';
 }
 
 function getFixedNumericOperandValue(operand: Extract<StepOperand, { type: 'fixedText' }>) {

@@ -495,7 +495,9 @@ describe('constructor helpers', () => {
     expect(getStepActionHelpText('extractNumber', 'conversion')).toBe('Busca el primer número dentro del texto y usa ese número como resultado. Ejemplo: “Serie 304” → “304”.');
     expect(getStepActionHelpText('toNumber', 'conversion')).toBe('Convierte valores numéricos escritos como texto. Si no puede convertirlos, conserva el valor original.');
     expect(getStepActionHelpText('toText', 'conversion')).toBe('Trata el valor como texto para los siguientes pasos.');
-    expect(getStepActionHelpText('removeIncludedPercentage', 'number')).toBe('Calcula el valor antes de un porcentaje ya incluido. Ejemplo: 120 con 20% incluido → 100.');
+    expect(getStepActionHelpText('addPercentage', 'number')).toBe('Aumenta el valor usando el porcentaje indicado. Ejemplo: 100 + 10% = 110.');
+    expect(getStepActionHelpText('subtractPercentage', 'number')).toBe('Reduce el valor usando el porcentaje indicado. Ejemplo: 100 - 10% = 90.');
+    expect(getStepActionHelpText('removeIncludedPercentage', 'number')).toBe('Obtiene el valor base cuando el valor ya incluye ese porcentaje. Ejemplo: 121 con 21% incluido = 100.');
   });
 
   it('keeps typed noop hidden until it has a direct value source', () => {
@@ -1250,7 +1252,6 @@ describe('constructor helpers', () => {
     expect(markup).toContain('dateOutputFormatFieldInfo');
     expect(markup).toContain('warningTooltipTrigger');
     expect(markup).toContain('Advertencia: formato de salida inválido');
-    expect(markup).toContain('Mientras haya errores, este formato no se aplicará.');
     expect(markup.indexOf('dateOutputFormatFieldInfo')).toBeLessThan(markup.indexOf('warningTooltipTrigger'));
     expect(markup.indexOf('warningTooltipTrigger')).toBeLessThan(markup.indexOf('dateOutputFormatInputRow'));
     expect(markup.indexOf('warningTooltipTrigger')).toBeLessThan(markup.indexOf('dateOutputFormatHelpButton'));
@@ -5708,11 +5709,11 @@ describe('constructor helpers', () => {
     expect(getNumericOperandLabels('subtract')).toEqual({ left: 'Valor base', right: 'Valor a restar' });
     expect(getNumericOperandLabels('multiply')).toEqual({ left: 'Valor base', right: 'Factor' });
     expect(getNumericOperandLabels('divide')).toEqual({ left: 'Valor base', right: 'Divisor' });
-    expect(getNumericOperandLabels('addPercentage')).toEqual({ left: 'Valor base', right: '%' });
-    expect(getNumericOperandLabels('subtractPercentage')).toEqual({ left: 'Valor base', right: '%' });
+    expect(getNumericOperandLabels('addPercentage')).toEqual({ left: 'Valor base', right: 'Porcentaje (%)' });
+    expect(getNumericOperandLabels('subtractPercentage')).toEqual({ left: 'Valor base', right: 'Porcentaje (%)' });
     expect(getNumericOperandLabels('removeIncludedPercentage')).toEqual({
       left: 'Valor con % incluido',
-      right: '% incluido',
+      right: 'Porcentaje incluido (%)',
     });
   });
 
@@ -5831,7 +5832,7 @@ describe('constructor helpers', () => {
       steps: [emptyPercentageStep],
     };
 
-    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá % incluido para ver la vista previa.');
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá Porcentaje incluido (%) para ver la vista previa.');
     expect(getRecipeStepTitle(emptyPercentageStep)).toBe('Quitar % incluido');
     expect(getRecipeStepTitle({
       ...emptyPercentageStep,
