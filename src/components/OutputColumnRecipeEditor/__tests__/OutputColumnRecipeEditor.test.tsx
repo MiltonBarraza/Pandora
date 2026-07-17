@@ -747,7 +747,7 @@ describe('constructor helpers', () => {
     const editorSectionMarkup = studioMarkup.slice(studioMarkup.indexOf('numericFormulaBuilderSection'), studioMarkup.indexOf('numericFormulaInspector'));
     const inspectorMarkup = studioMarkup.slice(studioMarkup.indexOf('numericFormulaInspector'), secondStepIndex);
     const secondStepGeneralMarkup = getEnclosingSectionMarkup(studioMarkup, '<section class="recipeStudioSection recipeStudioGeneralSection"', secondStepIndex);
-    const editorTitleIndex = editorSectionMarkup.indexOf('<strong>Editor de fórmula</strong>');
+    const editorTitleIndex = editorSectionMarkup.indexOf('Editor de fórmula', editorSectionMarkup.indexOf('composePartsBuilderTitle'));
     const helpIndex = editorSectionMarkup.indexOf('Agregá valores y ajustá el operador entre cada uno.', editorTitleIndex);
     const formulaLabelIndex = editorSectionMarkup.indexOf('Fórmula', helpIndex);
     const formulaPreviewIndex = editorSectionMarkup.indexOf('numericFormulaPreview', formulaLabelIndex);
