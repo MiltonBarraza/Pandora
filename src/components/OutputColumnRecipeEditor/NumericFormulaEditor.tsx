@@ -182,7 +182,10 @@ export function NumericFormulaEditor({
         <div className="numericFormulaLinearBuilder">
           <div className="numericFormulaBuilderIntro">
             <div className="composePartsBuilderTitle">
-              <strong>Editor de fórmula</strong>
+              <strong className="labelWithInfo">
+                <span>Editor de fórmula</span>
+                <InfoTooltip content="Agregá valores, cambiá el operador entre cada uno y arrastrá las piezas para ordenarlas. Usá paréntesis para agrupar una parte de la fórmula; podés moverlos con drag y eliminarlos desde el propio paréntesis." />
+              </strong>
               <p className="composeStudioHint">Agregá valores y ajustá el operador entre cada uno.</p>
             </div>
           </div>
@@ -346,7 +349,7 @@ function FormulaValueCard({
           onDragStart={handleDragStart}
           onDragEnd={onDragEnd}
         >
-          <span aria-hidden="true">::</span>
+          <AppIcon name="reorder" aria-hidden="true" focusable="false" />
         </button>
         {onDelete ? (
           <InfoTooltip content="Eliminar valor">

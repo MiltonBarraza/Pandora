@@ -434,6 +434,12 @@ export function StepOperandFields({
   allowedTypes,
   emptyInputColumnsLabel = 'Sin columnas numéricas disponibles',
   compatibilityHint = '',
+  helpText = 'Elige si el valor viene de una columna, un numero fijo o un paso previo.',
+  fixedTextHelpText = 'Numero manual para usar en la operacion.',
+  inputColumnLabel,
+  fixedTextLabel,
+  previousResultLabel,
+  rangeTextLabel,
   onChange,
 }: {
   label: string;
@@ -443,6 +449,12 @@ export function StepOperandFields({
   allowedTypes?: StepOperand['type'][];
   emptyInputColumnsLabel?: string;
   compatibilityHint?: string;
+  helpText?: string;
+  fixedTextHelpText?: string;
+  inputColumnLabel?: string;
+  fixedTextLabel?: string;
+  previousResultLabel?: string;
+  rangeTextLabel?: string;
   onChange: (operand: StepOperand) => void;
 }) {
   const safeOperand = !allowPreviousResult && operand.type === 'previousResult'
@@ -454,7 +466,7 @@ export function StepOperandFields({
       <Dropdown<StepOperand['type']>
         className="compact recipeField"
         label={label}
-        labelInfo={renderLabelInfo('Elige si el valor viene de una columna, un numero fijo o un paso previo.', compatibilityHint)}
+        labelInfo={renderLabelInfo(helpText, compatibilityHint)}
         value={safeOperand.type}
         options={getStepOperandTypeOptions(allowPreviousResult, allowedTypes)}
         scrollStrategy="close"
@@ -475,7 +487,7 @@ export function StepOperandFields({
 
       {safeOperand.type === 'input' ? (
         <InputColumnSelect
-          label={`${label}: columna`}
+          label={inputColumnLabel ?? `${label}: columna`}
           value={safeOperand.inputColumnId}
           inputColumns={inputColumns}
           emptyLabel={emptyInputColumnsLabel}
@@ -488,8 +500,8 @@ export function StepOperandFields({
       {safeOperand.type === 'fixedText' ? (
         <label className="field compact recipeField">
           <span className="labelWithInfo">
-            <span>{label}: valor fijo</span>
-            <InfoTooltip content="Numero manual para usar en la operacion." />
+            <span>{fixedTextLabel ?? `${label}: valor fijo`}</span>
+            <InfoTooltip content={fixedTextHelpText} />
           </span>
           <input
             type="number"
@@ -505,6 +517,20 @@ export function StepOperandFields({
               });
             }}
           />
+        </label>
+      ) : null}
+
+      {safeOperand.type === 'previousResult' && previousResultLabel ? (
+        <label className="field compact recipeField">
+          <span>{previousResultLabel}</span>
+          <input readOnly value="Resultado dinámico" />
+        </label>
+      ) : null}
+
+      {safeOperand.type === 'rangeText' && rangeTextLabel ? (
+        <label className="field compact recipeField">
+          <span>{rangeTextLabel}</span>
+          <input readOnly value={safeOperand.selectedText} />
         </label>
       ) : null}
     </>

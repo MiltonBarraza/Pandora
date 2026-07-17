@@ -1391,7 +1391,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Texto fallback');
   });
 
-  it('renders custom date output format controls for loaded custom recipes', () => {
+  it('renders a single date output format input for loaded custom recipes', () => {
     const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
       type: 'combine',
       customMode: 'text',
@@ -1413,17 +1413,21 @@ describe('constructor helpers', () => {
       recipe,
     });
 
-    expect(markup).toContain('Personalizado');
-    expect(markup).toContain('Formato personalizado');
-    expect(markup).toContain('Bloque 1');
-    expect(markup).toContain('Bloque 2');
-    expect(markup).toContain('Bloque 3');
-    expect(markup).toContain('Separador 1');
-    expect(markup).toContain('Separador 2');
+    expect(markup).toContain('Formato de salida');
+    expect(markup).toContain('placeholder="DD/MM/AAAA"');
+    expect(markup).toContain('Ver formatos de salida');
+    expect(markup).not.toContain('Personalizado');
+    expect(markup).not.toContain('Formato personalizado');
+    expect(markup).not.toContain('Bloque 1');
+    expect(markup).not.toContain('Bloque 2');
+    expect(markup).not.toContain('Bloque 3');
+    expect(markup).not.toContain('Separador 1');
+    expect(markup).not.toContain('Separador 2');
     expect(markup).toContain('MM');
     expect(markup).toContain('DD');
     expect(markup).toContain('AAAA');
     expect(markup).not.toContain('value="MM-DD-YYYY"');
+    expect(markup).toContain('value="MM-DD-AAAA"');
     expect(markup).not.toContain('Ejemplo: MM-DD-YYYY.');
     expect(buildCustomValuePreview(recipe, { 'input-code': '31/12/2025' }, true, 'text')).toBe('12-31-2025');
   });
@@ -1449,17 +1453,17 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Personalizado');
-    expect(markup).toContain('Formato personalizado');
+    expect(markup).toContain('Formato de salida');
+    expect(markup).toContain('value="mm-dd-yyyy"');
     expect(markup).toContain('infoTooltipTrigger');
     expect(markup).toContain('warningTooltipTrigger');
-    expect(markup).toContain('Advertencia: formato personalizado inválido');
+    expect(markup).toContain('Advertencia: formato de salida inválido');
     expect(markup.indexOf('infoTooltipTrigger')).toBeLessThan(markup.indexOf('warningTooltipTrigger'));
-    expect(markup).not.toContain('aria-invalid="true"');
+    expect(markup).toContain('aria-invalid="true"');
     expect(markup).not.toContain('errorText');
   });
 
-  it('renders custom date output controls inside range value recipes', () => {
+  it('renders the date output input inside range value recipes', () => {
     const markup = renderRangeValueEditor({
       id: 'range-custom-date',
       startRowNumber: 8,
@@ -1478,12 +1482,15 @@ describe('constructor helpers', () => {
       manualRangeRows: [{ rowNumber: 8, values: { 'input-code': '31/12/2025' } }],
     });
 
-    expect(markup).toContain('Personalizado');
-    expect(markup).toContain('Formato personalizado');
-    expect(markup).toContain('Bloque 1');
-    expect(markup).toContain('Separador 1');
+    expect(markup).toContain('Formato de salida');
+    expect(markup).toContain('placeholder="DD/MM/AAAA"');
+    expect(markup).not.toContain('Personalizado');
+    expect(markup).not.toContain('Formato personalizado');
+    expect(markup).not.toContain('Bloque 1');
+    expect(markup).not.toContain('Separador 1');
     expect(markup).toContain('AAAA');
     expect(markup).not.toContain('value="DD.MM.YYYY"');
+    expect(markup).toContain('value="DD.MM.AAAA"');
   });
 
   it('renders conversion fallback controls only when a fixed fallback is selected', () => {
@@ -5910,12 +5917,12 @@ describe('constructor helpers', () => {
 
   it('uses plural number mode copy and contextual numeric operand labels', () => {
     expect(stepModeOptions.find((option) => option.value === 'number')?.label).toBe('Trabajar con números');
-    expect(getNumericOperandLabels()).toEqual({ left: 'Valor base', right: '%' });
-    expect(getNumericOperandLabels('addPercentage')).toEqual({ left: 'Valor base', right: '%' });
-    expect(getNumericOperandLabels('subtractPercentage')).toEqual({ left: 'Valor base', right: '%' });
+    expect(getNumericOperandLabels()).toEqual({ left: 'Valor base', right: 'Porcentaje (%)' });
+    expect(getNumericOperandLabels('addPercentage')).toEqual({ left: 'Valor base', right: 'Porcentaje (%)' });
+    expect(getNumericOperandLabels('subtractPercentage')).toEqual({ left: 'Valor base', right: 'Porcentaje (%)' });
     expect(getNumericOperandLabels('removeIncludedPercentage')).toEqual({
       left: 'Valor con % incluido',
-      right: '% incluido',
+      right: 'Porcentaje incluido (%)',
     });
   });
 
@@ -6048,7 +6055,7 @@ describe('constructor helpers', () => {
       }],
     };
 
-    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá % para ver la vista previa.');
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá Porcentaje (%) para ver la vista previa.');
     expect(buildCustomValuePreview({
       ...recipe,
       steps: [{ ...recipe.steps![0], rightOperand: { type: 'input', inputColumnId: 'text' } }],
@@ -6232,7 +6239,7 @@ describe('constructor helpers', () => {
       steps: [emptyPercentageStep],
     };
 
-    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá % incluido para ver la vista previa.');
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá Porcentaje incluido (%) para ver la vista previa.');
     expect(getRecipeStepTitle(emptyPercentageStep)).toBe('Quitar % incluido');
     expect(getRecipeStepTitle({
       ...emptyPercentageStep,
@@ -6277,7 +6284,9 @@ describe('constructor helpers', () => {
     );
 
     expect(markup).toContain('Valor con % incluido');
-    expect(markup).toContain('% incluido');
+    expect(markup).toContain('Porcentaje incluido (%)');
+    expect(markup).toContain('Valor fijo');
+    expect(markup).not.toContain('Porcentaje incluido (%): valor fijo');
     expect(markup).toContain('warningTooltipTrigger');
     expect(markup).toContain('No se pudo calcular: división por cero.');
   });

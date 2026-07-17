@@ -1,5 +1,6 @@
 import {
   Check,
+  CalendarDays,
   CircleAlert,
   CircleMinus,
   CirclePlus,
@@ -24,6 +25,7 @@ import {
 
 export const appIconMap = {
   add: CirclePlus,
+  calendar: CalendarDays,
   clear: CircleMinus,
   chevronDown: ChevronDown,
   close: CircleX,

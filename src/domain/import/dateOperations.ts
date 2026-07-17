@@ -21,6 +21,25 @@ export type DateParts = {
   day: number;
 };
 
+const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const shortMonthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const weekdayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const shortWeekdayNames = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const supportedDateOutputFormatParts = new Set([
+  'AAAA',
+  'AA',
+  'YYYY',
+  'YY',
+  'MMMM',
+  'MMM',
+  'MM',
+  'M',
+  'dddd',
+  'ddd',
+  'DD',
+  'D',
+]);
+
 export const defaultDateInputFormat: DateInputFormat = 'DD/MM/YYYY';
 export const defaultDateOutputFormat: DateOutputFormat = 'YYYY-MM-DD';
 export const defaultDateInvalidFallback: DateInvalidFallback = 'original';
@@ -71,15 +90,28 @@ export function formatDateValue(dateParts: DateParts, outputFormat: DateOutputFo
   const year = String(dateParts.year).padStart(4, '0');
   const shortYear = year.slice(-2);
   const month = String(dateParts.month).padStart(2, '0');
+  const rawMonth = String(dateParts.month);
   const day = String(dateParts.day).padStart(2, '0');
+  const rawDay = String(dateParts.day);
+  const weekday = getWeekdayIndex(dateParts);
   const safeOutputFormat = isValidDateOutputFormat(outputFormat) ? outputFormat : defaultDateOutputFormat;
 
-  return safeOutputFormat.replace(/AAAA|YYYY|YY|MM|DD/g, (token) => {
-    if (token === 'AAAA' || token === 'YYYY') return year;
-    if (token === 'YY') return shortYear;
-    if (token === 'MM') return month;
-    return day;
+  return safeOutputFormat.replace(/dddd|MMMM|AAAA|YYYY|ddd|MMM|DD|MM|AA|YY|D|M/g, (part) => {
+    if (part === 'dddd') return weekdayNames[weekday];
+    if (part === 'ddd') return shortWeekdayNames[weekday];
+    if (part === 'MMMM') return monthNames[dateParts.month - 1];
+    if (part === 'MMM') return shortMonthNames[dateParts.month - 1];
+    if (part === 'AAAA' || part === 'YYYY') return year;
+    if (part === 'AA' || part === 'YY') return shortYear;
+    if (part === 'MM') return month;
+    if (part === 'M') return rawMonth;
+    if (part === 'DD') return day;
+    return rawDay;
   });
+}
+
+export function getDateOutputFormatDisplayValue(format: DateOutputFormat = defaultDateOutputFormat): DateOutputFormat {
+  return String(format).replace(/YYYY/g, 'AAAA').replace(/YY/g, 'AA') as DateOutputFormat;
 }
 
 export function isKnownDateOutputFormat(format: string): format is KnownDateOutputFormat {
@@ -91,30 +123,29 @@ export function isValidDateOutputFormat(format: string): format is DateOutputFor
 }
 
 export function getDateOutputFormatError(format: string) {
-  const raw = String(format ?? '');
-  const value = raw.trim();
+  const value = String(format ?? '').trim();
 
   if (!value) {
-    return 'Usá DD para día, MM para mes y AAAA para año.';
+    return 'El formato no puede estar vacío.';
   }
 
-  if (/[dmy]/.test(value)) {
+  if (/[ym]/.test(value) || /\bdd\b/.test(value)) {
     return value.includes('m')
       ? 'Usá MM en mayúscula para mes.'
-      : 'Usá DD, MM y AAAA en mayúsculas.';
+      : 'Usá DD para día y AAAA para año.';
   }
 
-  if (!/^[ADMyY/\-. ]+$/.test(value)) {
-    return 'Usá sólo DD, MM, AAAA y separadores /, -, . o espacio.';
+  const parts = value.match(/[A-Za-z]+/g) ?? [];
+  if (parts.length === 0) {
+    return 'El formato debe incluir al menos una parte de fecha.';
   }
 
-  const parsedPattern = parseDateOutputFormatPattern(value);
-  if (!parsedPattern) {
-    return 'Usá sólo tokens completos: DD, MM y AAAA.';
+  if (parts.some((part) => !supportedDateOutputFormatParts.has(part))) {
+    return 'El formato tiene partes que la app no reconoce. Revisá los formatos disponibles.';
   }
 
-  if (new Set(parsedPattern.parts).size !== 3) {
-    return 'Usá DD, MM y AAAA una sola vez cada uno.';
+  if (/[^A-Za-z/\-. ]/.test(value)) {
+    return 'El formato tiene partes que la app no reconoce. Revisá los formatos disponibles.';
   }
 
   return '';
@@ -226,6 +257,10 @@ function getDaysInMonth(year: number, month: number) {
   }
 
   return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
+function getWeekdayIndex({ year, month, day }: DateParts) {
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
 function normalizeDateOutputFormatPart(part: string): DateOutputFormatPart {
