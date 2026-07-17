@@ -1188,7 +1188,7 @@ describe('constructor helpers', () => {
     expect(markup).not.toContain('Texto fallback');
   });
 
-  it('renders custom date output format controls for loaded custom recipes', () => {
+  it('renders a single date output format input for loaded custom recipes', () => {
     const recipe: Extract<OutputRecipe, { type: 'combine' }> = {
       type: 'combine',
       customMode: 'text',
@@ -1210,18 +1210,17 @@ describe('constructor helpers', () => {
       recipe,
     });
 
-    expect(markup).toContain('Personalizado');
-    expect(markup).toContain('Formato personalizado');
-    expect(markup).toContain('Bloque 1');
-    expect(markup).toContain('Bloque 2');
-    expect(markup).toContain('Bloque 3');
-    expect(markup).toContain('Separador 1');
-    expect(markup).toContain('Separador 2');
-    expect(markup).toContain('MM');
-    expect(markup).toContain('DD');
-    expect(markup).toContain('AAAA');
-    expect(markup).not.toContain('value="MM-DD-YYYY"');
-    expect(markup).not.toContain('Ejemplo: MM-DD-YYYY.');
+    expect(markup).toContain('Formato de salida');
+    expect(markup).toContain('placeholder="DD/MM/AAAA"');
+    expect(markup).toContain('value="MM-DD-AAAA"');
+    expect(markup).toContain('Ver formatos de salida');
+    expect(markup).toContain('title="Ver formatos de salida"');
+    expect(markup).toContain('lucide-calendar-days');
+    expect(markup).toContain('dateOutputFormatFieldInfo');
+    expect(markup).not.toContain('Personalizado');
+    expect(markup).not.toContain('Formato personalizado');
+    expect(markup).not.toContain('Bloque 1');
+    expect(markup).not.toContain('Separador 1');
     expect(buildCustomValuePreview(recipe, { 'input-code': '31/12/2025' }, true, 'text')).toBe('12-31-2025');
   });
 
@@ -1246,13 +1245,16 @@ describe('constructor helpers', () => {
       },
     });
 
-    expect(markup).toContain('Personalizado');
-    expect(markup).toContain('Formato personalizado');
+    expect(markup).toContain('Formato de salida');
     expect(markup).toContain('infoTooltipTrigger');
+    expect(markup).toContain('dateOutputFormatFieldInfo');
     expect(markup).toContain('warningTooltipTrigger');
-    expect(markup).toContain('Advertencia: formato personalizado inválido');
-    expect(markup.indexOf('infoTooltipTrigger')).toBeLessThan(markup.indexOf('warningTooltipTrigger'));
-    expect(markup).not.toContain('aria-invalid="true"');
+    expect(markup).toContain('Advertencia: formato de salida inválido');
+    expect(markup).toContain('Mientras haya errores, este formato no se aplicará.');
+    expect(markup.indexOf('dateOutputFormatFieldInfo')).toBeLessThan(markup.indexOf('warningTooltipTrigger'));
+    expect(markup.indexOf('warningTooltipTrigger')).toBeLessThan(markup.indexOf('dateOutputFormatInputRow'));
+    expect(markup.indexOf('warningTooltipTrigger')).toBeLessThan(markup.indexOf('dateOutputFormatHelpButton'));
+    expect(markup).toContain('aria-invalid="true"');
     expect(markup).not.toContain('errorText');
   });
 
@@ -1275,12 +1277,11 @@ describe('constructor helpers', () => {
       manualRangeRows: [{ rowNumber: 8, values: { 'input-code': '31/12/2025' } }],
     });
 
-    expect(markup).toContain('Personalizado');
-    expect(markup).toContain('Formato personalizado');
-    expect(markup).toContain('Bloque 1');
-    expect(markup).toContain('Separador 1');
-    expect(markup).toContain('AAAA');
-    expect(markup).not.toContain('value="DD.MM.YYYY"');
+    expect(markup).toContain('Formato de salida');
+    expect(markup).toContain('value="DD.MM.AAAA"');
+    expect(markup).not.toContain('Personalizado');
+    expect(markup).not.toContain('Bloque 1');
+    expect(markup).not.toContain('Separador 1');
   });
 
   it('renders conversion fallback controls only when a fixed fallback is selected', () => {

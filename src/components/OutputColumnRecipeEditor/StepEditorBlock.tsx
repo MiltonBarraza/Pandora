@@ -1,15 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import {
-  buildDateOutputFormatFromPattern,
   defaultDateInputFormat,
   defaultDateInvalidFallback,
   defaultDateOutputFormat,
-  type DateOutputFormatPart,
-  type DateOutputFormatPattern,
-  type DateOutputFormatSeparator,
+  getDateOutputFormatDisplayValue,
   getDateOutputFormatError,
-  isKnownDateOutputFormat,
-  parseDateOutputFormatPattern,
 } from '../../domain/import/dateOperations';
 import { extractNumericValue, parseNumericValue } from '../../domain/import/numericOperations';
 import type {
@@ -26,6 +21,7 @@ import type {
   TransformStepMode,
 } from '../../types/import';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
@@ -34,7 +30,6 @@ import {
   conversionInvalidFallbackOptions,
   dateInputFormatOptions,
   dateInvalidFallbackOptions,
-  dateOutputFormatOptions,
   getNumericOperandLabels,
   numericOperationOptions,
   parseRounding,
@@ -105,28 +100,29 @@ type StepEditorBlockProps = {
 };
 
 type BlockAction = StepEditorActionOptionValue;
-const customDateOutputFormatSelection = '__custom__';
-const suggestedCustomDateOutputFormat = 'MM-DD-AAAA';
-const defaultCustomDateOutputPattern: DateOutputFormatPattern = {
-  parts: ['MM', 'DD', 'AAAA'],
-  separators: ['-', '-'],
-};
-const dateOutputFormatSelectOptions: Array<{ value: string; label: string }> = [
-  ...dateOutputFormatOptions,
-  { value: customDateOutputFormatSelection, label: 'Personalizado' },
+const dateOutputFormatPartRows = [
+  { format: 'AAAA', example: '2026', description: 'Año de 4 dígitos' },
+  { format: 'AA', example: '26', description: 'Año de 2 dígitos' },
+  { format: 'MMMM', example: 'julio', description: 'Nombre completo del mes' },
+  { format: 'MMM', example: 'jul', description: 'Nombre corto del mes' },
+  { format: 'MM', example: '07', description: 'Mes con 2 dígitos' },
+  { format: 'M', example: '7', description: 'Mes sin cero inicial' },
+  { format: 'dddd', example: 'viernes', description: 'Día de semana completo' },
+  { format: 'ddd', example: 'vie', description: 'Día de semana corto' },
+  { format: 'DD', example: '05', description: 'Día del mes con 2 dígitos' },
+  { format: 'D', example: '5', description: 'Día del mes sin cero inicial' },
 ];
-const dateOutputPartOptions: Array<{ value: DateOutputFormatPart; label: string }> = [
-  { value: 'DD', label: 'DD' },
-  { value: 'MM', label: 'MM' },
-  { value: 'AAAA', label: 'AAAA' },
-];
-const dateOutputSeparatorOptions: Array<{ value: DateOutputFormatSeparator; label: string }> = [
-  { value: '/', label: '/' },
-  { value: '-', label: '-' },
-  { value: '.', label: '.' },
-  { value: ' ', label: 'Espacio' },
-];
-const dateOutputFormatHelpText = 'DD = día, MM = mes, AAAA = año.';
+const dateOutputFormatExamples = [
+  ['DD/MM/AAAA', '05/07/2026'],
+  ['AAAA-MM-DD', '2026-07-05'],
+  ['D/M/AA', '5/7/26'],
+  ['DD.MM.AAAA', '05.07.2026'],
+  ['MMMM DD AAAA', 'julio 05 2026'],
+  ['dddd DD/MM/AAAA', 'domingo 05/07/2026'],
+] as const;
+const dateOutputFormatFieldHelpText = 'Escribí el formato combinando partes como DD, MM y AAAA. Usá el calendario para ver todos los formatos disponibles.';
+const dateOutputFormatHelpButtonLabel = 'Ver formatos de salida';
+const dateOutputFormatInvalidEffectText = 'Mientras haya errores, este formato no se aplicará.';
 type SourceActionOverrideState = {
   action: StepSourceAction;
   identity: string;
@@ -570,10 +566,8 @@ function renderDefaultFields({
   }
 
   if (step.type === 'formatDate') {
-    const outputFormat = step.dateOutputFormat ?? defaultDateOutputFormat;
-    const outputFormatSelectValue = isKnownDateOutputFormat(outputFormat) ? outputFormat : customDateOutputFormatSelection;
-    const isCustomOutputFormat = outputFormatSelectValue === customDateOutputFormatSelection;
-    const customOutputFormatError = isCustomOutputFormat ? getDateOutputFormatError(outputFormat) : '';
+    const outputFormat = getDateOutputFormatDisplayValue(step.dateOutputFormat ?? defaultDateOutputFormat);
+    const outputFormatError = getDateOutputFormatError(outputFormat);
     const invalidFallback = step.dateInvalidFallback ?? defaultDateInvalidFallback;
     const invalidFallbackField = (
       <Dropdown<DateInvalidFallback>
@@ -605,41 +599,13 @@ function renderDefaultFields({
             onChange={(dateInputFormat) => onChange({ dateInputFormat })}
           />
         )}
-        <Dropdown<string>
-          className="compact recipeField"
-          label="Formato de salida"
-          value={outputFormatSelectValue}
-          options={dateOutputFormatSelectOptions}
-          scrollStrategy="close"
-          onChange={(dateOutputFormatSelection) => {
-            if (dateOutputFormatSelection === customDateOutputFormatSelection) {
-              onChange({
-                dateOutputFormat: isKnownDateOutputFormat(outputFormat)
-                  ? suggestedCustomDateOutputFormat
-                  : outputFormat,
-              });
-              return;
-            }
-
-            onChange({ dateOutputFormat: dateOutputFormatSelection as DateOutputFormat });
-          }}
+        <DateOutputFormatInput
+          outputFormat={outputFormat}
+          error={outputFormatError}
+          onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
         />
-        {isCustomOutputFormat ? (
-          <div className="dateOutputCustomRow">
-            <DateOutputFormatBuilder
-              outputFormat={outputFormat}
-              error={customOutputFormatError}
-              onChange={(dateOutputFormat) => onChange({ dateOutputFormat })}
-            />
-            {invalidFallbackField}
-            {fixedFallbackField}
-          </div>
-        ) : (
-          <>
-            {invalidFallbackField}
-            {fixedFallbackField}
-          </>
-        )}
+        {invalidFallbackField}
+        {fixedFallbackField}
       </>
     );
   }
@@ -677,7 +643,7 @@ function renderDefaultFields({
   return sourceFields;
 }
 
-function DateOutputFormatBuilder({
+function DateOutputFormatInput({
   outputFormat,
   error,
   onChange,
@@ -686,82 +652,74 @@ function DateOutputFormatBuilder({
   error: string;
   onChange: (dateOutputFormat: DateOutputFormat) => void;
 }) {
-  const pattern = parseDateOutputFormatPattern(outputFormat) ?? defaultCustomDateOutputPattern;
-  const updatePattern = (nextPattern: DateOutputFormatPattern) => {
-    onChange(buildDateOutputFormatFromPattern(nextPattern));
-  };
-  const updatePart = (index: 0 | 1 | 2, part: DateOutputFormatPart) => {
-    const nextParts = [...pattern.parts] as DateOutputFormatPattern['parts'];
-    const existingIndex = nextParts.findIndex((candidate, candidateIndex) => candidateIndex !== index && candidate === part);
-    if (existingIndex >= 0) {
-      nextParts[existingIndex] = pattern.parts[index];
-    }
-    nextParts[index] = part;
-    updatePattern({ ...pattern, parts: nextParts });
-  };
-  const updateSeparator = (index: 0 | 1, separator: DateOutputFormatSeparator) => {
-    const nextSeparators = [...pattern.separators] as DateOutputFormatPattern['separators'];
-    nextSeparators[index] = separator;
-    updatePattern({ ...pattern, separators: nextSeparators });
-  };
+  const inputId = useId();
 
   return (
-    <div className="dateOutputFormatBuilder recipeField">
-      <span className="labelWithInfo">
-        <span>Formato personalizado</span>
-        <InfoTooltip content={dateOutputFormatHelpText} />
-        {error ? <WarningTooltip content={error} ariaLabel="Advertencia: formato personalizado inválido" /> : null}
+    <div className="field compact recipeField dateOutputFormatField">
+      <span className="labelWithInfo dateOutputFormatLabel">
+        <label htmlFor={inputId}>Formato de salida</label>
+        <InfoTooltip content={dateOutputFormatFieldHelpText} className="dateOutputFormatFieldInfo" />
+        {error ? <WarningTooltip content={`${error} ${dateOutputFormatInvalidEffectText}`} ariaLabel="Advertencia: formato de salida inválido" /> : null}
       </span>
-      <div className="dateOutputFormatBuilderControls">
-        <DateOutputPartDropdown index={0} value={pattern.parts[0]} onChange={updatePart} />
-        <DateOutputSeparatorDropdown index={0} value={pattern.separators[0]} onChange={updateSeparator} />
-        <DateOutputPartDropdown index={1} value={pattern.parts[1]} onChange={updatePart} />
-        <DateOutputSeparatorDropdown index={1} value={pattern.separators[1]} onChange={updateSeparator} />
-        <DateOutputPartDropdown index={2} value={pattern.parts[2]} onChange={updatePart} />
-      </div>
+      <span className="dateOutputFormatInputRow">
+        <input
+          id={inputId}
+          aria-invalid={error ? true : undefined}
+          placeholder="DD/MM/AAAA"
+          value={outputFormat}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <InfoTooltip
+          content={<DateOutputFormatHelp />}
+          ariaLabel={dateOutputFormatHelpButtonLabel}
+          className="dateOutputFormatHelpTooltip"
+          interaction="click"
+          placement="right"
+        >
+          <button type="button" className="dateOutputFormatHelpButton" aria-label={dateOutputFormatHelpButtonLabel} title={dateOutputFormatHelpButtonLabel}>
+            <AppIcon name="calendar" size={16} />
+          </button>
+        </InfoTooltip>
+      </span>
     </div>
   );
 }
 
-function DateOutputPartDropdown({
-  index,
-  value,
-  onChange,
-}: {
-  index: 0 | 1 | 2;
-  value: DateOutputFormatPart;
-  onChange: (index: 0 | 1 | 2, part: DateOutputFormatPart) => void;
-}) {
+function DateOutputFormatHelp() {
   return (
-    <Dropdown<DateOutputFormatPart>
-      className="compact dateOutputPartField"
-      label={`Bloque ${index + 1}`}
-      value={value}
-      options={dateOutputPartOptions}
-      scrollStrategy="close"
-      onChange={(part) => onChange(index, part)}
-    />
-  );
-}
-
-function DateOutputSeparatorDropdown({
-  index,
-  value,
-  onChange,
-}: {
-  index: 0 | 1;
-  value: DateOutputFormatSeparator;
-  onChange: (index: 0 | 1, separator: DateOutputFormatSeparator) => void;
-}) {
-  return (
-    <Dropdown<DateOutputFormatSeparator>
-      className="compact dateOutputSeparatorField"
-      label={`Separador ${index + 1}`}
-      value={value}
-      options={dateOutputSeparatorOptions}
-      scrollStrategy="close"
-      onChange={(separator) => onChange(index, separator)}
-    />
+    <span className="dateOutputFormatHelpContent">
+      <strong>Formatos disponibles</strong>
+      <span>Combiná estas partes para definir el formato de salida.</span>
+      <table>
+        <colgroup>
+          <col className="dateOutputFormatColumn" />
+          <col className="dateOutputExampleColumn" />
+          <col className="dateOutputDescriptionColumn" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Formato</th>
+            <th>Ejemplo</th>
+            <th>Qué significa</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dateOutputFormatPartRows.map((row) => (
+            <tr key={row.format}>
+              <td><code>{row.format}</code></td>
+              <td>{row.example}</td>
+              <td title={row.description}>{row.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <strong className="dateOutputFormatExamplesTitle">Ejemplos</strong>
+      <span className="dateOutputFormatExamples">
+        {dateOutputFormatExamples.map(([format, example]) => (
+          <span key={format}><code>{format}</code> → <span>{example}</span></span>
+        ))}
+      </span>
+    </span>
   );
 }
 

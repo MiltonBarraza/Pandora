@@ -460,52 +460,164 @@
 .stepExtraFieldsRow > .numericOperationFields,
 .stepExtraFieldsRow > .manualRangeStepFields,
 .stepExtraFieldsRow > .concatStepFields,
-.stepExtraFieldsRow > .dateOutputCustomRow,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericOperationFields,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .manualRangeStepFields,
-.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields,
-.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .dateOutputCustomRow {
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields {
   grid-column: 1 / -1;
 }
 
-.dateOutputCustomRow {
-  align-items: end;
+.dateOutputFormatField {
+  min-width: 0;
+}
+
+.dateOutputFormatLabel {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.dateOutputFormatField > label,
+.dateOutputFormatLabel > label {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.field .dateOutputFormatInputRow {
+  align-items: center;
+  display: grid;
+  font-size: 1rem;
+  font-weight: 400;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.field .dateOutputFormatInputRow > span {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.dateOutputFormatInputRow input {
+  min-width: 0;
+}
+
+.dateOutputFormatHelpButton {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: var(--recipe-field-control-height);
+  justify-content: center;
+  padding: 0;
+  width: var(--recipe-field-control-height);
+}
+
+.dateOutputFormatHelpButton:hover,
+.dateOutputFormatHelpButton:focus-visible {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.dateOutputFormatHelpTooltip.infoTooltipBubble {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  box-shadow: var(--shadow-modal);
+  color: var(--color-text-primary);
+  font-weight: 400;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 12px;
+  white-space: normal;
+}
+
+.dateOutputFormatHelpContent {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(0, 520px) repeat(2, minmax(180px, 240px));
-  justify-content: start;
-  min-width: 0;
 }
 
-.dateOutputFormatBuilder {
+.dateOutputFormatHelpContent > strong {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.dateOutputFormatHelpContent > span {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.dateOutputFormatHelpContent table {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  overflow: hidden;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.dateOutputFormatColumn {
+  width: 82px;
+}
+
+.dateOutputExampleColumn {
+  width: 86px;
+}
+
+.dateOutputDescriptionColumn {
+  width: auto;
+}
+
+.dateOutputFormatHelpContent th {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.dateOutputFormatHelpContent th,
+.dateOutputFormatHelpContent td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 5px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dateOutputFormatHelpContent th:nth-child(1),
+.dateOutputFormatHelpContent th:nth-child(2),
+.dateOutputFormatHelpContent td:nth-child(1),
+.dateOutputFormatHelpContent td:nth-child(2) {
+  white-space: nowrap;
+}
+
+.dateOutputFormatHelpContent th:nth-child(3),
+.dateOutputFormatHelpContent td:nth-child(3) {
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: normal;
+}
+
+.dateOutputFormatHelpContent tr:last-child td {
+  border-bottom: 0;
+}
+
+.dateOutputFormatHelpContent code {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  padding: 1px 4px;
+}
+
+.dateOutputFormatExamplesTitle {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 8px;
+}
+
+.dateOutputFormatExamples {
   display: grid;
-  gap: var(--recipe-field-gap, 5px);
-  min-width: 0;
-}
-
-.constructorModalContent.recipeStudio .dateOutputFormatBuilder.recipeField > .labelWithInfo {
-  align-items: center;
-  box-sizing: border-box;
-  display: flex;
-  gap: 4px;
-  height: var(--recipe-field-label-height);
-  line-height: var(--recipe-field-label-height);
-  margin: 0;
-  min-height: var(--recipe-field-label-height);
-  padding: 0;
-}
-
-.dateOutputFormatBuilderControls {
-  align-items: end;
-  display: grid;
-  gap: 6px;
-  grid-template-columns: minmax(70px, 1fr) minmax(76px, 0.8fr) minmax(70px, 1fr) minmax(76px, 0.8fr) minmax(70px, 1fr);
-  min-width: 0;
-}
-
-.dateOutputPartField,
-.dateOutputSeparatorField {
-  min-width: 0;
+  gap: 3px;
 }
 
 @media (max-width: 720px) {
@@ -525,11 +637,6 @@
   .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow,
   .constructorModalContent.recipeStudio .stepEditorBlock .conditionFieldsRow,
   .constructorModalContent.recipeStudio .stepEditorBlock .numericOperationFields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dateOutputCustomRow,
-  .dateOutputFormatBuilderControls {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -736,12 +736,14 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde celda');
     expect(headerPreview.textContent).not.toContain('2026-07-01');
 
-    await selectLastDropdownOption(user, /Formato de salida/, 'DD/MM/AAAA');
+    const outputFormatInput = screen.getByLabelText('Formato de salida') as HTMLInputElement;
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'DD/MM/AAAA');
     expect(headerPreview.textContent).not.toContain('01/07/2026');
     expect(headerPreview.textContent).not.toContain('2026-07-01');
   });
 
-  it('lets users switch date output to a custom format and reorder it with the builder', async () => {
+  it('lets users type date output formats and see preview updates', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={{
@@ -769,30 +771,48 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     const headerPreview = document.querySelector('.constructorModalHeaderPreview span') as HTMLElement;
+    const outputFormatInput = screen.getByLabelText('Formato de salida') as HTMLInputElement;
 
-    await selectLastDropdownOption(user, /Formato de salida/, 'Personalizado');
-    expect(screen.getByText('Formato personalizado')).not.toBeNull();
-    expect(screen.queryByDisplayValue('MM-DD-YYYY')).toBeNull();
-    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('MM');
-    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('DD');
-    expect(screen.getByRole('button', { name: /Bloque 3/ }).textContent).toContain('AAAA');
-    expect(headerPreview.textContent).toBe('12-31-2025');
+    expect(outputFormatInput.value).toBe('AAAA-MM-DD');
+    expect(screen.queryByRole('button', { name: /Bloque 1/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Separador 1/ })).toBeNull();
+    expect(headerPreview.textContent).toBe('2025-12-31');
 
-    await selectLastDropdownOption(user, /Bloque 1/, 'DD');
-    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('DD');
-    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('MM');
-    await selectLastDropdownOption(user, /Separador 1/, '.');
-    await selectLastDropdownOption(user, /Separador 2/, '.');
-    expect(headerPreview.textContent).toBe('31.12.2025');
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'DD/MM/AAAA');
+    expect(headerPreview.textContent).toBe('31/12/2025');
 
-    await selectLastDropdownOption(user, /Separador 1/, 'Espacio');
-    await selectLastDropdownOption(user, /Separador 2/, 'Espacio');
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'AAAA-MM-DD');
+    expect(headerPreview.textContent).toBe('2025-12-31');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'D/M/AA');
+    expect(headerPreview.textContent).toBe('31/12/25');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'MMMM DD AAAA');
+    expect(headerPreview.textContent).toBe('diciembre 31 2025');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'dddd DD/MM/AAAA');
+    expect(headerPreview.textContent).toBe('miércoles 31/12/2025');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'MMMMM DD AAAA');
+    expect(screen.getByRole('button', { name: 'Advertencia: formato de salida inválido' })).not.toBeNull();
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'DD.MM.AAAA');
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
-    expect(persistedRecipe.steps[0].dateOutputFormat).toBe('DD MM AAAA');
+    expect(persistedRecipe.steps[0].dateOutputFormat).toBe('DD.MM.AAAA');
+
+    await openRecipeEditor(user);
+    expect((screen.getByLabelText('Formato de salida') as HTMLInputElement).value).toBe('DD.MM.AAAA');
   });
 
-  it('shows loaded custom date output formats as Personalizado', async () => {
+  it('shows date output help with only supported visible tokens', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={{
@@ -818,14 +838,45 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     />);
 
     await openRecipeEditor(user);
-    const outputFormatButtons = screen.getAllByRole('button', { name: /Formato de salida/ });
-    expect(outputFormatButtons[outputFormatButtons.length - 1].textContent).toContain('Personalizado');
-    expect(screen.queryByDisplayValue('DD.MM.YYYY')).toBeNull();
-    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('DD');
-    expect(screen.getByRole('button', { name: /Separador 1/ }).textContent).toContain('.');
-    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('MM');
-    expect(screen.getByRole('button', { name: /Separador 2/ }).textContent).toContain('.');
-    expect(screen.getByRole('button', { name: /Bloque 3/ }).textContent).toContain('AAAA');
+    expect((screen.getByLabelText('Formato de salida') as HTMLInputElement).value).toBe('DD.MM.AAAA');
+    const fieldInfoButton = document.querySelector('.dateOutputFormatFieldInfo .infoTooltipTrigger') as HTMLElement | null;
+    expect(fieldInfoButton).not.toBeNull();
+    await user.hover(fieldInfoButton!);
+    expect(await screen.findByText('Escribí el formato combinando partes como DD, MM y AAAA. Usá el calendario para ver todos los formatos disponibles.')).not.toBeNull();
+    expect(screen.queryByText(/token/i)).toBeNull();
+    await user.unhover(fieldInfoButton!);
+    await waitFor(() => expect(screen.queryByText('Escribí el formato combinando partes como DD, MM y AAAA. Usá el calendario para ver todos los formatos disponibles.')).toBeNull());
+    expect(document.querySelector('.dateOutputFormatHelpButton')?.getAttribute('title')).toBe('Ver formatos de salida');
+
+    await user.click(screen.getByRole('button', { name: 'Ver formatos de salida' }));
+    const tooltip = await screen.findByRole('tooltip');
+    expect(within(tooltip).getByText('Formatos disponibles')).not.toBeNull();
+    expect(within(tooltip).getByText('Combiná estas partes para definir el formato de salida.')).not.toBeNull();
+    expect(within(tooltip).getByText('Formato')).not.toBeNull();
+    expect(within(tooltip).getByText('Ejemplo')).not.toBeNull();
+    expect(within(tooltip).getByText('Qué significa')).not.toBeNull();
+    expect(within(tooltip).getAllByText('AAAA').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('AA').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('MMMM').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('MMM').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('dddd').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('ddd').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('MM').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('M').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('DD').length).toBeGreaterThan(0);
+    expect(within(tooltip).getAllByText('D').length).toBeGreaterThan(0);
+    expect(within(tooltip).getByTitle('Nombre completo del mes')).not.toBeNull();
+    expect(within(tooltip).getByTitle('Día de semana completo')).not.toBeNull();
+    expect(within(tooltip).getByTitle('Día del mes con 2 dígitos')).not.toBeNull();
+    expect(within(tooltip).getByTitle('Día del mes sin cero inicial')).not.toBeNull();
+    expect(within(tooltip).getByText('Ejemplos')).not.toBeNull();
+    expect(within(tooltip).getByText('D/M/AA')).not.toBeNull();
+    expect(within(tooltip).getByText('MMMM DD AAAA')).not.toBeNull();
+    expect(within(tooltip).getByText('dddd DD/MM/AAAA')).not.toBeNull();
+    expect(within(tooltip).queryByText(/token/i)).toBeNull();
+    expect(within(tooltip).queryByText('YYYY')).toBeNull();
+    expect(within(tooltip).queryByText('YY')).toBeNull();
+    expect(document.querySelector('.dateOutputFormatHelpButton .lucide-calendar-days')).not.toBeNull();
   });
 
   it('applies the first normal text action selection immediately', async () => {

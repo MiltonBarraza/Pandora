@@ -1942,6 +1942,52 @@ describe('outputModel date steps', () => {
     expect(row.outputValues.date).toBe('12-31-2025');
   });
 
+  it('formats a date from an input column using Spanish visible output tokens', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { 'input-date': '05/07/2026' } },
+    ], [
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'D/M/AA',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('5/7/26');
+  });
+
+  it('formats a date from an input column using Spanish month and weekday names', () => {
+    const [row] = buildProcessedRows([
+      { rowNumber: 1, values: { 'input-date': '05/07/2026' } },
+    ], [
+      outputColumn({
+        id: 'date',
+        recipe: {
+          type: 'direct',
+          inputColumnId: 'input-date',
+          steps: [{
+            id: 'format-date',
+            type: 'formatDate',
+            mode: 'date',
+            dateInputFormat: 'DD/MM/YYYY',
+            dateOutputFormat: 'dddd DD MMMM AAAA',
+          }],
+        },
+      }),
+    ]);
+
+    expect(row.outputValues.date).toBe('domingo 05 julio 2026');
+  });
+
   it('formats dates with two digit years from real spreadsheet display values', () => {
     const row = buildRow([
       outputColumn({
@@ -2244,7 +2290,7 @@ describe('outputModel date steps', () => {
                 id: 'format-date',
                 type: 'formatDate',
                 dateInputFormat: 'DD/MM/YYYY',
-                dateOutputFormat: 'MM-DD-YYYY',
+                dateOutputFormat: 'D/M/AA',
               }],
             },
           }],
@@ -2252,7 +2298,7 @@ describe('outputModel date steps', () => {
       }),
     ]);
 
-    expect(row.outputValues['range-date']).toBe('12-31-2025');
+    expect(row.outputValues['range-date']).toBe('31/12/25');
   });
 
   it('keeps existing text steps unchanged', () => {

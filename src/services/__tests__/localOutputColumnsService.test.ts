@@ -353,7 +353,7 @@ describe('localOutputColumnsService', () => {
               mode: 'date',
               type: 'formatDate',
               dateInputFormat: 'DD/MM/YYYY',
-              dateOutputFormat: 'MM-DD-YYYY',
+              dateOutputFormat: 'MMMM DD AAAA',
             }],
           },
         },
@@ -367,7 +367,7 @@ describe('localOutputColumnsService', () => {
       steps: [{
         id: 'format-date',
         type: 'formatDate',
-        dateOutputFormat: 'MM-DD-YYYY',
+        dateOutputFormat: 'MMMM DD AAAA',
       }],
     });
   });

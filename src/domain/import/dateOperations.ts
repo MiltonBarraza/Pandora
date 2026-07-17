@@ -7,19 +7,18 @@ export type KnownDateOutputFormat =
   | 'DD-MM-YYYY'
   | 'YYYY/MM/DD';
 
-export type DateOutputFormatPart = 'DD' | 'MM' | 'AAAA';
-export type DateOutputFormatSeparator = '/' | '-' | '.' | ' ';
-
-export type DateOutputFormatPattern = {
-  parts: [DateOutputFormatPart, DateOutputFormatPart, DateOutputFormatPart];
-  separators: [DateOutputFormatSeparator, DateOutputFormatSeparator];
-};
-
 export type DateParts = {
   year: number;
   month: number;
   day: number;
 };
+
+const supportedDateOutputPartPattern = /dddd|MMMM|AAAA|YYYY|ddd|MMM|AA|YY|MM|DD|M|D/g;
+const supportedDateOutputPartMatcher = /dddd|MMMM|AAAA|YYYY|ddd|MMM|AA|YY|MM|DD|M|D/;
+const longMonthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const shortMonthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const longWeekdayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const shortWeekdayNames = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
 export const defaultDateInputFormat: DateInputFormat = 'DD/MM/YYYY';
 export const defaultDateOutputFormat: DateOutputFormat = 'YYYY-MM-DD';
@@ -71,14 +70,27 @@ export function formatDateValue(dateParts: DateParts, outputFormat: DateOutputFo
   const year = String(dateParts.year).padStart(4, '0');
   const shortYear = year.slice(-2);
   const month = String(dateParts.month).padStart(2, '0');
+  const looseMonth = String(dateParts.month);
   const day = String(dateParts.day).padStart(2, '0');
+  const looseDay = String(dateParts.day);
+  const longMonth = longMonthNames[dateParts.month - 1] ?? '';
+  const shortMonth = shortMonthNames[dateParts.month - 1] ?? '';
+  const weekday = getWeekdayIndex(dateParts);
+  const longWeekday = longWeekdayNames[weekday] ?? '';
+  const shortWeekday = shortWeekdayNames[weekday] ?? '';
   const safeOutputFormat = isValidDateOutputFormat(outputFormat) ? outputFormat : defaultDateOutputFormat;
 
-  return safeOutputFormat.replace(/AAAA|YYYY|YY|MM|DD/g, (token) => {
-    if (token === 'AAAA' || token === 'YYYY') return year;
-    if (token === 'YY') return shortYear;
-    if (token === 'MM') return month;
-    return day;
+  return safeOutputFormat.replace(supportedDateOutputPartPattern, (part) => {
+    if (part === 'dddd') return longWeekday;
+    if (part === 'ddd') return shortWeekday;
+    if (part === 'MMMM') return longMonth;
+    if (part === 'MMM') return shortMonth;
+    if (part === 'AAAA' || part === 'YYYY') return year;
+    if (part === 'AA' || part === 'YY') return shortYear;
+    if (part === 'MM') return month;
+    if (part === 'M') return looseMonth;
+    if (part === 'DD') return day;
+    return looseDay;
   });
 }
 
@@ -95,49 +107,44 @@ export function getDateOutputFormatError(format: string) {
   const value = raw.trim();
 
   if (!value) {
-    return 'Usá DD para día, MM para mes y AAAA para año.';
+    return 'Escribí un formato, por ejemplo DD/MM/AAAA.';
   }
 
-  if (/[dmy]/.test(value)) {
-    return value.includes('m')
-      ? 'Usá MM en mayúscula para mes.'
-      : 'Usá DD, MM y AAAA en mayúsculas.';
+  if (/(A{5,}|Y{5,}|M{5,}|D{3,}|d{5,})/.test(value)) {
+    return 'El formato tiene partes que la app no reconoce. Revisá los formatos disponibles.';
   }
 
-  if (!/^[ADMyY/\-. ]+$/.test(value)) {
-    return 'Usá sólo DD, MM, AAAA y separadores /, -, . o espacio.';
+  const valueWithoutWeekdayParts = value.replace(/dddd|ddd/g, '');
+  if (/[may]/.test(value) || /d/.test(valueWithoutWeekdayParts)) {
+    if (/[m]/.test(value)) {
+      return 'Usá MM o M en mayúscula para mes.';
+    }
+
+    if (/[y]/.test(value)) {
+      return 'Usá AAAA o AA en mayúscula para año.';
+    }
+
+    return 'Usá DD o D en mayúscula para día.';
   }
 
-  const parsedPattern = parseDateOutputFormatPattern(value);
-  if (!parsedPattern) {
-    return 'Usá sólo tokens completos: DD, MM y AAAA.';
+  if (!supportedDateOutputPartMatcher.test(value)) {
+    return 'Usá al menos una parte válida: AAAA, AA, MMMM, MMM, MM, M, DD o D.';
   }
 
-  if (new Set(parsedPattern.parts).size !== 3) {
-    return 'Usá DD, MM y AAAA una sola vez cada uno.';
+  if (!/^[ADMAYd/\-. ]+$/.test(value)) {
+    return 'Usá sólo formatos disponibles y separadores /, -, . o espacio.';
+  }
+
+  const withoutSupportedParts = value.replace(supportedDateOutputPartPattern, '');
+  if (/[A-Za-z]/.test(withoutSupportedParts)) {
+    return 'El formato tiene partes que la app no reconoce. Revisá los formatos disponibles.';
   }
 
   return '';
 }
 
-export function parseDateOutputFormatPattern(format: string): DateOutputFormatPattern | null {
-  const match = String(format ?? '').trim().match(/^(DD|MM|AAAA|YYYY)([\/\-. ])(DD|MM|AAAA|YYYY)([\/\-. ])(DD|MM|AAAA|YYYY)$/);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    parts: [
-      normalizeDateOutputFormatPart(match[1]),
-      normalizeDateOutputFormatPart(match[3]),
-      normalizeDateOutputFormatPart(match[5]),
-    ],
-    separators: [match[2] as DateOutputFormatSeparator, match[4] as DateOutputFormatSeparator],
-  };
-}
-
-export function buildDateOutputFormatFromPattern(pattern: DateOutputFormatPattern): DateOutputFormat {
-  return `${pattern.parts[0]}${pattern.separators[0]}${pattern.parts[1]}${pattern.separators[1]}${pattern.parts[2]}`;
+export function getDateOutputFormatDisplayValue(format: DateOutputFormat = defaultDateOutputFormat) {
+  return String(format).replace(/YYYY/g, 'AAAA').replace(/YY/g, 'AA');
 }
 
 export function applyFormatDateStep(value: string, step: TransformStep) {
@@ -228,8 +235,8 @@ function getDaysInMonth(year: number, month: number) {
   return [4, 6, 9, 11].includes(month) ? 30 : 31;
 }
 
-function normalizeDateOutputFormatPart(part: string): DateOutputFormatPart {
-  return part === 'YYYY' || part === 'AAAA' ? 'AAAA' : part as DateOutputFormatPart;
+function getWeekdayIndex(dateParts: DateParts) {
+  return new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day)).getUTCDay();
 }
 
 function isLeapYear(year: number) {
