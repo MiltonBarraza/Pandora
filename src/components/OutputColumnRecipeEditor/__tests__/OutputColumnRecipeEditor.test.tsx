@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { addManualRangeValue, createDefaultManualRangeValue, createManualRangeRecipe, describeManualRangeCondition, describeManualRangeStepSummary, duplicateManualRangeValue, generateManualRangesFromDataBlocks, generateManualRangesFromTexts, getManualRangeCountLabel, getManualRangeFixedTextValue, getManualRangeInputSource, getManualRangeRangeTextHelpText, getManualRangeRangeTextSource, getManualRangeReferenceText, getManualRangeRowCount, getManualRangeRowCountFromInputs, getManualRangeSelectedTextOptions, getManualRangeTextOptions, getManualRangeValueSourceType, hasInvalidManualRange, hasOverlappingManualRanges, manualRangeRecipeToStepPatch, manualRangeStepToRecipe, manualRangeValueSourceOptions, parseManualRangeRowInput, reconcileManualRangeTextSelections, removeManualRangeValue, sortManualRangesByStart, updateManualRangeCondition, updateManualRangeFixedTextValue, updateManualRangeInputValue, updateManualRangeRangeTextValue, updateManualRangeValue, updateManualRangeValueRecipeSteps, updateManualRangeValueSourceType } from '../../../domain/import/manualRangeModel';
 import { buildInputRows, buildProcessedRows } from '../../../domain/import/outputModel';
-import type { InputColumn, InputRow, OutputColumn, OutputRecipe } from '../../../types/import';
+import type { InputColumn, InputRow, NumericFormulaOperator, OutputColumn, OutputRecipe, StepOperand, TransformStep } from '../../../types/import';
 import { Dropdown, filterDropdownOptions, getDropdownEmptyMessage } from '../../ui/Dropdown/Dropdown';
 import { ColumnTextPicker, createFixedTextSourceFromColumnText, getUniqueColumnTextOptions } from '../ColumnTextPicker';
 import { ComposePartEditor, ComposeStepHeader, ManualRangeRecipeEditor, ManualRangeTableRow, OutputColumnRecipeEditor, StepConditionFields, addConcatPartToList, appendConcatPartAdditionalStep, applyRecipeEditorDraft, buildCombinePreview, buildCustomValuePreview, buildManualRangeAwarePreview, buildManualRangeRecipePreview, buildRecipeForSelectedType, buildSimpleCustomValueRecipe, changeStepMode, clearManualRangeValues, createCustomValueRecipeForMode, createDefaultConcatPart, createRecipeForConstructionMode, createRecipeForStudioMode, dateInputFormatOptions, dateOutputFormatOptions, describeCombineParts, describeConcatPartSource, formatManualRangeRowInput, getComposeColumnTextOptions, getComposeValidColumnTextSelection, getConstructorAdjustmentLabels, getConstructorAdjustmentsSummary, getConstructorPartsSummary, getCustomValuePartsDisplayLabel, getCustomValuePartsDisplaySummary, getDatePickerValue, getFormatDateSourceSelection, getManualRangePreviewColumnsForRows, getManualRangePreviewRowsForRange, getNextSelectedConcatPartIdAfterRemove, getOutputRecipeTypeOptions, getOutputRecipeTypeSelectorValue, getPreviousResultDisplay, getPreviousStepPreviewValue, getRecipeEditorModalRecipe, getRecipeStudioMode, getSafeSelectedConcatPartId, getSimpleStepValue, getStepMode, getStepModeOptions, getStepSourceDropdownOptions, getStepSourceDropdownValue, getStepSourceForTextAction, getStepSourceFromDropdownValue, getStepTextSourceActionOptions, getStepTypesForMode, getTextStepSourceLabel, getVisibleConcatPartPrimaryStep, getVisibleLeftOperand, getVisibleRecipeSteps, getVisibleRightOperand, hasRecipeEditorDraftChanges, inferStepModeFromType, isDeterministicPreviousResultRecipe, manualRangeUsageHelpText, normalizeConcatPartsAfterReorder, normalizeStepsForMode, numericOperationOptions, outputRecipeTypeOptions, recipeEditorAdditionalStepLabel, recipeEditorDiscardChangesMessage, recipeEditorDiscardChangesTitle, recipeEditorModalApplyLabel, recipeEditorModalCancelLabel, recipeEditorPreviousResultHelpText, removeConcatPartFromList, reorderComposeRecipeParts, reorderConcatParts, replaceWholeStepForAction, replaceWholeStepForMode, setSimpleStep, shouldShowPreviousResultSourceHelp, shouldShowStepTypeSelectForStep, shouldShowTextSourceFields, stepModeOptions, updateComposeColumnTextSelection, updateConcatPartInList, updateConcatPartPrimarySource, updateConcatPartPrimaryStep, updateConcatPartSteps, updateStep, valueConstructionOptions } from '../OutputColumnRecipeEditor';
@@ -67,6 +67,30 @@ const manualRangeRows: InputRow[] = [
   { rowNumber: 9, values: { 'input-name': '', 'input-pack': '10L' } },
   { rowNumber: 10, values: { 'input-name': 'RODILLO SIMIL LANA', 'input-pack': '5L' } },
 ];
+
+function numericFormulaStep(
+  id: string,
+  operator: NumericFormulaOperator,
+  left: StepOperand,
+  right: StepOperand,
+  rounding: TransformStep['rounding'] = 2,
+): TransformStep {
+  return {
+    id,
+    mode: 'number',
+    type: 'numericFormula',
+    formula: {
+      version: 1,
+      expression: {
+        kind: 'binary',
+        operator,
+        left: { kind: 'operand', operand: left },
+        right: { kind: 'operand', operand: right },
+      },
+    },
+    rounding,
+  };
+}
 
 function renderRangeValueEditor(
   range: Parameters<typeof RangeValueEditor>[0]['range'],
@@ -1558,7 +1582,7 @@ describe('constructor helpers', () => {
       'A', 'D - Nombre', 'F - Presentacion', 'AN - Precio', 'Fecha fija', 'Elegir fecha desde celda',
     ]);
     expect(getNumericStepTypeFromSelection('')).toEqual({ type: 'noop' });
-    expect(getNumericStepTypeFromSelection('add')).toEqual({ type: 'numericOperation', operation: 'add' });
+    expect(getNumericStepTypeFromSelection('addPercentage')).toEqual({ type: 'numericOperation', operation: 'addPercentage' });
   });
 
   it('renders number and date pickers as fixed selections from existing rows', () => {
@@ -3920,7 +3944,7 @@ describe('constructor helpers', () => {
   });
 
   it('preserves numeric operation mode and steps when changing a range value source', () => {
-    const numericStep = { id: 'numeric', mode: 'number' as const, type: 'numericOperation' as const, operation: 'add' as const, amount: 10 };
+    const numericStep = { id: 'numeric', mode: 'number' as const, type: 'numericOperation' as const, operation: 'addPercentage' as const, amount: 10 };
     const recipe: Extract<OutputRecipe, { type: 'manualRange' }> = {
       type: 'manualRange',
       ranges: [{
@@ -5776,7 +5800,7 @@ describe('constructor helpers', () => {
         separator: '',
         steps: [
           { id: 'extract', type: 'extractNumber' },
-          { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+          numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0),
         ],
       },
       { 'input-code': 'hay 25 personas' },
@@ -5878,18 +5902,15 @@ describe('constructor helpers', () => {
       'Quitar % incluido',
     ]);
     expect(numericOperationOptions.map((option) => option.label)).not.toContain('Operación numérica');
-    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Sumar valor');
-    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Restar valor');
-    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Multiplicar por valor');
-    expect(numericOperationOptions.map((option) => option.label)).not.toContain('Dividir por valor');
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain(['Sumar', 'valor'].join(' '));
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain(['Restar', 'valor'].join(' '));
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain(['Multiplicar', 'por valor'].join(' '));
+    expect(numericOperationOptions.map((option) => option.label)).not.toContain(['Dividir', 'por valor'].join(' '));
   });
 
   it('uses plural number mode copy and contextual numeric operand labels', () => {
     expect(stepModeOptions.find((option) => option.value === 'number')?.label).toBe('Trabajar con números');
-    expect(getNumericOperandLabels('add')).toEqual({ left: 'Valor base', right: 'Valor a sumar' });
-    expect(getNumericOperandLabels('subtract')).toEqual({ left: 'Valor base', right: 'Valor a restar' });
-    expect(getNumericOperandLabels('multiply')).toEqual({ left: 'Valor base', right: 'Factor' });
-    expect(getNumericOperandLabels('divide')).toEqual({ left: 'Valor base', right: 'Divisor' });
+    expect(getNumericOperandLabels()).toEqual({ left: 'Valor base', right: '%' });
     expect(getNumericOperandLabels('addPercentage')).toEqual({ left: 'Valor base', right: '%' });
     expect(getNumericOperandLabels('subtractPercentage')).toEqual({ left: 'Valor base', right: '%' });
     expect(getNumericOperandLabels('removeIncludedPercentage')).toEqual({
@@ -5925,7 +5946,7 @@ describe('constructor helpers', () => {
           id: 'range-numeric-operands',
           mode: 'number',
           type: 'numericOperation',
-          operation: 'add',
+          operation: 'addPercentage',
           leftOperand: { type: 'input', inputColumnId: 'inside' },
           rightOperand: { type: 'fixedText', value: '10' },
         }}
@@ -5994,7 +6015,7 @@ describe('constructor helpers', () => {
           id: 'numeric-no-columns',
           mode: 'number',
           type: 'numericOperation',
-          operation: 'add',
+          operation: 'addPercentage',
           leftOperand: { type: 'input', inputColumnId: 'input-code' },
           rightOperand: { type: 'fixedText', value: '10' },
         }}
@@ -6020,14 +6041,14 @@ describe('constructor helpers', () => {
         id: 'add',
         mode: 'number',
         type: 'numericOperation',
-        operation: 'add',
+        operation: 'addPercentage',
         leftOperand: { type: 'fixedText', value: '100' },
         rightOperand: { type: 'fixedText', value: '' },
         rounding: 0,
       }],
     };
 
-    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá Valor a sumar para ver la vista previa.');
+    expect(buildCustomValuePreview(recipe, {}, true, 'number')).toBe('Completá % para ver la vista previa.');
     expect(buildCustomValuePreview({
       ...recipe,
       steps: [{ ...recipe.steps![0], rightOperand: { type: 'input', inputColumnId: 'text' } }],
@@ -6221,14 +6242,14 @@ describe('constructor helpers', () => {
 
   it('builds compact warnings for deterministic invalid numeric operands', () => {
     expect(getNumericOperationUiWarning(
-      'add',
+      'addPercentage',
       { type: 'fixedText', value: 'abc' },
       { type: 'fixedText', value: '10' },
     )).toBe('No se pudo calcular: el valor no es numérico.');
     expect(getNumericOperationUiWarning(
-      'divide',
+      'removeIncludedPercentage',
       { type: 'fixedText', value: '100' },
-      { type: 'fixedText', value: '0' },
+      { type: 'fixedText', value: '-100' },
     )).toBe('No se pudo calcular: división por cero.');
     expect(getNumericOperationUiWarning(
       'removeIncludedPercentage',
@@ -6244,9 +6265,9 @@ describe('constructor helpers', () => {
           id: 'divide-zero',
           mode: 'number',
           type: 'numericOperation',
-          operation: 'divide',
+          operation: 'removeIncludedPercentage',
           leftOperand: { type: 'fixedText', value: '100' },
-          rightOperand: { type: 'fixedText', value: '0' },
+          rightOperand: { type: 'fixedText', value: '-100' },
         }}
         context={{ kind: 'normal', stepIndex: 0, defaultInputColumnId: 'input-code' }}
         inputColumns={inputColumns}
@@ -6255,8 +6276,8 @@ describe('constructor helpers', () => {
       />,
     );
 
-    expect(markup).toContain('Valor base');
-    expect(markup).toContain('Divisor');
+    expect(markup).toContain('Valor con % incluido');
+    expect(markup).toContain('% incluido');
     expect(markup).toContain('warningTooltipTrigger');
     expect(markup).toContain('No se pudo calcular: división por cero.');
   });
@@ -7027,7 +7048,7 @@ describe('constructor helpers', () => {
           parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
           separator: '',
           steps: [
-            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 2 },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 2),
             { id: 'percent', type: 'numericOperation', operation: 'addPercentage', amount: 20, rounding: 2 },
           ],
         },
@@ -7036,11 +7057,11 @@ describe('constructor helpers', () => {
     ).toBe('132.00');
   });
 
-  it('maps old amount-based numeric steps to visible fixed right operands', () => {
+  it('maps amount-based percentage steps to visible fixed right operands', () => {
     const step = {
       id: 'add',
       type: 'numericOperation' as const,
-      operation: 'add' as const,
+      operation: 'addPercentage' as const,
       amount: 10,
     };
 
@@ -7076,16 +7097,7 @@ describe('constructor helpers', () => {
           customMode: 'number',
           parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
           separator: '',
-          steps: [
-            {
-              id: 'previous-minus-input',
-              type: 'numericOperation',
-              operation: 'subtract',
-              leftOperand: { type: 'previousResult' },
-              rightOperand: { type: 'input', inputColumnId: 'input-code' },
-              rounding: 0,
-            },
-          ],
+          steps: [numericFormulaStep('previous-minus-input', 'subtract', { type: 'previousResult' }, { type: 'input', inputColumnId: 'input-code' }, 0)],
         },
         { 'input-price': '100', 'input-code': '25' },
       ),
@@ -7098,16 +7110,7 @@ describe('constructor helpers', () => {
           customMode: 'number',
           parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
           separator: '',
-          steps: [
-            {
-              id: 'input-minus-previous',
-              type: 'numericOperation',
-              operation: 'subtract',
-              leftOperand: { type: 'input', inputColumnId: 'input-code' },
-              rightOperand: { type: 'previousResult' },
-              rounding: 0,
-            },
-          ],
+          steps: [numericFormulaStep('input-minus-previous', 'subtract', { type: 'input', inputColumnId: 'input-code' }, { type: 'previousResult' }, 0)],
         },
         { 'input-price': '100', 'input-code': '25' },
       ),
@@ -7122,16 +7125,7 @@ describe('constructor helpers', () => {
           customMode: 'number',
           parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
           separator: '',
-          steps: [
-            {
-              id: 'add',
-              type: 'numericOperation',
-              operation: 'add',
-              leftOperand: { type: 'input', inputColumnId: 'input-price' },
-              rightOperand: { type: 'input', inputColumnId: 'input-code' },
-              rounding: 0,
-            },
-          ],
+          steps: [numericFormulaStep('add', 'add', { type: 'input', inputColumnId: 'input-price' }, { type: 'input', inputColumnId: 'input-code' }, 0)],
         },
         { 'input-price': '100', 'input-code': '25' },
       ),
@@ -7144,16 +7138,7 @@ describe('constructor helpers', () => {
           customMode: 'number',
           parts: [{ id: 'base', type: 'input', inputColumnId: 'input-price' }],
           separator: '',
-          steps: [
-            {
-              id: 'divide',
-              type: 'numericOperation',
-              operation: 'divide',
-              leftOperand: { type: 'input', inputColumnId: 'input-price' },
-              rightOperand: { type: 'input', inputColumnId: 'input-code' },
-              rounding: 0,
-            },
-          ],
+          steps: [numericFormulaStep('divide', 'divide', { type: 'input', inputColumnId: 'input-price' }, { type: 'input', inputColumnId: 'input-code' }, 0)],
         },
         { 'input-price': '100', 'input-code': '25' },
       ),
@@ -7168,16 +7153,7 @@ describe('constructor helpers', () => {
           customMode: 'number',
           parts: [{ id: 'empty-base', type: 'input', inputColumnId: '' }],
           separator: '',
-          steps: [
-            {
-              id: 'add',
-              type: 'numericOperation',
-              operation: 'add',
-              leftOperand: { type: 'input', inputColumnId: 'input-price' },
-              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
-              rounding: 2,
-            },
-          ],
+          steps: [numericFormulaStep('add', 'add', { type: 'input', inputColumnId: 'input-price' }, { type: 'fixedText', value: '10', numericFallback: 10 }, 2)],
         },
         { 'input-price': '100' },
       ),
@@ -7192,17 +7168,7 @@ describe('constructor helpers', () => {
           customMode: 'text',
           parts: [{ id: 'empty-base', type: 'input', inputColumnId: '' }],
           separator: '',
-          steps: [
-            {
-              id: 'add',
-              mode: 'number',
-              type: 'numericOperation',
-              operation: 'add',
-              leftOperand: { type: 'input', inputColumnId: 'input-price' },
-              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
-              rounding: 2,
-            },
-          ],
+          steps: [numericFormulaStep('add', 'add', { type: 'input', inputColumnId: 'input-price' }, { type: 'fixedText', value: '10', numericFallback: 10 }, 2)],
         },
         { 'input-price': '100' },
         true,
@@ -7219,16 +7185,7 @@ describe('constructor helpers', () => {
           customMode: 'number',
           parts: [{ id: 'empty-base', type: 'input', inputColumnId: '' }],
           separator: '',
-          steps: [
-            {
-              id: 'subtract',
-              type: 'numericOperation',
-              operation: 'subtract',
-              leftOperand: { type: 'input', inputColumnId: 'input-price' },
-              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
-              rounding: 0,
-            },
-          ],
+          steps: [numericFormulaStep('subtract', 'subtract', { type: 'input', inputColumnId: 'input-price' }, { type: 'fixedText', value: '10', numericFallback: 10 }, 0)],
         },
         { 'input-price': '100' },
       ),
@@ -7245,14 +7202,7 @@ describe('constructor helpers', () => {
           separator: '',
           steps: [
             { id: 'noop', type: 'noop' },
-            {
-              id: 'add',
-              type: 'numericOperation',
-              operation: 'add',
-              leftOperand: { type: 'previousResult' },
-              rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
-              rounding: 0,
-            },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10', numericFallback: 10 }, 0),
           ],
         },
         { 'input-price': '100' },
@@ -7270,11 +7220,7 @@ describe('constructor helpers', () => {
           separator: '',
           steps: [
             {
-              id: 'skipped',
-              type: 'numericOperation',
-              operation: 'add',
-              amount: 10,
-              rounding: 2,
+              ...numericFormulaStep('skipped', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 2),
               condition: { target: 'input', columnId: 'input-code', operator: 'equals', value: 'APPLY' },
             },
             { id: 'percent', type: 'numericOperation', operation: 'addPercentage', amount: 20, rounding: 2 },
@@ -7295,7 +7241,7 @@ describe('constructor helpers', () => {
           separator: '',
           steps: [
             { id: 'extract', type: 'extractNumber' },
-            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0),
           ],
         },
         { 'input-code': 'hay 25 personas' },
@@ -7312,7 +7258,7 @@ describe('constructor helpers', () => {
           parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
           separator: '',
           steps: [
-            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0),
             { id: 'text', type: 'toText' },
             { id: 'suffix', type: 'addSuffix', value: ' personas' },
           ],

@@ -64,10 +64,6 @@ export const recipeStepTypeLabels: Record<TransformStepType, string> = {
 };
 
 export const numericOperationLabels: Record<NonNullable<TransformStep['operation']>, string> = {
-  add: 'Sumar valor',
-  subtract: 'Restar valor',
-  multiply: 'Multiplicar por valor',
-  divide: 'Dividir por valor',
   addPercentage: 'Sumar %',
   subtractPercentage: 'Restar %',
   removeIncludedPercentage: 'Quitar % incluido',

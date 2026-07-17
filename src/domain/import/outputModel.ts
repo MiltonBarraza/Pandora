@@ -17,7 +17,7 @@ import type {
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
 import { applyFormatDateStep } from './dateOperations';
 import { evaluateTextCondition, evaluateTransformCondition } from './evaluateCondition';
-import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
+import { applyNumericFormulaOperation, applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
 
 export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]): InputColumn[] {
@@ -492,7 +492,7 @@ function applyConcatTransformStep(step: TransformStep, context: StepValueContext
 }
 
 function applyNumericTransformStep(value: string, step: TransformStep, context: StepValueContext): TransformResult {
-  const operation = step.operation ?? 'add';
+  const operation = step.operation ?? 'addPercentage';
   if (step.leftOperand || step.rightOperand) {
     return applyNumericOperandTransformStep(step, context);
   }
@@ -508,7 +508,7 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
     };
   }
 
-  if ((operation === 'divide' && amount === 0) || (operation === 'removeIncludedPercentage' && amount === -100)) {
+  if (operation === 'removeIncludedPercentage' && amount === -100) {
     return {
       value,
       warnings: ['No se puede dividir por cero'],
@@ -523,7 +523,7 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
 }
 
 function applyNumericOperandTransformStep(step: TransformStep, context: StepValueContext): TransformResult {
-  const operation = step.operation ?? 'add';
+  const operation = step.operation ?? 'addPercentage';
   const left = resolveStepOperand(step.leftOperand ?? { type: 'previousResult' }, context);
   const right = resolveStepOperand(step.rightOperand ?? { type: 'fixedText', value: String(step.amount ?? 0) }, context);
 
@@ -534,7 +534,7 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
     };
   }
 
-  if ((operation === 'divide' && right.value === 0) || (operation === 'removeIncludedPercentage' && right.value === -100)) {
+  if (operation === 'removeIncludedPercentage' && right.value === -100) {
     return {
       value: context.currentValue,
       warnings: ['No se puede dividir por cero'],
@@ -599,7 +599,7 @@ function evaluateNumericFormulaNode(node: NumericFormulaNode, context: StepValue
   }
 
   return {
-    value: applyNumericOperation(left.value, node.operator, right.value),
+    value: applyNumericFormulaOperation(left.value, node.operator, right.value),
     warnings: [...left.warnings, ...right.warnings],
   };
 }

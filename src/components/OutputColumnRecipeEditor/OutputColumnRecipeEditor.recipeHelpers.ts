@@ -579,7 +579,7 @@ export function getSimpleInputPart(recipe: Extract<OutputRecipe, { type: 'combin
   return part?.type === 'input' ? part : { id: crypto.randomUUID(), type: 'input' as const, inputColumnId: '' };
 }
 
-function createNumericOperationStep(operation: NonNullable<TransformStep['operation']> = 'add'): TransformStep {
+function createNumericOperationStep(operation: NonNullable<TransformStep['operation']> = 'addPercentage'): TransformStep {
   return {
     id: crypto.randomUUID(),
     mode: 'number',
@@ -674,7 +674,7 @@ export function replaceStepType(
   if (type === 'numericOperation') {
     if (step.type === 'numericOperation') {
       return {
-        operation: operation ?? step.operation ?? 'add',
+        operation: operation ?? step.operation ?? 'addPercentage',
         mode,
       };
     }
@@ -746,7 +746,7 @@ export function replaceWholeStepForAction(
   if (
     step.type === type
     && getStepMode(step, mode) === mode
-    && (type !== 'numericOperation' || step.operation === (operation ?? step.operation ?? 'add'))
+    && (type !== 'numericOperation' || step.operation === (operation ?? step.operation ?? 'addPercentage'))
   ) {
     return { ...step, mode };
   }

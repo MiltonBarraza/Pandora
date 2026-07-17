@@ -339,7 +339,7 @@ describe('step editor policy', () => {
       id: 'stale',
       mode: 'number',
       type: 'numericOperation',
-      operation: 'add',
+      operation: 'addPercentage',
       amount: 10,
       source: { type: 'input', inputColumnId },
     });
@@ -426,7 +426,7 @@ describe('step editor policy', () => {
       id: 'date',
       mode: 'number',
       type: 'numericOperation',
-      operation: 'multiply',
+      operation: 'addPercentage',
       amount: 2,
       value: 'old',
       searchValue: 'old',

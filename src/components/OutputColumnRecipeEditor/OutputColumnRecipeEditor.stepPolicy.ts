@@ -397,7 +397,7 @@ export function normalizeStepForContext(step: TransformStep, context: StepEditor
   if (step.type === 'numericOperation') {
     return {
       ...nextStep,
-      operation: step.operation ?? 'add',
+      operation: step.operation ?? 'addPercentage',
       amount: step.amount ?? 10,
       ...(step.leftOperand ? { leftOperand: normalizeSourceForContext(step.leftOperand, 'number', stepEditorPolicy(context)) } : {}),
       ...(step.rightOperand ? { rightOperand: normalizeSourceForContext(step.rightOperand, 'number', stepEditorPolicy(context)) } : {}),
@@ -549,7 +549,7 @@ function buildCanonicalStep(
       mode: 'number',
       type: 'numericOperation',
       source: createDefaultSourceForMode('number', context),
-      operation: 'add',
+      operation: 'addPercentage',
       amount: 10,
       rounding: 2,
       applyToEmptyValues: false,

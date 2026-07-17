@@ -1,4 +1,4 @@
-import type { NumericOperation, TransformStep } from '../../types/import';
+import type { NumericFormulaOperator, NumericOperation, TransformStep } from '../../types/import';
 
 export function parseNumericValue(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -49,22 +49,6 @@ export function extractNumericValue(value: unknown): number | null {
 }
 
 export function applyNumericOperation(value: number, operation: NumericOperation, amount: number) {
-  if (operation === 'add') {
-    return value + amount;
-  }
-
-  if (operation === 'subtract') {
-    return value - amount;
-  }
-
-  if (operation === 'multiply') {
-    return value * amount;
-  }
-
-  if (operation === 'divide') {
-    return value / amount;
-  }
-
   if (operation === 'addPercentage') {
     return value * (1 + amount / 100);
   }
@@ -74,6 +58,22 @@ export function applyNumericOperation(value: number, operation: NumericOperation
   }
 
   return value / (1 + amount / 100);
+}
+
+export function applyNumericFormulaOperation(value: number, operator: NumericFormulaOperator, amount: number) {
+  if (operator === 'add') {
+    return value + amount;
+  }
+
+  if (operator === 'subtract') {
+    return value - amount;
+  }
+
+  if (operator === 'multiply') {
+    return value * amount;
+  }
+
+  return value / amount;
 }
 
 export function formatNumericResult(value: number, rounding: TransformStep['rounding'] = 2) {

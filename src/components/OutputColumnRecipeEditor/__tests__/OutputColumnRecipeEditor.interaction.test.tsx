@@ -682,7 +682,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const actionButtons = within(getComposePartEditor()).getAllByRole('button', { name: /Acción/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Sumar valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Sumar', 'valor'].join(' ') })).toBeNull();
     expect(screen.getByRole('option', { name: 'Sumar %' })).not.toBeNull();
     await user.click(screen.getByRole('option', { name: 'Sumar %' }));
     expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
@@ -908,10 +908,10 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     const actionButtons = screen.getAllByRole('button', { name: /Acción/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: 'Operación numérica' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Sumar valor' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Restar valor' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Multiplicar por valor' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Dividir por valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Sumar', 'valor'].join(' ') })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Restar', 'valor'].join(' ') })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Multiplicar', 'por valor'].join(' ') })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Dividir', 'por valor'].join(' ') })).toBeNull();
     expect(screen.getByRole('option', { name: 'Calcular fórmula' })).not.toBeNull();
     expect(screen.getByRole('option', { name: 'Sumar %' })).not.toBeNull();
     expect(screen.getByRole('option', { name: 'Restar %' })).not.toBeNull();

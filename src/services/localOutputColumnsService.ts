@@ -262,7 +262,7 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     value: step.value ?? '',
     searchValue: step.searchValue ?? '',
     replaceValue: step.replaceValue ?? '',
-    operation: step.operation ?? 'add',
+    operation: normalizeNumericOperation(step.operation),
     amount: Number(step.amount ?? 0),
     leftOperand: normalizeStepOperand(step.leftOperand),
     rightOperand: normalizeStepOperand(step.rightOperand),
@@ -435,6 +435,12 @@ function normalizeNumericFormulaOperator(operator?: string): NumericFormulaOpera
   return operator === 'add' || operator === 'subtract' || operator === 'multiply' || operator === 'divide'
     ? operator
     : undefined;
+}
+
+function normalizeNumericOperation(operation?: string) {
+  return operation === 'addPercentage' || operation === 'subtractPercentage' || operation === 'removeIncludedPercentage'
+    ? operation
+    : 'addPercentage';
 }
 
 function normalizeNumericFormulaDisplayGroups(
