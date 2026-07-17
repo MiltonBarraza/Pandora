@@ -458,14 +458,251 @@
 }
 
 .stepExtraFieldsRow > .numericOperationFields,
+.stepExtraFieldsRow > .numericFormulaFields,
 .stepExtraFieldsRow > .manualRangeStepFields,
 .stepExtraFieldsRow > .concatStepFields,
 .stepExtraFieldsRow > .dateOutputCustomRow,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericOperationFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericFormulaFields,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .manualRangeStepFields,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields,
 .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .dateOutputCustomRow {
   grid-column: 1 / -1;
+}
+
+.numericFormulaFields {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.numericFormulaStepFlow {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.numericFormulaFinalStepFlow {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.numericFormulaAfterStep {
+  border-top: 0;
+  padding-top: 10px;
+}
+
+.numericFormulaAddStepActions {
+  padding-top: 2px;
+}
+
+.numericFormulaBuilderSection {
+  gap: 10px;
+}
+
+.numericFormulaBuilderIntro {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.numericFormulaFormulaActionsRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.numericFormulaFormulaActionsRow > .composeStudioActions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.numericFormulaHeader {
+  align-items: center;
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.numericFormulaPreview {
+  align-items: center;
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 6px;
+  line-height: normal;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.numericFormulaLinearBuilder {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.numericFormulaTokenList {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 0;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.numericFormulaTokenSlot {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.numericFormulaValueCard {
+  grid-template-columns: minmax(132px, 1fr) auto;
+  max-width: min(260px, calc(100vw - 72px));
+}
+
+.numericFormulaValueCard .numericFormulaDragHandle {
+  cursor: grab;
+}
+
+.numericFormulaValueCard.sortableDragging {
+  opacity: 0.72;
+}
+
+.numericFormulaParenthesisToken {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 6px;
+  grid-template-columns: auto auto;
+  min-height: 44px;
+  padding: 4px;
+}
+
+.numericFormulaParenthesisToken:hover,
+.numericFormulaParenthesisToken:focus-within {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
+}
+
+.numericFormulaParenthesisHandle {
+  height: 34px;
+  min-height: 34px;
+  width: 34px;
+}
+
+.numericFormulaParenthesisActions {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.numericFormulaParenthesisSymbol {
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 18px;
+  text-align: center;
+}
+
+.numericFormulaGroupShell {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-selected-bg) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-selected-border) 72%, var(--color-border-muted));
+  border-radius: 8px;
+  display: inline-flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 6px 6px;
+  position: relative;
+}
+
+.numericFormulaGroupChip {
+  background: color-mix(in srgb, var(--color-selected-border) 78%, var(--color-bg-surface));
+  border-radius: 999px;
+  color: var(--color-bg-surface);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 6px;
+  position: absolute;
+  right: 6px;
+  top: -8px;
+}
+
+.numericFormulaInlineOperator {
+  flex: 0 0 64px;
+  min-width: 64px;
+  width: 64px;
+}
+
+.numericFormulaInlineOperator .dropdownLabel {
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.numericFormulaInlineOperator .dropdownTrigger {
+  min-width: 54px;
+  padding-left: 10px;
+  padding-right: 8px;
+}
+
+.numericFormulaInspector {
+  gap: 10px;
+}
+
+.numericFormulaInspectorFields {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(180px, 240px));
+  justify-content: start;
+  min-width: 0;
+}
+
+.numericFormulaInspectorFields .recipeField {
+  min-width: 0;
+}
+
+.numericFormulaInspectorActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.numericFormulaFooter {
+  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px);
+  justify-content: start;
+  min-width: 0;
 }
 
 .dateOutputCustomRow {
@@ -529,9 +766,20 @@
   }
 
   .dateOutputCustomRow,
-  .dateOutputFormatBuilderControls {
+  .dateOutputFormatBuilderControls,
+  .numericFormulaInspectorFields,
+  .numericFormulaFooter {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .numericFormulaTokenList {
+    align-items: stretch;
+  }
+
+  .numericFormulaTokenSlot {
+    flex-wrap: wrap;
+  }
+
 }
 
 .composeTokenRules {

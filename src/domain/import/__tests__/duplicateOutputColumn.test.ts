@@ -158,6 +158,63 @@ describe('duplicateOutputColumn', () => {
     expect(originalRange.valueRecipe?.steps?.[0].parts?.[0].source).toEqual({ type: 'input', inputColumnId: 'input-name' });
   });
 
+  it('deep clones numeric formula steps', () => {
+    const original: OutputColumn = {
+      id: 'output-formula',
+      label: 'Formula',
+      order: 1,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        parts: [],
+        steps: [{
+          id: 'formula-step',
+          type: 'numericFormula',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'subtract',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-price' } },
+              right: {
+                kind: 'binary',
+                operator: 'multiply',
+                left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-discount' } },
+                right: { kind: 'operand', operand: { type: 'fixedText', value: '2' } },
+              },
+            },
+            displayGroups: [{ startValueIndex: 1, endValueIndex: 2 }],
+          },
+        }],
+      },
+    };
+
+    const copy = duplicateOutputColumn(original);
+    if (copy.recipe.type !== 'combine' || original.recipe.type !== 'combine') {
+      throw new Error('Expected combine recipes');
+    }
+
+    expect(copy.recipe.steps?.[0].id).not.toBe(original.recipe.steps?.[0].id);
+    expect(copy.recipe.steps?.[0].formula).toEqual(original.recipe.steps?.[0].formula);
+    expect(copy.recipe.steps?.[0].formula).not.toBe(original.recipe.steps?.[0].formula);
+    expect(copy.recipe.steps?.[0].formula?.expression).not.toBe(original.recipe.steps?.[0].formula?.expression);
+    expect(copy.recipe.steps?.[0].formula?.displayGroups).not.toBe(original.recipe.steps?.[0].formula?.displayGroups);
+
+    const copyFormula = copy.recipe.steps![0].formula!.expression;
+    if (copyFormula.kind !== 'binary' || copyFormula.left.kind !== 'operand') {
+      throw new Error('Expected formula shape');
+    }
+    copyFormula.left.operand = { type: 'fixedText', value: '999' };
+    copy.recipe.steps![0].formula!.displayGroups![0].startValueIndex = 0;
+
+    const originalFormula = original.recipe.steps![0].formula!.expression;
+    if (originalFormula.kind !== 'binary' || originalFormula.left.kind !== 'operand') {
+      throw new Error('Expected original formula shape');
+    }
+    expect(originalFormula.left.operand).toEqual({ type: 'input', inputColumnId: 'input-price' });
+    expect(original.recipe.steps?.[0].formula?.displayGroups).toEqual([{ startValueIndex: 1, endValueIndex: 2 }]);
+  });
+
   it('does not preserve the generated column marker when duplicating', () => {
     const original: OutputColumn = {
       id: 'generated-name',

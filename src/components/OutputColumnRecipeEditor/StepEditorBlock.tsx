@@ -29,6 +29,7 @@ import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
 import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 import { WarningTooltip } from '../ui/WarningTooltip/WarningTooltip';
+import { NumericFormulaEditor, createDefaultNumericFormula, getNumericFormulaUiWarning } from './NumericFormulaEditor';
 import { operationTypeLabel } from './OutputColumnRecipeEditor.constants';
 import {
   conversionInvalidFallbackOptions,
@@ -261,6 +262,12 @@ export function StepEditorBlock({
             placeholder="Seleccionar acción"
             scrollStrategy="close"
             onChange={(action) => {
+              if (action === 'numericFormula') {
+                setScopedSourceActionOverride(undefined);
+                replaceStep(createNewNumericFormulaStep(step.id, effectiveContext, inputColumns, manualRangeRows, inputCompatibilityRows));
+                return;
+              }
+
               if (isNumericOperation(action)) {
                 setScopedSourceActionOverride(undefined);
                 replaceStep(createNewNumericOperationStep(step.id, effectiveContext, action));
@@ -569,6 +576,25 @@ function renderDefaultFields({
     );
   }
 
+  if (step.type === 'numericFormula') {
+    const numericCompatibility = getStepRowsForNumericOperandCompatibility({ manualRangeRows, inputCompatibilityRows });
+    const numericInputColumns = getNumericOperandInputColumns(inputColumns, numericCompatibility.rows, { includeSampleValues: numericCompatibility.includeSampleValues });
+    const numericCompatibilityHint = getColumnCompatibilityHint('number', inputColumns.length, numericInputColumns.length);
+
+    return (
+      <NumericFormulaEditor
+        formula={step.formula}
+        rounding={step.rounding ?? 2}
+        inputColumns={numericInputColumns}
+        allowPreviousResult={allowPreviousResult}
+        compatibilityHint={numericCompatibilityHint}
+        warning={getNumericFormulaUiWarning(step.formula)}
+        onFormulaChange={(formula) => onChange({ formula })}
+        onRoundingChange={(rounding) => onChange({ rounding })}
+      />
+    );
+  }
+
   if (step.type === 'formatDate') {
     const outputFormat = step.dateOutputFormat ?? defaultDateOutputFormat;
     const outputFormatSelectValue = isKnownDateOutputFormat(outputFormat) ? outputFormat : customDateOutputFormatSelection;
@@ -833,6 +859,27 @@ function createNewNumericOperationStep(stepId: string, context: StepEditorContex
   };
 }
 
+function createNewNumericFormulaStep(
+  stepId: string,
+  context: StepEditorContext,
+  inputColumns: InputColumn[],
+  manualRangeRows: InputRow[],
+  inputCompatibilityRows?: InputRow[],
+): TransformStep {
+  const contextFacts = getStepEditorContextFacts(context);
+  const numericCompatibility = getStepRowsForNumericOperandCompatibility({ manualRangeRows, inputCompatibilityRows });
+  const numericInputColumns = getNumericOperandInputColumns(inputColumns, numericCompatibility.rows, { includeSampleValues: numericCompatibility.includeSampleValues });
+
+  return {
+    id: stepId,
+    mode: 'number',
+    type: 'numericFormula',
+    formula: createDefaultNumericFormula(numericInputColumns, contextFacts.isFollowUpStep),
+    rounding: 2,
+    applyToEmptyValues: false,
+  };
+}
+
 export function getNumericOperandInputColumns(inputColumns: InputColumn[], rows: InputRow[], options: { includeSampleValues?: boolean } = {}) {
   const includeSampleValues = options.includeSampleValues ?? true;
   return inputColumns.filter((inputColumn) => {
@@ -891,7 +938,7 @@ function getStepModeForBlock(step: TransformStep): TransformStepMode {
     return step.mode;
   }
 
-  if (step.type === 'numericOperation') return 'number';
+  if (step.type === 'numericOperation' || step.type === 'numericFormula') return 'number';
   if (step.type === 'formatDate') return 'date';
   if (step.type === 'extractNumber' || step.type === 'toNumber' || step.type === 'toText') return 'conversion';
   if (step.type === 'manualRange') return 'manualRange';

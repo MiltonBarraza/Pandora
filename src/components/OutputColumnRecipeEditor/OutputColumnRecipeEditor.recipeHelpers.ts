@@ -182,7 +182,10 @@ export function hasConfiguredConcatStep(recipe: Extract<OutputRecipe, { type: 'c
 }
 
 export function hasConfiguredNumericStepOperands(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
-  return (recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand));
+  return (recipe.steps ?? []).some((step) => (
+    (step.type === 'numericOperation' && (step.leftOperand || step.rightOperand))
+    || (step.type === 'numericFormula' && step.formula?.expression)
+  ));
 }
 
 export function hasConfiguredManualRangeStep(recipe: Extract<OutputRecipe, { type: 'combine' }>) {
@@ -192,7 +195,10 @@ export function hasConfiguredManualRangeStep(recipe: Extract<OutputRecipe, { typ
 export function canPreviewNumericValue(recipe: Extract<OutputRecipe, { type: 'combine' }>, sampleInputValues?: Record<string, string>) {
   const part = getSimpleInputPart(recipe);
   const firstStepSource = getFirstStepSource(recipe);
-  if ((recipe.steps ?? []).some((step) => step.type === 'numericOperation' && (step.leftOperand || step.rightOperand))) {
+  if ((recipe.steps ?? []).some((step) => (
+    (step.type === 'numericOperation' && (step.leftOperand || step.rightOperand))
+    || (step.type === 'numericFormula' && step.formula?.expression)
+  ))) {
     return true;
   }
 
@@ -506,7 +512,7 @@ export function buildStepBasedCustomValueRecipe(
 }
 
 function inferCustomModeFromSteps(steps: TransformStep[], fallbackMode: TransformStepMode): 'number' | 'text' {
-  if (steps.some((step) => getStepMode(step, fallbackMode) === 'number' || step.type === 'numericOperation')) {
+  if (steps.some((step) => getStepMode(step, fallbackMode) === 'number' || step.type === 'numericOperation' || step.type === 'numericFormula')) {
     return 'number';
   }
 
@@ -938,7 +944,7 @@ export function inferStepModeFromType(type: TransformStepType): TransformStepMod
     return 'manualRange';
   }
 
-  if (type === 'numericOperation') {
+  if (type === 'numericOperation' || type === 'numericFormula') {
     return 'number';
   }
 

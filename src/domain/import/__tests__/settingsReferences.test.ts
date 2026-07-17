@@ -245,6 +245,57 @@ describe('settingsReferences', () => {
     ]));
   });
 
+  it('collects numeric formula operand references', () => {
+    const summary = collectSettingsReferences(settings([
+      outputColumn({
+        id: 'output-formula',
+        recipe: {
+          type: 'combine',
+          parts: [],
+          steps: [{
+            id: 'formula-step',
+            type: 'numericFormula',
+            formula: {
+              version: 1,
+              expression: {
+                kind: 'binary',
+                operator: 'subtract',
+                left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-price' } },
+                right: {
+                  kind: 'binary',
+                  operator: 'multiply',
+                  left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-discount' } },
+                  right: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-quantity' } },
+                },
+              },
+            },
+          }],
+        },
+      }),
+    ]));
+
+    expect(summary.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        columnId: 'input-price',
+        kind: 'transformStepOperand',
+        path: 'config.outputColumns[0].recipe.steps[0].formula.expression.left.operand',
+        stepId: 'formula-step',
+      }),
+      expect.objectContaining({
+        columnId: 'input-discount',
+        kind: 'transformStepOperand',
+        path: 'config.outputColumns[0].recipe.steps[0].formula.expression.right.left.operand',
+        stepId: 'formula-step',
+      }),
+      expect.objectContaining({
+        columnId: 'input-quantity',
+        kind: 'transformStepOperand',
+        path: 'config.outputColumns[0].recipe.steps[0].formula.expression.right.right.operand',
+        stepId: 'formula-step',
+      }),
+    ]));
+  });
+
   it('collects manual range condition input references', () => {
     const summary = collectSettingsReferences(settings([
       outputColumn({

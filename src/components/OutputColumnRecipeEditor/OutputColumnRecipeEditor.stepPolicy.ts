@@ -3,7 +3,7 @@ import {
   defaultDateInvalidFallback,
   defaultDateOutputFormat,
 } from '../../domain/import/dateOperations';
-import type { ConcatPart, InputRow, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
+import type { ConcatPart, InputRow, NumericFormula, NumericFormulaNode, StepOperand, StepSource, TransformStep, TransformStepMode, TransformStepType } from '../../types/import';
 
 export type StepEditorContextKind = 'normal' | 'concat' | 'range' | 'rangeConcat';
 export type StepSourceAction = 'useInputColumn' | 'useFixedText' | 'pickColumnText' | 'usePreviousResult' | 'useRangeText';
@@ -55,7 +55,7 @@ export type StepEditorRowsInput = {
   inputCompatibilityRows?: InputRow[];
 };
 
-const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRange' | 'numericOperation' | 'formatDate' | 'extractNumber' | 'toNumber' | 'toText'>> = [
+const textTransformActions: Array<Exclude<TransformStepType, 'noop' | 'manualRange' | 'numericFormula' | 'numericOperation' | 'formatDate' | 'extractNumber' | 'toNumber' | 'toText'>> = [
   'trim',
   'uppercase',
   'lowercase',
@@ -178,7 +178,7 @@ export function getAllowedStepActions(mode: TransformStepMode, context: StepEdit
 
   if (mode === 'number') {
     if (isFollowUpStep) {
-      return ['usePreviousResult', 'numericOperation'];
+      return ['usePreviousResult', 'numericFormula', 'numericOperation'];
     }
 
     return [
@@ -186,6 +186,7 @@ export function getAllowedStepActions(mode: TransformStepMode, context: StepEdit
       'useFixedNumber',
       'pickNumberCell',
       ...(policy.allowPreviousResult ? ['usePreviousResult' as const] : []),
+      'numericFormula',
       'numericOperation',
     ];
   }
@@ -348,7 +349,7 @@ export function replaceStepActionWithSource(
 ): TransformStep {
   const mode = action === 'manualRange'
     ? 'manualRange'
-    : action === 'numericOperation' ? 'number'
+    : action === 'numericOperation' || action === 'numericFormula' ? 'number'
       : action === 'formatDate' ? 'date'
         : isConversionAction(action) ? 'conversion'
           : getModeForTypedSourceAction(action) ?? getStepModeForPolicy(step);
@@ -400,6 +401,14 @@ export function normalizeStepForContext(step: TransformStep, context: StepEditor
       amount: step.amount ?? 10,
       ...(step.leftOperand ? { leftOperand: normalizeSourceForContext(step.leftOperand, 'number', stepEditorPolicy(context)) } : {}),
       ...(step.rightOperand ? { rightOperand: normalizeSourceForContext(step.rightOperand, 'number', stepEditorPolicy(context)) } : {}),
+      rounding: step.rounding ?? 2,
+    };
+  }
+
+  if (step.type === 'numericFormula') {
+    return {
+      ...nextStep,
+      formula: normalizeNumericFormulaForContext(step.formula, context),
       rounding: step.rounding ?? 2,
     };
   }
@@ -547,6 +556,17 @@ function buildCanonicalStep(
     };
   }
 
+  if (action === 'numericFormula') {
+    return {
+      id,
+      mode: 'number',
+      type: 'numericFormula',
+      formula: createDefaultNumericFormula(context),
+      rounding: 2,
+      applyToEmptyValues: false,
+    };
+  }
+
   if (action === 'formatDate') {
     return {
       id,
@@ -616,6 +636,57 @@ function createDefaultSourceForMode(mode: TransformStepMode, context: StepEditor
   }
 
   return { type: 'input', inputColumnId: context.defaultInputColumnId ?? '' };
+}
+
+function createDefaultNumericFormula(context: StepEditorContext): NumericFormula {
+  return {
+    version: 1,
+    expression: {
+      kind: 'binary',
+      operator: 'add',
+      left: { kind: 'operand', operand: createDefaultNumericFormulaLeftOperand(context) },
+      right: { kind: 'operand', operand: { type: 'fixedText', value: '' } },
+    },
+  };
+}
+
+function createDefaultNumericFormulaLeftOperand(context: StepEditorContext): StepOperand {
+  const policy = stepEditorPolicy(context);
+  if (policy.allowPreviousResult) {
+    return { type: 'previousResult' };
+  }
+
+  return context.defaultInputColumnId
+    ? { type: 'input', inputColumnId: context.defaultInputColumnId }
+    : { type: 'fixedText', value: '' };
+}
+
+function normalizeNumericFormulaForContext(formula: NumericFormula | undefined, context: StepEditorContext): NumericFormula {
+  if (!formula?.expression) {
+    return createDefaultNumericFormula(context);
+  }
+
+  return {
+    version: 1,
+    expression: normalizeNumericFormulaNodeForContext(formula.expression, stepEditorPolicy(context)),
+    ...(formula.displayGroups?.length ? { displayGroups: formula.displayGroups.map((group) => ({ ...group })) } : {}),
+  };
+}
+
+function normalizeNumericFormulaNodeForContext(node: NumericFormulaNode, policy: StepEditorPolicy): NumericFormulaNode {
+  if (node.kind === 'operand') {
+    return {
+      kind: 'operand',
+      operand: normalizeSourceForContext(node.operand, 'number', policy) as StepOperand,
+    };
+  }
+
+  return {
+    kind: 'binary',
+    operator: node.operator,
+    left: normalizeNumericFormulaNodeForContext(node.left, policy),
+    right: normalizeNumericFormulaNodeForContext(node.right, policy),
+  };
 }
 
 function getSourceAction(source: StepSource, context: StepEditorContext): StepSourceAction | undefined {
@@ -737,7 +808,7 @@ function getStepModeForPolicy(step: Pick<TransformStep, 'mode' | 'type'>, fallba
   }
 
   if (step.type === 'manualRange') return 'manualRange';
-  if (step.type === 'numericOperation') return 'number';
+  if (step.type === 'numericOperation' || step.type === 'numericFormula') return 'number';
   if (step.type === 'formatDate') return 'date';
   if (isConversionAction(step.type)) return 'conversion';
   return fallbackMode;

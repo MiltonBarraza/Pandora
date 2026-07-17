@@ -267,6 +267,54 @@ describe('settingsRemap', () => {
     expect(result.settings.sourceSnapshot.columns.map((column) => column.inputColumnId)).toEqual(['input-direct', 'input-unused-snapshot']);
   });
 
+  it('remaps numeric formula operand references', () => {
+    const original = buildSettings();
+    original.config.outputColumns.push({
+      id: 'output-formula',
+      label: 'Formula',
+      order: 3,
+      enabled: true,
+      recipe: {
+        type: 'combine',
+        parts: [],
+        steps: [{
+          id: 'formula-step',
+          type: 'numericFormula',
+          formula: {
+            version: 1,
+            expression: {
+              kind: 'binary',
+              operator: 'subtract',
+              left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-left' } },
+              right: {
+                kind: 'binary',
+                operator: 'multiply',
+                left: { kind: 'operand', operand: { type: 'input', inputColumnId: 'input-right' } },
+                right: { kind: 'operand', operand: { type: 'fixedText', value: '2' } },
+              },
+            },
+          },
+        }],
+      },
+    });
+
+    const result = applyInputColumnRemapToSettings(original, remap);
+    const formulaRecipe = result.settings.config.outputColumns[3].recipe;
+    if (formulaRecipe.type !== 'combine') {
+      throw new Error('Expected combine recipe');
+    }
+
+    expect(formulaRecipe.steps?.[0].formula).toMatchObject({
+      expression: {
+        left: { operand: { inputColumnId: 'input-105' } },
+        right: {
+          left: { operand: { inputColumnId: 'input-106' } },
+          right: { operand: { value: '2' } },
+        },
+      },
+    });
+  });
+
   it('reports changed and unresolved real references only', () => {
     const result = applyInputColumnRemapToSettings(buildSettings(), remap);
 

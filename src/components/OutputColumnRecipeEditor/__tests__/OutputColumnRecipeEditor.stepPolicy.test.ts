@@ -354,6 +354,7 @@ describe('step editor policy', () => {
       'useNumberInputColumn',
       'useFixedNumber',
       'pickNumberCell',
+      'numericFormula',
       'numericOperation',
     ]);
     expect(getAllowedStepActions('date', context('normal'))).toEqual([
@@ -373,7 +374,7 @@ describe('step editor policy', () => {
       'replaceText',
       'concat',
     ]);
-    expect(getAllowedStepActions('number', context('normal', 1))).toEqual(['usePreviousResult', 'numericOperation']);
+    expect(getAllowedStepActions('number', context('normal', 1))).toEqual(['usePreviousResult', 'numericFormula', 'numericOperation']);
     expect(getAllowedStepActions('date', context('normal', 1))).toEqual(['usePreviousResult', 'formatDate']);
     expect(createCanonicalStepForAction('number', 'useValueAsIs', context('normal'))).toMatchObject({
       mode: 'number',

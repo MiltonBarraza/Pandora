@@ -15,6 +15,7 @@ import { previousResultFieldLabel, recipeStepModeLabels } from './OutputColumnRe
 import { CustomValueSummary, RecipeMainFields } from './OutputColumnRecipeEditor.components';
 import {
   getDatePickerValue,
+  parseRounding,
   getStepSourceForTextAction,
   getStepTextSourceAction,
   updateStep,
@@ -43,13 +44,14 @@ import {
   type CustomValueMode,
   type EditableCustomRecipe,
 } from './OutputColumnRecipeEditor.recipeHelpers';
-import { StepConditionFields, StepModeSelect, StepTypeSelect, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
+import { StepConditionFields, StepModeSelect, StepTypeSelect, getColumnCompatibilityHint, type PreviousResultDisplay } from './OutputColumnRecipeEditor.StepFields';
 import { RangeValueEditor } from './RangeValueEditor';
 import { ManualRangeSpreadsheetEditor } from './ManualRangeSpreadsheetEditor';
 import { RecipeStudioShell, type ComposePartEditorRenderProps, type ComposeStepHeaderRenderProps } from './RecipeStudio';
-import { StepEditorBlock, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
-import { createStepEditorContext, getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
+import { StepEditorBlock, getNumericOperandInputColumns, type StepEditorBlockFieldRenderer } from './StepEditorBlock';
+import { createStepEditorContext, getAllowedSourceActions, getStepRowsForNumericOperandCompatibility, getVisibleStepAction, normalizeStepForContext, type StepEditorContext, type StepSourceAction } from './OutputColumnRecipeEditor.stepPolicy';
 import { createPreviousResultDisplay, isDeterministicPreviousResultRecipe } from './OutputColumnRecipeEditor.previousResultHelpers';
+import { NumericFormulaEditor, getNumericFormulaUiWarning } from './NumericFormulaEditor';
 export { addComposeRecipePart, createRecipeForStudioMode, getComposeColumnTextOptions, getComposeValidColumnTextSelection, reorderComposeRecipeParts, updateComposeColumnTextSelection } from './RecipeStudio';
 import {
   buildCombinePreview,
@@ -834,61 +836,48 @@ function StepBlocksEditor({
   };
 
   if (studioLayout && steps.length > 0) {
-    const [primaryStep, ...additionalSteps] = steps;
+    const lastStepIndex = steps.length - 1;
+    const renderAddStepAction = (numericFormulaStep = false) => (
+      <div className={`stepsBlockActions${numericFormulaStep ? ' numericFormulaAddStepActions' : ''}`}>
+        <InfoTooltip content="Agrega una transformacion nueva al valor.">
+          <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
+        </InfoTooltip>
+      </div>
+    );
 
     return (
       <div className="simpleStepsEditor nonConcatStepsEditor">
-        <SimpleStepBlock
-          step={primaryStep}
-          index={0}
-          inputColumns={inputColumns}
-          manualRangeRows={manualRangeRows}
-          defaultStepMode={defaultStepMode}
-          baseInputColumnId={baseInputColumnId}
-          canDelete={false}
-          previousResultPreviewValue={getPreviousStepPreviewValue?.(0) ?? null}
-          previousResultDisplay={getPreviousResultDisplay?.(0) ?? null}
-          studioLayout
-          studioActionContent={(
-            <>
-              {additionalSteps.length > 0 ? (
-                <div className="stepsBlock nonConcatAdditionalSteps">
-                  {additionalSteps.map((step, additionalIndex) => {
-                    const index = additionalIndex + 1;
-                    return (
-                      <div key={step.id} className="concatPartStepDivider">
-                        <SimpleStepBlock
-                          step={step}
-                          index={index}
-                          inputColumns={inputColumns}
-                          manualRangeRows={manualRangeRows}
-                          defaultStepMode={defaultStepMode}
-                          baseInputColumnId={baseInputColumnId}
-                          canDelete
-                          previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
-                          previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
-                          onBaseInputColumnChange={onBaseInputColumnChange}
-                          onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
-                          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
-                          onDelete={() => deleteStep(index)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <div className="stepsBlockActions">
-                <InfoTooltip content="Agrega una transformacion nueva al valor.">
-                  <ActionButton action="add" variant="secondary" className="constructorAddStepButton" onClick={addStep}>Agregar paso</ActionButton>
-                </InfoTooltip>
-              </div>
-            </>
-          )}
-          onBaseInputColumnChange={onBaseInputColumnChange}
-          onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, primaryStep.id, patch, 0))}
-          onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, primaryStep.id, nextStep, 0))}
-          onDelete={() => undefined}
-        />
+        {steps.map((step, index) => {
+          const isNumericFormulaStep = step.type === 'numericFormula';
+          const wrapperClassName = [
+            index > 0 ? 'concatPartStepDivider' : '',
+            isNumericFormulaStep && index > 0 ? 'numericFormulaAfterStep' : '',
+            isNumericFormulaStep ? 'numericFormulaStepFlow' : '',
+            isNumericFormulaStep && index === lastStepIndex ? 'numericFormulaFinalStepFlow' : '',
+          ].filter(Boolean).join(' ') || undefined;
+
+          return (
+            <div key={step.id} className={wrapperClassName}>
+              <SimpleStepBlock
+                step={step}
+                index={index}
+                inputColumns={inputColumns}
+                manualRangeRows={manualRangeRows}
+                defaultStepMode={defaultStepMode}
+                baseInputColumnId={baseInputColumnId}
+                canDelete={index > 0}
+                previousResultPreviewValue={getPreviousStepPreviewValue?.(index) ?? null}
+                previousResultDisplay={getPreviousResultDisplay?.(index) ?? null}
+                studioLayout
+                studioActionContent={renderAddStepAction(isNumericFormulaStep)}
+                onBaseInputColumnChange={onBaseInputColumnChange}
+                onChange={(patch) => onStepsChange((currentSteps) => updateStepWithIndexFallback(currentSteps, step.id, patch, index))}
+                onReplace={(nextStep) => onStepsChange((currentSteps) => replaceWholeStepWithIndexFallback(currentSteps, step.id, nextStep, index))}
+                onDelete={() => deleteStep(index)}
+              />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -1013,21 +1002,77 @@ function SimpleStepBlock({
       </div>
     );
   };
+  const renderStudioGeneralFields: StepEditorBlockFieldRenderer = (props) => {
+    if (props.step.type === 'numericFormula') {
+      return (
+        <Dropdown
+          className="compact recipeField numericFormulaGeneralRounding"
+          label="Decimales / redondeo"
+          value={String(props.step.rounding ?? 2)}
+          options={[
+            { value: 'none', label: 'Sin redondeo' },
+            { value: '0', label: '0 decimales' },
+            { value: '2', label: '2 decimales' },
+            { value: '4', label: '4 decimales' },
+          ]}
+          scrollStrategy="close"
+          onChange={(value) => props.onChange({ rounding: parseRounding(value) })}
+        />
+      );
+    }
+
+    return renderManualRangeFields(props);
+  };
   const renderStepCondition = (currentStep: TransformStep, onStepChange: (patch: Partial<TransformStep>) => void) => currentStep.type === 'manualRange' ? (
     <div className="manualRangeStepCondition">
       <StepConditionFields step={currentStep} inputColumns={inputColumns} variant="manualRange" onChange={onStepChange} />
     </div>
   ) : (
-    <StepConditionFields step={currentStep} inputColumns={inputColumns} onChange={onStepChange} />
+    <StepConditionFields
+      step={currentStep}
+      inputColumns={inputColumns}
+      conditionHelpText={currentStep.type === 'numericFormula' ? 'Define cuándo se aplica esta fórmula completa.' : undefined}
+      onChange={onStepChange}
+    />
   );
+  const renderNumericFormulaStudioSections = () => {
+    if (step.type !== 'numericFormula') {
+      return null;
+    }
+
+    const numericCompatibility = getStepRowsForNumericOperandCompatibility({ manualRangeRows });
+    const numericInputColumns = getNumericOperandInputColumns(inputColumns, numericCompatibility.rows, { includeSampleValues: numericCompatibility.includeSampleValues });
+    const numericCompatibilityHint = getColumnCompatibilityHint('number', inputColumns.length, numericInputColumns.length);
+    const allowPreviousResult = getAllowedSourceActions(step, context).includes('usePreviousResult');
+
+    return (
+      <NumericFormulaEditor
+        formula={step.formula}
+        rounding={step.rounding ?? 2}
+        inputColumns={numericInputColumns}
+        allowPreviousResult={allowPreviousResult}
+        compatibilityHint={numericCompatibilityHint}
+        showRoundingControl={false}
+        warning={getNumericFormulaUiWarning(step.formula)}
+        onFormulaChange={(formula) => handleChange({ formula })}
+      />
+    );
+  };
 
   if (studioLayout) {
     return (
       <>
         <section className="recipeStudioSection recipeStudioGeneralSection" aria-label="Configuración general">
-          <div className="composeStudioHeaderTitle">
-            <span>Configuración general</span>
-            <strong>{title}</strong>
+          <div className="stepCardHeader">
+            <div className="composeStudioHeaderTitle">
+              <span>Configuración general</span>
+              <strong>{title}</strong>
+            </div>
+            {canDelete && onDelete ? (
+              <ActionButton action="delete" variant="danger" size="sm" onClick={onDelete}>
+                Eliminar paso
+              </ActionButton>
+            ) : <span aria-hidden="true" />}
           </div>
           <StepEditorBlock
             step={step}
@@ -1038,13 +1083,15 @@ function SimpleStepBlock({
             showCondition={false}
             previousResultPreviewValue={previousResultPreviewValue}
             previousResultDisplay={previousResultDisplay}
-            renderFields={renderManualRangeFields}
+            renderFields={renderStudioGeneralFields}
             onChange={handleChange}
             onReplace={handleReplace}
           />
           {renderStepCondition(step, handleChange)}
-          {studioActionContent}
+          {step.type !== 'numericFormula' ? studioActionContent : null}
         </section>
+        {renderNumericFormulaStudioSections()}
+        {step.type === 'numericFormula' ? studioActionContent : null}
       </>
     );
   }

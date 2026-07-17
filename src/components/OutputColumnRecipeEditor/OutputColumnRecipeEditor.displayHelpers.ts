@@ -2,7 +2,7 @@ import { defaultDateInputFormat, parseDateValue } from '../../domain/import/date
 import { describeManualRangeStepSummary } from '../../domain/import/manualRangeModel';
 import { parseNumericValue } from '../../domain/import/numericOperations';
 import { buildProcessedRows } from '../../domain/import/outputModel';
-import type { InputColumn, InputRow, OutputColumn, OutputRecipe, RecipePart, StepSource, TransformStep } from '../../types/import';
+import type { InputColumn, InputRow, NumericFormulaNode, OutputColumn, OutputRecipe, RecipePart, StepOperand, StepSource, TransformStep } from '../../types/import';
 import { recipeStepActionLabels } from './OutputColumnRecipeEditor.actionDefinitions';
 import { canPreviewNumericValue, describeConcatPartSource, getCustomValueMode, getFirstStepSource, getInputColumnSummary, getSimpleInputPart, getStepMode, getVisibleRecipeSteps, hasConfiguredConcatStep, hasConfiguredManualRangeStep, hasConfiguredNumericStepOperands, isCustomValueConfigured, type CustomValueMode } from './OutputColumnRecipeEditor.recipeHelpers';
 import { getNumericOperandLabels } from './OutputColumnRecipeEditor.optionHelpers';
@@ -130,6 +130,13 @@ export function describeStepAdjustments(steps: TransformStep[], inputColumns: In
       ];
     }
 
+    if (step.type === 'numericFormula') {
+      return [
+        'calcular formula',
+        describeRounding(step.rounding ?? 2),
+      ];
+    }
+
     return describeSimpleStep(step, inputColumns);
   }).filter(Boolean);
 }
@@ -249,6 +256,10 @@ export function getStepSummary(step: TransformStep, inputColumns: InputColumn[] 
     return describeNumericOperation(step);
   }
 
+  if (step.type === 'numericFormula') {
+    return 'calcular formula';
+  }
+
   if (step.type === 'manualRange') {
     const count = step.ranges?.length ?? 0;
     return `${count} ${count === 1 ? 'rango creado' : 'rangos creados'}`;
@@ -335,10 +346,12 @@ export function getNumericOperationPreview(
   sampleInputValues: Record<string, string> | undefined,
   rows: InputRow[],
 ): { message?: string; sampleInputValues?: Record<string, string> } {
-  const operandSteps = getVisibleRecipeSteps(recipe).filter((step) => (
+  const visibleSteps = getVisibleRecipeSteps(recipe);
+  const operandSteps = visibleSteps.filter((step) => (
     step.type === 'numericOperation' && Boolean(step.leftOperand || step.rightOperand)
   ));
-  if (operandSteps.length === 0) {
+  const formulaSteps = visibleSteps.filter((step) => step.type === 'numericFormula' && step.formula?.expression);
+  if (operandSteps.length === 0 && formulaSteps.length === 0) {
     return {};
   }
 
@@ -357,11 +370,23 @@ export function getNumericOperationPreview(
     }
   }
 
-  const inputColumnIds = Array.from(new Set(operandSteps.flatMap((step) => (
-    [step.leftOperand, step.rightOperand]
-      .filter((operand): operand is Extract<StepSource, { type: 'input' }> => operand?.type === 'input')
-      .map((operand) => operand.inputColumnId)
-  ))));
+  for (const step of formulaSteps) {
+    const incompleteOperand = collectNumericFormulaOperands(step.formula?.expression).find(isIncompleteNumericOperand);
+    if (incompleteOperand) {
+      return { message: 'Completa la formula para ver la vista previa.' };
+    }
+  }
+
+  const inputColumnIds = Array.from(new Set([
+    ...operandSteps.flatMap((step) => (
+      [step.leftOperand, step.rightOperand]
+        .filter((operand): operand is Extract<StepSource, { type: 'input' }> => operand?.type === 'input')
+        .map((operand) => operand.inputColumnId)
+    )),
+    ...formulaSteps.flatMap((step) => collectNumericFormulaOperands(step.formula?.expression)
+      .filter((operand): operand is Extract<StepOperand, { type: 'input' }> => operand.type === 'input')
+      .map((operand) => operand.inputColumnId)),
+  ]));
   if (inputColumnIds.length === 0) {
     return { sampleInputValues: sampleInputValues ?? {} };
   }
@@ -376,6 +401,29 @@ export function getNumericOperationPreview(
   return numericCandidate
     ? { sampleInputValues: numericCandidate }
     : { message: 'No se encontraron valores numéricos para calcular la vista previa.' };
+}
+
+function collectNumericFormulaOperands(node: NumericFormulaNode | undefined): StepOperand[] {
+  if (!node) {
+    return [];
+  }
+
+  if (node.kind === 'operand') {
+    return [node.operand];
+  }
+
+  return [
+    ...collectNumericFormulaOperands(node.left),
+    ...collectNumericFormulaOperands(node.right),
+  ];
+}
+
+function isIncompleteNumericOperand(operand: StepOperand) {
+  return (
+    (operand.type === 'fixedText' && operand.value.trim() === '' && !Number.isFinite(operand.numericFallback))
+    || (operand.type === 'input' && !operand.inputColumnId)
+    || (operand.type === 'rangeText' && !operand.inputColumnId)
+  );
 }
 
 function getDatePreviewSampleInputValues(
