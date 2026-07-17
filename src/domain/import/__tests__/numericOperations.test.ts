@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from '../numericOperations';
+import { applyNumericFormulaOperation, applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from '../numericOperations';
 
 describe('numericOperations', () => {
   it('parses currency and numeric formats', () => {
@@ -19,11 +19,14 @@ describe('numericOperations', () => {
     expect(extractNumericValue('sin numeros')).toBeNull();
   });
 
-  it('applies numeric operations', () => {
-    expect(applyNumericOperation(200, 'add', 50)).toBe(250);
-    expect(applyNumericOperation(200, 'subtract', 50)).toBe(150);
-    expect(applyNumericOperation(200, 'multiply', 1.21)).toBe(242);
-    expect(applyNumericOperation(200, 'divide', 2)).toBe(100);
+  it('applies numeric formula operations', () => {
+    expect(applyNumericFormulaOperation(200, 'add', 50)).toBe(250);
+    expect(applyNumericFormulaOperation(200, 'subtract', 50)).toBe(150);
+    expect(applyNumericFormulaOperation(200, 'multiply', 1.21)).toBe(242);
+    expect(applyNumericFormulaOperation(200, 'divide', 2)).toBe(100);
+  });
+
+  it('applies percentage numeric operations', () => {
     expect(applyNumericOperation(200, 'addPercentage', 10)).toBeCloseTo(220);
     expect(applyNumericOperation(200, 'subtractPercentage', 10)).toBe(180);
     expect(applyNumericOperation(242, 'removeIncludedPercentage', 21)).toBeCloseTo(200);

@@ -253,7 +253,7 @@ export function StepEditorBlock({
             label="Acción"
             labelInfo={<InfoTooltip content={getStepActionHelpText(
               step.type === 'numericOperation'
-                ? step.operation ?? 'add'
+                ? step.operation ?? 'addPercentage'
                 : visibleAction === 'unconfigured' ? '' : visibleAction,
               mode,
             )} />}
@@ -839,7 +839,7 @@ function getActionDropdownValue(step: TransformStep, visibleAction: VisibleStepA
   }
 
   if (step.type === 'numericOperation') {
-    return step.operation ?? 'add';
+    return step.operation ?? 'addPercentage';
   }
 
   return visibleAction;
@@ -915,7 +915,7 @@ export function getNumericOperationUiWarning(
   }
 
   const rightValue = rightOperand.type === 'fixedText' ? getFixedNumericOperandValue(rightOperand) : null;
-  if ((operation === 'divide' && rightValue === 0) || (operation === 'removeIncludedPercentage' && rightValue === -100)) {
+  if (operation === 'removeIncludedPercentage' && rightValue === -100) {
     return 'No se pudo calcular: división por cero.';
   }
 

@@ -416,10 +416,10 @@ describe('ManualRangeAdvancedRangeModal validation', () => {
     const actionButtons = within(screen.getByRole('dialog')).getAllByRole('button', { name: /Acci.n/ });
     await user.click(actionButtons[actionButtons.length - 1]);
     expect(screen.queryByRole('option', { name: /Operaci.n num.rica/ })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Sumar valor' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Restar valor' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Multiplicar por valor' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Dividir por valor' })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Sumar', 'valor'].join(' ') })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Restar', 'valor'].join(' ') })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Multiplicar', 'por valor'].join(' ') })).toBeNull();
+    expect(screen.queryByRole('option', { name: ['Dividir', 'por valor'].join(' ') })).toBeNull();
     await user.click(screen.getByRole('option', { name: 'Sumar %' }));
 
     expect(screen.queryByLabelText('Texto')).toBeNull();

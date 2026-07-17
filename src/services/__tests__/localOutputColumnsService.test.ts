@@ -228,7 +228,7 @@ describe('localOutputColumnsService', () => {
                 inputColumnId: 'input-name',
                 steps: [
                   { id: 'suffix', type: 'addSuffix', mode: 'text', value: 'lts' },
-                  { id: 'number', type: 'numericOperation', operation: 'add', amount: 10 },
+                  { id: 'number', type: 'numericOperation', operation: 'addPercentage', amount: 10 },
                   { id: 'convert', type: 'toText' },
                 ],
               },
@@ -560,7 +560,7 @@ describe('localOutputColumnsService', () => {
               {
                 id: 'operands',
                 type: 'numericOperation',
-                operation: 'subtract',
+                operation: 'subtractPercentage',
                 leftOperand: { type: 'input', inputColumnId: 'input-a' },
                 rightOperand: { type: 'fixedText', value: '10', numericFallback: 10 },
               },

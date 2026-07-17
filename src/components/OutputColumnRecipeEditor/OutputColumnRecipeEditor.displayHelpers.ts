@@ -204,18 +204,6 @@ function describeNumericOperation(step: TransformStep) {
   const amount = getConfiguredNumericDisplayAmount(step);
   const amountSuffix = amount === null ? '' : ` ${amount}`;
 
-  if (step.operation === 'subtract') {
-    return `restar valor${amountSuffix}`;
-  }
-
-  if (step.operation === 'multiply') {
-    return `multiplicar por${amountSuffix}`;
-  }
-
-  if (step.operation === 'divide') {
-    return `dividir por${amountSuffix}`;
-  }
-
   if (step.operation === 'addPercentage') {
     return amount === null ? 'sumar %' : `sumar ${amount}%`;
   }
@@ -228,7 +216,7 @@ function describeNumericOperation(step: TransformStep) {
     return amount === null ? 'quitar % incluido' : `quitar ${amount}% incluido`;
   }
 
-  return `sumar valor${amountSuffix}`;
+  return amount === null ? 'sumar %' : `sumar ${amount}%`;
 }
 
 function getConfiguredNumericDisplayAmount(step: TransformStep) {

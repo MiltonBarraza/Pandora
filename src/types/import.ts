@@ -252,10 +252,6 @@ export type ProcessedRow = {
 };
 
 export type NumericOperation =
-  | 'add'
-  | 'subtract'
-  | 'multiply'
-  | 'divide'
   | 'addPercentage'
   | 'subtractPercentage'
   | 'removeIncludedPercentage';

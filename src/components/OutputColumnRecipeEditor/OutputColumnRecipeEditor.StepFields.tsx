@@ -70,7 +70,7 @@ export function getVisibleStepAction(
     }
 
     if (step.type === 'numericOperation') {
-      return step.operation ?? 'add';
+      return step.operation ?? 'addPercentage';
     }
 
     return step.type === 'noop' && Boolean(step.source) ? 'noop' : '';

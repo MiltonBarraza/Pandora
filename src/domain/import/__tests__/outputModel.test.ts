@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ColumnAnalysis, InputRow, NumericOperation, OutputColumn } from '../../../types/import';
+import type { ColumnAnalysis, InputRow, NumericFormulaOperator, NumericOperation, OutputColumn, StepOperand, TransformStep } from '../../../types/import';
 import { applyOutputIgnoreRulesToProcessedRows } from '../applyIgnoreRules';
 import { buildProcessedRows, buildProcessedRowsPipeline } from '../outputModel';
 
@@ -1152,12 +1152,12 @@ describe('outputModel simple transformations', () => {
 });
 
 describe('outputModel numeric transformations', () => {
-  it('applies numeric operations', () => {
+  it('applies numeric formulas and percentage operations', () => {
     const row = buildRow([
-      numericColumn('add', 'add', 50),
-      numericColumn('subtract', 'subtract', 10),
-      numericColumn('multiply', 'multiply', 1.21),
-      numericColumn('divide', 'divide', 2),
+      numericFormulaColumn('add', 'add', 50),
+      numericFormulaColumn('subtract', 'subtract', 10),
+      numericFormulaColumn('multiply', 'multiply', 1.21),
+      numericFormulaColumn('divide', 'divide', 2),
       numericColumn('addPercentage', 'addPercentage', 10),
       numericColumn('subtractPercentage', 'subtractPercentage', 10),
       outputColumn({
@@ -1194,7 +1194,7 @@ describe('outputModel numeric transformations', () => {
         recipe: {
           type: 'direct',
           inputColumnId: 'input-price',
-          steps: [{ id: 'numeric', type: 'numericOperation', operation: 'divide', amount: 0 }],
+          steps: [numericFormulaStep('numeric', 'divide', { type: 'previousResult' }, { type: 'fixedText', value: '0' })],
         },
       }),
     ]);
@@ -1214,7 +1214,7 @@ describe('outputModel numeric transformations', () => {
           inputColumnId: 'input-code',
           steps: [
             { id: 'extract', type: 'extractNumber' },
-            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0),
           ],
         },
       }),
@@ -1224,7 +1224,7 @@ describe('outputModel numeric transformations', () => {
           type: 'direct',
           inputColumnId: 'input-price',
           steps: [
-            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0),
             { id: 'text', type: 'toText' },
             { id: 'prefix', type: 'addPrefix', value: 'hay ' },
             { id: 'suffix', type: 'addSuffix', value: ' personas' },
@@ -1246,7 +1246,7 @@ describe('outputModel numeric transformations', () => {
           inputColumnId: 'input-code',
           steps: [
             { id: 'to-number', type: 'toNumber' },
-            { id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 },
+            numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0),
           ],
         },
       }),
@@ -1254,7 +1254,7 @@ describe('outputModel numeric transformations', () => {
 
     expect(row.outputValues.strict).toBe('ABC123');
     expect(row.warnings).toContain('No se pudo convertir a número: valor inválido');
-    expect(row.warnings).toContain('No se pudo aplicar operación numérica: valor inválido');
+    expect(row.warnings).toContain('No se pudo aplicar operación numérica: operando inválido');
   });
 
   it('converts numeric text with dot and comma decimals', () => {
@@ -1703,14 +1703,7 @@ describe('outputModel numeric operands', () => {
       recipe: {
         type: 'fixedText',
         value: '',
-        steps: [{
-          id: 'multiply',
-          type: 'numericOperation',
-          operation: 'multiply',
-          leftOperand: { type: 'input', inputColumnId: 'input-price' },
-          rightOperand: { type: 'fixedText', value: '3' },
-          rounding: 0,
-        }],
+        steps: [numericFormulaStep('multiply', 'multiply', { type: 'input', inputColumnId: 'input-price' }, { type: 'fixedText', value: '3' }, 0)],
       },
     })]);
 
@@ -1786,30 +1779,9 @@ describe('outputModel numeric operands', () => {
         customMode: 'number',
         parts: [{ id: 'base', type: 'input', inputColumnId: 'A' }],
         steps: [
-          {
-            id: 'multiply',
-            type: 'numericOperation',
-            operation: 'multiply',
-            leftOperand: { type: 'input', inputColumnId: 'B' },
-            rightOperand: { type: 'input', inputColumnId: 'C' },
-            rounding: 'none',
-          },
-          {
-            id: 'subtract',
-            type: 'numericOperation',
-            operation: 'subtract',
-            leftOperand: { type: 'input', inputColumnId: 'A' },
-            rightOperand: { type: 'previousResult' },
-            rounding: 'none',
-          },
-          {
-            id: 'add',
-            type: 'numericOperation',
-            operation: 'add',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'input', inputColumnId: 'D' },
-            rounding: 'none',
-          },
+          numericFormulaStep('multiply', 'multiply', { type: 'input', inputColumnId: 'B' }, { type: 'input', inputColumnId: 'C' }, 'none'),
+          numericFormulaStep('subtract', 'subtract', { type: 'input', inputColumnId: 'A' }, { type: 'previousResult' }, 'none'),
+          numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'input', inputColumnId: 'D' }, 'none'),
         ],
       },
     })]);
@@ -1824,22 +1796,8 @@ describe('outputModel numeric operands', () => {
         type: 'fixedText',
         value: '10',
         steps: [
-          {
-            id: 'fraction',
-            type: 'numericOperation',
-            operation: 'multiply',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'fixedText', value: '0.66' },
-            rounding: firstRounding,
-          },
-          {
-            id: 'triple',
-            type: 'numericOperation',
-            operation: 'multiply',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'fixedText', value: '3' },
-            rounding: 'none',
-          },
+          numericFormulaStep('fraction', 'multiply', { type: 'previousResult' }, { type: 'fixedText', value: '0.66' }, firstRounding),
+          numericFormulaStep('triple', 'multiply', { type: 'previousResult' }, { type: 'fixedText', value: '3' }, 'none'),
         ],
       },
     });
@@ -1859,14 +1817,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '100',
-          steps: [{
-            id: 'add',
-            type: 'numericOperation',
-            operation: 'add',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'fixedText', value: '10' },
-            rounding: 0,
-          }],
+          steps: [numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0)],
         },
       }),
     ]);
@@ -1881,14 +1832,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '',
-          steps: [{
-            id: 'add',
-            type: 'numericOperation',
-            operation: 'add',
-            leftOperand: { type: 'input', inputColumnId: 'input-price' },
-            rightOperand: { type: 'input', inputColumnId: 'input-large-price' },
-            rounding: 0,
-          }],
+          steps: [numericFormulaStep('add', 'add', { type: 'input', inputColumnId: 'input-price' }, { type: 'input', inputColumnId: 'input-large-price' }, 0)],
         },
       }),
     ]);
@@ -1903,14 +1847,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '1500',
-          steps: [{
-            id: 'subtract',
-            type: 'numericOperation',
-            operation: 'subtract',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'input', inputColumnId: 'input-price' },
-            rounding: 0,
-          }],
+          steps: [numericFormulaStep('subtract', 'subtract', { type: 'previousResult' }, { type: 'input', inputColumnId: 'input-price' }, 0)],
         },
       }),
     ]);
@@ -1925,14 +1862,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '200',
-          steps: [{
-            id: 'subtract',
-            type: 'numericOperation',
-            operation: 'subtract',
-            leftOperand: { type: 'input', inputColumnId: 'input-large-price' },
-            rightOperand: { type: 'previousResult' },
-            rounding: 0,
-          }],
+          steps: [numericFormulaStep('subtract', 'subtract', { type: 'input', inputColumnId: 'input-large-price' }, { type: 'previousResult' }, 0)],
         },
       }),
     ]);
@@ -1947,14 +1877,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '1500',
-          steps: [{
-            id: 'divide',
-            type: 'numericOperation',
-            operation: 'divide',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'input', inputColumnId: 'input-price' },
-            rounding: 2,
-          }],
+          steps: [numericFormulaStep('divide', 'divide', { type: 'previousResult' }, { type: 'input', inputColumnId: 'input-price' }, 2)],
         },
       }),
     ]);
@@ -1969,14 +1892,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '200',
-          steps: [{
-            id: 'divide',
-            type: 'numericOperation',
-            operation: 'divide',
-            leftOperand: { type: 'input', inputColumnId: 'input-large-price' },
-            rightOperand: { type: 'previousResult' },
-            rounding: 2,
-          }],
+          steps: [numericFormulaStep('divide', 'divide', { type: 'input', inputColumnId: 'input-large-price' }, { type: 'previousResult' }, 2)],
         },
       }),
     ]);
@@ -1991,13 +1907,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '200',
-          steps: [{
-            id: 'divide',
-            type: 'numericOperation',
-            operation: 'divide',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'fixedText', value: '0' },
-          }],
+          steps: [numericFormulaStep('divide', 'divide', { type: 'previousResult' }, { type: 'fixedText', value: '0' })],
         },
       }),
       outputColumn({
@@ -2005,13 +1915,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '200',
-          steps: [{
-            id: 'add',
-            type: 'numericOperation',
-            operation: 'add',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'input', inputColumnId: 'input-invalid' },
-          }],
+          steps: [numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'input', inputColumnId: 'input-invalid' })],
         },
       }),
       outputColumn({
@@ -2019,13 +1923,7 @@ describe('outputModel numeric operands', () => {
         recipe: {
           type: 'fixedText',
           value: '200',
-          steps: [{
-            id: 'add',
-            type: 'numericOperation',
-            operation: 'add',
-            leftOperand: { type: 'previousResult' },
-            rightOperand: { type: 'fixedText', value: '' },
-          }],
+          steps: [numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '' })],
         },
       }),
     ]);
@@ -2037,8 +1935,8 @@ describe('outputModel numeric operands', () => {
     expect(row.warnings).toContain('No se pudo aplicar operación numérica: operando inválido');
   });
 
-  it('keeps old amount-based numeric operations working', () => {
-    const row = buildRow([numericColumn('amount-compat', 'add', 50)]);
+  it('uses numericFormula for old amount-based arithmetic', () => {
+    const row = buildRow([numericFormulaColumn('amount-compat', 'add', 50)]);
 
     expect(row.outputValues['amount-compat']).toBe('250.00');
   });
@@ -2537,7 +2435,7 @@ describe('outputModel custom value compatibility', () => {
           type: 'combine',
           customMode: 'number',
           parts: [{ id: 'price', type: 'input', inputColumnId: 'input-price' }],
-          steps: [{ id: 'add', type: 'numericOperation', operation: 'add', amount: 10, rounding: 0 }],
+          steps: [numericFormulaStep('add', 'add', { type: 'previousResult' }, { type: 'fixedText', value: '10' }, 0)],
         },
       }),
       outputColumn({
@@ -2683,6 +2581,40 @@ function numericColumn(id: string, operation: NumericOperation, amount: number):
       steps: [{ id: `numeric-${id}`, type: 'numericOperation', operation, amount, rounding: 2 }],
     },
   });
+}
+
+function numericFormulaColumn(id: string, operator: NumericFormulaOperator, amount: number): OutputColumn {
+  return outputColumn({
+    id,
+    recipe: {
+      type: 'direct',
+      inputColumnId: 'input-price',
+      steps: [numericFormulaStep(`formula-${id}`, operator, { type: 'previousResult' }, { type: 'fixedText', value: String(amount) }, 2)],
+    },
+  });
+}
+
+function numericFormulaStep(
+  id: string,
+  operator: NumericFormulaOperator,
+  left: StepOperand,
+  right: StepOperand,
+  rounding: TransformStep['rounding'] = 2,
+): TransformStep {
+  return {
+    id,
+    type: 'numericFormula',
+    formula: {
+      version: 1,
+      expression: {
+        kind: 'binary',
+        operator,
+        left: { kind: 'operand', operand: left },
+        right: { kind: 'operand', operand: right },
+      },
+    },
+    rounding,
+  };
 }
 
 function columnAnalysis(columnIndex: number, columnLetter: string, header: string): ColumnAnalysis {
