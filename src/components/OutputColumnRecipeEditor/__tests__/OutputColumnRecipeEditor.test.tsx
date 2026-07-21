@@ -1415,7 +1415,8 @@ describe('constructor helpers', () => {
 
     expect(markup).toContain('Formato de salida');
     expect(markup).toContain('placeholder="DD/MM/AAAA"');
-    expect(markup).toContain('Ver formatos de salida');
+    expect(markup).toContain('Ver formatos disponibles');
+    expect(markup).not.toContain('title="Ver formatos disponibles"');
     expect(markup).not.toContain('Personalizado');
     expect(markup).not.toContain('Formato personalizado');
     expect(markup).not.toContain('Bloque 1');

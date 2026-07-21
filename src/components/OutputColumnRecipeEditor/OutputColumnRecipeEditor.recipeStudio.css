@@ -754,16 +754,15 @@
   color: var(--color-text-primary);
 }
 
-.dateOutputFormatHelpTooltip.infoTooltipBubble {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  box-shadow: var(--shadow-modal);
-  color: var(--color-text-primary);
-  font-weight: 400;
-  max-width: min(520px, calc(100vw - 32px));
-  padding: 12px;
-  white-space: normal;
+.dateOutputFormatHelpModal {
+  max-width: min(720px, calc(100vw - 32px));
+  width: 640px;
+}
+
+.dateOutputFormatHelpModal .modalBody {
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dateOutputFormatHelpContent {

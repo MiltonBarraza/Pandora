@@ -20,6 +20,7 @@ import type {
   TransformStep,
   TransformStepMode,
 } from '../../types/import';
+import { Modal } from '../Modal/Modal';
 import { ActionButton } from '../ui/ActionButton/ActionButton';
 import { AppIcon } from '../ui/AppIcon/AppIcon';
 import { Dropdown } from '../ui/Dropdown/Dropdown';
@@ -122,7 +123,7 @@ const dateOutputFormatExamples = [
   ['dddd DD/MM/AAAA', 'domingo 05/07/2026'],
 ];
 const dateOutputFormatFieldHelpText = 'Escribí el formato combinando partes como DD, MM y AAAA. Usá el calendario para ver todos los formatos disponibles.';
-const dateOutputFormatHelpButtonLabel = 'Ver formatos de salida';
+const dateOutputFormatHelpButtonLabel = 'Ver formatos disponibles';
 type SourceActionOverrideState = {
   action: StepSourceAction;
   identity: string;
@@ -690,6 +691,7 @@ function DateOutputFormatInput({
   onChange: (dateOutputFormat: DateOutputFormat) => void;
 }) {
   const inputId = useId();
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
   return (
     <div className="field compact recipeField dateOutputFormatField">
@@ -707,17 +709,28 @@ function DateOutputFormatInput({
           onChange={(event) => onChange(event.target.value)}
         />
         <InfoTooltip
-          content={<DateOutputFormatHelp />}
+          content={dateOutputFormatHelpButtonLabel}
           ariaLabel={dateOutputFormatHelpButtonLabel}
-          className="dateOutputFormatHelpTooltip"
-          interaction="click"
           placement="right"
         >
-          <button type="button" className="dateOutputFormatHelpButton" aria-label={dateOutputFormatHelpButtonLabel} title={dateOutputFormatHelpButtonLabel}>
+          <button
+            type="button"
+            className="dateOutputFormatHelpButton"
+            aria-label={dateOutputFormatHelpButtonLabel}
+            onClick={() => setIsHelpModalOpen(true)}
+          >
             <AppIcon name="calendar" size={16} />
           </button>
         </InfoTooltip>
       </span>
+      <Modal
+        open={isHelpModalOpen}
+        title="Formatos disponibles"
+        className="dateOutputFormatHelpModal"
+        onClose={() => setIsHelpModalOpen(false)}
+      >
+        <DateOutputFormatHelp />
+      </Modal>
     </div>
   );
 }
@@ -725,7 +738,6 @@ function DateOutputFormatInput({
 function DateOutputFormatHelp() {
   return (
     <span className="dateOutputFormatHelpContent">
-      <strong>Formatos disponibles</strong>
       <span>Combiná estas partes para definir el formato de salida.</span>
       <table>
         <colgroup>

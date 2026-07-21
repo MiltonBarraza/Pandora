@@ -880,26 +880,39 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.queryByRole('button', { name: /Bloque 1/ })).toBeNull();
     expect(screen.queryByText('Personalizado')).toBeNull();
 
-    const helpButton = screen.getByRole('button', { name: 'Ver formatos de salida' });
-    expect(helpButton.getAttribute('title')).toBe('Ver formatos de salida');
+    const helpButton = screen.getByRole('button', { name: 'Ver formatos disponibles' });
+    expect(helpButton.hasAttribute('title')).toBe(false);
     expect(helpButton.querySelector('.lucide-calendar-days')).not.toBeNull();
+    await user.hover(helpButton);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe('Ver formatos disponibles'));
+    await user.unhover(helpButton);
     await user.click(helpButton);
 
-    expect(await screen.findByText('Formatos disponibles')).not.toBeNull();
-    expect(screen.getByText('Combiná estas partes para definir el formato de salida.')).not.toBeNull();
-    expect(screen.getByText('Formato')).not.toBeNull();
-    expect(screen.getByText('Ejemplo')).not.toBeNull();
-    expect(screen.getByText('Qué significa')).not.toBeNull();
+    const helpDialog = await screen.findByRole('dialog', { name: 'Formatos disponibles' });
+    expect(helpDialog).not.toBeNull();
+    expect(document.querySelector('.dateOutputFormatHelpTooltip')).toBeNull();
+    expect(within(helpDialog).getByText('Combiná estas partes para definir el formato de salida.')).not.toBeNull();
+    expect(within(helpDialog).getByText('Formato')).not.toBeNull();
+    expect(within(helpDialog).getByText('Ejemplo')).not.toBeNull();
+    expect(within(helpDialog).getByText('Qué significa')).not.toBeNull();
     ['AAAA', 'AA', 'MMMM', 'MMM', 'MM', 'M', 'dddd', 'ddd', 'DD', 'D'].forEach((part) => {
-      expect(screen.getByText(part)).not.toBeNull();
+      expect(within(helpDialog).getByText(part)).not.toBeNull();
     });
-    expect(screen.getByText('Ejemplos')).not.toBeNull();
-    expect(screen.getByText('D/M/AA')).not.toBeNull();
-    expect(screen.getByText('MMMM DD AAAA')).not.toBeNull();
-    expect(screen.getByText('dddd DD/MM/AAAA')).not.toBeNull();
-    expect(screen.queryByText(/tokens?/i)).toBeNull();
-    expect(screen.queryByText('YYYY')).toBeNull();
-    expect(screen.queryByText('YY')).toBeNull();
+    expect(within(helpDialog).getByText('Ejemplos')).not.toBeNull();
+    expect(within(helpDialog).getByText('D/M/AA')).not.toBeNull();
+    expect(within(helpDialog).getByText('MMMM DD AAAA')).not.toBeNull();
+    expect(within(helpDialog).getByText('dddd DD/MM/AAAA')).not.toBeNull();
+    expect(within(helpDialog).queryByText(/tokens?/i)).toBeNull();
+    expect(within(helpDialog).queryByText('YYYY')).toBeNull();
+    expect(within(helpDialog).queryByText('YY')).toBeNull();
+
+    await user.click(within(helpDialog).getByRole('button', { name: 'Cerrar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Formatos disponibles' })).toBeNull());
+
+    await user.click(helpButton);
+    expect(await screen.findByRole('dialog', { name: 'Formatos disponibles' })).not.toBeNull();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Formatos disponibles' })).toBeNull());
   });
 
   it('applies the first normal text action selection immediately', async () => {
