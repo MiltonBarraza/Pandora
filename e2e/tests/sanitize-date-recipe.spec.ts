@@ -55,7 +55,7 @@ test('normaliza fechas y aplica el fallback esperado', async ({ page }, testInfo
   await selectDropdownOption(page, recipeDialog, 'Acción', 'Formatear fecha');
   await selectDropdownOption(page, recipeDialog, 'Qué fecha usar', 'B - Fecha');
   await selectDropdownOption(page, recipeDialog, 'Formato de entrada', 'DD/MM/AAAA');
-  await selectDropdownOption(page, recipeDialog, 'Formato de salida', 'AAAA-MM-DD');
+  await recipeDialog.getByLabel('Formato de salida').fill('AAAA-MM-DD');
   await selectDropdownOption(page, recipeDialog, 'Si no es una fecha válida', 'Usar texto fijo');
   await recipeDialog.getByLabel('Texto si no es fecha válida').fill('FECHA INVALIDA');
   await expect(recipeDialog.getByLabel('Texto si no es fecha válida')).toHaveValue('FECHA INVALIDA');

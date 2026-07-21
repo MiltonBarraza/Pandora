@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFormatDateStep, formatDateValue, getDateOutputFormatError, isValidDateOutputFormat, parseDateValue } from '../dateOperations';
+import { applyFormatDateStep, formatDateValue, getDateOutputFormatDisplayValue, getDateOutputFormatError, isValidDateOutputFormat, parseDateValue } from '../dateOperations';
 
 describe('dateOperations', () => {
   it('parses supported input formats without guessing ambiguous dates', () => {
@@ -53,18 +53,45 @@ describe('dateOperations', () => {
     expect(formatDateValue(dateParts, 'DD.MM.YYYY')).toBe('31.12.2025');
     expect(formatDateValue(dateParts, 'YYYY/MM/DD')).toBe('2025/12/31');
     expect(formatDateValue(dateParts, 'DD MM YYYY')).toBe('31 12 2025');
+    expect(formatDateValue(dateParts, 'MM-DD-AAAA')).toBe('12-31-2025');
+    expect(formatDateValue(dateParts, 'D/M/AA')).toBe('31/12/25');
+  });
+
+  it('formats Spanish visible output parts without Dayjs', () => {
+    const dateParts = { year: 2026, month: 7, day: 5 };
+
+    expect(formatDateValue(dateParts, 'DD/MM/AAAA')).toBe('05/07/2026');
+    expect(formatDateValue(dateParts, 'AAAA-MM-DD')).toBe('2026-07-05');
+    expect(formatDateValue(dateParts, 'D/M/AA')).toBe('5/7/26');
+    expect(formatDateValue(dateParts, 'DD.MM.AAAA')).toBe('05.07.2026');
+    expect(formatDateValue(dateParts, 'MMMM DD AAAA')).toBe('julio 05 2026');
+    expect(formatDateValue(dateParts, 'ddd DD/MM/AAAA')).toBe('dom 05/07/2026');
+    expect(formatDateValue(dateParts, 'dddd DD/MM/AAAA')).toBe('domingo 05/07/2026');
   });
 
   it('validates custom output formats without accepting unknown tokens', () => {
     expect(isValidDateOutputFormat('MM-DD-YYYY')).toBe(true);
     expect(isValidDateOutputFormat('DD.MM.YYYY')).toBe(true);
     expect(isValidDateOutputFormat('DD MM YYYY')).toBe(true);
+    expect(isValidDateOutputFormat('DD/MM/AAAA')).toBe(true);
+    expect(isValidDateOutputFormat('D/M/AA')).toBe(true);
+    expect(isValidDateOutputFormat('MMMM DD AAAA')).toBe(true);
+    expect(isValidDateOutputFormat('ddd DD/MM/AAAA')).toBe(true);
+    expect(isValidDateOutputFormat('dddd DD/MM/AAAA')).toBe(true);
     expect(isValidDateOutputFormat('mm-dd-yyyy')).toBe(false);
-    expect(isValidDateOutputFormat('M-D-YYYY')).toBe(false);
-    expect(isValidDateOutputFormat('DD/MM/YY')).toBe(false);
+    expect(isValidDateOutputFormat('M-D-YYYY')).toBe(true);
+    expect(isValidDateOutputFormat('DD/MM/YY')).toBe(true);
     expect(isValidDateOutputFormat('YYYYY-MM-DD')).toBe(false);
     expect(isValidDateOutputFormat('DD_MM_YYYY')).toBe(false);
+    expect(isValidDateOutputFormat('MMMMM DD AAAA')).toBe(false);
+    expect(isValidDateOutputFormat('HH:mm:ss')).toBe(false);
+    expect(isValidDateOutputFormat('hola')).toBe(false);
     expect(getDateOutputFormatError('mm-dd-yyyy')).toBe('Usá MM en mayúscula para mes.');
+  });
+
+  it('shows old year tokens as Spanish year parts for the UI', () => {
+    expect(getDateOutputFormatDisplayValue('YYYY-MM-DD')).toBe('AAAA-MM-DD');
+    expect(getDateOutputFormatDisplayValue('DD/MM/YY')).toBe('DD/MM/AA');
   });
 
   it('falls back to the safe output format for invalid output formats', () => {

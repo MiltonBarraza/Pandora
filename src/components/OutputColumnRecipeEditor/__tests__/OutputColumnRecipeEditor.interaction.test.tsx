@@ -686,7 +686,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getByRole('option', { name: 'Sumar %' })).not.toBeNull();
     await user.click(screen.getByRole('option', { name: 'Sumar %' }));
     expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: '%' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Porcentaje (%)' })).not.toBeNull();
     expect(screen.queryByLabelText('Texto fijo')).toBeNull();
 
     await selectComposePartDropdownOption(user, /Tipo de operación/, 'Trabajar con fechas');
@@ -774,12 +774,14 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Qué fecha usar/, 'Elegir fecha desde celda');
     expect(headerPreview.textContent).not.toContain('2026-07-01');
 
-    await selectLastDropdownOption(user, /Formato de salida/, 'DD/MM/AAAA');
+    const outputFormatInput = screen.getByLabelText('Formato de salida') as HTMLInputElement;
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'DD/MM/AAAA');
     expect(headerPreview.textContent).not.toContain('01/07/2026');
     expect(headerPreview.textContent).not.toContain('2026-07-01');
   });
 
-  it('lets users switch date output to a custom format and reorder it with the builder', async () => {
+  it('lets users type date output formats and see preview updates', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={{
@@ -807,30 +809,47 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
 
     await openRecipeEditor(user);
     const headerPreview = document.querySelector('.constructorModalHeaderPreview span') as HTMLElement;
+    const outputFormatInput = screen.getByLabelText('Formato de salida') as HTMLInputElement;
 
-    await selectLastDropdownOption(user, /Formato de salida/, 'Personalizado');
-    expect(screen.getByText('Formato personalizado')).not.toBeNull();
-    expect(screen.queryByDisplayValue('MM-DD-YYYY')).toBeNull();
-    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('MM');
-    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('DD');
-    expect(screen.getByRole('button', { name: /Bloque 3/ }).textContent).toContain('AAAA');
-    expect(headerPreview.textContent).toBe('12-31-2025');
+    expect(outputFormatInput.value).toBe('AAAA-MM-DD');
+    expect(screen.queryByText('Personalizado')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Bloque 1/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Separador 1/ })).toBeNull();
+    expect(headerPreview.textContent).toBe('2025-12-31');
 
-    await selectLastDropdownOption(user, /Bloque 1/, 'DD');
-    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('DD');
-    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('MM');
-    await selectLastDropdownOption(user, /Separador 1/, '.');
-    await selectLastDropdownOption(user, /Separador 2/, '.');
-    expect(headerPreview.textContent).toBe('31.12.2025');
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'DD/MM/AAAA');
+    expect(headerPreview.textContent).toBe('31/12/2025');
 
-    await selectLastDropdownOption(user, /Separador 1/, 'Espacio');
-    await selectLastDropdownOption(user, /Separador 2/, 'Espacio');
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'AAAA-MM-DD');
+    expect(headerPreview.textContent).toBe('2025-12-31');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'D/M/AA');
+    expect(headerPreview.textContent).toBe('31/12/25');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'MMMM DD AAAA');
+    expect(headerPreview.textContent).toBe('diciembre 31 2025');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'dddd DD/MM/AAAA');
+    expect(headerPreview.textContent).toBe('miércoles 31/12/2025');
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'MMMMM DD AAAA');
+    await user.hover(screen.getByRole('button', { name: 'Advertencia: formato de salida inválido' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('El formato tiene partes que la app no reconoce. Revisá los formatos disponibles.'));
+
+    await user.clear(outputFormatInput);
+    await user.type(outputFormatInput, 'DD.MM.AAAA');
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');
-    expect(persistedRecipe.steps[0].dateOutputFormat).toBe('DD MM AAAA');
+    expect(persistedRecipe.steps[0].dateOutputFormat).toBe('DD.MM.AAAA');
   });
 
-  it('shows loaded custom date output formats as Personalizado', async () => {
+  it('shows loaded custom date output formats as a Spanish input and opens supported format help', async () => {
     const user = userEvent.setup();
     render(<ControlledRecipeEditor
       initialColumn={{
@@ -856,14 +875,44 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     />);
 
     await openRecipeEditor(user);
-    const outputFormatButtons = screen.getAllByRole('button', { name: /Formato de salida/ });
-    expect(outputFormatButtons[outputFormatButtons.length - 1].textContent).toContain('Personalizado');
+    expect((screen.getByLabelText('Formato de salida') as HTMLInputElement).value).toBe('DD.MM.AAAA');
     expect(screen.queryByDisplayValue('DD.MM.YYYY')).toBeNull();
-    expect(screen.getByRole('button', { name: /Bloque 1/ }).textContent).toContain('DD');
-    expect(screen.getByRole('button', { name: /Separador 1/ }).textContent).toContain('.');
-    expect(screen.getByRole('button', { name: /Bloque 2/ }).textContent).toContain('MM');
-    expect(screen.getByRole('button', { name: /Separador 2/ }).textContent).toContain('.');
-    expect(screen.getByRole('button', { name: /Bloque 3/ }).textContent).toContain('AAAA');
+    expect(screen.queryByRole('button', { name: /Bloque 1/ })).toBeNull();
+    expect(screen.queryByText('Personalizado')).toBeNull();
+
+    const helpButton = screen.getByRole('button', { name: 'Ver formatos disponibles' });
+    expect(helpButton.hasAttribute('title')).toBe(false);
+    expect(helpButton.querySelector('.lucide-calendar-days')).not.toBeNull();
+    await user.hover(helpButton);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe('Ver formatos disponibles'));
+    await user.unhover(helpButton);
+    await user.click(helpButton);
+
+    const helpDialog = await screen.findByRole('dialog', { name: 'Formatos disponibles' });
+    expect(helpDialog).not.toBeNull();
+    expect(document.querySelector('.dateOutputFormatHelpTooltip')).toBeNull();
+    expect(within(helpDialog).getByText('Combiná estas partes para definir el formato de salida.')).not.toBeNull();
+    expect(within(helpDialog).getByText('Formato')).not.toBeNull();
+    expect(within(helpDialog).getByText('Ejemplo')).not.toBeNull();
+    expect(within(helpDialog).getByText('Qué significa')).not.toBeNull();
+    ['AAAA', 'AA', 'MMMM', 'MMM', 'MM', 'M', 'dddd', 'ddd', 'DD', 'D'].forEach((part) => {
+      expect(within(helpDialog).getByText(part)).not.toBeNull();
+    });
+    expect(within(helpDialog).getByText('Ejemplos')).not.toBeNull();
+    expect(within(helpDialog).getByText('D/M/AA')).not.toBeNull();
+    expect(within(helpDialog).getByText('MMMM DD AAAA')).not.toBeNull();
+    expect(within(helpDialog).getByText('dddd DD/MM/AAAA')).not.toBeNull();
+    expect(within(helpDialog).queryByText(/tokens?/i)).toBeNull();
+    expect(within(helpDialog).queryByText('YYYY')).toBeNull();
+    expect(within(helpDialog).queryByText('YY')).toBeNull();
+
+    await user.click(within(helpDialog).getByRole('button', { name: 'Cerrar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Formatos disponibles' })).toBeNull());
+
+    await user.click(helpButton);
+    expect(await screen.findByRole('dialog', { name: 'Formatos disponibles' })).not.toBeNull();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Formatos disponibles' })).toBeNull());
   });
 
   it('applies the first normal text action selection immediately', async () => {
@@ -919,9 +968,20 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await user.click(screen.getByRole('option', { name: 'Sumar %' }));
 
     expect(screen.getByRole('button', { name: 'Valor base' })).not.toBeNull();
-    expect(screen.getByRole('button', { name: '%' })).not.toBeNull();
-    expect((getInputByLabelText('Valor base: valor fijo') as HTMLInputElement).value).toBe('');
-    expect((getInputByLabelText('%: valor fijo') as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('button', { name: 'Porcentaje (%)' })).not.toBeNull();
+    const fixedValueInputs = screen.getAllByLabelText('Valor fijo') as HTMLInputElement[];
+    expect(fixedValueInputs).toHaveLength(2);
+    expect(fixedValueInputs[0].value).toBe('');
+    expect(fixedValueInputs[1].value).toBe('');
+    expect(screen.queryByLabelText('Valor base: valor fijo')).toBeNull();
+    expect(screen.queryByLabelText('Porcentaje (%): valor fijo')).toBeNull();
+    const valueBaseField = screen.getByText('Valor base').closest('.dropdownField');
+    await user.hover(within(valueBaseField as HTMLElement).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el valor sobre el que se va a sumar o restar el porcentaje.'));
+    await user.unhover(within(valueBaseField as HTMLElement).getByRole('button', { name: 'Ver ayuda' }));
+    const percentageField = screen.getByText('Porcentaje (%)').closest('.dropdownField');
+    await user.hover(within(percentageField as HTMLElement).getByRole('button', { name: 'Ver ayuda' }));
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain('Es el porcentaje que se va a aplicar sobre el valor base.'));
     expect(screen.queryByText('Resultado anterior')).toBeNull();
     expect(screen.getByRole('button', { name: 'Decimales / redondeo' }).textContent).toContain('0 decimales');
   });
@@ -988,7 +1048,13 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     expect(screen.getByLabelText('Paréntesis de apertura')).not.toBeNull();
     expect(screen.getByLabelText('Paréntesis de cierre')).not.toBeNull();
     expect(screen.getByLabelText('Paréntesis de apertura').textContent?.trim().startsWith('(')).toBe(true);
-    expect(screen.getByRole('button', { name: 'Arrastrar valor 2' })).not.toBeNull();
+    const firstValueHandle = screen.getByRole('button', { name: 'Arrastrar valor 1' });
+    expect(firstValueHandle.querySelector('svg')).not.toBeNull();
+    expect(firstValueHandle.textContent).not.toContain('::');
+    const secondValueHandle = screen.getByRole('button', { name: 'Arrastrar valor 2' });
+    expect(secondValueHandle).not.toBeNull();
+    expect(secondValueHandle.querySelector('svg')).not.toBeNull();
+    expect(secondValueHandle.textContent).not.toContain('::');
     const openParenthesisHandle = screen.getByRole('button', { name: 'Arrastrar paréntesis de apertura' });
     expect(openParenthesisHandle).not.toBeNull();
     expect(openParenthesisHandle.querySelector('svg')).not.toBeNull();
@@ -1263,7 +1329,7 @@ describe('OutputColumnRecipeEditor interactive modal flow', () => {
     await selectLastDropdownOption(user, /Acción/, 'Restar %');
 
     expect(screen.queryByRole('button', { name: 'Valor base' })).toBeNull();
-    expect((getInputByLabelText('%: valor fijo') as HTMLInputElement).value).toBe('');
+    expect((screen.getAllByLabelText('Valor fijo')[0] as HTMLInputElement).value).toBe('');
 
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
     const persistedRecipe = JSON.parse(screen.getByTestId('persisted-recipe').textContent ?? '{}');

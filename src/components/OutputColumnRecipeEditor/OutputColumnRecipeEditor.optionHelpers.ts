@@ -203,12 +203,12 @@ export const numericOperationOptions = visibleNumericOperationValues.map((value)
 
 export function getNumericOperandLabels(operation: NonNullable<TransformStep['operation']> = 'addPercentage') {
   if (operation === 'removeIncludedPercentage') {
-    return { left: 'Valor con % incluido', right: '% incluido' };
+    return { left: 'Valor con % incluido', right: 'Porcentaje incluido (%)' };
   }
 
   const rightLabels: Record<Exclude<NonNullable<TransformStep['operation']>, 'removeIncludedPercentage'>, string> = {
-    addPercentage: '%',
-    subtractPercentage: '%',
+    addPercentage: 'Porcentaje (%)',
+    subtractPercentage: 'Porcentaje (%)',
   };
   return { left: 'Valor base', right: rightLabels[operation] };
 }
