@@ -1,0 +1,80 @@
+.actionButton {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.actionButton-primary {
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-text);
+}
+
+.actionButton-primary:hover:not(:disabled) {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary-bg-hover);
+  color: var(--color-primary-text);
+}
+
+.actionButton-primary:active:not(:disabled) {
+  background: var(--color-primary-bg-hover);
+  border-color: var(--color-primary-bg-hover);
+  color: var(--color-primary-text);
+}
+
+.actionButton-secondary,
+.actionButton-ghost {
+  background: var(--color-action-secondary-bg);
+  color: var(--color-action-secondary-text);
+}
+
+.actionButton-secondary:hover:not(:disabled),
+.actionButton-ghost:hover:not(:disabled) {
+  background: var(--color-action-secondary-bg-hover);
+}
+
+.actionButton-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.actionButton-danger:hover:not(:disabled) {
+  background: var(--color-danger-bg-hover);
+}
+
+.actionButton-icon {
+  background: var(--color-action-icon-bg);
+  color: var(--color-action-icon-text);
+}
+
+.actionButton-icon:hover:not(:disabled) {
+  background: var(--color-action-icon-bg-hover);
+}
+
+.actionButton-sm {
+  min-height: 40px;
+}
+
+.actionButton-iconOnly {
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  width: 40px;
+}
+
+.actionButtonIcon {
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+}
+
+.actionButtonText {
+  min-width: 0;
+}
+
+.actionButtonGroup {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

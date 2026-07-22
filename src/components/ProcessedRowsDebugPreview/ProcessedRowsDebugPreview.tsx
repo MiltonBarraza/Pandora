@@ -1,10 +1,20 @@
+import type { CSSProperties } from 'react';
 import { getEnabledOutputColumns } from '../../domain/import/outputModel';
-import { useState } from 'react';
 import type { OutputColumn, ProcessedRow, RowOverrides } from '../../types/import';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
+
+export const normalizedPreviewRowLimit = 30;
+
+type NormalizedPreviewTableStyle = CSSProperties & {
+  '--normalized-preview-column-count': string;
+};
 
 type ProcessedRowsPreviewProps = {
   rows: ProcessedRow[];
   outputColumns: OutputColumn[];
+  // Reserved while row selection/status controls stay intentionally hidden from section 8.
+  // Overrides still apply upstream and remain available to audit export.
   rowOverrides?: RowOverrides;
   onRowOverridesChange?: (overrides: RowOverrides) => void;
   title?: string;
@@ -14,129 +24,106 @@ type ProcessedRowsPreviewProps = {
 export function ProcessedRowsPreview({
   rows,
   outputColumns,
-  rowOverrides = {},
-  onRowOverridesChange,
   title = 'Vista por columnas de salida',
-  note = 'Esta vista refleja columnas de salida y recetas simples. Transformaciones complejas, numericas y condiciones siguen pendientes de migracion.',
+  note = 'Esta vista muestra el resultado final de las columnas de salida configuradas.',
 }: ProcessedRowsPreviewProps) {
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const columns = getEnabledOutputColumns(outputColumns);
-
-  const updateOverride = (rowNumber: number, include: boolean) => {
-    onRowOverridesChange?.({
-      ...rowOverrides,
-      [rowNumber]: include
-        ? { status: 'included', reason: 'Incluida manualmente' }
-        : { status: 'ignored', reason: 'Ignorada manualmente' },
-    });
-  };
-
-  const includeAll = () => {
-    onRowOverridesChange?.(Object.fromEntries(rows.map((row) => [row.rowNumber, { status: 'included', reason: 'Incluida manualmente' }])));
-    setSelectedRows(new Set());
-  };
-
-  const ignoreSelected = () => {
-    onRowOverridesChange?.({
-      ...rowOverrides,
-      ...Object.fromEntries([...selectedRows].map((rowNumber) => [rowNumber, { status: 'ignored', reason: 'Ignorada manualmente' }])),
-    });
-    setSelectedRows(new Set());
-  };
-
-  const toggleSelected = (rowNumber: number, selected: boolean) => {
-    const nextRows = new Set(selectedRows);
-    if (selected) {
-      nextRows.add(rowNumber);
-    } else {
-      nextRows.delete(rowNumber);
-    }
-    setSelectedRows(nextRows);
-  };
+  const visibleRows = getVisibleNormalizedPreviewRows(rows);
+  const previewRows = getNormalizedPreviewRows(rows);
+  const previewSummaryItems = getNormalizedPreviewSummaryItems(rows);
+  const previewLimitText = getNormalizedPreviewLimitText(visibleRows.length, previewRows.length);
 
   return (
     <section className="panel slim">
-      <h3>{title}</h3>
-      {note ? <p className="muted">{note}</p> : null}
-      {onRowOverridesChange ? (
-        <div className="actions compactActions">
-          <button type="button" className="secondary" onClick={includeAll}>Incluir todas</button>
-          <button type="button" className="secondary" disabled={selectedRows.size === 0} onClick={ignoreSelected}>Ignorar seleccionadas</button>
+      <div className="normalizedPreviewTitleRow">
+        <h3 className="headingWithInfo">
+          <span>{title}</span>
+          {note ? <InfoTooltip content={note} /> : null}
+        </h3>
+      </div>
+      <div className="normalizedPreviewSummary summaryMetricList" aria-label="Resumen de filas">
+        <span className="summaryMetricGroupLabel">Filas:</span>
+        {previewSummaryItems.map((item) => (
+          <span className="normalizedPreviewSummaryChip summaryMetricChip" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </span>
+        ))}
+      </div>
+      <p className="muted normalizedPreviewLimit">{previewLimitText}</p>
+      {columns.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
+      {columns.length > 0 ? (
+        <div className="tableWrap small">
+          <table
+            className="normalizedPreviewTable"
+            style={{ '--normalized-preview-column-count': String(columns.length) } as NormalizedPreviewTableStyle}
+          >
+            <colgroup>
+              {columns.map((column) => (
+                <col key={column.id} className="normalizedPreviewDataColumn" />
+              ))}
+            </colgroup>
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column.id}>
+                    <TruncatedText text={column.label} tooltipThreshold={14} />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {previewRows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length}>Sin filas para mostrar</td>
+                </tr>
+              ) : (
+                previewRows.map((row) => (
+                  <tr key={row.rowNumber}>
+                    {columns.map((column) => (
+                      <td key={column.id}>
+                        <TruncatedText text={row.outputValues[column.id] ?? ''} tooltipThreshold={24} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       ) : null}
-      <div className="tableWrap small">
-        <table>
-          <thead>
-            <tr>
-              {onRowOverridesChange ? <th>Seleccionar</th> : null}
-              {onRowOverridesChange ? <th>Incluir</th> : null}
-              <th>Estado</th>
-              <th>Fila</th>
-              {columns.map((column) => (
-                <th key={column.id}>{column.label}</th>
-              ))}
-              <th>Motivo/Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + (onRowOverridesChange ? 5 : 3)}>Sin filas para mostrar</td>
-              </tr>
-            ) : (
-              rows.slice(0, 200).map((row) => {
-                const status = row.status;
-                const reason = row.ignoredReason || row.error || '';
-
-                return (
-                  <tr key={row.rowNumber} className={status === 'ignored' ? 'mutedRow' : undefined}>
-                    {onRowOverridesChange ? (
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.has(row.rowNumber)}
-                          onChange={(event) => toggleSelected(row.rowNumber, event.target.checked)}
-                        />
-                      </td>
-                    ) : null}
-                    {onRowOverridesChange ? (
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={status === 'included'}
-                          onChange={(event) => updateOverride(row.rowNumber, event.target.checked)}
-                        />
-                      </td>
-                    ) : null}
-                    <td>{statusLabel(status)}</td>
-                    <td>{row.rowNumber}</td>
-                    {columns.map((column) => (
-                      <td key={column.id}>{row.outputValues[column.id] ?? ''}</td>
-                    ))}
-                    <td className={status === 'error' ? 'errorText' : undefined}>{reason}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
     </section>
   );
 }
 
-export function ProcessedRowsDebugPreview(props: ProcessedRowsPreviewProps) {
-  return <ProcessedRowsPreview title="Preview experimental del nuevo modelo" {...props} />;
+export function getNormalizedPreviewRows(rows: ProcessedRow[]) {
+  return getVisibleNormalizedPreviewRows(rows).slice(0, normalizedPreviewRowLimit);
 }
 
-function statusLabel(status: ProcessedRow['status']) {
-  if (status === 'ignored') {
-    return 'Ignorada';
+export function getVisibleNormalizedPreviewRows(rows: ProcessedRow[]) {
+  return rows.filter((row) => row.status !== 'ignored');
+}
+
+export function getNormalizedPreviewRowCountLabel(rowCount: number) {
+  return `${rowCount} ${rowCount === 1 ? 'fila' : 'filas'}`;
+}
+
+export function getNormalizedPreviewLimitText(totalRows: number, shownRows: number) {
+  if (totalRows > normalizedPreviewRowLimit) {
+    return `Vista previa: ${shownRows} de ${totalRows} filas mostradas.`;
   }
 
-  if (status === 'error') {
-    return 'Con error';
-  }
+  return `Vista previa: ${shownRows} ${shownRows === 1 ? 'fila mostrada' : 'filas mostradas'}.`;
+}
 
-  return 'Incluida';
+export function getNormalizedPreviewSummaryItems(rows: ProcessedRow[]) {
+  const includedCount = rows.filter((row) => row.status === 'included').length;
+  const ignoredCount = rows.filter((row) => row.status === 'ignored').length;
+  const errorCount = rows.filter((row) => row.status === 'error').length;
+  return [
+    { label: 'Procesadas', value: rows.length },
+    { label: 'Incluidas', value: includedCount },
+    { label: 'Excluidas por filtros', value: ignoredCount },
+    { label: 'Con errores', value: errorCount },
+  ];
 }

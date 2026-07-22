@@ -3,17 +3,21 @@ import type {
   IgnoreRule,
   InputColumn,
   InputRow,
+  NumericFormulaNode,
   OutputColumn,
   ProcessedRow,
+  RangeValueRecipe,
   RawRow,
   RecipePart,
+  SheetRowMetadata,
   StepOperand,
   StepSource,
   TransformStep,
 } from '../../types/import';
 import { applyInputIgnoreRulesToInputRows } from './applyIgnoreRules';
-import { evaluateTransformCondition } from './evaluateCondition';
-import { applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
+import { applyFormatDateStep } from './dateOperations';
+import { evaluateTextCondition, evaluateTransformCondition } from './evaluateCondition';
+import { applyNumericFormulaOperation, applyNumericOperation, extractNumericValue, formatNumericResult, parseNumericValue } from './numericOperations';
 import { normalizeWhitespace, toText } from './normalizeText';
 
 export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]): InputColumn[] {
@@ -31,11 +35,17 @@ export function buildInputColumnsFromAnalysis(columnAnalysis: ColumnAnalysis[]):
   }));
 }
 
-export function buildInputRows(rows: RawRow[], inputColumns: InputColumn[], startRowIndex = 0): InputRow[] {
+export function buildInputRows(
+  rows: RawRow[],
+  inputColumns: InputColumn[],
+  startRowIndex = 0,
+  rowMetadata: SheetRowMetadata[] = [],
+): InputRow[] {
   const activeColumns = inputColumns.filter((column) => column.active);
+  const rowMetadataByInternalIndex = new Map(rowMetadata.map((metadata) => [metadata.internalRowIndex, metadata]));
 
   return rows.slice(startRowIndex).map((row, offset) => ({
-    rowNumber: startRowIndex + offset + 1,
+    rowNumber: rowMetadataByInternalIndex.get(startRowIndex + offset)?.excelRowNumber ?? startRowIndex + offset + 1,
     values: Object.fromEntries(
       activeColumns.map((column) => [column.id, toText(row[column.columnIndex])]),
     ),
@@ -69,21 +79,26 @@ export function buildProcessedRowsPipeline({
   startRowIndex,
   outputColumns,
   inputIgnoreRules = [],
+  rowMetadata = [],
 }: {
   rawRows: RawRow[];
   columnAnalysis: ColumnAnalysis[];
   startRowIndex: number;
   outputColumns: OutputColumn[];
   inputIgnoreRules?: IgnoreRule[];
+  rowMetadata?: SheetRowMetadata[];
 }) {
   const inputColumns = buildInputColumnsFromAnalysis(columnAnalysis);
-  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex);
+  const inputRows = buildInputRows(rawRows, inputColumns, startRowIndex, rowMetadata);
   const { includedInputRows, ignoredInputRows } = applyInputIgnoreRulesToInputRows({
     inputRows,
     inputIgnoreRules,
     inputColumns,
   });
-  const processedRows = buildProcessedRows(includedInputRows, outputColumns).filter(hasAnyOutputValue);
+  // Manual ranges emit blank cells outside their bounds; that blank is data shape, not an implicit row filter.
+  const preserveRowsForManualRanges = hasEnabledManualRangeEvaluation(outputColumns);
+  const processedRows = buildProcessedRows(includedInputRows, outputColumns)
+    .filter((row) => shouldKeepProcessedRow(row, preserveRowsForManualRanges));
 
   return {
     inputColumns,
@@ -111,8 +126,33 @@ export function getInputColumnId(columnIndex: number) {
   return `input-${columnIndex}`;
 }
 
+function shouldKeepProcessedRow(row: ProcessedRow, preserveRowsForManualRanges: boolean) {
+  return hasAnyOutputValue(row) || preserveRowsForManualRanges;
+}
+
 function hasAnyOutputValue(row: ProcessedRow) {
   return Object.values(row.outputValues).some((value) => value.trim() !== '');
+}
+
+function hasEnabledManualRangeEvaluation(outputColumns: OutputColumn[]) {
+  return getEnabledOutputColumns(outputColumns).some((column) => recipeEvaluatesManualRanges(column.recipe));
+}
+
+function recipeEvaluatesManualRanges(recipe: OutputColumn['recipe']) {
+  if (recipe.type === 'manualRange') {
+    return true;
+  }
+
+  return getRecipeSteps(recipe).some(stepEvaluatesManualRanges)
+    || (recipe.type === 'combine' && recipe.parts.some((part) => (part.steps ?? []).some(stepEvaluatesManualRanges)));
+}
+
+function stepEvaluatesManualRanges(step: TransformStep): boolean {
+  if (step.type === 'manualRange') {
+    return true;
+  }
+
+  return (step.parts ?? []).some((part) => (part.steps ?? []).some(stepEvaluatesManualRanges));
 }
 
 function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: Record<string, string>) {
@@ -125,18 +165,82 @@ function resolveOutputValue(row: InputRow, column: OutputColumn, outputValues: R
   } else if (column.recipe.type === 'combine') {
     const result = resolveCombinedValue(row, column.recipe.parts, column.recipe.separator, outputValues, column.id);
     value = result.value;
-    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+    const finalResult = applyTransformSteps(value, getRecipeSteps(column.recipe), row, outputValues, column.id);
     return {
       value: finalResult.value,
       warnings: [...result.warnings, ...finalResult.warnings],
     };
+  } else if (column.recipe.type === 'manualRange') {
+    return {
+      value: resolveManualRangeValue(row, column.recipe),
+      warnings: [],
+    };
   }
 
-  return applyTransformSteps(value, getRecipeSteps(column.recipe), row.values, outputValues, column.id);
+  return applyTransformSteps(value, getRecipeSteps(column.recipe), row, outputValues, column.id);
 }
 
 function getRecipeSteps(recipe: OutputColumn['recipe']) {
-  return recipe.type === 'empty' ? [] : recipe.steps ?? [];
+  return 'steps' in recipe ? recipe.steps ?? [] : [];
+}
+
+function resolveManualRangeValue(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'ranges' | 'condition'>) {
+  if (!matchesManualRangeCondition(row, recipe)) {
+    return '';
+  }
+
+  const range = recipe.ranges.find((range) => row.rowNumber >= range.startRowNumber && row.rowNumber <= range.endRowNumber);
+  if (!range) {
+    return '';
+  }
+
+  if (range.valueRecipe) {
+    return resolveRangeValueRecipe(row, range.valueRecipe);
+  }
+
+  return resolveLegacyManualRangeValue(range);
+}
+
+function resolveLegacyManualRangeValue(range: Extract<OutputColumn['recipe'], { type: 'manualRange' }>['ranges'][number]) {
+  if (range.valueSource?.type === 'fixedText') {
+    return range.valueSource.value;
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return range.valueSource.selectedText ?? '';
+  }
+
+  return range.value ?? '';
+}
+
+function resolveRangeValueRecipe(row: InputRow, recipe: RangeValueRecipe) {
+  const initialValue = resolveRangeValueSource(row, recipe.source);
+  const safeSteps = (recipe.steps ?? []).filter((step) => step.type !== 'manualRange');
+  return applyTransformSteps(initialValue, safeSteps, row, {}, '').value;
+}
+
+function resolveRangeValueSource(row: InputRow, source: RangeValueRecipe['source']) {
+  if (source.type === 'input') {
+    return row.values[source.inputColumnId] ?? '';
+  }
+
+  if (source.type === 'fixedText') {
+    return source.value;
+  }
+
+  if (source.type === 'rangeText') {
+    return source.selectedText ?? '';
+  }
+
+  return '';
+}
+
+function matchesManualRangeCondition(row: InputRow, recipe: Pick<Extract<OutputColumn['recipe'], { type: 'manualRange' }>, 'condition'>) {
+  if (!recipe.condition) {
+    return true;
+  }
+
+  return evaluateTextCondition(row.values[recipe.condition.inputColumnId] ?? '', recipe.condition.operator);
 }
 
 function resolveCombinedValue(
@@ -149,7 +253,7 @@ function resolveCombinedValue(
   const warnings: string[] = [];
   const values = parts.map((part) => {
     const baseValue = part.type === 'input' ? row.values[part.inputColumnId] ?? '' : part.value;
-    const result = applyTransformSteps(baseValue, part.steps ?? [], row.values, outputValues, currentOutputColumnId);
+    const result = applyTransformSteps(baseValue, part.steps ?? [], row, outputValues, currentOutputColumnId);
     warnings.push(...result.warnings);
     return result.value;
   });
@@ -185,7 +289,7 @@ function getPartSeparator(part: RecipePart, globalSeparator?: string) {
 function applyTransformSteps(
   value: string,
   steps: TransformStep[],
-  inputValues: Record<string, string>,
+  row: InputRow,
   outputValues: Record<string, string>,
   currentOutputColumnId: string,
 ): TransformResult {
@@ -196,7 +300,7 @@ function applyTransformSteps(
         [currentOutputColumnId]: currentResult.value,
       };
       const conditionResult = evaluateTransformCondition({
-        inputValues,
+        inputValues: row.values,
         outputValues: nextOutputValues,
         condition: step.condition,
       });
@@ -211,7 +315,8 @@ function applyTransformSteps(
       }
 
       const nextResult = applyTransformStep(currentResult.value, step, {
-        inputValues,
+        inputValues: row.values,
+        row,
         outputValues: nextOutputValues,
         currentOutputColumnId,
         stepIndex,
@@ -227,6 +332,7 @@ function applyTransformSteps(
 
 type TransformStepContext = {
   inputValues: Record<string, string>;
+  row: InputRow;
   outputValues: Record<string, string>;
   currentOutputColumnId: string;
   stepIndex: number;
@@ -281,15 +387,29 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
   }
 
   if (step.type === 'extractNumber') {
-    return applyExtractNumberStep(value);
+    return applyExtractNumberStep(value, step);
   }
 
   if (step.type === 'toNumber') {
-    return applyToNumberStep(value);
+    return applyToNumberStep(value, step);
   }
 
   if (step.type === 'toText') {
     return { value: String(value), warnings: [] };
+  }
+
+  if (step.type === 'formatDate') {
+    return { value: applyFormatDateStep(value, step), warnings: [] };
+  }
+
+  if (step.type === 'manualRange') {
+    return {
+      value: resolveManualRangeValue(context.row, {
+        ranges: step.ranges ?? [],
+        condition: step.manualRangeCondition,
+      }),
+      warnings: [],
+    };
   }
 
   if (step.type === 'concat') {
@@ -306,6 +426,13 @@ function applyTransformStep(currentValue: string, step: TransformStep, context: 
     });
   }
 
+  if (step.type === 'numericFormula') {
+    return applyNumericFormulaTransformStep(value, step, {
+      ...context,
+      currentValue,
+    });
+  }
+
   const searchValue = step.searchValue ?? '';
   return { value: searchValue ? value.split(searchValue).join(step.replaceValue ?? '') : value, warnings: [] };
 }
@@ -317,6 +444,10 @@ function resolveStepSource(source: StepSource | undefined, context: StepValueCon
 
   if (source.type === 'input') {
     return context.inputValues[source.inputColumnId] ?? '';
+  }
+
+  if (source.type === 'rangeText') {
+    return source.selectedText ?? '';
   }
 
   return source.value;
@@ -336,7 +467,7 @@ function resolveStepOperand(operand: StepOperand | undefined, context: StepValue
 
   return {
     value: null,
-    warnings: ['No se pudo aplicar operacion numerica: operando invalido'],
+    warnings: ['No se pudo aplicar operación numérica: operando inválido'],
   };
 }
 
@@ -349,7 +480,7 @@ function applyConcatTransformStep(step: TransformStep, context: StepValueContext
     const result = applyTransformSteps(
       baseValue,
       part.steps ?? [],
-      context.inputValues,
+      context.row,
       context.outputValues,
       context.currentOutputColumnId,
     );
@@ -361,7 +492,7 @@ function applyConcatTransformStep(step: TransformStep, context: StepValueContext
 }
 
 function applyNumericTransformStep(value: string, step: TransformStep, context: StepValueContext): TransformResult {
-  const operation = step.operation ?? 'add';
+  const operation = step.operation ?? 'addPercentage';
   if (step.leftOperand || step.rightOperand) {
     return applyNumericOperandTransformStep(step, context);
   }
@@ -373,11 +504,11 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
   if (parsedValue === null || !Number.isFinite(amount)) {
     return {
       value,
-      warnings: ['No se pudo aplicar operacion numerica: valor invalido'],
+      warnings: ['No se pudo aplicar operación numérica: valor inválido'],
     };
   }
 
-  if (operation === 'divide' && amount === 0) {
+  if (operation === 'removeIncludedPercentage' && amount === -100) {
     return {
       value,
       warnings: ['No se puede dividir por cero'],
@@ -392,7 +523,7 @@ function applyNumericTransformStep(value: string, step: TransformStep, context: 
 }
 
 function applyNumericOperandTransformStep(step: TransformStep, context: StepValueContext): TransformResult {
-  const operation = step.operation ?? 'add';
+  const operation = step.operation ?? 'addPercentage';
   const left = resolveStepOperand(step.leftOperand ?? { type: 'previousResult' }, context);
   const right = resolveStepOperand(step.rightOperand ?? { type: 'fixedText', value: String(step.amount ?? 0) }, context);
 
@@ -403,7 +534,7 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
     };
   }
 
-  if (operation === 'divide' && right.value === 0) {
+  if (operation === 'removeIncludedPercentage' && right.value === -100) {
     return {
       value: context.currentValue,
       warnings: ['No se puede dividir por cero'],
@@ -417,28 +548,91 @@ function applyNumericOperandTransformStep(step: TransformStep, context: StepValu
   };
 }
 
-function applyExtractNumberStep(value: string) {
-  const parsedValue = extractNumericValue(value);
-  if (parsedValue === null) {
+function applyNumericFormulaTransformStep(value: string, step: TransformStep, context: StepValueContext): TransformResult {
+  if (!step.formula?.expression) {
     return {
       value,
-      warnings: ['No se pudo extraer numero del texto'],
+      warnings: ['No se pudo aplicar fórmula numérica: fórmula inválida'],
     };
+  }
+
+  const result = evaluateNumericFormulaNode(step.formula.expression, context);
+  if (result.value === null) {
+    return {
+      value,
+      warnings: result.warnings.length ? result.warnings : ['No se pudo aplicar fórmula numérica: fórmula inválida'],
+    };
+  }
+
+  return {
+    value: formatNumericResult(result.value, step.rounding ?? 2),
+    warnings: result.warnings,
+  };
+}
+
+function evaluateNumericFormulaNode(node: NumericFormulaNode, context: StepValueContext): { value: number | null; warnings: string[] } {
+  if (node.kind === 'operand') {
+    return resolveStepOperand(node.operand, context);
+  }
+
+  if (node.kind !== 'binary') {
+    return {
+      value: null,
+      warnings: ['No se pudo aplicar fórmula numérica: fórmula inválida'],
+    };
+  }
+
+  const left = evaluateNumericFormulaNode(node.left, context);
+  const right = evaluateNumericFormulaNode(node.right, context);
+  if (left.value === null || right.value === null) {
+    return {
+      value: null,
+      warnings: [...left.warnings, ...right.warnings],
+    };
+  }
+
+  if (node.operator === 'divide' && right.value === 0) {
+    return {
+      value: null,
+      warnings: ['No se puede dividir por cero'],
+    };
+  }
+
+  return {
+    value: applyNumericFormulaOperation(left.value, node.operator, right.value),
+    warnings: [...left.warnings, ...right.warnings],
+  };
+}
+
+function applyExtractNumberStep(value: string, step: TransformStep) {
+  const parsedValue = extractNumericValue(value);
+  if (parsedValue === null) {
+    return applyConversionInvalidFallback(value, step, 'No se pudo extraer número del texto');
   }
 
   return { value: formatNumericResult(parsedValue, 'none'), warnings: [] };
 }
 
-function applyToNumberStep(value: string) {
+function applyToNumberStep(value: string, step: TransformStep) {
   const parsedValue = parseNumericValue(value);
   if (parsedValue === null) {
-    return {
-      value,
-      warnings: ['No se pudo convertir a numero: valor invalido'],
-    };
+    return applyConversionInvalidFallback(value, step, 'No se pudo convertir a número: valor inválido');
   }
 
   return { value: formatNumericResult(parsedValue, 'none'), warnings: [] };
+}
+
+function applyConversionInvalidFallback(value: string, step: TransformStep, warning: string): TransformResult {
+  const fallback = step.conversionInvalidFallback ?? 'original';
+  if (fallback === 'empty') {
+    return { value: '', warnings: [warning] };
+  }
+
+  if (fallback === 'fixedText') {
+    return { value: step.conversionInvalidFallbackText ?? '', warnings: [warning] };
+  }
+
+  return { value, warnings: [warning] };
 }
 
 function shouldSkipEmptyValue(value: string, step: TransformStep) {
@@ -449,6 +643,6 @@ function shouldSkipEmptyValue(value: string, step: TransformStep) {
   return (
     value.trim() === '' &&
     !step.applyToEmptyValues &&
-    ['addPrefix', 'addSuffix', 'removeText', 'replaceText', 'extractNumber', 'toNumber', 'numericOperation'].includes(step.type)
+    ['addPrefix', 'addSuffix', 'removeText', 'replaceText', 'extractNumber', 'toNumber', 'formatDate', 'numericOperation'].includes(step.type)
   );
 }

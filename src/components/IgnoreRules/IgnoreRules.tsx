@@ -1,6 +1,10 @@
 import type { IgnoreRule, InputColumn, OutputColumn } from '../../types/import';
+import { ignoreRuleNeedsValue, isIgnoreRuleComplete } from '../../domain/import/applyIgnoreRules';
 import { getInputColumnLabel } from '../../domain/import/inputColumnLabels';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { Dropdown } from '../ui/Dropdown/Dropdown';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type IgnoreRulesProps = {
   mode: 'input' | 'output';
@@ -10,9 +14,11 @@ type IgnoreRulesProps = {
   onChange: (rules: IgnoreRule[]) => void;
 };
 
-const operators: Array<{ value: IgnoreRule['operator']; label: string; needsValue: boolean }> = [
-  { value: 'isEmpty', label: 'esta vacia', needsValue: false },
-  { value: 'isNotEmpty', label: 'no esta vacia', needsValue: false },
+type CompletedIgnoreRuleOperator = Exclude<IgnoreRule['operator'], ''>;
+
+const operators: Array<{ value: CompletedIgnoreRuleOperator; label: string; needsValue: boolean }> = [
+  { value: 'isEmpty', label: 'está vacía', needsValue: false },
+  { value: 'isNotEmpty', label: 'no está vacía', needsValue: false },
   { value: 'contains', label: 'contiene', needsValue: true },
   { value: 'notContains', label: 'no contiene', needsValue: true },
   { value: 'equals', label: 'es igual a', needsValue: true },
@@ -25,9 +31,7 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
   const activeInputColumns = inputColumns.filter((column) => column.active);
   const activeOutputColumns = [...outputColumns].filter((column) => column.enabled).sort((a, b) => a.order - b.order);
   const activeColumns = mode === 'input' ? activeInputColumns : activeOutputColumns;
-  const sectionCopy = mode === 'input'
-    ? 'Estas reglas se aplican sobre los datos originales antes de construir las columnas de salida.'
-    : 'Estas reglas se aplican sobre las columnas de salida ya transformadas.';
+  const summaryText = getIgnoreRulesSummaryText(rules);
 
   const addRule = () => {
     onChange([
@@ -35,9 +39,9 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
       {
         id: crypto.randomUUID(),
         target: mode,
-        columnId: activeColumns[0]?.id ?? '',
-        operator: 'contains',
-        value: 'PROXIMAMENTE',
+        columnId: '',
+        operator: '',
+        value: '',
       },
     ]);
   };
@@ -48,59 +52,102 @@ export function IgnoreRules({ mode, inputColumns, outputColumns, rules, onChange
 
   return (
     <div className="rules">
-      <div className="sectionHeader">
-        <p>{sectionCopy}</p>
-        <button type="button" onClick={addRule}>Agregar regla</button>
+      <div className="managerSummaryRow">
+        <p className="muted">
+          {summaryText}
+        </p>
+        <div className="rulesActions">
+          <InfoTooltip content="Agregá una nueva regla para excluir filas.">
+            <ActionButton
+              action="add"
+              aria-label={mode === 'input' ? 'Agregar regla de entrada' : 'Agregar regla de salida'}
+              onClick={addRule}
+            >
+              Agregar
+            </ActionButton>
+          </InfoTooltip>
+        </div>
       </div>
 
-      {rules.length === 0 ? <p className="muted">No hay reglas de ignorado configuradas.</p> : null}
+      {rules.length > 0 ? (
+        <div className="ignoreRulesHeader" aria-hidden="true">
+          <span>Columna</span>
+          <span>Condición</span>
+          <span>Valor</span>
+          <span />
+        </div>
+      ) : null}
 
       {rules.map((rule) => {
-        const selectedOperator = operators.find((operator) => operator.value === rule.operator);
+        const needsValue = ignoreRuleNeedsValue(rule.operator);
         const target = mode;
         const columns = activeColumns;
 
         return (
           <div className="ignoreRuleCard" key={rule.id}>
             <div className="ignoreRuleFields">
-              <label className="field compact">
-                <span>Columna</span>
-                <select value={rule.columnId} onChange={(event) => updateRule(rule.id, { columnId: event.target.value })}>
-                  {columns.length === 0 ? <option value="">Sin columnas disponibles</option> : null}
-                  {columns.map((column) => (
-                    <option key={column.id} value={column.id}>
-                      {target === 'input' && 'columnLetter' in column ? getInputColumnLabel(column) : column.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Dropdown
+                className="compact"
+                label="Columna"
+                labelInfo={<InfoTooltip content="Elegí la columna que se va a revisar." />}
+                value={rule.columnId}
+                placeholder="Seleccionar columna"
+                options={columns.map((column) => ({
+                    value: column.id,
+                    label: target === 'input' && 'columnLetter' in column ? getInputColumnLabel(column) : column.label,
+                  }))}
+                scrollStrategy="close"
+                onChange={(columnId) => updateRule(rule.id, { columnId })}
+              />
 
-              <label className="field compact">
-                <span>Condicion</span>
-                <select
-                  value={rule.operator}
-                  onChange={(event) => updateRule(rule.id, { operator: event.target.value as IgnoreRule['operator'], value: '' })}
-                >
-                  {operators.map((operator) => (
-                    <option key={operator.value} value={operator.value}>{operator.label}</option>
-                  ))}
-                </select>
-              </label>
+              <Dropdown<CompletedIgnoreRuleOperator>
+                className="compact"
+                label="Condición"
+                labelInfo={<InfoTooltip content="Definí cuándo se excluye una fila." />}
+                value={rule.operator}
+                placeholder="Seleccionar condición"
+                options={operators}
+                scrollStrategy="close"
+                onChange={(operator) => updateRule(rule.id, { operator, value: '' })}
+              />
 
-              {selectedOperator?.needsValue ? (
+              {needsValue || !rule.operator ? (
                 <label className="field compact">
-                  <span>Valor</span>
-                  <input value={rule.value ?? ''} onChange={(event) => updateRule(rule.id, { value: event.target.value })} />
+                  <span className="labelWithInfo">
+                    <span>Valor</span>
+                    <InfoTooltip content="Texto que se compara con la columna elegida." />
+                  </span>
+                  <input
+                    value={rule.value ?? ''}
+                    disabled={!rule.operator}
+                    placeholder="Ingresar valor"
+                    onChange={(event) => updateRule(rule.id, { value: event.target.value })}
+                  />
                 </label>
               ) : (
                 <div className="ruleHint">No requiere valor</div>
               )}
 
             </div>
-            <DeleteButton onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
+            <div className="ignoreRuleAction">
+              <InfoTooltip content="Eliminar regla">
+                <DeleteButton title="Eliminar regla" onClick={() => onChange(rules.filter((item) => item.id !== rule.id))} />
+              </InfoTooltip>
+            </div>
           </div>
         );
       })}
     </div>
   );
+}
+
+export function getIgnoreRulesSummaryText(rules: IgnoreRule[]) {
+  if (rules.length === 0) {
+    return 'No hay reglas de ignorado configuradas.';
+  }
+
+  const ruleCountText = `${rules.length} ${rules.length === 1 ? 'regla configurada' : 'reglas configuradas'}.`;
+  return rules.some((rule) => !isIgnoreRuleComplete(rule))
+    ? `${ruleCountText} Completá las reglas pendientes para aplicarlas.`
+    : ruleCountText;
 }

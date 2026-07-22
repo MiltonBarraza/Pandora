@@ -4,7 +4,7 @@ import { rowsToAoAFromProcessedRows } from './outputModel';
 export function exportCsvFromProcessedRows(
   rows: ProcessedRow[],
   outputColumns: OutputColumn[],
-  filename = 'Archivo sanitizado',
+  filename = 'Archivo preparado',
 ) {
   const csv = rowsToAoAFromProcessedRows(rows, outputColumns)
     .map((row) => row.map(escapeCsvCell).join(','))

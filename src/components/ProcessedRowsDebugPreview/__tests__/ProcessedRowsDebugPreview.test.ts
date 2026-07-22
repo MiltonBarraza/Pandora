@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import type { ProcessedRow } from '../../../types/import';
+import { getNormalizedPreviewLimitText, getNormalizedPreviewRowCountLabel, getNormalizedPreviewRows, getNormalizedPreviewSummaryItems, getVisibleNormalizedPreviewRows, normalizedPreviewRowLimit } from '../ProcessedRowsDebugPreview';
+
+function row(rowNumber: number, status: ProcessedRow['status'] = 'included'): ProcessedRow {
+  return {
+    rowNumber,
+    inputValues: {},
+    outputValues: { output: `Valor ${rowNumber}` },
+    status,
+  };
+}
+
+describe('ProcessedRowsPreview helpers', () => {
+  it('limits the normalized preview to 30 rows', () => {
+    const rows = Array.from({ length: 45 }, (_, index) => row(index + 1));
+
+    const previewRows = getNormalizedPreviewRows(rows);
+
+    expect(previewRows).toHaveLength(normalizedPreviewRowLimit);
+    expect(previewRows[0].rowNumber).toBe(1);
+    expect(previewRows[29].rowNumber).toBe(30);
+  });
+
+  it('describes limited and short previews', () => {
+    expect(getNormalizedPreviewLimitText(45, 30)).toBe('Vista previa: 30 de 45 filas mostradas.');
+    expect(getNormalizedPreviewLimitText(12, 12)).toBe('Vista previa: 12 filas mostradas.');
+  });
+
+  it('summarizes processed row statuses', () => {
+    expect(getNormalizedPreviewSummaryItems([
+      row(1, 'included'),
+      row(2, 'ignored'),
+      row(3, 'error'),
+      row(4, 'included'),
+    ])).toEqual([
+      { label: 'Procesadas', value: 4 },
+      { label: 'Incluidas', value: 2 },
+      { label: 'Excluidas por filtros', value: 1 },
+      { label: 'Con errores', value: 1 },
+    ]);
+  });
+
+  it('removes output-filtered rows from normalized preview and counts visible rows', () => {
+    const rows = [
+      row(1, 'included'),
+      row(2, 'ignored'),
+      row(3, 'included'),
+    ];
+
+    expect(getVisibleNormalizedPreviewRows(rows).map((item) => item.rowNumber)).toEqual([1, 3]);
+    expect(getNormalizedPreviewRows(rows).map((item) => item.rowNumber)).toEqual([1, 3]);
+    expect(getNormalizedPreviewRowCountLabel(2)).toBe('2 filas');
+    expect(getNormalizedPreviewRowCountLabel(1)).toBe('1 fila');
+  });
+});

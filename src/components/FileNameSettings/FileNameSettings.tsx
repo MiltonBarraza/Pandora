@@ -1,5 +1,6 @@
-import { buildAuditFileBaseName, buildOutputFileBaseName } from '../../domain/import/downloadNames';
+import { buildOutputFileBaseName } from '../../domain/import/downloadNames';
 import type { FileNameSettings as FileNameSettingsType } from '../../types/import';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type FileNameSettingsProps = {
   settings: FileNameSettingsType;
@@ -10,7 +11,6 @@ type FileNameSettingsProps = {
 
 export function FileNameSettings({ settings, sourceFileName, sheetName, onChange }: FileNameSettingsProps) {
   const outputName = buildOutputFileBaseName({ settings, sourceFileName, sheetName });
-  const auditName = buildAuditFileBaseName(outputName);
 
   const update = (patch: Partial<FileNameSettingsType>) => {
     onChange({ ...settings, ...patch });
@@ -41,7 +41,10 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
 
       {settings.mode === 'custom' ? (
         <label className="field">
-          <span>Nombre base</span>
+          <span className="labelWithInfo">
+            <span>Nombre base</span>
+            <InfoTooltip content="Nombre principal para los archivos descargados." />
+          </span>
           <input
             value={settings.customName}
             onChange={(event) => update({ customName: event.target.value })}
@@ -50,8 +53,11 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
         </label>
       ) : (
         <>
-          <label className="field">
-            <span>Texto base</span>
+          <label className="field mainControlWidth">
+            <span className="labelWithInfo">
+              <span>Texto base</span>
+              <InfoTooltip content="Texto fijo que puede sumarse al nombre final." />
+            </span>
             <input value={settings.baseText} onChange={(event) => update({ baseText: event.target.value })} />
           </label>
           <div className="presetBar">
@@ -83,20 +89,54 @@ export function FileNameSettings({ settings, sourceFileName, sheetName, onChange
               <input
                 type="checkbox"
                 checked={settings.includeDate}
-                onChange={(event) => update({ includeDate: event.target.checked })}
+                onChange={(event) => update({
+                  includeDate: event.target.checked,
+                  ...(!event.target.checked ? { includeTime: false } : {}),
+                })}
               />
               Incluir fecha actual
             </label>
+            <TimeCheckbox
+              checked={settings.includeDate && Boolean(settings.includeTime)}
+              disabled={!settings.includeDate}
+              onChange={(checked) => update({ includeTime: checked })}
+            />
           </div>
         </>
       )}
 
       <div className="filenamePreview">
         <strong>Nombre final</strong>
-        <span>{outputName}.xlsx</span>
-        <span>{outputName}.csv</span>
-        <span>{auditName}.xlsx</span>
+        <span>{outputName}</span>
       </div>
     </div>
   );
+}
+
+function TimeCheckbox({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const control = (
+    <label className={`checkboxField${disabled ? ' isDisabled' : ''}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      Incluir hora actual
+    </label>
+  );
+
+  return disabled ? (
+    <InfoTooltip content="Primero activá ‘Incluir fecha actual’." placement="top">
+      {control}
+    </InfoTooltip>
+  ) : control;
 }

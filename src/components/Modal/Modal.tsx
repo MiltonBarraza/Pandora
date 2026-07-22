@@ -1,16 +1,25 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useDocumentScrollLock } from '../../hooks/useDocumentScrollLock';
+import { ActionButton } from '../ui/ActionButton/ActionButton';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
 
 type ModalProps = {
   open: boolean;
   title: string;
   size?: 'default' | 'xl';
+  className?: string;
   onClose: () => void;
   children: ReactNode;
+  titleInfo?: string;
+  headerDetails?: ReactNode;
+  footer?: ReactNode;
 };
 
-export function Modal({ open, title, size = 'default', onClose, children }: ModalProps) {
+export function Modal({ open, title, size = 'default', className = '', onClose, children, titleInfo, headerDetails, footer }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
+
+  useDocumentScrollLock(open);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -32,31 +41,54 @@ export function Modal({ open, title, size = 'default', onClose, children }: Moda
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      const dialog = dialogRef.current;
+      const activeDialog = document.activeElement?.closest('dialog');
+      if (activeDialog && activeDialog !== dialog) {
+        return;
+      }
+
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        event.preventDefault();
+        onClose();
+      }
     };
-  }, [open]);
+
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeyDown);
+    };
+  }, [onClose, open]);
 
   return (
     <dialog
       ref={dialogRef}
-      className={`modalDialog${size === 'xl' ? ' modalDialogXl' : ''}`}
+      className={`modalDialog${size === 'xl' ? ' modalDialogXl' : ''}${className ? ` ${className}` : ''}`}
       aria-labelledby={titleId}
       onCancel={(event) => {
+        event.stopPropagation();
         event.preventDefault();
         onClose();
       }}
-      onClose={onClose}
+      onClose={(event) => {
+        event.stopPropagation();
+        if (event.currentTarget === event.target) {
+          onClose();
+        }
+      }}
     >
       <div className="modalHeader">
-        <h3 id={titleId}>{title}</h3>
-        <button type="button" className="iconButton" title="Cerrar" aria-label="Cerrar" onClick={onClose}>
-          X
-        </button>
+        <div className="modalTitleBlock">
+          <h3 id={titleId} className={titleInfo ? 'headingWithInfo' : undefined}>
+            <span>{title}</span>
+            {titleInfo ? <InfoTooltip content={titleInfo} placement="right" /> : null}
+          </h3>
+          {headerDetails ? <div className="modalHeaderDetails">{headerDetails}</div> : null}
+        </div>
+        <ActionButton action="close" variant="icon" size="sm" title="Cerrar" aria-label="Cerrar" onClick={onClose} />
       </div>
       <div className="modalBody">{children}</div>
+      {footer ? <div className="modalFooter">{footer}</div> : null}
     </dialog>
   );
 }

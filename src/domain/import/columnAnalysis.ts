@@ -1,5 +1,6 @@
 import type * as XLSX from 'xlsx';
 import type { ColumnAnalysis, ColumnDetectionOptions, IgnoredReason, RawRow } from '../../types/import';
+import { cellHasData } from './columnData';
 
 export const defaultColumnDetectionOptions: ColumnDetectionOptions = {
   hideHiddenColumns: true,
@@ -18,7 +19,7 @@ export function analyzeSheetColumns(
   headerRowIndex: number | null = null,
   startRowIndex = 0,
 ): ColumnAnalysis[] {
-  const maxColumns = getMaxColumnCount(sheet, rows);
+  const maxColumns = getMaxColumnCount(rows);
   const productRows = rows.slice(startRowIndex);
 
   return Array.from({ length: maxColumns }, (_, columnIndex) => {
@@ -27,16 +28,17 @@ export function analyzeSheetColumns(
     const width = getColumnWidth(columnMetadata);
     const isNarrow = isColumnNarrow(columnMetadata, options);
     const sampleValues = getColumnSampleValues(rows, columnIndex, startRowIndex);
-    const nonEmptyCount = productRows.filter((row) => cellText(row[columnIndex]) !== '').length;
+    const nonEmptyCount = productRows.filter((row) => cellHasData(row[columnIndex])).length;
     const isEmpty = nonEmptyCount === 0;
     const header = headerRowIndex === null ? '' : cellText(rows[headerRowIndex]?.[columnIndex]);
-    const autoIgnoredReason = getAutoIgnoredReason({
+    const autoIgnoredReasons = getAutoIgnoredReasons({
       isHidden,
       isNarrow,
       isEmpty,
       nonEmptyCount,
       options,
     });
+    const autoIgnoredReason = autoIgnoredReasons[0];
 
     return {
       columnIndex,
@@ -48,10 +50,12 @@ export function analyzeSheetColumns(
       width,
       isNarrow,
       isEmpty,
-      ignored: Boolean(autoIgnoredReason),
+      ignored: autoIgnoredReasons.length > 0,
       ignoredReason: autoIgnoredReason,
-      autoIgnored: Boolean(autoIgnoredReason),
+      ignoredReasons: autoIgnoredReasons,
+      autoIgnored: autoIgnoredReasons.length > 0,
       autoIgnoredReason,
+      autoIgnoredReasons,
     };
   });
 }
@@ -73,22 +77,18 @@ export function isColumnNarrow(columnMetadata: XLSX.ColInfo | undefined, options
   );
 }
 
-export function getColumnSampleValues(rows: RawRow[], columnIndex: number, startRowIndex = 0, limit = 3) {
+export function getColumnSampleValues(rows: RawRow[], columnIndex: number, startRowIndex = 0, limit = 10) {
   const sample: string[] = [];
 
   rows.slice(startRowIndex).some((row) => {
-    const value = cellText(row[columnIndex]);
-    if (value) {
-      sample.push(value);
+    const value = row[columnIndex];
+    if (cellHasData(value)) {
+      sample.push(cellText(value));
     }
     return sample.length >= limit;
   });
 
   return sample;
-}
-
-export function applyColumnVisibility(rows: RawRow[], activeColumns: number[]): RawRow[] {
-  return rows.map((row) => activeColumns.map((columnIndex) => row[columnIndex] ?? ''));
 }
 
 export function columnLetter(index: number) {
@@ -104,26 +104,8 @@ export function columnLetter(index: number) {
   return name;
 }
 
-function getMaxColumnCount(sheet: XLSX.WorkSheet | undefined, rows: RawRow[]) {
-  const rowMax = Math.max(1, ...rows.map((row) => row.length));
-  const ref = sheet?.['!ref'];
-  if (!ref) {
-    return rowMax;
-  }
-
-  const range = decodeRange(ref);
-  return Math.max(rowMax, range.e.c + 1);
-}
-
-function decodeRange(ref: string) {
-  const refParts = ref.split(':');
-  const endRef = refParts[refParts.length - 1] ?? ref;
-  const letters = endRef.match(/[A-Z]+/i)?.[0] ?? 'A';
-  let column = 0;
-  letters.toUpperCase().split('').forEach((letter) => {
-    column = column * 26 + letter.charCodeAt(0) - 64;
-  });
-  return { e: { c: column - 1 } };
+function getMaxColumnCount(rows: RawRow[]) {
+  return Math.max(1, ...rows.map((row) => row.length));
 }
 
 function getColumnWidth(columnMetadata: XLSX.ColInfo | undefined) {
@@ -134,7 +116,7 @@ function getColumnWidth(columnMetadata: XLSX.ColInfo | undefined) {
   return columnMetadata.wpx ?? columnMetadata.wch ?? columnMetadata.width;
 }
 
-function getAutoIgnoredReason({
+function getAutoIgnoredReasons({
   isHidden,
   isNarrow,
   isEmpty,
@@ -146,24 +128,26 @@ function getAutoIgnoredReason({
   isEmpty: boolean;
   nonEmptyCount: number;
   options: ColumnDetectionOptions;
-}): IgnoredReason | undefined {
+}): IgnoredReason[] {
+  const reasons: IgnoredReason[] = [];
+
   if (options.hideHiddenColumns && isHidden) {
-    return 'hidden';
+    reasons.push('hidden');
   }
 
   if (options.hideNarrowColumns && isNarrow) {
-    return 'narrow';
+    reasons.push('narrow');
   }
 
   if (options.hideEmptyColumns && isEmpty) {
-    return 'empty';
+    reasons.push('empty');
   }
 
   if (options.hideLowDataColumns && nonEmptyCount < options.lowDataMinValues) {
-    return 'lowData';
+    reasons.push('lowData');
   }
 
-  return undefined;
+  return reasons;
 }
 
 function cellText(value: unknown) {

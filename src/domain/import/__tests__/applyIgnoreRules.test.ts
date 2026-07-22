@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { IgnoreRule, InputColumn, OutputColumn, ProcessedRow } from '../../../types/import';
-import { applyIgnoreRulesToProcessedRows, applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows } from '../applyIgnoreRules';
+import { applyIgnoreRulesToProcessedRows, applyOutputIgnoreRulesToProcessedRows, applyRowOverridesToProcessedRows, evaluateIgnoreRule, isIgnoreRuleComplete } from '../applyIgnoreRules';
 
 const inputColumns: InputColumn[] = [
   {
@@ -46,6 +46,27 @@ const rows: ProcessedRow[] = [
 ];
 
 describe('applyIgnoreRulesToProcessedRows', () => {
+  it('does not match incomplete ignore rules', () => {
+    const values = { code: 'ABC', empty: '' };
+    const incompleteRules: IgnoreRule[] = [
+      { id: 'missing-column', target: 'input', columnId: '', operator: 'contains', value: 'ABC' },
+      { id: 'missing-operator', target: 'input', columnId: 'code', operator: '', value: 'ABC' },
+      { id: 'missing-value', target: 'input', columnId: 'code', operator: 'contains', value: '' },
+    ];
+
+    incompleteRules.forEach((rule) => {
+      expect(isIgnoreRuleComplete(rule)).toBe(false);
+      expect(evaluateIgnoreRule(values, rule)).toBe(false);
+    });
+  });
+
+  it('allows value-less ignore operators once column and operator are selected', () => {
+    const rule: IgnoreRule = { id: 'empty-input', target: 'input', columnId: 'empty', operator: 'isEmpty' };
+
+    expect(isIgnoreRuleComplete(rule)).toBe(true);
+    expect(evaluateIgnoreRule({ empty: '' }, rule)).toBe(true);
+  });
+
   it('ignores rows evaluating input and output columns', () => {
     const rules: IgnoreRule[] = [
       { id: 'empty-input', target: 'input', columnId: 'input-code', operator: 'isEmpty' },
@@ -61,9 +82,9 @@ describe('applyIgnoreRulesToProcessedRows', () => {
     });
 
     expect(result[0].status).toBe('ignored');
-    expect(result[0].ignoredReason).toBe('Ignorada por regla: A - Codigo original esta vacia');
+    expect(result[0].ignoredReason).toBe('Ignorada por regla: A - Codigo original está vacía');
     expect(result[1].status).toBe('ignored');
-    expect(result[1].ignoredReason).toBe('Ignorada por regla: Codigo esta vacia');
+    expect(result[1].ignoredReason).toBe('Ignorada por regla: Codigo está vacía');
   });
 
   it('applies output rules over transformed output values', () => {

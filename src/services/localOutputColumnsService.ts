@@ -1,8 +1,18 @@
 import type {
   ConcatPart,
   ConditionOperator,
+  DateInputFormat,
+  DateInvalidFallback,
+  DateOutputFormat,
+  ManualRangeCondition,
+  ManualRangeValue,
+  NumericFormula,
+  NumericFormulaDisplayGroup,
+  NumericFormulaNode,
+  NumericFormulaOperator,
   OutputColumn,
   OutputRecipe,
+  RangeValueRecipe,
   RecipePart,
   StepOperand,
   StepSource,
@@ -11,27 +21,37 @@ import type {
   TransformStepMode,
   TransformStepType,
 } from '../types/import';
+import { isValidDateOutputFormat } from '../domain/import/dateOperations';
 
 const outputColumnsKey = 'excel-sanitizer:v2-output-columns';
 
-const defaultOutputColumns: OutputColumn[] = [
-  { id: 'output-code', label: 'Codigo', order: 0, enabled: true, recipe: { type: 'empty' } },
-  { id: 'output-name', label: 'Nombre', order: 1, enabled: true, recipe: { type: 'empty' } },
-  { id: 'output-price', label: 'Precio', order: 2, enabled: true, recipe: { type: 'empty' } },
-  { id: 'output-comments', label: 'Comentarios', order: 3, enabled: true, recipe: { type: 'empty' } },
-];
+const defaultOutputColumns: OutputColumn[] = [];
+const legacyDefaultOutputColumnIds = ['output-code', 'output-name', 'output-price', 'output-comments'];
+const defaultDateInputFormat: DateInputFormat = 'DD/MM/YYYY';
+const defaultDateOutputFormat: DateOutputFormat = 'YYYY-MM-DD';
+const defaultDateInvalidFallback: DateInvalidFallback = 'original';
+
+export function createDefaultOutputColumns(): OutputColumn[] {
+  return defaultOutputColumns.map((column) => ({ ...column, recipe: { ...column.recipe } }));
+}
 
 export function loadOutputColumns(): OutputColumn[] {
   try {
     const raw = localStorage.getItem(outputColumnsKey);
     if (raw === null) {
-      return defaultOutputColumns;
+      return createDefaultOutputColumns();
     }
 
     const parsed = JSON.parse(raw) as Partial<OutputColumn>[];
-    return parsed.map(normalizeOutputColumn).filter((column): column is OutputColumn => Boolean(column));
+    const columns = parsed.map(normalizeOutputColumn).filter((column): column is OutputColumn => Boolean(column));
+
+    if (isLegacyDefaultOutputColumns(columns)) {
+      return createDefaultOutputColumns();
+    }
+
+    return columns;
   } catch {
-    return defaultOutputColumns;
+    return createDefaultOutputColumns();
   }
 }
 
@@ -49,8 +69,19 @@ function normalizeOutputColumn(column: Partial<OutputColumn>): OutputColumn | nu
     label: column.label,
     order: column.order ?? 0,
     enabled: true,
+    ...(typeof column.generatedFromInputColumnId === 'string'
+      ? { generatedFromInputColumnId: column.generatedFromInputColumnId }
+      : {}),
     recipe: normalizeRecipe(column.recipe),
   };
+}
+
+function isLegacyDefaultOutputColumns(columns: OutputColumn[]) {
+  return columns.length === legacyDefaultOutputColumnIds.length
+    && columns.every((column, index) => (
+      column.id === legacyDefaultOutputColumnIds[index]
+      && column.recipe.type === 'empty'
+    ));
 }
 
 function normalizeRecipe(recipe?: Partial<OutputRecipe>): OutputRecipe {
@@ -79,7 +110,98 @@ function normalizeRecipe(recipe?: Partial<OutputRecipe>): OutputRecipe {
     };
   }
 
+  if (recipe?.type === 'manualRange') {
+    const condition = recipe.condition ? normalizeManualRangeCondition(recipe.condition) : undefined;
+    return {
+      type: 'manualRange',
+      ranges: normalizeManualRanges(recipe.ranges),
+      ...(condition ? { condition } : {}),
+    };
+  }
+
   return { type: 'empty' };
+}
+
+function normalizeManualRanges(ranges?: Partial<ManualRangeValue>[]): ManualRangeValue[] {
+  return (ranges ?? [])
+    .map(normalizeManualRange)
+    .filter((range): range is ManualRangeValue => Boolean(range));
+}
+
+function normalizeManualRange(range: Partial<ManualRangeValue>): ManualRangeValue | null {
+  const startRowNumber = normalizeManualRangeNumber(range.startRowNumber);
+  const endRowNumber = normalizeManualRangeNumber(range.endRowNumber);
+  if (!startRowNumber || !endRowNumber) {
+    return null;
+  }
+
+  const valueRecipe = normalizeRangeValueRecipe(range.valueRecipe);
+  const baseRange = {
+    id: range.id ?? crypto.randomUUID(),
+    startRowNumber,
+    endRowNumber,
+    ...(typeof range.suggestedFromText === 'string' ? { suggestedFromText: range.suggestedFromText } : {}),
+    ...(valueRecipe ? { valueRecipe } : {}),
+  };
+
+  if (range.valueSource?.type === 'fixedText') {
+    return {
+      ...baseRange,
+      valueSource: { type: 'fixedText', value: range.valueSource.value ?? '' },
+    };
+  }
+
+  if (range.valueSource?.type === 'rangeText') {
+    return {
+      ...baseRange,
+      valueSource: {
+        type: 'rangeText',
+        inputColumnId: range.valueSource.inputColumnId ?? '',
+        selectedText: range.valueSource.selectedText ?? '',
+      },
+    };
+  }
+
+  return {
+    ...baseRange,
+    value: range.value ?? '',
+  };
+}
+
+function normalizeRangeValueRecipe(recipe?: Partial<RangeValueRecipe>): RangeValueRecipe | undefined {
+  const source = normalizeRangeValueSource(recipe?.source);
+  if (!source) {
+    return undefined;
+  }
+
+  return {
+    source,
+    ...(Array.isArray(recipe?.steps) ? { steps: normalizeSteps(recipe.steps) } : {}),
+  };
+}
+
+function normalizeRangeValueSource(source?: Partial<RangeValueRecipe['source']>): RangeValueRecipe['source'] | undefined {
+  if (source?.type === 'rangeText') {
+    return {
+      type: 'rangeText',
+      inputColumnId: source.inputColumnId ?? '',
+      selectedText: source.selectedText ?? '',
+    };
+  }
+
+  return normalizeStepSource(source as Partial<StepSource> | undefined);
+}
+
+function normalizeManualRangeNumber(value: number | undefined) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function normalizeManualRangeCondition(condition: ManualRangeCondition): ManualRangeCondition | undefined {
+  if (!condition.inputColumnId || (condition.operator !== 'isEmpty' && condition.operator !== 'isNotEmpty')) {
+    return undefined;
+  }
+
+  return condition;
 }
 
 function normalizeCustomValueMode(mode: Partial<Extract<OutputRecipe, { type: 'combine' }>>['customMode']) {
@@ -140,12 +262,19 @@ function normalizeStep(step: Partial<TransformStep>): TransformStep | null {
     value: step.value ?? '',
     searchValue: step.searchValue ?? '',
     replaceValue: step.replaceValue ?? '',
-    operation: step.operation ?? 'add',
+    operation: normalizeNumericOperation(step.operation),
     amount: Number(step.amount ?? 0),
     leftOperand: normalizeStepOperand(step.leftOperand),
     rightOperand: normalizeStepOperand(step.rightOperand),
+    ...(normalizeNumericFormula(step.formula) ? { formula: normalizeNumericFormula(step.formula) } : {}),
     parts: normalizeConcatParts(step.parts),
     rounding: normalizeRounding(step.rounding),
+    dateInputFormat: normalizeDateFormat(step.dateInputFormat) ?? defaultDateInputFormat,
+    dateOutputFormat: normalizeDateOutputFormat(step.dateOutputFormat) ?? defaultDateOutputFormat,
+    dateInvalidFallback: normalizeDateInvalidFallback(step.dateInvalidFallback) ?? defaultDateInvalidFallback,
+    dateInvalidFallbackText: step.dateInvalidFallbackText ?? '',
+    ...(type === 'manualRange' ? { ranges: normalizeManualRanges(step.ranges) } : {}),
+    ...(type === 'manualRange' && step.manualRangeCondition ? { manualRangeCondition: normalizeManualRangeCondition(step.manualRangeCondition) } : {}),
     condition: normalizeCondition(step.condition),
     applyToEmptyValues: step.applyToEmptyValues ?? false,
   };
@@ -165,6 +294,9 @@ function normalizeStepType(type?: string): TransformStepType | null {
     'extractNumber',
     'toNumber',
     'toText',
+    'formatDate',
+    'manualRange',
+    'numericFormula',
     'numericOperation',
   ].includes(type ?? '')
     ? type as TransformStepType
@@ -172,11 +304,15 @@ function normalizeStepType(type?: string): TransformStepType | null {
 }
 
 function normalizeStepMode(mode?: string): TransformStepMode | undefined {
-  return mode === 'text' || mode === 'number' || mode === 'conversion' ? mode : undefined;
+  return mode === 'text' || mode === 'number' || mode === 'conversion' || mode === 'date' || mode === 'manualRange' ? mode : undefined;
 }
 
 function inferStepModeFromType(type: TransformStepType): TransformStepMode {
-  if (type === 'numericOperation') {
+  if (type === 'manualRange') {
+    return 'manualRange';
+  }
+
+  if (type === 'numericOperation' || type === 'numericFormula') {
     return 'number';
   }
 
@@ -184,7 +320,37 @@ function inferStepModeFromType(type: TransformStepType): TransformStepMode {
     return 'conversion';
   }
 
+  if (type === 'formatDate') {
+    return 'date';
+  }
+
   return 'text';
+}
+
+function normalizeDateFormat(format?: string): DateInputFormat | undefined {
+  return [
+    'DD/MM/YYYY',
+    'D/M/YYYY',
+    'YYYY-MM-DD',
+    'MM/DD/YYYY',
+    'M/D/YYYY',
+    'DD-MM-YYYY',
+    'YYYY/MM/DD',
+    'DD/MM/YY',
+    'D/M/YY',
+    'MM/DD/YY',
+    'M/D/YY',
+  ].includes(format ?? '')
+    ? format as DateInputFormat
+    : undefined;
+}
+
+function normalizeDateOutputFormat(format?: string): DateOutputFormat | undefined {
+  return format && isValidDateOutputFormat(format) ? format as DateOutputFormat : undefined;
+}
+
+function normalizeDateInvalidFallback(fallback?: string): DateInvalidFallback | undefined {
+  return fallback === 'empty' || fallback === 'original' || fallback === 'fixedText' ? fallback : undefined;
 }
 
 function normalizeStepSource(source?: Partial<StepSource>): StepSource | undefined {
@@ -206,6 +372,14 @@ function normalizeStepSource(source?: Partial<StepSource>): StepSource | undefin
     };
   }
 
+  if (source?.type === 'rangeText') {
+    return {
+      type: 'rangeText',
+      inputColumnId: source.inputColumnId ?? '',
+      selectedText: source.selectedText ?? '',
+    };
+  }
+
   return undefined;
 }
 
@@ -221,6 +395,83 @@ function normalizeStepOperand(operand?: Partial<StepOperand>): StepOperand | und
       ? { numericFallback: operand.numericFallback }
       : {}),
   };
+}
+
+function normalizeNumericFormula(formula?: Partial<NumericFormula>): NumericFormula | undefined {
+  if (formula?.version !== 1) {
+    return undefined;
+  }
+
+  const expression = normalizeNumericFormulaNode(formula.expression);
+  if (!expression) {
+    return undefined;
+  }
+
+  const displayGroups = normalizeNumericFormulaDisplayGroups(formula.displayGroups, countNumericFormulaOperands(expression));
+  return {
+    version: 1,
+    expression,
+    ...(displayGroups.length > 0 ? { displayGroups } : {}),
+  };
+}
+
+function normalizeNumericFormulaNode(node?: Partial<NumericFormulaNode>): NumericFormulaNode | undefined {
+  if (node?.kind === 'operand') {
+    const operand = normalizeStepOperand(node.operand);
+    return operand ? { kind: 'operand', operand } : undefined;
+  }
+
+  if (node?.kind === 'binary') {
+    const operator = normalizeNumericFormulaOperator(node.operator);
+    const left = normalizeNumericFormulaNode(node.left);
+    const right = normalizeNumericFormulaNode(node.right);
+    return operator && left && right ? { kind: 'binary', operator, left, right } : undefined;
+  }
+
+  return undefined;
+}
+
+function normalizeNumericFormulaOperator(operator?: string): NumericFormulaOperator | undefined {
+  return operator === 'add' || operator === 'subtract' || operator === 'multiply' || operator === 'divide'
+    ? operator
+    : undefined;
+}
+
+function normalizeNumericOperation(operation?: string) {
+  return operation === 'addPercentage' || operation === 'subtractPercentage' || operation === 'removeIncludedPercentage'
+    ? operation
+    : 'addPercentage';
+}
+
+function normalizeNumericFormulaDisplayGroups(
+  displayGroups: Partial<NumericFormula>['displayGroups'],
+  valueCount: number,
+): NumericFormulaDisplayGroup[] {
+  if (!Array.isArray(displayGroups)) {
+    return [];
+  }
+
+  return displayGroups
+    .map((group) => ({
+      startValueIndex: Number(group?.startValueIndex),
+      endValueIndex: Number(group?.endValueIndex),
+    }))
+    .filter((group) => (
+      Number.isInteger(group.startValueIndex)
+      && Number.isInteger(group.endValueIndex)
+      && group.startValueIndex >= 0
+      && group.endValueIndex > group.startValueIndex
+      && group.endValueIndex < valueCount
+    ))
+    .slice(0, 1);
+}
+
+function countNumericFormulaOperands(node: NumericFormulaNode): number {
+  if (node.kind === 'operand') {
+    return 1;
+  }
+
+  return countNumericFormulaOperands(node.left) + countNumericFormulaOperands(node.right);
 }
 
 function normalizeConcatParts(parts?: Partial<ConcatPart>[]): ConcatPart[] | undefined {

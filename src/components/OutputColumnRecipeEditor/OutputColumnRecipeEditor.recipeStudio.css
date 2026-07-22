@@ -1,0 +1,1013 @@
+.recipeStudio {
+  gap: 10px;
+}
+
+.recipeStudioEyebrow,
+.composeTokenInspectorHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.recipeStudioWorkspace {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.composeTokenInspector,
+.recipeStudioMain {
+  min-width: 0;
+}
+
+.recipeStudioMain {
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  width: 100%;
+}
+
+.recipeStudioMain > .recipeSubBlock {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.composeStudio {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.recipeStudioSection {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.recipeStudioSectionLight {
+  background: transparent;
+  border-color: var(--color-border-subtle);
+}
+
+.nonConcatStudio,
+.nonConcatStepsEditor {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.recipeStudioSectionTitle,
+.composeStudioHeaderTitle {
+  display: grid;
+  gap: 3px;
+}
+
+.recipeStudioSectionTitle span,
+.composeStudioHeaderTitle span {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.composeStudioHeader {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.composeStudioHeaderTitle strong {
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.composeStudioHeaderFields {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(180px, 240px));
+  justify-content: start;
+  max-width: 500px;
+  min-width: 0;
+}
+
+.composePartsBuilder {
+  gap: 10px;
+}
+
+.composePartsBuilderHeader {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.composePartsBuilderTitle {
+  display: grid;
+  gap: 3px;
+}
+
+.composePartsBuilderTitle > strong {
+  font-size: 0.94rem;
+}
+
+.composeStudioActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.composeStudioAddActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.composeStudioActionButton {
+  border-radius: 7px;
+  height: 40px;
+  min-height: 40px;
+}
+
+.composePreviewButton {
+  padding: 0;
+  width: 40px;
+}
+
+.composeStudioHint {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.compositionTokenEmpty,
+.composeStudioWarning {
+  background: var(--color-bg-surface-muted);
+  border: 1px dashed var(--color-border-muted);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding: 12px;
+}
+
+.compositionTokenList {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 0;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.compositionTokenList .sortableRow {
+  flex: 0 1 auto;
+  overflow: visible;
+}
+
+.compositionTokenSlot {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.compositionJoiner {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.compositionTokenCard {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 8px;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  max-width: min(430px, calc(100vw - 72px));
+  min-width: 0;
+  padding: 4px;
+}
+
+.compositionTokenCard .dragHandle {
+  align-self: center;
+  height: 40px;
+  min-height: 40px;
+  width: 40px;
+}
+
+.compositionToken {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-primary);
+  display: grid;
+  gap: 1px;
+  min-height: 44px;
+  min-width: 0;
+  padding: 7px 4px;
+  text-align: left;
+}
+
+.compositionToken span,
+.compositionToken small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compositionToken small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.compositionTokenCard.compositionToken-warning {
+  border-color: var(--color-warning-border);
+}
+
+.compositionTokenCard.compositionToken-warning .compositionToken small {
+  color: var(--color-warning-text);
+  font-weight: 800;
+}
+
+.compositionTokenCard.selected {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.compositionTokenCard.unselected:hover,
+.compositionTokenCard.unselected:focus-within {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
+  box-shadow: none;
+}
+
+.compositionTokenCard.selected:hover,
+.compositionTokenCard.selected:focus-within {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 0 1px var(--color-selected-border);
+}
+
+.compositionToken:hover:not(:disabled),
+.compositionToken:focus-visible {
+  background: transparent;
+  color: inherit;
+}
+
+.compositionTokenActions {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.composeTokenInspector {
+  gap: 10px;
+}
+
+.composeTokenInspectorHeader {
+  display: grid;
+  gap: 3px;
+}
+
+.composeTokenInspectorHeader span {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.composeTokenFields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.composePartTechnicalEditor {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.composePartTechnicalEditor .concatPartStepsEditor {
+  gap: 10px;
+}
+
+.modalDialogXl .constructorModalContent .composeStudioFlat .concatPartStepsEditor {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.modalDialogXl .constructorModalContent .composeStudioFlat .stepDetailPanel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 10px;
+  padding: 0;
+}
+
+.composeStudioFlat .concatPartTransformList {
+  gap: 16px;
+}
+
+.concatPartStepDivider {
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 16px;
+}
+
+.concatPartStepDivider .stepCardHeader {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  min-width: 0;
+}
+
+.concatPartStepDivider .stepCardHeader > .secondary,
+.concatPartStepDivider .stepCardHeader > .actionButton-danger {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.modalDialogXl .constructorModalContent .concatPartStepDivider .stepDetailPanel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 10px;
+  padding: 0;
+}
+
+.constructorModalContent.recipeStudio {
+  --recipe-control-height: 36px;
+  --recipe-field-gap: 5px;
+  --recipe-field-label-height: 18px;
+  width: 100%;
+}
+
+.constructorModalContent.recipeStudio .recipeField {
+  gap: var(--recipe-field-gap);
+  min-width: 0;
+}
+
+.constructorModalContent.recipeStudio .recipeField > .dropdownLabel,
+.constructorModalContent.recipeStudio label.recipeField > span:first-child {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  height: var(--recipe-field-label-height);
+  line-height: var(--recipe-field-label-height);
+  margin: 0;
+  min-height: var(--recipe-field-label-height);
+  padding: 0;
+}
+
+.constructorModalContent.recipeStudio .recipeField > .dropdownSearchableControl {
+  box-sizing: border-box;
+  height: var(--recipe-control-height);
+  margin: 0;
+  min-height: var(--recipe-control-height);
+  padding: 0;
+}
+
+.constructorModalContent.recipeStudio .previousResultValueField input[readonly] {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.modalDialogXl .constructorModalContent.recipeStudio .recipeField input,
+.modalDialogXl .constructorModalContent.recipeStudio .recipeField button.dropdownTrigger {
+  box-sizing: border-box;
+  height: var(--recipe-control-height);
+  line-height: 1.2;
+  min-height: var(--recipe-control-height);
+  padding-block: 0;
+}
+
+.columnValuePickerWarning {
+  color: var(--color-warning-text, var(--color-text-muted));
+  font-size: 0.8rem;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.columnValuePickerInvalidValue {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.recipeStudioMain > .customValueEditor .stepDetailPanel {
+  border-color: var(--color-border-subtle);
+  box-shadow: none;
+}
+
+.nonConcatAdditionalSteps {
+  gap: 10px;
+}
+
+.stepPrimaryFieldsRow,
+.stepExtraFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepPrimaryFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .conditionFieldsRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .numericOperationFields {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  justify-content: start;
+  min-width: 0;
+}
+
+.constructorModalContent.recipeStudio .conditionFieldsRow {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  justify-content: start;
+}
+
+.constructorModalContent.recipeStudio .stepEditorBlock.rangeValuePrimaryLayout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stepExtraFieldsRow:empty {
+  display: none;
+}
+
+.stepExtraFieldsRow:has(> .manualRangeStepFields),
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow:has(> .manualRangeStepFields) {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+}
+
+.stepExtraFieldsRow > .numericOperationFields,
+.stepExtraFieldsRow > .numericFormulaFields,
+.stepExtraFieldsRow > .manualRangeStepFields,
+.stepExtraFieldsRow > .concatStepFields,
+.stepExtraFieldsRow > .dateOutputCustomRow,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericOperationFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .numericFormulaFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .manualRangeStepFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .concatStepFields,
+.constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow > .dateOutputCustomRow {
+  grid-column: 1 / -1;
+}
+
+.numericFormulaFields {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.numericFormulaStepFlow {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.numericFormulaFinalStepFlow {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.numericFormulaAfterStep {
+  border-top: 0;
+  padding-top: 10px;
+}
+
+.numericFormulaAddStepActions {
+  padding-top: 2px;
+}
+
+.numericFormulaBuilderSection {
+  gap: 10px;
+}
+
+.numericFormulaBuilderIntro {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.numericFormulaFormulaActionsRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.numericFormulaFormulaActionsRow > .composeStudioActions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.numericFormulaHeader {
+  align-items: center;
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.numericFormulaPreview {
+  align-items: center;
+  background: var(--color-accent-bg-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 6px;
+  line-height: normal;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.numericFormulaLinearBuilder {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.numericFormulaTokenList {
+  align-items: center;
+  background: var(--color-bg-surface-muted);
+  border: 0;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.numericFormulaTokenSlot {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.numericFormulaValueCard {
+  grid-template-columns: minmax(132px, 1fr) auto;
+  max-width: min(260px, calc(100vw - 72px));
+}
+
+.numericFormulaValueCard .numericFormulaDragHandle {
+  cursor: grab;
+}
+
+.numericFormulaValueCard.sortableDragging {
+  opacity: 0.72;
+}
+
+.numericFormulaParenthesisToken {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 6px;
+  grid-template-columns: auto auto;
+  min-height: 44px;
+  padding: 4px;
+}
+
+.numericFormulaParenthesisToken:hover,
+.numericFormulaParenthesisToken:focus-within {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-default);
+}
+
+.numericFormulaParenthesisActions {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.numericFormulaParenthesisSymbol {
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 18px;
+  text-align: center;
+}
+
+.numericFormulaGroupShell {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-selected-bg) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-selected-border) 72%, var(--color-border-muted));
+  border-radius: 8px;
+  display: inline-flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 6px 6px;
+  position: relative;
+}
+
+.numericFormulaGroupChip {
+  background: color-mix(in srgb, var(--color-selected-border) 78%, var(--color-bg-surface));
+  border-radius: 999px;
+  color: var(--color-bg-surface);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 6px;
+  position: absolute;
+  right: 6px;
+  top: -8px;
+}
+
+.numericFormulaInlineOperator {
+  flex: 0 0 64px;
+  min-width: 64px;
+  width: 64px;
+}
+
+.numericFormulaInlineOperator .dropdownLabel {
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.numericFormulaInlineOperator .dropdownTrigger {
+  min-width: 54px;
+  padding-left: 10px;
+  padding-right: 8px;
+}
+
+.numericFormulaInspector {
+  gap: 10px;
+}
+
+.numericFormulaInspectorFields {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(180px, 240px));
+  justify-content: start;
+  min-width: 0;
+}
+
+.numericFormulaInspectorFields .recipeField {
+  min-width: 0;
+}
+
+.numericFormulaInspectorActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.numericFormulaFooter {
+  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px);
+  justify-content: start;
+  min-width: 0;
+}
+
+.dateOutputFormatField {
+  min-width: 0;
+}
+
+.dateOutputFormatLabel {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.dateOutputFormatField > label,
+.dateOutputFormatLabel > label {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.field .dateOutputFormatInputRow {
+  align-items: center;
+  display: grid;
+  font-size: 1rem;
+  font-weight: 400;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.field .dateOutputFormatInputRow > span {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.dateOutputFormatInputRow input {
+  min-width: 0;
+}
+
+.dateOutputFormatHelpButton {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: var(--recipe-field-control-height);
+  justify-content: center;
+  padding: 0;
+  width: var(--recipe-field-control-height);
+}
+
+.dateOutputFormatHelpButton:hover,
+.dateOutputFormatHelpButton:focus-visible {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.dateOutputFormatHelpModal {
+  max-width: min(720px, calc(100vw - 32px));
+  width: 640px;
+}
+
+.dateOutputFormatHelpModal .modalBody {
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dateOutputFormatHelpContent {
+  display: grid;
+  gap: 10px;
+}
+
+.dateOutputFormatHelpContent > strong {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.dateOutputFormatHelpContent > span {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.dateOutputFormatHelpContent table {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  overflow: hidden;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.dateOutputFormatColumn {
+  width: 82px;
+}
+
+.dateOutputExampleColumn {
+  width: 86px;
+}
+
+.dateOutputDescriptionColumn {
+  width: auto;
+}
+
+.dateOutputFormatHelpContent th {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.dateOutputFormatHelpContent th,
+.dateOutputFormatHelpContent td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 5px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dateOutputFormatHelpContent th:nth-child(1),
+.dateOutputFormatHelpContent th:nth-child(2),
+.dateOutputFormatHelpContent td:nth-child(1),
+.dateOutputFormatHelpContent td:nth-child(2) {
+  white-space: nowrap;
+}
+
+.dateOutputFormatHelpContent th:nth-child(3),
+.dateOutputFormatHelpContent td:nth-child(3) {
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: normal;
+}
+
+.dateOutputFormatHelpContent tr:last-child td {
+  border-bottom: 0;
+}
+
+.dateOutputFormatHelpContent code {
+  background: var(--color-bg-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  padding: 1px 4px;
+}
+
+.dateOutputFormatExamplesTitle {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 8px;
+}
+
+.dateOutputFormatExamples {
+  display: grid;
+  gap: 3px;
+}
+
+@media (max-width: 720px) {
+  .composeStudioHeader {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .composeStudioHeaderFields {
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+
+  .stepPrimaryFieldsRow,
+  .stepExtraFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .stepPrimaryFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .stepExtraFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .conditionFieldsRow,
+  .constructorModalContent.recipeStudio .stepEditorBlock .numericOperationFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .numericFormulaInspectorFields,
+  .numericFormulaFooter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .numericFormulaTokenList {
+    align-items: stretch;
+  }
+
+  .numericFormulaTokenSlot {
+    flex-wrap: wrap;
+  }
+
+}
+
+.composeTokenRules {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: grid;
+  gap: 0;
+  padding: 10px;
+}
+
+.composeTokenRules[open] {
+  gap: 8px;
+}
+
+.composeTokenRulesHeader {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.composeTokenRulesHeader::-webkit-details-marker {
+  display: none;
+}
+
+.composeTokenRulesHeader > strong {
+  font-size: 0.88rem;
+}
+
+.composeTokenRulesHeader > span {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.composeTokenRules[open] .composeTokenRulesHeader {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 8px;
+}
+
+.composeTokenRulesContent {
+  min-width: 0;
+}
+
+.composeTokenConditionTable {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.composeTokenConditionTable th,
+.composeTokenConditionTable td {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.composeTokenConditionTable th {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.composeTokenConditionTable td:first-child {
+  color: var(--color-text-muted);
+  font-weight: 800;
+  width: 96px;
+}
+
+.composePreviewControl {
+  justify-self: start;
+}
+
+.composePreviewModal {
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.composePreviewStartField {
+  max-width: 180px;
+}
+
+.composePreviewCount {
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+}
+
+.composePreviewTable {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.composePreviewColumnRow {
+  width: 72px;
+}
+
+.composePreviewColumnResult {
+  width: auto;
+}
+
+.composePreviewTable th,
+.composePreviewTable td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.composePreviewTable th {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.composePreviewTable td:first-child {
+  color: var(--color-text-muted);
+  font-weight: 800;
+}
+
+.composePreviewEmpty {
+  color: var(--color-text-muted);
+  margin: 0;
+}

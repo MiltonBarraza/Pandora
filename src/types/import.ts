@@ -1,5 +1,25 @@
 export type RawRow = unknown[];
 
+export type SheetRowMetadata = {
+  internalRowIndex: number;
+  excelRowNumber: number;
+};
+
+export type SheetRowsWithMetadata = {
+  rows: RawRow[];
+  rowMetadata: SheetRowMetadata[];
+  rangeMetadata?: SheetRangeMetadata;
+};
+
+export type SheetRangeMetadata = {
+  originalRef: string;
+  effectiveRef: string;
+  wasTrimmed: boolean;
+  shouldShowTrimWarning: boolean;
+  ignoredTrailingColumns: number;
+  ignoredTrailingRows: number;
+};
+
 export type InputColumn = {
   id: string;
   columnIndex: number;
@@ -37,9 +57,36 @@ export type TransformStepType =
   | 'extractNumber'
   | 'toNumber'
   | 'toText'
+  | 'formatDate'
+  | 'manualRange'
+  | 'numericFormula'
   | 'numericOperation';
 
-export type TransformStepMode = 'text' | 'number' | 'conversion';
+export type TransformStepMode = 'text' | 'number' | 'conversion' | 'date' | 'manualRange';
+
+export type DateInputFormat =
+  | 'DD/MM/YYYY'
+  | 'D/M/YYYY'
+  | 'YYYY-MM-DD'
+  | 'MM/DD/YYYY'
+  | 'M/D/YYYY'
+  | 'DD-MM-YYYY'
+  | 'YYYY/MM/DD'
+  | 'DD/MM/YY'
+  | 'D/M/YY'
+  | 'MM/DD/YY'
+  | 'M/D/YY';
+
+export type DateOutputFormat =
+  | 'DD/MM/YYYY'
+  | 'YYYY-MM-DD'
+  | 'MM/DD/YYYY'
+  | 'DD-MM-YYYY'
+  | 'YYYY/MM/DD'
+  | (string & {});
+
+export type DateInvalidFallback = 'empty' | 'original' | 'fixedText';
+export type ConversionInvalidFallback = 'empty' | 'original' | 'fixedText';
 
 export type StepSource =
   | {
@@ -48,6 +95,11 @@ export type StepSource =
   | {
       type: 'input';
       inputColumnId: string;
+    }
+  | {
+      type: 'rangeText';
+      inputColumnId: string;
+      selectedText: string;
     }
   | {
       type: 'fixedText';
@@ -77,8 +129,17 @@ export type TransformStep = {
   amount?: number;
   leftOperand?: StepOperand;
   rightOperand?: StepOperand;
+  formula?: NumericFormula;
   parts?: ConcatPart[];
   rounding?: 'none' | 0 | 2 | 4;
+  dateInputFormat?: DateInputFormat;
+  dateOutputFormat?: DateOutputFormat;
+  dateInvalidFallback?: DateInvalidFallback;
+  dateInvalidFallbackText?: string;
+  conversionInvalidFallback?: ConversionInvalidFallback;
+  conversionInvalidFallbackText?: string;
+  ranges?: ManualRangeValue[];
+  manualRangeCondition?: ManualRangeCondition;
   condition?: TransformCondition;
   applyToEmptyValues?: boolean;
 };
@@ -111,6 +172,39 @@ export type RecipePart =
 
 export type CustomValueMode = 'number' | 'text' | 'concat';
 
+export type ManualRangeCondition = {
+  inputColumnId: string;
+  operator: 'isEmpty' | 'isNotEmpty';
+};
+
+export type ManualRangeValueSource =
+  | {
+      type: 'fixedText';
+      value: string;
+    }
+  | {
+      type: 'rangeText';
+      inputColumnId: string;
+      selectedText: string;
+    };
+
+export type RangeValueSource = StepSource;
+
+export type RangeValueRecipe = {
+  source: RangeValueSource;
+  steps?: TransformStep[];
+};
+
+export type ManualRangeValue = {
+  id: string;
+  startRowNumber: number;
+  endRowNumber: number;
+  suggestedFromText?: string;
+  valueRecipe?: RangeValueRecipe;
+  valueSource?: ManualRangeValueSource;
+  value?: string;
+};
+
 export type OutputRecipe =
   | {
       type: 'direct';
@@ -131,6 +225,11 @@ export type OutputRecipe =
       separator?: string;
       steps?: TransformStep[];
       customMode?: CustomValueMode;
+    }
+  | {
+      type: 'manualRange';
+      ranges: ManualRangeValue[];
+      condition?: ManualRangeCondition;
     };
 
 export type OutputColumn = {
@@ -138,6 +237,7 @@ export type OutputColumn = {
   label: string;
   order: number;
   enabled: boolean;
+  generatedFromInputColumnId?: string;
   recipe: OutputRecipe;
 };
 
@@ -152,13 +252,34 @@ export type ProcessedRow = {
 };
 
 export type NumericOperation =
-  | 'add'
-  | 'subtract'
-  | 'multiply'
-  | 'divide'
   | 'addPercentage'
   | 'subtractPercentage'
   | 'removeIncludedPercentage';
+
+export type NumericFormulaOperator = 'add' | 'subtract' | 'multiply' | 'divide';
+
+export type NumericFormulaNode =
+  | {
+      kind: 'operand';
+      operand: StepOperand;
+    }
+  | {
+      kind: 'binary';
+      operator: NumericFormulaOperator;
+      left: NumericFormulaNode;
+      right: NumericFormulaNode;
+    };
+
+export type NumericFormula = {
+  version: 1;
+  expression: NumericFormulaNode;
+  displayGroups?: NumericFormulaDisplayGroup[];
+};
+
+export type NumericFormulaDisplayGroup = {
+  startValueIndex: number;
+  endValueIndex: number;
+};
 
 export type ConditionOperator =
   | 'contains'
@@ -189,7 +310,7 @@ export type IgnoreRule = {
   id: string;
   target: 'input' | 'output';
   columnId: string;
-  operator: 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'startsWith' | 'endsWith';
+  operator: '' | 'isEmpty' | 'isNotEmpty' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'startsWith' | 'endsWith';
   value?: string;
 };
 
@@ -210,6 +331,7 @@ export type FileNameSettings = {
   includeOriginalName: boolean;
   includeSheetName: boolean;
   includeDate: boolean;
+  includeTime?: boolean;
 };
 
 export type IgnoredReason = 'hidden' | 'narrow' | 'empty' | 'lowData' | 'manual';
@@ -227,8 +349,10 @@ export type ColumnAnalysis = {
   isEmpty: boolean;
   ignored: boolean;
   ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
   autoIgnored: boolean;
   autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
 };
 
 export type ColumnDetectionOptions = {
@@ -240,3 +364,185 @@ export type ColumnDetectionOptions = {
   narrowWchThreshold: number;
   lowDataMinValues: number;
 };
+
+export type ExportedImportSettings = {
+  schemaVersion: 1;
+  app: 'excel-sanitizer';
+  exportedAt: string;
+  name?: string;
+  sourceSnapshot: SourceSnapshot;
+  config: {
+    selectedSheet?: string;
+    headerRowIndex: number | null;
+    startRowIndex: number;
+    showRawPreviewFromDataStart?: boolean;
+    /** Legacy raw-preview toggle kept only so older settings files still parse. */
+    showAllRawPreviewColumns?: boolean;
+    columnVisibility: SavedInputColumnConfig[];
+    inputColumnAliases: Record<string, string>;
+    inputIgnoreRules: IgnoreRule[];
+    outputColumns: OutputColumn[];
+    outputIgnoreRules: IgnoreRule[];
+    fileNameSettings: FileNameSettings;
+  };
+};
+
+export type SourceSnapshot = {
+  fileType: 'spreadsheet' | 'csv';
+  sheetName?: string;
+  sheetNames?: string[];
+  rowCount: number;
+  headerRowIndex: number | null;
+  startRowIndex: number;
+  columns: SourceColumnSnapshot[];
+};
+
+export type SourceColumnSnapshot = {
+  inputColumnId: string;
+  columnIndex: number;
+  columnLetter: string;
+  header?: string;
+  alias?: string;
+  active: boolean;
+  ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
+  autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
+  sampleValues: string[];
+  nonEmptyCount: number;
+  fingerprint: string;
+};
+
+export type SavedInputColumnConfig = {
+  inputColumnId: string;
+  columnIndex: number;
+  columnLetter: string;
+  header?: string;
+  alias?: string;
+  active: boolean;
+  ignoredReason?: IgnoredReason;
+  ignoredReasons?: IgnoredReason[];
+  autoIgnoredReason?: IgnoredReason;
+  autoIgnoredReasons?: IgnoredReason[];
+};
+
+export type SettingsCompatibilityStatus = 'compatible' | 'warning' | 'needsRemap' | 'blocked';
+
+export type ColumnMatchConfidence = 'exact' | 'strong' | 'medium' | 'weak' | 'none';
+
+export type ColumnCompatibilityMatch = {
+  savedColumn: SourceColumnSnapshot;
+  currentColumn?: SourceColumnSnapshot;
+  confidence: ColumnMatchConfidence;
+  reason: string;
+  isUsed?: boolean;
+  references?: SettingsColumnReference[];
+};
+
+export type SettingsCompatibilityResult = {
+  status: SettingsCompatibilityStatus;
+  sheet: {
+    expectedSheet?: string;
+    currentSheet?: string;
+    exists: boolean;
+    suggestedSheet?: string;
+  };
+  columns: {
+    matches: ColumnCompatibilityMatch[];
+    missing: SourceColumnSnapshot[];
+    added: SourceColumnSnapshot[];
+    ambiguous: ColumnCompatibilityMatch[];
+    usedMissing: SourceColumnSnapshot[];
+    unusedMissing: SourceColumnSnapshot[];
+    weakUsedMatches: ColumnCompatibilityMatch[];
+  };
+  summary: {
+    totalSavedColumns: number;
+    totalCurrentColumns: number;
+    exactMatches: number;
+    strongMatches: number;
+    mediumMatches: number;
+    weakMatches: number;
+    missingColumns: number;
+    addedColumns: number;
+    ambiguousMatches: number;
+    usedMissingColumns: number;
+    unusedMissingColumns: number;
+    weakUsedMatches: number;
+  };
+  messages: string[];
+};
+
+export type SettingsReferenceKind =
+  | 'outputColumn'
+  | 'directRecipe'
+  | 'recipePart'
+  | 'transformStepSource'
+  | 'transformStepOperand'
+  | 'concatPartSource'
+  | 'concatPartTransform'
+  | 'manualRangeValueSource'
+  | 'condition'
+  | 'inputIgnoreRule'
+  | 'outputIgnoreRule';
+
+export type SettingsColumnReference = {
+  columnId: string;
+  target: 'input' | 'output';
+  kind: SettingsReferenceKind;
+  path: string;
+  outputColumnId?: string;
+  stepId?: string;
+  partId?: string;
+  ruleId?: string;
+};
+
+export type SettingsReferencesSummary = {
+  inputColumnIds: string[];
+  outputColumnIds: string[];
+  references: SettingsColumnReference[];
+  referencesByColumnId: Record<string, SettingsColumnReference[]>;
+};
+
+export type InputColumnRemap = Record<string, string>;
+
+export type SettingsRemapResult = {
+  settings: ExportedImportSettings;
+  changedReferences: SettingsColumnReference[];
+  unresolvedReferences: SettingsColumnReference[];
+};
+
+export type ParseImportSettingsResult =
+  | {
+      ok: true;
+      settings: ExportedImportSettings;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type ImportedSettingsApplyPayload = {
+  selectedSheet?: string;
+  headerRowIndex: number | null;
+  startRowIndex: number;
+  showRawPreviewFromDataStart?: boolean;
+  /** Legacy raw-preview toggle kept only so older settings files still parse. */
+  showAllRawPreviewColumns?: boolean;
+  inputColumnAliases: Record<string, string>;
+  columnVisibility: SavedInputColumnConfig[];
+  inputIgnoreRules: IgnoreRule[];
+  outputColumns: OutputColumn[];
+  outputIgnoreRules: IgnoreRule[];
+  fileNameSettings: FileNameSettings;
+};
+
+export type ImportedSettingsApplyResult =
+  | {
+      ok: true;
+      payload: ImportedSettingsApplyPayload;
+    }
+  | {
+      ok: false;
+      error: string;
+    };

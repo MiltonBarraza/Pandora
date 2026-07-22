@@ -40,7 +40,7 @@ describe('evaluateCondition', () => {
       }),
     ).toEqual({
       matches: false,
-      warning: 'No se pudo evaluar la condicion de transformacion',
+      warning: 'No se pudo evaluar la condición de transformación',
     });
   });
 });

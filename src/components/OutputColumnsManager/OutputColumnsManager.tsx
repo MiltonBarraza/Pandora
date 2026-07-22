@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react';
+import { createOutputColumnsFromActiveInputColumns, hasGeneratedOutputColumnManualChanges } from '../../domain/import/createOutputColumnsFromActiveInputColumns';
 import { duplicateOutputColumn } from '../../domain/import/duplicateOutputColumn';
-import type { InputColumn, OutputColumn } from '../../types/import';
+import { showInfoToast, showSuccessToast } from '../../services/toastService';
+import type { InputColumn, InputRow, OutputColumn } from '../../types/import';
 import { DeleteButton } from '../DeleteButton/DeleteButton';
 import { OutputColumnRecipeEditor } from '../OutputColumnRecipeEditor/OutputColumnRecipeEditor';
 import { SortableList } from '../SortableList/SortableList';
+import { ActionButton, ButtonGroup } from '../ui/ActionButton/ActionButton';
+import { AppIcon } from '../ui/AppIcon/AppIcon';
+import { ConfirmDialog } from '../ui/ConfirmDialog/ConfirmDialog';
+import { InfoTooltip } from '../ui/InfoTooltip/InfoTooltip';
+import { TruncatedText } from '../ui/TruncatedText/TruncatedText';
 
 type OutputColumnsManagerProps = {
   inputColumns?: InputColumn[];
+  inputColumnsForGeneration?: InputColumn[];
+  manualRangeRows?: InputRow[];
   sampleInputValues?: Record<string, string>;
   outputColumns: OutputColumn[];
   onChange: (columns: OutputColumn[]) => void;
@@ -14,14 +23,17 @@ type OutputColumnsManagerProps = {
 
 export function OutputColumnsManager({
   inputColumns = [],
+  inputColumnsForGeneration,
+  manualRangeRows = [],
   sampleInputValues,
   outputColumns,
   onChange,
 }: OutputColumnsManagerProps) {
-  const [newColumnName, setNewColumnName] = useState('');
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  const [isRegenerateConfirmationOpen, setIsRegenerateConfirmationOpen] = useState(false);
   const ordered = [...outputColumns].sort((a, b) => a.order - b.order);
   const selectedColumn = ordered.find((column) => column.id === selectedColumnId) ?? ordered[0];
+  const generationInputColumns = inputColumnsForGeneration ?? inputColumns;
 
   useEffect(() => {
     if (ordered.length === 0) {
@@ -37,14 +49,46 @@ export function OutputColumnsManager({
   const addColumn = () => {
     const nextColumn: OutputColumn = {
       id: crypto.randomUUID(),
-      label: newColumnName.trim() || 'Nueva columna',
+      label: 'Nueva columna',
       order: ordered.length,
       enabled: true,
-      recipe: { type: 'empty' },
+      recipe: { type: 'fixedText', value: '' },
     };
     onChange([...ordered, nextColumn]);
     setSelectedColumnId(nextColumn.id);
-    setNewColumnName('');
+  };
+
+  const createFromActiveColumns = () => {
+    if (hasGeneratedOutputColumnManualChanges(generationInputColumns, ordered)) {
+      setIsRegenerateConfirmationOpen(true);
+      return;
+    }
+
+    regenerateFromActiveColumns();
+  };
+
+  const regenerateFromActiveColumns = () => {
+    const result = createOutputColumnsFromActiveInputColumns(generationInputColumns, ordered);
+
+    if (!shouldApplyGeneratedColumnsResult(result)) {
+      showInfoToast('No hay columnas activas para crear.');
+      return;
+    }
+
+    onChange(result.columns);
+    setSelectedColumnId(result.columns[result.columns.length - result.createdCount]?.id ?? result.columns[0]?.id ?? null);
+
+    if (result.removedObsoleteCount > 0) {
+      showSuccessToast(`Se regeneraron ${result.createdCount} columnas. ${result.removedObsoleteCount} obsoletas se quitaron.`);
+      return;
+    }
+
+    showSuccessToast(`Se regeneraron ${result.createdCount} columnas.`);
+  };
+
+  const confirmRegenerateFromActiveColumns = () => {
+    setIsRegenerateConfirmationOpen(false);
+    regenerateFromActiveColumns();
   };
 
   const reorderColumns = (items: OutputColumn[]) => {
@@ -83,15 +127,37 @@ export function OutputColumnsManager({
 
   return (
     <div className="manager">
-      <div className="sectionHeader">
-        <p>Define las columnas finales del archivo y como se llena cada una.</p>
-        <div className="inlineForm">
-          <input value={newColumnName} onChange={(event) => setNewColumnName(event.target.value)} placeholder="Nueva columna" />
-          <button type="button" onClick={addColumn}>Agregar</button>
+      <ConfirmDialog
+        open={isRegenerateConfirmationOpen}
+        title="Regenerar columnas de salida"
+        message="Se perderán los cambios manuales hechos sobre columnas generadas automáticamente."
+        cancelLabel="Seguir editando"
+        confirmLabel="Regenerar columnas"
+        variant="danger"
+        onCancel={() => setIsRegenerateConfirmationOpen(false)}
+        onConfirm={confirmRegenerateFromActiveColumns}
+      />
+      <div className="managerSummaryRow">
+        <p className="muted">
+          {ordered.length === 0
+            ? 'No hay columnas de salida configuradas.'
+            : `${ordered.length} ${ordered.length === 1 ? 'columna configurada' : 'columnas configuradas'}.`}
+        </p>
+        <div className="outputColumnsHeaderActions">
+          <div className="outputColumnsAddForm">
+            <InfoTooltip content="Agrega una columna nueva al archivo final.">
+              <ActionButton type="button" action="add" onClick={addColumn}>Agregar</ActionButton>
+            </InfoTooltip>
+          </div>
+          <ButtonGroup>
+            <InfoTooltip content="Regenera columnas de salida desde las columnas activas.">
+              <ActionButton action="duplicate" variant="secondary" onClick={createFromActiveColumns}>
+                Agregar columnas activas
+              </ActionButton>
+            </InfoTooltip>
+          </ButtonGroup>
         </div>
       </div>
-
-      {ordered.length === 0 ? <p className="muted">No hay columnas de salida configuradas.</p> : null}
 
       {ordered.length > 0 ? (
         <div className="outputColumnsWorkspace">
@@ -99,31 +165,36 @@ export function OutputColumnsManager({
             <SortableList
               items={ordered}
               onChange={reorderColumns}
+              handleContent={<AppIcon name="reorder" aria-hidden="true" focusable="false" />}
+              handleLabel="Reordenar"
               renderItem={(outputColumn, handle) => {
                 const index = ordered.findIndex((item) => item.id === outputColumn.id);
                 const isSelected = outputColumn.id === selectedColumn?.id;
+                const recipeSummary = getOutputColumnRecipeListSummary(outputColumn);
 
                 return (
                   <div className={`outputColumnListItem${isSelected ? ' selected' : ''}`}>
-                    {handle}
-                    <button
-                      type="button"
-                      className="outputColumnSelectButton"
+                    <OutputColumnSelectButton
+                      index={index}
+                      label={outputColumn.label || 'Sin nombre'}
+                      recipeSummary={recipeSummary}
                       onClick={() => setSelectedColumnId(outputColumn.id)}
-                      title={outputColumn.label || 'Sin nombre'}
-                    >
-                      <span className="columnItemText">{index + 1}. {outputColumn.label || 'Sin nombre'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="iconButton outputColumnDuplicateButton"
-                      title="Duplicar columna"
-                      aria-label="Duplicar columna"
-                      onClick={() => duplicateColumn(outputColumn.id)}
-                    >
-                      Duplicar
-                    </button>
-                    <DeleteButton onClick={() => removeColumn(outputColumn.id)} />
+                    />
+                    <div className="outputColumnActions">
+                      <InfoTooltip content="Duplicar columna">
+                        <ActionButton
+                          action="duplicate"
+                          variant="icon"
+                          size="sm"
+                          aria-label="Duplicar columna"
+                          onClick={() => duplicateColumn(outputColumn.id)}
+                        />
+                      </InfoTooltip>
+                      {handle}
+                      <InfoTooltip content="Eliminar columna">
+                        <DeleteButton title="Eliminar columna" onClick={() => removeColumn(outputColumn.id)} />
+                      </InfoTooltip>
+                    </div>
                   </div>
                 );
               }}
@@ -135,8 +206,12 @@ export function OutputColumnsManager({
               <>
                 <div className="outputColumnHeader">
                   <label className="field compact outputNameField">
-                    <span>Nombre de salida</span>
+                    <span className="labelWithInfo">
+                      <span>Nombre de salida</span>
+                      <InfoTooltip content="Este nombre se usara como encabezado final." />
+                    </span>
                     <input
+                      aria-label="Nombre de salida"
                       value={selectedColumn.label}
                       onChange={(event) => updateOutputColumn(selectedColumn.id, { ...selectedColumn, label: event.target.value })}
                     />
@@ -146,6 +221,7 @@ export function OutputColumnsManager({
                   <OutputColumnRecipeEditor
                     column={selectedColumn}
                     inputColumns={inputColumns}
+                    manualRangeRows={manualRangeRows}
                     sampleInputValues={sampleInputValues}
                     onChange={(nextColumn) => updateOutputColumn(selectedColumn.id, nextColumn)}
                   />
@@ -163,4 +239,77 @@ export function OutputColumnsManager({
 
 function reorder(columns: OutputColumn[]) {
   return columns.map((column, order) => ({ ...column, order }));
+}
+
+function OutputColumnSelectButton({
+  index,
+  label,
+  recipeSummary,
+  onClick,
+}: {
+  index: number;
+  label: string;
+  recipeSummary: string;
+  onClick: () => void;
+}) {
+  const button = (
+    <button
+      type="button"
+      className="outputColumnSelectButton"
+      onClick={onClick}
+    >
+      <span className="outputColumnListMain">
+        <span className="outputColumnTitleRow">
+          <span className="columnItemText">{index + 1}. {label}</span>
+        </span>
+        <TruncatedText text={recipeSummary} className="outputColumnRecipeSummary" tooltipThreshold={32} />
+      </span>
+    </button>
+  );
+
+  if (!shouldShowOutputColumnNameTooltip(label)) {
+    return button;
+  }
+
+  return (
+    <InfoTooltip content={label}>
+      {button}
+    </InfoTooltip>
+  );
+}
+
+function getOutputColumnRecipeListSummary(column: OutputColumn) {
+  const { recipe } = column;
+
+  if (recipe.type === 'direct') {
+    return 'Desde columna de entrada';
+  }
+
+  if (recipe.type === 'fixedText') {
+    return recipe.value.trim() ? `Texto fijo: ${recipe.value}` : 'Texto fijo';
+  }
+
+  if (recipe.type === 'combine') {
+    return 'Valor personalizado';
+  }
+
+  if (recipe.type === 'manualRange') {
+    return 'Rangos manuales';
+  }
+
+  return 'Sin valor';
+}
+
+export function shouldShowOutputColumnNameTooltip(label: string) {
+  return label.trim().length > 24;
+}
+
+export function shouldApplyGeneratedColumnsResult({
+  activeCount,
+  removedObsoleteCount,
+}: {
+  activeCount: number;
+  removedObsoleteCount: number;
+}) {
+  return activeCount > 0 || removedObsoleteCount > 0;
 }

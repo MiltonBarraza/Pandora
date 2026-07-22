@@ -1,0 +1,14 @@
+.truncatedText {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.truncatedTextTooltip {
+  max-width: 100%;
+  min-width: 0;
+}

@@ -1,0 +1,399 @@
+import type {
+  ConcatPart,
+  ExportedImportSettings,
+  ManualRangeValue,
+  NumericFormulaNode,
+  OutputColumn,
+  OutputRecipe,
+  RangeValueSource,
+  RecipePart,
+  SettingsColumnReference,
+  SettingsReferencesSummary,
+  StepOperand,
+  StepSource,
+  TransformCondition,
+  TransformStep,
+} from '../../types/import';
+
+type ReferenceCollectorContext = {
+  outputColumnId?: string;
+  references: SettingsColumnReference[];
+};
+
+export function collectSettingsReferences(settings: Pick<ExportedImportSettings, 'config'>): SettingsReferencesSummary {
+  const references: SettingsColumnReference[] = [];
+  const context = { references };
+
+  settings.config.outputColumns.forEach((outputColumn, outputColumnIndex) => {
+    const outputColumnPath = `config.outputColumns[${outputColumnIndex}]`;
+    references.push({
+      columnId: outputColumn.id,
+      target: 'output',
+      kind: 'outputColumn',
+      path: outputColumnPath,
+      outputColumnId: outputColumn.id,
+    });
+
+    collectOutputRecipeReferences(outputColumn, outputColumn.recipe, `${outputColumnPath}.recipe`, {
+      ...context,
+      outputColumnId: outputColumn.id,
+    });
+  });
+
+  settings.config.inputIgnoreRules.forEach((rule, ruleIndex) => {
+    if (!rule.columnId) {
+      return;
+    }
+
+    references.push({
+      columnId: rule.columnId,
+      target: 'input',
+      kind: 'inputIgnoreRule',
+      path: `config.inputIgnoreRules[${ruleIndex}]`,
+      ruleId: rule.id,
+    });
+  });
+
+  settings.config.outputIgnoreRules.forEach((rule, ruleIndex) => {
+    if (!rule.columnId) {
+      return;
+    }
+
+    references.push({
+      columnId: rule.columnId,
+      target: 'output',
+      kind: 'outputIgnoreRule',
+      path: `config.outputIgnoreRules[${ruleIndex}]`,
+      ruleId: rule.id,
+    });
+  });
+
+  return buildReferencesSummary(references);
+}
+
+export function collectInputColumnReferences(settings: Pick<ExportedImportSettings, 'config'>) {
+  return collectSettingsReferences(settings).references.filter((reference) => reference.target === 'input');
+}
+
+export function collectOutputColumnReferences(settings: Pick<ExportedImportSettings, 'config'>) {
+  return collectSettingsReferences(settings).references.filter((reference) => reference.target === 'output');
+}
+
+export function groupReferencesByColumnId(references: SettingsColumnReference[]) {
+  return references.reduce<Record<string, SettingsColumnReference[]>>((grouped, reference) => {
+    grouped[reference.columnId] = [...(grouped[reference.columnId] ?? []), reference];
+    return grouped;
+  }, {});
+}
+
+function collectOutputRecipeReferences(
+  outputColumn: OutputColumn,
+  recipe: OutputRecipe,
+  path: string,
+  context: ReferenceCollectorContext,
+) {
+  if (recipe.type === 'direct') {
+    addInputReference(context, recipe.inputColumnId, {
+      kind: 'directRecipe',
+      path: `${path}.inputColumnId`,
+      outputColumnId: outputColumn.id,
+    });
+  }
+
+  if ('steps' in recipe) {
+    collectTransformSteps(recipe.steps ?? [], `${path}.steps`, context);
+  }
+
+  if (recipe.type === 'manualRange') {
+    collectManualRangeValueSourceReferences(recipe, path, context);
+    collectManualRangeConditionReference(recipe.condition, {
+      ...context,
+      path: `${path}.condition`,
+    });
+    return;
+  }
+
+  if (recipe.type !== 'combine') {
+    return;
+  }
+
+  recipe.parts.forEach((part, partIndex) => {
+    collectRecipePartReferences(part, `${path}.parts[${partIndex}]`, context);
+  });
+}
+
+function collectManualRangeValueSourceReferences(
+  recipe: Extract<OutputRecipe, { type: 'manualRange' }>,
+  path: string,
+  context: ReferenceCollectorContext & { stepId?: string },
+) {
+  recipe.ranges.forEach((range, rangeIndex) => {
+    collectManualRangeValueReferences(range, `${path}.ranges[${rangeIndex}]`, context);
+  });
+}
+
+function collectManualRangeValueReferences(
+  range: ManualRangeValue,
+  path: string,
+  context: ReferenceCollectorContext & { stepId?: string },
+) {
+  if (range.valueSource?.type === 'rangeText') {
+    addInputReference(context, range.valueSource.inputColumnId, {
+      kind: 'manualRangeValueSource',
+      path: `${path}.valueSource.inputColumnId`,
+      outputColumnId: context.outputColumnId,
+      stepId: context.stepId,
+    });
+  }
+
+  if (!range.valueRecipe) {
+    return;
+  }
+
+  collectRangeValueSourceReference(range.valueRecipe.source, {
+    ...context,
+    path: `${path}.valueRecipe.source`,
+  });
+  collectTransformSteps(range.valueRecipe.steps ?? [], `${path}.valueRecipe.steps`, context);
+}
+
+function collectRangeValueSourceReference(
+  source: RangeValueSource | undefined,
+  options: ReferenceCollectorContext & {
+    path: string;
+    stepId?: string;
+  },
+) {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
+    return;
+  }
+
+  addInputReference(options, source.inputColumnId, {
+    kind: 'manualRangeValueSource',
+    path: `${options.path}.inputColumnId`,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
+  });
+}
+
+function collectManualRangeConditionReference(
+  condition: Extract<OutputRecipe, { type: 'manualRange' }>['condition'],
+  options: ReferenceCollectorContext & {
+    path: string;
+    stepId?: string;
+  },
+) {
+  if (!condition?.inputColumnId) {
+    return;
+  }
+
+  addInputReference(options, condition.inputColumnId, {
+    kind: 'condition',
+    path: options.path,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
+  });
+}
+
+function collectRecipePartReferences(part: RecipePart, path: string, context: ReferenceCollectorContext) {
+  if (part.type === 'input') {
+    addInputReference(context, part.inputColumnId, {
+      kind: 'recipePart',
+      path: `${path}.inputColumnId`,
+      partId: part.id,
+      outputColumnId: context.outputColumnId,
+    });
+  }
+
+  collectTransformSteps(part.steps ?? [], `${path}.steps`, context);
+}
+
+function collectTransformSteps(steps: TransformStep[], path: string, context: ReferenceCollectorContext) {
+  steps.forEach((step, stepIndex) => {
+    collectTransformStepReferences(step, `${path}[${stepIndex}]`, context);
+  });
+}
+
+function collectTransformStepReferences(step: TransformStep, path: string, context: ReferenceCollectorContext) {
+  collectStepSourceReference(step.source, {
+    ...context,
+    kind: 'transformStepSource',
+    path: `${path}.source`,
+    stepId: step.id,
+  });
+
+  collectStepOperandReference(step.leftOperand, {
+    ...context,
+    kind: 'transformStepOperand',
+    path: `${path}.leftOperand`,
+    stepId: step.id,
+  });
+  collectStepOperandReference(step.rightOperand, {
+    ...context,
+    kind: 'transformStepOperand',
+    path: `${path}.rightOperand`,
+    stepId: step.id,
+  });
+  collectNumericFormulaReferences(step.formula?.expression, `${path}.formula.expression`, {
+    ...context,
+    stepId: step.id,
+  });
+
+  collectConditionReference(step.condition, {
+    ...context,
+    path: `${path}.condition`,
+    stepId: step.id,
+  });
+
+  if (step.type === 'manualRange') {
+    collectManualRangeValueSourceReferences(
+      { type: 'manualRange', ranges: step.ranges ?? [], ...(step.manualRangeCondition ? { condition: step.manualRangeCondition } : {}) },
+      path,
+      { ...context, stepId: step.id },
+    );
+    collectManualRangeConditionReference(step.manualRangeCondition, {
+      ...context,
+      path: `${path}.manualRangeCondition`,
+      stepId: step.id,
+    });
+  }
+
+  step.parts?.forEach((part, partIndex) => {
+    collectConcatPartReferences(part, `${path}.parts[${partIndex}]`, {
+      ...context,
+      stepId: step.id,
+    });
+  });
+}
+
+function collectNumericFormulaReferences(
+  node: NumericFormulaNode | undefined,
+  path: string,
+  context: ReferenceCollectorContext & { stepId?: string },
+) {
+  if (!node) {
+    return;
+  }
+
+  if (node.kind === 'operand') {
+    collectStepOperandReference(node.operand, {
+      ...context,
+      kind: 'transformStepOperand',
+      path: `${path}.operand`,
+    });
+    return;
+  }
+
+  collectNumericFormulaReferences(node.left, `${path}.left`, context);
+  collectNumericFormulaReferences(node.right, `${path}.right`, context);
+}
+
+function collectConcatPartReferences(part: ConcatPart, path: string, context: ReferenceCollectorContext & { stepId?: string }) {
+  collectStepSourceReference(part.source, {
+    ...context,
+    kind: 'concatPartSource',
+    path: `${path}.source`,
+    partId: part.id,
+  });
+
+  part.steps?.forEach((step, stepIndex) => {
+    collectTransformStepReferences(step, `${path}.steps[${stepIndex}]`, context);
+  });
+}
+
+function collectStepSourceReference(
+  source: StepSource | undefined,
+  options: ReferenceCollectorContext & {
+    kind: SettingsColumnReference['kind'];
+    path: string;
+    stepId?: string;
+    partId?: string;
+  },
+) {
+  if (source?.type !== 'input' && source?.type !== 'rangeText') {
+    return;
+  }
+
+  addInputReference(options, source.inputColumnId, {
+    kind: options.kind,
+    path: options.path,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
+    partId: options.partId,
+  });
+}
+
+function collectStepOperandReference(
+  operand: StepOperand | undefined,
+  options: ReferenceCollectorContext & {
+    kind: SettingsColumnReference['kind'];
+    path: string;
+    stepId?: string;
+  },
+) {
+  if (operand?.type !== 'input' && operand?.type !== 'rangeText') {
+    return;
+  }
+
+  addInputReference(options, operand.inputColumnId, {
+    kind: options.kind,
+    path: options.path,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
+  });
+}
+
+function collectConditionReference(
+  condition: TransformCondition | undefined,
+  options: ReferenceCollectorContext & {
+    path: string;
+    stepId?: string;
+  },
+) {
+  if (!condition?.columnId) {
+    return;
+  }
+
+  options.references.push({
+    columnId: condition.columnId,
+    target: condition.target,
+    kind: 'condition',
+    path: options.path,
+    outputColumnId: options.outputColumnId,
+    stepId: options.stepId,
+  });
+}
+
+function addInputReference(
+  context: ReferenceCollectorContext,
+  columnId: string | undefined,
+  reference: Omit<SettingsColumnReference, 'columnId' | 'target'>,
+) {
+  if (!columnId) {
+    return;
+  }
+
+  context.references.push({
+    columnId,
+    target: 'input',
+    ...reference,
+  });
+}
+
+function buildReferencesSummary(references: SettingsColumnReference[]): SettingsReferencesSummary {
+  return {
+    inputColumnIds: uniqueSortedColumnIds(references, 'input'),
+    outputColumnIds: uniqueSortedColumnIds(references, 'output'),
+    references,
+    referencesByColumnId: groupReferencesByColumnId(references),
+  };
+}
+
+function uniqueSortedColumnIds(references: SettingsColumnReference[], target: SettingsColumnReference['target']) {
+  return Array.from(new Set(
+    references
+      .filter((reference) => reference.target === target)
+      .map((reference) => reference.columnId)
+      .filter(Boolean),
+  )).sort((left, right) => left.localeCompare(right));
+}
