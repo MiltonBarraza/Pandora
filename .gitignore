@@ -8,3 +8,13 @@ vite.config.d.ts
 playwright-report/
 test-results/
 blob-report/
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.p12
+*.pfx
+
+.netlify/
+*.log
